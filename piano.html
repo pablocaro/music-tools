@@ -294,8 +294,8 @@
         </div>
 
         <div class="control-group">
-            <label for="radiusSlider">Radius: <span class="range-value" id="radiusValue">50</span>%</label>
-            <input type="range" id="radiusSlider" min="20" max="100" value="50" aria-label="Circle radius">
+            <label for="radiusSlider">Radius: <span class="range-value" id="radiusValue">80</span>%</label>
+            <input type="range" id="radiusSlider" min="20" max="200" value="80" aria-label="Circle radius">
         </div>
 
         <div class="control-group">
@@ -304,8 +304,8 @@
         </div>
 
         <div class="control-group">
-            <label for="cornerRadiusSlider">Corner Radius: <span class="range-value" id="cornerRadiusValue">25</span>px</label>
-            <input type="range" id="cornerRadiusSlider" min="0" max="50" value="25" aria-label="Corner radius">
+            <label for="cornerRadiusSlider">Corner Radius: <span class="range-value" id="cornerRadiusValue">5</span>%</label>
+            <input type="range" id="cornerRadiusSlider" min="0" max="15" value="5" aria-label="Corner radius">
         </div>
 
         <div class="control-group">
@@ -372,9 +372,9 @@
         referenceCorner: 'bottom-right',
         offsetX: 0,
         offsetY: 0,
-        radius: 50,
+        radius: 80,
         rotation: 0,
-        cornerRadius: 25,
+        cornerRadius: 5,
         pressScale: 96,
         pressDuration: 100,
         releaseDuration: 300
@@ -383,7 +383,6 @@
     // Drag/slide state
     const dragState = {
         isDragging: false,
-        triggeredSlices: new Set(),
         pressedSlices: new Set()
     };
 
@@ -444,7 +443,9 @@
         const startRad = (startAngle * Math.PI) / 180;
         const endRad = (endAngle * Math.PI) / 180;
 
-        const cornerRadius = Math.min(state.cornerRadius, radius * 0.3); // Cap corner radius
+        // Calculate corner radius as percentage of total radius
+        const cornerRadiusPixels = (state.cornerRadius / 100) * radius;
+        const cornerRadius = Math.min(cornerRadiusPixels, radius * 0.3); // Cap at 30% of radius
         
         // Calculate outer arc points
         const x1 = center.x + radius * Math.cos(startRad);
@@ -514,15 +515,17 @@
 
         // Press state handlers
         const triggerSlice = () => {
-            if (!dragState.triggeredSlices.has(index)) {
-                dragState.triggeredSlices.add(index);
-                handleSliceInteraction(index, startAngle, endAngle);
-            }
+            handleSliceInteraction(index, startAngle, endAngle);
         };
 
         const pressSlice = () => {
             slice.classList.add('pressed');
             dragState.pressedSlices.add(slice);
+        };
+
+        const releaseSlice = () => {
+            slice.classList.remove('pressed');
+            dragState.pressedSlices.delete(slice);
         };
         
         const startDrag = (e) => {
@@ -532,18 +535,26 @@
         };
 
         const handleDragOver = (e) => {
-            if (dragState.isDragging && !dragState.triggeredSlices.has(index)) {
+            if (dragState.isDragging) {
                 pressSlice();
                 triggerSlice();
+            }
+        };
+
+        const handleDragLeave = (e) => {
+            if (dragState.isDragging) {
+                releaseSlice();
             }
         };
 
         // Mouse events
         slice.addEventListener('mousedown', startDrag);
         slice.addEventListener('mouseenter', handleDragOver);
+        slice.addEventListener('mouseleave', handleDragLeave);
 
         // Touch events
         slice.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // Prevent scrolling
             startDrag(e);
         });
 
@@ -556,7 +567,7 @@
                 e.preventDefault();
                 pressSlice();
                 setTimeout(() => {
-                    slice.classList.remove('pressed');
+                    releaseSlice();
                 }, state.pressDuration + state.releaseDuration);
                 handleSliceInteraction(index, startAngle, endAngle);
             }
@@ -567,7 +578,7 @@
 
     // Handle slice interaction
     function handleSliceInteraction(index, startAngle, endAngle) {
-        console.log(`Slice ${index} activated (${startAngle.toFixed(1)}° to ${endAngle.toFixed(1)}°)`);
+        // Trigger sound/interaction here
     }
 
     // Render all slices
@@ -705,7 +716,7 @@
     });
 
     elements.cornerRadiusSlider.addEventListener('input', (e) => {
-        updateSetting('cornerRadius', parseInt(e.target.value), elements.cornerRadiusValue, 'px');
+        updateSetting('cornerRadius', parseInt(e.target.value), elements.cornerRadiusValue, '%');
     });
 
     elements.pressScaleSlider.addEventListener('input', (e) => {
@@ -737,9 +748,9 @@
                 slice.classList.remove('pressed');
             });
             
-            // Clear tracking sets
+            // Clear tracking set
             dragState.pressedSlices.clear();
-            dragState.triggeredSlices.clear();
+            lastTouchedSlice = null;
         }
     }
 
@@ -748,21 +759,35 @@
     document.addEventListener('touchcancel', endDrag);
 
     // Handle touch move for sliding
+    let lastTouchedSlice = null;
     document.addEventListener('touchmove', (e) => {
         if (dragState.isDragging) {
+            e.preventDefault(); // Prevent scrolling during drag
             const touch = e.touches[0];
             const element = document.elementFromPoint(touch.clientX, touch.clientY);
+            
+            // Release the previous slice if we've moved to a different one
+            if (lastTouchedSlice && lastTouchedSlice !== element) {
+                lastTouchedSlice.classList.remove('pressed');
+                dragState.pressedSlices.delete(lastTouchedSlice);
+            }
+            
             if (element && element.classList.contains('slice')) {
                 const sliceData = sliceDataMap.get(element);
-                if (sliceData && !dragState.triggeredSlices.has(sliceData.index)) {
-                    element.classList.add('pressed');
-                    dragState.pressedSlices.add(element);
-                    dragState.triggeredSlices.add(sliceData.index);
-                    handleSliceInteraction(sliceData.index, sliceData.startAngle, sliceData.endAngle);
+                if (sliceData) {
+                    // Only trigger if this is a NEW slice we're entering
+                    if (element !== lastTouchedSlice) {
+                        element.classList.add('pressed');
+                        dragState.pressedSlices.add(element);
+                        handleSliceInteraction(sliceData.index, sliceData.startAngle, sliceData.endAngle);
+                    }
                 }
+                lastTouchedSlice = element;
+            } else {
+                lastTouchedSlice = null;
             }
         }
-    }, { passive: true });
+    }, { passive: false });
 
     // Initialize
     elements.referenceButtons.forEach(btn => {
