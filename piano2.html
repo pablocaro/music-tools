@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Radial Piano – Ergonomics Prototype</title>
+<style>
+  :root{
+    --bg: #fff;
+    --slice: #111;
+    --slice-pressed: #444;
+    --press-scale: 0.96;
+    --press-ms: 60ms;
+    --release-ms: 240ms;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0; background:var(--bg);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    overflow:hidden;
+  }
+  svg{ width:100vw; height:100vh; display:block; }
+  .slice{
+    fill: var(--slice);
+    stroke: var(--bg);
+    stroke-width: 2;
+    cursor: pointer;
+    transition:
+      transform var(--release-ms) ease-out,
+      fill var(--release-ms) ease-out;
+  }
+  .slice.pressed{
+    fill: var(--slice-pressed);
+    transform: scale(var(--press-scale));
+    transition:
+      transform var(--press-ms) ease-in,
+      fill var(--press-ms) ease-in;
+  }
+</style>
+</head>
+<body>
+
+<svg id="stage" role="application" aria-label="Radial ergonomic test"></svg>
+
+<script>
+  // =========================
+  // Ergonomics-focused config
+  // =========================
+  const ERGO = {
+    // Show only a partial arc (deg). 0° = to the right; positive is counter-clockwise.
+    visibleSweepDeg: 150,     // try 130–170
+    visibleStartDeg: -10,     // where the arc begins (e.g., slightly down-right)
+    // Constant touch band thickness (px)
+    bandThicknessPx: 60,      // try 54–68 on phones
+    // Small angular gap between slices (degrees) ~1–2 px
+    angularGapDeg: 0.6,
+    // Thumb reach bias: bulge toward "up-right" for right hand
+    reachBiasAmount: 0.14,    // 0..0.2 reasonable; 0.14 ≈ +14% max
+    reachBiasDirectionDeg: 30 // where reach is maximal (≈ up-right)
+  };
+
+  // Global slice system (24 total; we’ll only draw ones within the window)
+  const STATE = {
+    sliceCount: 24,
+    rotationDeg: 0,    // visual rotation (doesn't change bias direction)
+    // Base outer radius as % of min(viewport). "As much space as possible":
+    baseRadiusPercent: 94
+  };
+
+  // ================
+  // DOM + utilities
+  // ================
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const svg = document.getElementById('stage');
+
+  function getViewport(){ return { w: window.innerWidth, h: window.innerHeight }; }
+  function updateViewBox(){
+    const {w,h} = getViewport();
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  }
+  function degToRad(d){ return d * Math.PI / 180; }
+  function normAngle(a){ let x=a%360; if(x<0) x+=360; return x; }
+
+  // Bias factor peaks at reachBiasDirectionDeg, dips opposite
+  function reachRadiusFactor(thetaDeg){
+    const t = degToRad(thetaDeg - ERGO.reachBiasDirectionDeg);
+    return 1 + ERGO.reachBiasAmount * Math.cos(t);
+  }
+
+  // Center for right-hand use: near bottom-right; adjust as needed
+  function calculateCenter(){
+    const {w,h} = getViewport();
+    // push center slightly off toward bottom-right so the arc hugs that corner
+    return { x: w * 0.88, y: h * 0.86 };
+  }
+
+  // -------------------------
+  // Geometry & slice drawing
+  // -------------------------
+  const dragState = { isDragging:false, pressed:new Set() };
+  const sliceData = new Map(); // element -> {index,startAngle,endAngle}
+
+  function render(){
+    updateViewBox();
+    svg.innerHTML = '';
+    sliceData.clear();
+
+    const { w, h } = getViewport();
+    const baseDim = Math.min(w,h);
+    const baseOuterR = (STATE.baseRadiusPercent / 100) * baseDim;
+    const innerThickness = ERGO.bandThicknessPx;
+
+    const center = calculateCenter();
+    const anglePerSlice = 360 / STATE.sliceCount;
+    const startWindow = ERGO.visibleStartDeg;
+    const endWindow   = ERGO.visibleStartDeg + ERGO.visibleSweepDeg;
+
+    // For each of the 24 canonical slices, draw only if its mid-angle is in the window
+    const frag = document.createDocumentFragment();
+    for(let i=0;i<STATE.sliceCount;i++){
+      const startAngle = i * anglePerSlice + STATE.rotationDeg;
+      const endAngle   = (i+1) * anglePerSlice + STATE.rotationDeg;
+      // apply a tiny angular gap by shrinking each side
+      const gap = ERGO.angularGapDeg * 0.5;
+      const startA = startAngle + gap;
+      const endA   = endAngle   - gap;
+      const midA   = (startA + endA) * 0.5;
+
+      // in-window test using normalized angles
+      const inWindow = normAngle(midA - startWindow) <= ERGO.visibleSweepDeg;
+      if(!inWindow) continue;
+
+      // Adaptive radius (thumb-reach)
+      const outerR = baseOuterR * reachRadiusFactor(midA);
+      const innerR = Math.max(outerR - innerThickness, 6);
+
+      const sr = degToRad(startA);
+      const er = degToRad(endA);
+
+      // Outer arc endpoints
+      const ox1 = center.x + outerR * Math.cos(sr);
+      const oy1 = center.y + outerR * Math.sin(sr);
+      const ox2 = center.x + outerR * Math.cos(er);
+      const oy2 = center.y + outerR * Math.sin(er);
+
+      // Inner arc endpoints (reverse to close ring)
+      const ix2 = center.x + innerR * Math.cos(er);
+      const iy2 = center.y + innerR * Math.sin(er);
+      const ix1 = center.x + innerR * Math.cos(sr);
+      const iy1 = center.y + innerR * Math.sin(sr);
+
+      // Each canonical slice is ~15°, so large-arc=0 is fine; compute anyway:
+      const sweepDeg = Math.abs(endA - startA);
+      const largeArc = sweepDeg > 180 ? 1 : 0;
+
+      const d = [
+        `M ${ox1} ${oy1}`,
+        `A ${outerR} ${outerR} 0 ${largeArc} 1 ${ox2} ${oy2}`, // outer arc clockwise
+        `L ${ix2} ${iy2}`,
+        `A ${innerR} ${innerR} 0 ${largeArc} 0 ${ix1} ${iy1}`, // inner arc counter-clockwise
+        `Z`
+      ].join(' ');
+
+      const path = document.createElementNS(SVG_NS, 'path');
+      path.setAttribute('d', d);
+      path.setAttribute('class','slice');
+      path.setAttribute('data-slice', i);
+      path.setAttribute('tabindex','0'); // for dev keyboard taps if needed
+
+      // scale animation origin near circle center (good enough visually)
+      path.style.transformOrigin = `${center.x}px ${center.y}px`;
+
+      sliceData.set(path, { index:i, startAngle:startA, endAngle:endA });
+      attachPointerHandlers(path, i, startA, endA);
+      frag.appendChild(path);
+    }
+    svg.appendChild(frag);
+  }
+
+  // ----------------
+  // Pointer handling
+  // ----------------
+  function attachPointerHandlers(el, index, startAngle, endAngle){
+    const press = () => { el.classList.add('pressed'); dragState.pressed.add(el); };
+    const release = () => { el.classList.remove('pressed'); dragState.pressed.delete(el); };
+    const trigger = () => handleSliceInteraction(index, startAngle, endAngle);
+
+    el.addEventListener('pointerdown', (e)=>{
+      el.setPointerCapture(e.pointerId);
+      dragState.isDragging = true;
+      press(); trigger();
+    });
+    el.addEventListener('pointerenter', ()=>{
+      if(!dragState.isDragging) return;
+      press(); trigger();
+    });
+    el.addEventListener('pointerleave', ()=>{
+      if(!dragState.isDragging) return;
+      release();
+    });
+    el.addEventListener('pointerup', ()=>{
+      release();
+      dragState.isDragging = false;
+    });
+  }
+
+  function endDrag(){
+    if(!dragState.isDragging) return;
+    dragState.isDragging = false;
+    dragState.pressed.forEach(el=>el.classList.remove('pressed'));
+    dragState.pressed.clear();
+  }
+  document.addEventListener('pointerup', endDrag);
+  document.addEventListener('pointercancel', endDrag);
+
+  // No-op for now; hook your own logic if you want to log
+  function handleSliceInteraction(index/*,startA,endA*/){
+    // console.log('slice', index);
+  }
+
+  // ------------
+  // Resize/debounce
+  // ------------
+  let rAF = null, needs = false;
+  function scheduleRender(){
+    if(rAF) { needs = true; return; }
+    rAF = requestAnimationFrame(()=>{
+      rAF = null;
+      render();
+      if(needs){ needs=false; scheduleRender(); }
+    });
+  }
+  window.addEventListener('resize', scheduleRender);
+
+  // Init
+  render();
+</script>
+</body>
+</html>
