@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radial Piano Prototype</title>
+    <style>
+        :root {
+            --bg-primary: white;
+            --slice-color: #000;
+            --slice-hover: #333;
+            --accent-color: #007bff;
+            --modal-bg: white;
+            --backdrop-color: rgba(0, 0, 0, 0.3);
+        }
+
+```
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        background: var(--bg-primary);
+        font-family: Arial, sans-serif;
+        overflow: hidden;
+        height: 100vh;
+        width: 100vw;
+    }
+
+    .main-content {
+        width: 100%;
+        height: 100%;
+        position: relative;
+    }
+
+    .radial-piano {
+        width: 100%;
+        height: 100%;
+    }
+
+    .slice {
+        fill: var(--slice-color);
+        stroke: var(--bg-primary);
+        stroke-width: 2;
+        cursor: pointer;
+        transition: transform var(--release-duration, 300ms) ease-out, 
+                    fill var(--release-duration, 300ms) ease-out;
+    }
+
+    .slice:focus {
+        outline: none;
+    }
+
+    .slice.pressed {
+        fill: #555;
+        transform: scale(var(--press-scale, 0.96));
+        transition: transform var(--press-duration, 100ms) ease-out,
+                    fill var(--press-duration, 100ms) ease-out;
+    }
+
+    /* Modal styles */
+    .modal-backdrop {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 100;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-backdrop.active {
+        display: flex;
+    }
+
+    .modal-content {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        width: 90%;
+        max-width: 400px;
+        max-height: 85vh;
+        overflow-y: auto;
+        position: relative;
+        padding: 30px;
+    }
+
+    .modal-close {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        width: 32px;
+        height: 32px;
+        border: none;
+        background: #f0f0f0;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        color: #666;
+        transition: all 0.2s ease;
+    }
+
+    .modal-close:hover {
+        background: #e0e0e0;
+        color: #333;
+    }
+
+    .modal-content h3 {
+        margin-top: 0;
+        margin-bottom: 24px;
+        color: #333;
+        font-size: 20px;
+    }
+
+    /* Toggle button */
+    .toggle-controls {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 56px;
+        height: 56px;
+        background: #333;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        z-index: 50;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .toggle-controls:hover {
+        background: #555;
+        transform: translateX(-50%) scale(1.1);
+    }
+
+    .toggle-controls.active {
+        background: var(--accent-color);
+    }
+
+    /* Control groups */
+    .control-group {
+        margin-bottom: 20px;
+    }
+
+    .control-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: bold;
+        color: #555;
+        font-size: 14px;
+    }
+
+    .control-group input[type="number"],
+    .control-group input[type="range"] {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+    }
+
+    .control-group input[type="range"] {
+        margin-bottom: 5px;
+    }
+
+    .range-value {
+        text-align: center;
+        font-size: 14px;
+        color: #666;
+        background: #f5f5f5;
+        padding: 4px 10px;
+        border-radius: 4px;
+        display: inline-block;
+        min-width: 45px;
+    }
+
+    .reference-buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 8px;
+    }
+
+    .reference-btn {
+        padding: 12px;
+        border: 2px solid #e0e0e0;
+        background: #f8f8f8;
+        cursor: pointer;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    .reference-btn:hover {
+        border-color: #ccc;
+        background: #f0f0f0;
+    }
+
+    .reference-btn.active {
+        background: var(--accent-color);
+        color: white;
+        border-color: var(--accent-color);
+    }
+
+    .number-input {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .number-input input {
+        flex: 1;
+        text-align: center;
+    }
+
+    .stepper-btn {
+        width: 40px;
+        height: 40px;
+        border: 2px solid #e0e0e0;
+        background: #f8f8f8;
+        cursor: pointer;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 20px;
+        transition: all 0.2s ease;
+    }
+
+    .stepper-btn:hover {
+        border-color: #ccc;
+        background: #f0f0f0;
+    }
+</style>
+```
+
+</head>
+<body>
+    <!-- Toggle button -->
+    <button class="toggle-controls" id="toggleBtn" aria-label="Open controls">⚙</button>
+
+```
+<!-- Modal backdrop and content -->
+<div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal-content" id="modalContent">
+        <button class="modal-close" id="closeBtn" aria-label="Close controls">✕</button>
+        
+        <h3>Radial Piano Controls</h3>
+        
+        <div class="control-group">
+            <label for="sliceCount">Number of Slices:</label>
+            <div class="number-input">
+                <button class="stepper-btn" id="sliceDecBtn" aria-label="Decrease slices">−</button>
+                <input type="number" id="sliceCount" value="24" min="6" max="72" aria-label="Number of slices">
+                <button class="stepper-btn" id="sliceIncBtn" aria-label="Increase slices">+</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label>Reference Corner:</label>
+            <div class="reference-buttons" role="group" aria-label="Reference corner selection">
+                <button class="reference-btn" data-corner="top-left">Top Left</button>
+                <button class="reference-btn" data-corner="top-right">Top Right</button>
+                <button class="reference-btn" data-corner="bottom-left">Bottom Left</button>
+                <button class="reference-btn active" data-corner="bottom-right">Bottom Right</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label for="offsetXSlider">Offset X: <span class="range-value" id="offsetXValue">0</span>%</label>
+            <input type="range" id="offsetXSlider" min="-100" max="100" value="0" aria-label="Horizontal offset">
+        </div>
+
+        <div class="control-group">
+            <label for="offsetYSlider">Offset Y: <span class="range-value" id="offsetYValue">0</span>%</label>
+            <input type="range" id="offsetYSlider" min="-100" max="100" value="0" aria-label="Vertical offset">
+        </div>
+
+        <div class="control-group">
+            <label for="radiusSlider">Radius: <span class="range-value" id="radiusValue">50</span>%</label>
+            <input type="range" id="radiusSlider" min="20" max="100" value="50" aria-label="Circle radius">
+        </div>
+
+        <div class="control-group">
+            <label for="rotationSlider">Rotation: <span class="range-value" id="rotationValue">0</span>°</label>
+            <input type="range" id="rotationSlider" min="0" max="359" value="0" aria-label="Circle rotation">
+        </div>
+
+        <div class="control-group">
+            <label for="cornerRadiusSlider">Corner Radius: <span class="range-value" id="cornerRadiusValue">25</span>px</label>
+            <input type="range" id="cornerRadiusSlider" min="0" max="50" value="25" aria-label="Corner radius">
+        </div>
+
+        <div class="control-group">
+            <label for="pressScaleSlider">Press Scale: <span class="range-value" id="pressScaleValue">96</span>%</label>
+            <input type="range" id="pressScaleSlider" min="85" max="100" value="96" aria-label="Press scale">
+        </div>
+
+        <div class="control-group">
+            <label for="pressDurationSlider">Press Duration: <span class="range-value" id="pressDurationValue">100</span>ms</label>
+            <input type="range" id="pressDurationSlider" min="50" max="300" value="100" aria-label="Press duration">
+        </div>
+
+        <div class="control-group">
+            <label for="releaseDurationSlider">Release Duration: <span class="range-value" id="releaseDurationValue">300</span>ms</label>
+            <input type="range" id="releaseDurationSlider" min="100" max="500" value="300" aria-label="Release duration">
+        </div>
+    </div>
+</div>
+
+<!-- Main piano area -->
+<div class="main-content">
+    <svg class="radial-piano" id="pianoSvg" role="application" aria-label="Radial piano interface">
+    </svg>
+</div>
+
+<script>
+    // Constants
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+    const RESIZE_DEBOUNCE_MS = 100;
+
+    // Cache DOM references
+    const elements = {
+        svg: document.getElementById('pianoSvg'),
+        mainContent: document.querySelector('.main-content'),
+        modalBackdrop: document.getElementById('modalBackdrop'),
+        modalContent: document.getElementById('modalContent'),
+        toggleBtn: document.getElementById('toggleBtn'),
+        closeBtn: document.getElementById('closeBtn'),
+        sliceCount: document.getElementById('sliceCount'),
+        sliceDecBtn: document.getElementById('sliceDecBtn'),
+        sliceIncBtn: document.getElementById('sliceIncBtn'),
+        offsetXSlider: document.getElementById('offsetXSlider'),
+        offsetXValue: document.getElementById('offsetXValue'),
+        offsetYSlider: document.getElementById('offsetYSlider'),
+        offsetYValue: document.getElementById('offsetYValue'),
+        radiusSlider: document.getElementById('radiusSlider'),
+        radiusValue: document.getElementById('radiusValue'),
+        rotationSlider: document.getElementById('rotationSlider'),
+        rotationValue: document.getElementById('rotationValue'),
+        cornerRadiusSlider: document.getElementById('cornerRadiusSlider'),
+        cornerRadiusValue: document.getElementById('cornerRadiusValue'),
+        pressScaleSlider: document.getElementById('pressScaleSlider'),
+        pressScaleValue: document.getElementById('pressScaleValue'),
+        pressDurationSlider: document.getElementById('pressDurationSlider'),
+        pressDurationValue: document.getElementById('pressDurationValue'),
+        releaseDurationSlider: document.getElementById('releaseDurationSlider'),
+        releaseDurationValue: document.getElementById('releaseDurationValue'),
+        referenceButtons: document.querySelectorAll('.reference-btn')
+    };
+
+    // State management
+    const state = {
+        sliceCount: 24,
+        referenceCorner: 'bottom-right',
+        offsetX: 0,
+        offsetY: 0,
+        radius: 50,
+        rotation: 0,
+        cornerRadius: 25,
+        pressScale: 96,
+        pressDuration: 100,
+        releaseDuration: 300
+    };
+
+    // Drag/slide state
+    const dragState = {
+        isDragging: false,
+        triggeredSlices: new Set(),
+        pressedSlices: new Set()
+    };
+
+    // Store slice data for interactions
+    const sliceDataMap = new Map();
+
+    // Corner coordinate mapping
+    const CORNER_COORDS = {
+        'top-left': { x: 0, y: 0 },
+        'top-right': { x: 100, y: 0 },
+        'bottom-left': { x: 0, y: 100 },
+        'bottom-right': { x: 100, y: 100 }
+    };
+
+    // Get viewport dimensions
+    function getViewportSize() {
+        return {
+            width: window.innerWidth,
+            height: window.innerHeight
+        };
+    }
+
+    // Update SVG viewBox to match viewport
+    function updateViewBox() {
+        const size = getViewportSize();
+        elements.svg.setAttribute('viewBox', `0 0 ${size.width} ${size.height}`);
+    }
+
+    // Calculate center coordinates
+    function calculateCenter() {
+        const size = getViewportSize();
+        const base = CORNER_COORDS[state.referenceCorner];
+        
+        const baseX = (base.x / 100) * size.width;
+        const baseY = (base.y / 100) * size.height;
+        
+        const offsetXPixels = (state.offsetX / 100) * size.width;
+        const offsetYPixels = (state.offsetY / 100) * size.height;
+        
+        return {
+            x: baseX + offsetXPixels,
+            y: baseY + offsetYPixels
+        };
+    }
+
+    // Calculate radius in pixels
+    function calculateRadius() {
+        const size = getViewportSize();
+        const baseDimension = Math.min(size.width, size.height);
+        return (state.radius / 100) * baseDimension;
+    }
+
+    // Create a single slice
+    function createSlice(index, center, radius, anglePerSlice) {
+        const startAngle = (index * anglePerSlice) + state.rotation;
+        const endAngle = ((index + 1) * anglePerSlice) + state.rotation;
+
+        const startRad = (startAngle * Math.PI) / 180;
+        const endRad = (endAngle * Math.PI) / 180;
+
+        const cornerRadius = Math.min(state.cornerRadius, radius * 0.3); // Cap corner radius
+        
+        // Calculate outer arc points
+        const x1 = center.x + radius * Math.cos(startRad);
+        const y1 = center.y + radius * Math.sin(startRad);
+        const x2 = center.x + radius * Math.cos(endRad);
+        const y2 = center.y + radius * Math.sin(endRad);
+
+        let pathData;
+        
+        if (cornerRadius > 0) {
+            // Calculate how much to pull back from outer points
+            const innerRadius = radius - cornerRadius;
+            
+            // Points on the straight lines, pulled back by corner radius
+            const lineX1 = center.x + innerRadius * Math.cos(startRad);
+            const lineY1 = center.y + innerRadius * Math.sin(startRad);
+            const lineX2 = center.x + innerRadius * Math.cos(endRad);
+            const lineY2 = center.y + innerRadius * Math.sin(endRad);
+            
+            // Calculate angles for arc adjustment
+            const arcAngle = anglePerSlice * Math.PI / 180;
+            const cornerAngleOffset = cornerRadius / radius; // Approximate angle for corner
+            
+            // Points on the arc, slightly offset from the corners
+            const arcStartAngle = startRad + cornerAngleOffset;
+            const arcEndAngle = endRad - cornerAngleOffset;
+            
+            const arcX1 = center.x + radius * Math.cos(arcStartAngle);
+            const arcY1 = center.y + radius * Math.sin(arcStartAngle);
+            const arcX2 = center.x + radius * Math.cos(arcEndAngle);
+            const arcY2 = center.y + radius * Math.sin(arcEndAngle);
+            
+            // Determine if this is a large arc (> 180 degrees)
+            const largeArcFlag = arcAngle > Math.PI ? 1 : 0;
+            
+            pathData = [
+                `M ${center.x} ${center.y}`,
+                `L ${lineX1} ${lineY1}`,
+                `Q ${x1} ${y1} ${arcX1} ${arcY1}`, // Round first corner
+                `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${arcX2} ${arcY2}`, // Arc
+                `Q ${x2} ${y2} ${lineX2} ${lineY2}`, // Round second corner
+                `Z`
+            ].join(' ');
+        } else {
+            // No rounding
+            pathData = [
+                `M ${center.x} ${center.y}`,
+                `L ${x1} ${y1}`,
+                `A ${radius} ${radius} 0 0 1 ${x2} ${y2}`,
+                `Z`
+            ].join(' ');
+        }
+
+        const slice = document.createElementNS(SVG_NS, 'path');
+        slice.setAttribute('d', pathData);
+        slice.setAttribute('class', 'slice');
+        slice.setAttribute('data-slice', index);
+        slice.setAttribute('tabindex', '0');
+        slice.setAttribute('role', 'button');
+        slice.setAttribute('aria-label', `Slice ${index + 1} of ${state.sliceCount}`);
+        
+        // Set transform origin to center for proper scaling
+        slice.style.transformOrigin = `${center.x}px ${center.y}px`;
+
+        // Store slice data for interactions
+        sliceDataMap.set(slice, { index, startAngle, endAngle });
+
+        // Press state handlers
+        const triggerSlice = () => {
+            if (!dragState.triggeredSlices.has(index)) {
+                dragState.triggeredSlices.add(index);
+                handleSliceInteraction(index, startAngle, endAngle);
+            }
+        };
+
+        const pressSlice = () => {
+            slice.classList.add('pressed');
+            dragState.pressedSlices.add(slice);
+        };
+        
+        const startDrag = (e) => {
+            dragState.isDragging = true;
+            pressSlice();
+            triggerSlice();
+        };
+
+        const handleDragOver = (e) => {
+            if (dragState.isDragging && !dragState.triggeredSlices.has(index)) {
+                pressSlice();
+                triggerSlice();
+            }
+        };
+
+        // Mouse events
+        slice.addEventListener('mousedown', startDrag);
+        slice.addEventListener('mouseenter', handleDragOver);
+
+        // Touch events
+        slice.addEventListener('touchstart', (e) => {
+            startDrag(e);
+        });
+
+        slice.addEventListener('click', (e) => {
+            // Click is already handled by drag logic
+        });
+
+        slice.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                pressSlice();
+                setTimeout(() => {
+                    slice.classList.remove('pressed');
+                }, state.pressDuration + state.releaseDuration);
+                handleSliceInteraction(index, startAngle, endAngle);
+            }
+        });
+
+        return slice;
+    }
+
+    // Handle slice interaction
+    function handleSliceInteraction(index, startAngle, endAngle) {
+        console.log(`Slice ${index} activated (${startAngle.toFixed(1)}° to ${endAngle.toFixed(1)}°)`);
+    }
+
+    // Render all slices
+    function renderSlices() {
+        updateViewBox();
+        elements.svg.innerHTML = '';
+        
+        // Clear slice data map
+        sliceDataMap.clear();
+        
+        // Update CSS custom properties for press animations
+        document.documentElement.style.setProperty('--press-scale', state.pressScale / 100);
+        document.documentElement.style.setProperty('--press-duration', `${state.pressDuration}ms`);
+        document.documentElement.style.setProperty('--release-duration', `${state.releaseDuration}ms`);
+        
+        const center = calculateCenter();
+        const radius = calculateRadius();
+        const anglePerSlice = 360 / state.sliceCount;
+
+        const fragment = document.createDocumentFragment();
+        for (let i = 0; i < state.sliceCount; i++) {
+            fragment.appendChild(createSlice(i, center, radius, anglePerSlice));
+        }
+        elements.svg.appendChild(fragment);
+    }
+
+    // Generic setting updater
+    function updateSetting(settingKey, value, displayElement, suffix = '') {
+        state[settingKey] = value;
+        if (displayElement) {
+            displayElement.textContent = value + suffix;
+        }
+        renderSlices();
+    }
+
+    // Validate number input
+    function validateNumberInput(value, min, max) {
+        const num = parseInt(value, 10);
+        if (isNaN(num)) return min;
+        return Math.max(min, Math.min(max, num));
+    }
+
+    // Modal control
+    function openModal() {
+        elements.modalBackdrop.classList.add('active');
+        elements.toggleBtn.classList.add('active');
+        elements.toggleBtn.setAttribute('aria-label', 'Close controls');
+    }
+
+    function closeModal() {
+        elements.modalBackdrop.classList.remove('active');
+        elements.toggleBtn.classList.remove('active');
+        elements.toggleBtn.setAttribute('aria-label', 'Open controls');
+    }
+
+    function toggleModal() {
+        if (elements.modalBackdrop.classList.contains('active')) {
+            closeModal();
+        } else {
+            openModal();
+        }
+    }
+
+    // Control functions
+    function changeSlices(delta) {
+        const newValue = validateNumberInput(
+            parseInt(elements.sliceCount.value) + delta,
+            6,
+            72
+        );
+        elements.sliceCount.value = newValue;
+        updateSlices();
+    }
+
+    function updateSlices() {
+        const value = validateNumberInput(elements.sliceCount.value, 6, 72);
+        elements.sliceCount.value = value;
+        updateSetting('sliceCount', value);
+    }
+
+    function setReferenceCorner(corner) {
+        if (!CORNER_COORDS[corner]) return;
+        
+        state.referenceCorner = corner;
+        
+        elements.referenceButtons.forEach(btn => {
+            const isActive = btn.getAttribute('data-corner') === corner;
+            btn.classList.toggle('active', isActive);
+            btn.setAttribute('aria-pressed', isActive);
+        });
+        
+        renderSlices();
+    }
+
+    // Event listeners
+    elements.toggleBtn.addEventListener('click', toggleModal);
+    elements.closeBtn.addEventListener('click', closeModal);
+    
+    // Click outside modal to close
+    elements.modalBackdrop.addEventListener('click', (e) => {
+        if (e.target === elements.modalBackdrop) {
+            closeModal();
+        }
+    });
+
+    // ESC key to close
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && elements.modalBackdrop.classList.contains('active')) {
+            closeModal();
+        }
+    });
+
+    elements.sliceDecBtn.addEventListener('click', () => changeSlices(-1));
+    elements.sliceIncBtn.addEventListener('click', () => changeSlices(1));
+    elements.sliceCount.addEventListener('change', updateSlices);
+
+    elements.referenceButtons.forEach(btn => {
+        btn.addEventListener('click', () => setReferenceCorner(btn.getAttribute('data-corner')));
+    });
+
+    elements.offsetXSlider.addEventListener('input', (e) => {
+        updateSetting('offsetX', parseInt(e.target.value), elements.offsetXValue, '%');
+    });
+
+    elements.offsetYSlider.addEventListener('input', (e) => {
+        updateSetting('offsetY', parseInt(e.target.value), elements.offsetYValue, '%');
+    });
+
+    elements.radiusSlider.addEventListener('input', (e) => {
+        updateSetting('radius', parseInt(e.target.value), elements.radiusValue, '%');
+    });
+
+    elements.rotationSlider.addEventListener('input', (e) => {
+        updateSetting('rotation', parseInt(e.target.value), elements.rotationValue, '°');
+    });
+
+    elements.cornerRadiusSlider.addEventListener('input', (e) => {
+        updateSetting('cornerRadius', parseInt(e.target.value), elements.cornerRadiusValue, 'px');
+    });
+
+    elements.pressScaleSlider.addEventListener('input', (e) => {
+        updateSetting('pressScale', parseInt(e.target.value), elements.pressScaleValue, '%');
+    });
+
+    elements.pressDurationSlider.addEventListener('input', (e) => {
+        updateSetting('pressDuration', parseInt(e.target.value), elements.pressDurationValue, 'ms');
+    });
+
+    elements.releaseDurationSlider.addEventListener('input', (e) => {
+        updateSetting('releaseDuration', parseInt(e.target.value), elements.releaseDurationValue, 'ms');
+    });
+
+    // Handle window resize
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(renderSlices, RESIZE_DEBOUNCE_MS);
+    });
+
+    // Global drag end handlers
+    function endDrag() {
+        if (dragState.isDragging) {
+            dragState.isDragging = false;
+            
+            // Release all pressed slices
+            dragState.pressedSlices.forEach(slice => {
+                slice.classList.remove('pressed');
+            });
+            
+            // Clear tracking sets
+            dragState.pressedSlices.clear();
+            dragState.triggeredSlices.clear();
+        }
+    }
+
+    document.addEventListener('mouseup', endDrag);
+    document.addEventListener('touchend', endDrag);
+    document.addEventListener('touchcancel', endDrag);
+
+    // Handle touch move for sliding
+    document.addEventListener('touchmove', (e) => {
+        if (dragState.isDragging) {
+            const touch = e.touches[0];
+            const element = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (element && element.classList.contains('slice')) {
+                const sliceData = sliceDataMap.get(element);
+                if (sliceData && !dragState.triggeredSlices.has(sliceData.index)) {
+                    element.classList.add('pressed');
+                    dragState.pressedSlices.add(element);
+                    dragState.triggeredSlices.add(sliceData.index);
+                    handleSliceInteraction(sliceData.index, sliceData.startAngle, sliceData.endAngle);
+                }
+            }
+        }
+    }, { passive: true });
+
+    // Initialize
+    elements.referenceButtons.forEach(btn => {
+        const isActive = btn.classList.contains('active');
+        btn.setAttribute('aria-pressed', isActive);
+    });
+    
+    renderSlices();
+</script>
+```
+
+</body>
+</html>
