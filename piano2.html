@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Radial Piano – Ergonomics Prototype</title>
+<title>Radial Piano – Ergonomics Prototype (Clamped)</title>
 <style>
   :root{
     --bg: #fff;
@@ -48,25 +48,31 @@
   // Ergonomics-focused config
   // =========================
   const ERGO = {
-    // Show only a partial arc (deg). 0° = to the right; positive is counter-clockwise.
-    visibleSweepDeg: 150,     // try 130–170
-    visibleStartDeg: -10,     // where the arc begins (e.g., slightly down-right)
-    // Constant touch band thickness (px)
-    bandThicknessPx: 60,      // try 54–68 on phones
-    // Small angular gap between slices (degrees) ~1–2 px
+    // Partial arc (deg). 0° = +X (to the right), positive = counter-clockwise.
+    visibleSweepDeg: 150,
+    visibleStartDeg: -10,
+
+    // Touch band thickness (px)
+    bandThicknessPx: 60,
+
+    // Tiny gap between slices (deg)
     angularGapDeg: 0.6,
+
     // Thumb reach bias: bulge toward "up-right" for right hand
-    reachBiasAmount: 0.14,    // 0..0.2 reasonable; 0.14 ≈ +14% max
-    reachBiasDirectionDeg: 30 // where reach is maximal (≈ up-right)
+    reachBiasAmount: 0.14,       // 0..0.2 reasonable
+    reachBiasDirectionDeg: 30,   // up-right
   };
 
-  // Global slice system (24 total; we’ll only draw ones within the window)
+  // Global slice system
   const STATE = {
     sliceCount: 24,
-    rotationDeg: 0,    // visual rotation (doesn't change bias direction)
-    // Base outer radius as % of min(viewport). "As much space as possible":
-    baseRadiusPercent: 94
+    rotationDeg: 0,
+    // Base radius as % of min(viewport). Lower default so it’s visible even near corner:
+    baseRadiusPercent: 62
   };
+
+  // Margin to keep arcs off the very edge of the screen (px)
+  const EDGE_MARGIN = 6;
 
   // ================
   // DOM + utilities
@@ -88,11 +94,36 @@
     return 1 + ERGO.reachBiasAmount * Math.cos(t);
   }
 
-  // Center for right-hand use: near bottom-right; adjust as needed
+  // Center for right-hand use: near bottom-right; adjust if you like
   function calculateCenter(){
     const {w,h} = getViewport();
-    // push center slightly off toward bottom-right so the arc hugs that corner
     return { x: w * 0.88, y: h * 0.86 };
+  }
+
+  // Clamp radius so the point at angle theta stays inside the viewport (with margin)
+  function maxRadiusToEdges(center, thetaDeg){
+    const {w,h} = getViewport();
+    const cx = center.x, cy = center.y;
+    const t  = degToRad(thetaDeg);
+    const c  = Math.cos(t), s = Math.sin(t);
+
+    let limits = [];
+
+    // Right edge (x <= w - margin)
+    if (c >  1e-6) limits.push((w - EDGE_MARGIN - cx) / c);
+    // Left edge  (x >= margin)
+    if (c < -1e-6) limits.push((EDGE_MARGIN - cx) / c); // c is negative, result positive if feasible
+
+    // Bottom edge (y <= h - margin)
+    if (s >  1e-6) limits.push((h - EDGE_MARGIN - cy) / s);
+    // Top edge    (y >= margin)
+    if (s < -1e-6) limits.push((EDGE_MARGIN - cy) / s); // s negative
+
+    // If direction is nearly parallel to an axis, those terms won’t contribute.
+    // Take the minimum positive limit.
+    limits = limits.filter(v => v > 0 && Number.isFinite(v));
+    if (!limits.length) return Infinity;
+    return Math.min(...limits);
   }
 
   // -------------------------
@@ -116,23 +147,27 @@
     const startWindow = ERGO.visibleStartDeg;
     const endWindow   = ERGO.visibleStartDeg + ERGO.visibleSweepDeg;
 
-    // For each of the 24 canonical slices, draw only if its mid-angle is in the window
     const frag = document.createDocumentFragment();
+
     for(let i=0;i<STATE.sliceCount;i++){
       const startAngle = i * anglePerSlice + STATE.rotationDeg;
       const endAngle   = (i+1) * anglePerSlice + STATE.rotationDeg;
+
       // apply a tiny angular gap by shrinking each side
       const gap = ERGO.angularGapDeg * 0.5;
       const startA = startAngle + gap;
       const endA   = endAngle   - gap;
       const midA   = (startA + endA) * 0.5;
 
-      // in-window test using normalized angles
+      // window test
       const inWindow = normAngle(midA - startWindow) <= ERGO.visibleSweepDeg;
       if(!inWindow) continue;
 
-      // Adaptive radius (thumb-reach)
-      const outerR = baseOuterR * reachRadiusFactor(midA);
+      // Desired (biased) outer radius
+      const desiredOuter = baseOuterR * reachRadiusFactor(midA);
+      // Hard cap so arc stays on-screen in that direction
+      const maxOuter = maxRadiusToEdges(center, midA);
+      const outerR = Math.max(8, Math.min(desiredOuter, maxOuter));
       const innerR = Math.max(outerR - innerThickness, 6);
 
       const sr = degToRad(startA);
@@ -150,15 +185,14 @@
       const ix1 = center.x + innerR * Math.cos(sr);
       const iy1 = center.y + innerR * Math.sin(sr);
 
-      // Each canonical slice is ~15°, so large-arc=0 is fine; compute anyway:
       const sweepDeg = Math.abs(endA - startA);
       const largeArc = sweepDeg > 180 ? 1 : 0;
 
       const d = [
         `M ${ox1} ${oy1}`,
-        `A ${outerR} ${outerR} 0 ${largeArc} 1 ${ox2} ${oy2}`, // outer arc clockwise
+        `A ${outerR} ${outerR} 0 ${largeArc} 1 ${ox2} ${oy2}`,
         `L ${ix2} ${iy2}`,
-        `A ${innerR} ${innerR} 0 ${largeArc} 0 ${ix1} ${iy1}`, // inner arc counter-clockwise
+        `A ${innerR} ${innerR} 0 ${largeArc} 0 ${ix1} ${iy1}`,
         `Z`
       ].join(' ');
 
@@ -166,15 +200,13 @@
       path.setAttribute('d', d);
       path.setAttribute('class','slice');
       path.setAttribute('data-slice', i);
-      path.setAttribute('tabindex','0'); // for dev keyboard taps if needed
-
-      // scale animation origin near circle center (good enough visually)
       path.style.transformOrigin = `${center.x}px ${center.y}px`;
 
       sliceData.set(path, { index:i, startAngle:startA, endAngle:endA });
       attachPointerHandlers(path, i, startA, endA);
       frag.appendChild(path);
     }
+
     svg.appendChild(frag);
   }
 
@@ -214,7 +246,7 @@
   document.addEventListener('pointerup', endDrag);
   document.addEventListener('pointercancel', endDrag);
 
-  // No-op for now; hook your own logic if you want to log
+  // No-op hook for now
   function handleSliceInteraction(index/*,startA,endA*/){
     // console.log('slice', index);
   }
