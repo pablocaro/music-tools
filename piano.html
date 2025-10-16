@@ -57,8 +57,8 @@
     .slice.pressed {
         fill: #555;
         transform: scale(var(--press-scale, 0.96));
-        transition: transform var(--press-duration, 100ms) ease-out,
-                    fill var(--press-duration, 100ms) ease-out;
+        transition: transform var(--press-duration, 50ms) ease-in,
+                    fill var(--press-duration, 50ms) ease-in;
     }
 
     /* Modal styles */
@@ -268,7 +268,7 @@
             <label for="sliceCount">Number of Slices:</label>
             <div class="number-input">
                 <button class="stepper-btn" id="sliceDecBtn" aria-label="Decrease slices">−</button>
-                <input type="number" id="sliceCount" value="24" min="6" max="72" aria-label="Number of slices">
+                <input type="number" id="sliceCount" value="28" min="6" max="72" aria-label="Number of slices">
                 <button class="stepper-btn" id="sliceIncBtn" aria-label="Increase slices">+</button>
             </div>
         </div>
@@ -294,8 +294,8 @@
         </div>
 
         <div class="control-group">
-            <label for="radiusSlider">Radius: <span class="range-value" id="radiusValue">80</span>%</label>
-            <input type="range" id="radiusSlider" min="20" max="200" value="80" aria-label="Circle radius">
+            <label for="radiusSlider">Radius: <span class="range-value" id="radiusValue">94</span>%</label>
+            <input type="range" id="radiusSlider" min="20" max="200" value="94" aria-label="Circle radius">
         </div>
 
         <div class="control-group">
@@ -304,8 +304,8 @@
         </div>
 
         <div class="control-group">
-            <label for="cornerRadiusSlider">Corner Radius: <span class="range-value" id="cornerRadiusValue">5</span>%</label>
-            <input type="range" id="cornerRadiusSlider" min="0" max="15" value="5" aria-label="Corner radius">
+            <label for="cornerRadiusSlider">Corner Radius: <span class="range-value" id="cornerRadiusValue">10</span>%</label>
+            <input type="range" id="cornerRadiusSlider" min="0" max="15" value="10" aria-label="Corner radius">
         </div>
 
         <div class="control-group">
@@ -314,8 +314,8 @@
         </div>
 
         <div class="control-group">
-            <label for="pressDurationSlider">Press Duration: <span class="range-value" id="pressDurationValue">100</span>ms</label>
-            <input type="range" id="pressDurationSlider" min="50" max="300" value="100" aria-label="Press duration">
+            <label for="pressDurationSlider">Press Duration: <span class="range-value" id="pressDurationValue">50</span>ms</label>
+            <input type="range" id="pressDurationSlider" min="50" max="300" value="50" aria-label="Press duration">
         </div>
 
         <div class="control-group">
@@ -368,15 +368,15 @@
 
     // State management
     const state = {
-        sliceCount: 24,
+        sliceCount: 28,
         referenceCorner: 'bottom-right',
         offsetX: 0,
         offsetY: 0,
-        radius: 80,
+        radius: 94,
         rotation: 0,
-        cornerRadius: 5,
+        cornerRadius: 10,
         pressScale: 96,
-        pressDuration: 100,
+        pressDuration: 50,
         releaseDuration: 300
     };
 
