@@ -1,272 +1,1433 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Radial Piano – Ergonomics Prototype (Clamped)</title>
-<style>
-  :root{
-    --bg: #fff;
-    --slice: #111;
-    --slice-pressed: #444;
-    --press-scale: 0.96;
-    --press-ms: 60ms;
-    --release-ms: 240ms;
-  }
-  *{ box-sizing:border-box; }
-  html,body{ height:100%; }
-  body{
-    margin:0; background:var(--bg);
-    font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-    overflow:hidden;
-  }
-  svg{ width:100vw; height:100vh; display:block; }
-  .slice{
-    fill: var(--slice);
-    stroke: var(--bg);
-    stroke-width: 2;
-    cursor: pointer;
-    transition:
-      transform var(--release-ms) ease-out,
-      fill var(--release-ms) ease-out;
-  }
-  .slice.pressed{
-    fill: var(--slice-pressed);
-    transform: scale(var(--press-scale));
-    transition:
-      transform var(--press-ms) ease-in,
-      fill var(--press-ms) ease-in;
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radial Piano Prototype</title>
+    <style>
+        :root {
+            --bg-primary: #2e2e2e;
+            --slice-color: #000;
+            --accent-color: #007bff;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg-primary);
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        .main-content {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        .radial-piano {
+            width: 100%;
+            height: 100%;
+        }
+
+        .slice {
+            stroke: none;
+            cursor: pointer;
+        }
+
+        .slice:focus {
+            outline: none;
+        }
+
+        /* Modal styles */
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-backdrop.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 400px;
+            max-height: 85vh;
+            overflow-y: auto;
+            position: relative;
+            padding: 30px;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: #f0f0f0;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: #666;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .modal-content h3 {
+            margin-top: 0;
+            margin-bottom: 24px;
+            color: #333;
+            font-size: 20px;
+        }
+
+        /* Toggle button */
+        .toggle-controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 56px;
+            height: 56px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            z-index: 50;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .toggle-controls:hover {
+            background: #555;
+            transform: translateX(-50%) scale(1.1);
+        }
+
+        .toggle-controls.active {
+            background: var(--accent-color);
+        }
+
+        /* Control groups */
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+            font-size: 14px;
+        }
+
+        .control-group input[type="number"],
+        .control-group input[type="range"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+
+        .control-group input[type="range"] {
+            margin-bottom: 5px;
+        }
+
+        .range-value {
+            text-align: center;
+            font-size: 14px;
+            color: #666;
+            background: #f5f5f5;
+            padding: 4px 10px;
+            border-radius: 4px;
+            display: inline-block;
+            min-width: 45px;
+        }
+
+        .number-input {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .number-input input {
+            flex: 1;
+            text-align: center;
+        }
+
+        .stepper-btn {
+            width: 40px;
+            height: 40px;
+            border: 2px solid #e0e0e0;
+            background: #f8f8f8;
+            cursor: pointer;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 20px;
+            transition: all 0.2s ease;
+        }
+
+        .stepper-btn:hover {
+            border-color: #ccc;
+            background: #f0f0f0;
+        }
+    </style>
 </head>
 <body>
+    <button class="toggle-controls" id="toggleBtn" aria-label="Open controls">⚙</button>
 
-<svg id="stage" role="application" aria-label="Radial ergonomic test"></svg>
+    <div class="modal-backdrop" id="modalBackdrop">
+        <div class="modal-content" id="modalContent">
+            <button class="modal-close" id="closeBtn" aria-label="Close controls">✕</button>
 
-<script>
-  // =========================
-  // Ergonomics-focused config
-  // =========================
-  const ERGO = {
-    // Partial arc (deg). 0° = +X (to the right), positive = counter-clockwise.
-    visibleSweepDeg: 150,
-    visibleStartDeg: -10,
+            <h3>Radial Piano Controls</h3>
 
-    // Touch band thickness (px)
-    bandThicknessPx: 60,
+            <div class="control-group">
+                <label for="sliceCount">Number of Slices:</label>
+                <div class="number-input">
+                    <button class="stepper-btn" id="sliceDecBtn" aria-label="Decrease slices">−</button>
+                    <input type="number" id="sliceCount" value="32" min="6" max="72" aria-label="Number of slices">
+                    <button class="stepper-btn" id="sliceIncBtn" aria-label="Increase slices">+</button>
+                </div>
+            </div>
 
-    // Tiny gap between slices (deg)
-    angularGapDeg: 0.6,
+            <div class="control-group">
+                <label for="bgGraySlider">Background Gray: <span class="range-value" id="bgGrayValue">18</span>%</label>
+                <input type="range" id="bgGraySlider" min="0" max="100" value="18" aria-label="Background gray">
+            </div>
 
-    // Thumb reach bias: bulge toward "up-right" for right hand
-    reachBiasAmount: 0.14,       // 0..0.2 reasonable
-    reachBiasDirectionDeg: 30,   // up-right
-  };
+            <div class="control-group">
+                <label for="offsetXSlider">Offset X: <span class="range-value" id="offsetXValue">0</span>%</label>
+                <input type="range" id="offsetXSlider" min="-100" max="100" value="0" aria-label="Horizontal offset">
+            </div>
 
-  // Global slice system
-  const STATE = {
-    sliceCount: 24,
-    rotationDeg: 0,
-    // Base radius as % of min(viewport). Lower default so it’s visible even near corner:
-    baseRadiusPercent: 62
-  };
+            <div class="control-group">
+                <label for="offsetYSlider">Offset Y: <span class="range-value" id="offsetYValue">0</span>%</label>
+                <input type="range" id="offsetYSlider" min="-100" max="100" value="0" aria-label="Vertical offset">
+            </div>
 
-  // Margin to keep arcs off the very edge of the screen (px)
-  const EDGE_MARGIN = 6;
+            <div class="control-group">
+                <label for="radiusSlider">Radius: <span class="range-value" id="radiusValue">100</span>%</label>
+                <input type="range" id="radiusSlider" min="20" max="200" value="100" aria-label="Circle radius">
+            </div>
 
-  // ================
-  // DOM + utilities
-  // ================
-  const SVG_NS = 'http://www.w3.org/2000/svg';
-  const svg = document.getElementById('stage');
+            <div class="control-group">
+                <label for="rotationSlider">Rotation: <span class="range-value" id="rotationValue">58</span>°</label>
+                <input type="range" id="rotationSlider" min="0" max="359" value="58" aria-label="Circle rotation">
+            </div>
 
-  function getViewport(){ return { w: window.innerWidth, h: window.innerHeight }; }
-  function updateViewBox(){
-    const {w,h} = getViewport();
-    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
-  }
-  function degToRad(d){ return d * Math.PI / 180; }
-  function normAngle(a){ let x=a%360; if(x<0) x+=360; return x; }
+            <div class="control-group">
+                <label for="gapSizeSlider">Gap Size: <span class="range-value" id="gapSizeValue">0.2</span>°</label>
+                <input type="range" id="gapSizeSlider" min="0" max="3" step="0.1" value="0.2" aria-label="Gap size">
+            </div>
 
-  // Bias factor peaks at reachBiasDirectionDeg, dips opposite
-  function reachRadiusFactor(thetaDeg){
-    const t = degToRad(thetaDeg - ERGO.reachBiasDirectionDeg);
-    return 1 + ERGO.reachBiasAmount * Math.cos(t);
-  }
+            <div class="control-group">
+                <label for="gripThicknessSlider">Grip Thickness: <span class="range-value" id="gripThicknessValue">2</span>px</label>
+                <input type="range" id="gripThicknessSlider" min="0.5" max="4" step="0.5" value="2" aria-label="Grip thickness">
+            </div>
 
-  // Center for right-hand use: near bottom-right; adjust if you like
-  function calculateCenter(){
-    const {w,h} = getViewport();
-    return { x: w * 0.88, y: h * 0.86 };
-  }
+            <div class="control-group">
+                <label for="ticksPerEdgeSlider">Ticks Per Edge: <span class="range-value" id="ticksPerEdgeValue">4</span></label>
+                <input type="range" id="ticksPerEdgeSlider" min="0" max="20" step="1" value="4" aria-label="Ticks per edge">
+            </div>
 
-  // Clamp radius so the point at angle theta stays inside the viewport (with margin)
-  function maxRadiusToEdges(center, thetaDeg){
-    const {w,h} = getViewport();
-    const cx = center.x, cy = center.y;
-    const t  = degToRad(thetaDeg);
-    const c  = Math.cos(t), s = Math.sin(t);
+            <div class="control-group">
+                <label for="gripOpacitySlider">Grip Opacity: <span class="range-value" id="gripOpacityValue">10</span>%</label>
+                <input type="range" id="gripOpacitySlider" min="0" max="100" step="5" value="10" aria-label="Grip opacity">
+            </div>
 
-    let limits = [];
+            <div class="control-group">
+                <label for="gripRingOpacitySlider">Grip Ring Opacity: <span class="range-value" id="gripRingOpacityValue">5</span>%</label>
+                <input type="range" id="gripRingOpacitySlider" min="0" max="100" step="5" value="5" aria-label="Grip ring opacity">
+            </div>
 
-    // Right edge (x <= w - margin)
-    if (c >  1e-6) limits.push((w - EDGE_MARGIN - cx) / c);
-    // Left edge  (x >= margin)
-    if (c < -1e-6) limits.push((EDGE_MARGIN - cx) / c); // c is negative, result positive if feasible
+            <div class="control-group">
+                <label for="gripInsetSlider">Grip Inset: <span class="range-value" id="gripInsetValue">5</span>%</label>
+                <input type="range" id="gripInsetSlider" min="0" max="50" step="5" value="5" aria-label="Grip inset">
+            </div>
 
-    // Bottom edge (y <= h - margin)
-    if (s >  1e-6) limits.push((h - EDGE_MARGIN - cy) / s);
-    // Top edge    (y >= margin)
-    if (s < -1e-6) limits.push((EDGE_MARGIN - cy) / s); // s negative
+            <div class="control-group">
+                <label for="pressShrinkSlider">Press Shrink: <span class="range-value" id="pressShrinkValue">2</span>%</label>
+                <input type="range" id="pressShrinkSlider" min="0" max="20" step="1" value="2" aria-label="Press shrink">
+            </div>
 
-    // If direction is nearly parallel to an axis, those terms won’t contribute.
-    // Take the minimum positive limit.
-    limits = limits.filter(v => v > 0 && Number.isFinite(v));
-    if (!limits.length) return Infinity;
-    return Math.min(...limits);
-  }
+            <div class="control-group">
+                <label for="pressBrightnessSlider">Press Brightness: <span class="range-value" id="pressBrightnessValue">30</span>%</label>
+                <input type="range" id="pressBrightnessSlider" min="0" max="100" step="5" value="30" aria-label="Press brightness">
+            </div>
 
-  // -------------------------
-  // Geometry & slice drawing
-  // -------------------------
-  const dragState = { isDragging:false, pressed:new Set() };
-  const sliceData = new Map(); // element -> {index,startAngle,endAngle}
+            <div class="control-group">
+                <label for="volumeSlider">Volume: <span class="range-value" id="volumeValue">70</span>%</label>
+                <input type="range" id="volumeSlider" min="0" max="100" step="5" value="70" aria-label="Master volume">
+            </div>
+        </div>
+    </div>
 
-  function render(){
-    updateViewBox();
-    svg.innerHTML = '';
-    sliceData.clear();
+    <div class="main-content">
+        <svg class="radial-piano" id="pianoSvg" role="application" aria-label="Radial piano interface">
+        </svg>
+    </div>
 
-    const { w, h } = getViewport();
-    const baseDim = Math.min(w,h);
-    const baseOuterR = (STATE.baseRadiusPercent / 100) * baseDim;
-    const innerThickness = ERGO.bandThicknessPx;
+    <script>
+        const SVG_NS = 'http://www.w3.org/2000/svg';
+        const RESIZE_DEBOUNCE_MS = 100;
 
-    const center = calculateCenter();
-    const anglePerSlice = 360 / STATE.sliceCount;
-    const startWindow = ERGO.visibleStartDeg;
-    const endWindow   = ERGO.visibleStartDeg + ERGO.visibleSweepDeg;
+        // ============================================
+        // AUDIO ENGINE
+        // ============================================
+        const audioEngine = (() => {
+            let audioContext = null;
+            let masterGain = null;
+            let activeNotes = new Map(); // sliceIndex -> {oscillator, gainNode, startTime}
+            let isInitialized = false;
 
-    const frag = document.createDocumentFragment();
+            // ADSR envelope settings for piano-like sound
+            const ENVELOPE = {
+                attack: 0.01,    // Quick onset
+                decay: 0.2,      // Initial volume drop
+                sustain: 0.7,    // 70% of peak
+                release: 0.5     // Gradual fade
+            };
 
-    for(let i=0;i<STATE.sliceCount;i++){
-      const startAngle = i * anglePerSlice + STATE.rotationDeg;
-      const endAngle   = (i+1) * anglePerSlice + STATE.rotationDeg;
+            // Major scale intervals (in semitones from root)
+            const MAJOR_SCALE_INTERVALS = [0, 2, 4, 5, 7, 9, 11]; // W-W-H-W-W-W-H pattern
+            const BASE_FREQUENCY = 130.81; // C3 (one octave lower)
 
-      // apply a tiny angular gap by shrinking each side
-      const gap = ERGO.angularGapDeg * 0.5;
-      const startA = startAngle + gap;
-      const endA   = endAngle   - gap;
-      const midA   = (startA + endA) * 0.5;
+            function initAudioContext() {
+                if (isInitialized) return true;
 
-      // window test
-      const inWindow = normAngle(midA - startWindow) <= ERGO.visibleSweepDeg;
-      if(!inWindow) continue;
+                try {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    masterGain = audioContext.createGain();
+                    masterGain.connect(audioContext.destination);
+                    masterGain.gain.value = 0.7; // Match initial volume state (70%)
+                    isInitialized = true;
+                    console.log('Audio engine initialized');
+                    return true;
+                } catch (error) {
+                    console.error('Failed to initialize audio:', error);
+                    return false;
+                }
+            }
 
-      // Desired (biased) outer radius
-      const desiredOuter = baseOuterR * reachRadiusFactor(midA);
-      // Hard cap so arc stays on-screen in that direction
-      const maxOuter = maxRadiusToEdges(center, midA);
-      const outerR = Math.max(8, Math.min(desiredOuter, maxOuter));
-      const innerR = Math.max(outerR - innerThickness, 6);
+            function calculateFrequency(sliceIndex) {
+                // Map slice to major scale note
+                const scalePosition = sliceIndex % 7;
+                const octave = Math.floor(sliceIndex / 7);
+                const semitones = MAJOR_SCALE_INTERVALS[scalePosition] + (octave * 12);
+                return BASE_FREQUENCY * Math.pow(2, semitones / 12);
+            }
 
-      const sr = degToRad(startA);
-      const er = degToRad(endA);
+            function playNote(sliceIndex) {
+                // Initialize audio context on first interaction (required by browsers)
+                if (!isInitialized) {
+                    if (!initAudioContext()) return;
+                }
 
-      // Outer arc endpoints
-      const ox1 = center.x + outerR * Math.cos(sr);
-      const oy1 = center.y + outerR * Math.sin(sr);
-      const ox2 = center.x + outerR * Math.cos(er);
-      const oy2 = center.y + outerR * Math.sin(er);
+                // Resume audio context if suspended (browser autoplay policy)
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
 
-      // Inner arc endpoints (reverse to close ring)
-      const ix2 = center.x + innerR * Math.cos(er);
-      const iy2 = center.y + innerR * Math.sin(er);
-      const ix1 = center.x + innerR * Math.cos(sr);
-      const iy1 = center.y + innerR * Math.sin(sr);
+                // Don't restart if note is already playing
+                if (activeNotes.has(sliceIndex)) return;
 
-      const sweepDeg = Math.abs(endA - startA);
-      const largeArc = sweepDeg > 180 ? 1 : 0;
+                try {
+                    const frequency = calculateFrequency(sliceIndex);
+                    const now = audioContext.currentTime;
 
-      const d = [
-        `M ${ox1} ${oy1}`,
-        `A ${outerR} ${outerR} 0 ${largeArc} 1 ${ox2} ${oy2}`,
-        `L ${ix2} ${iy2}`,
-        `A ${innerR} ${innerR} 0 ${largeArc} 0 ${ix1} ${iy1}`,
-        `Z`
-      ].join(' ');
+                    // Create oscillator
+                    const oscillator = audioContext.createOscillator();
+                    oscillator.type = 'sine'; // Piano-like tone
+                    oscillator.frequency.value = frequency;
 
-      const path = document.createElementNS(SVG_NS, 'path');
-      path.setAttribute('d', d);
-      path.setAttribute('class','slice');
-      path.setAttribute('data-slice', i);
-      path.style.transformOrigin = `${center.x}px ${center.y}px`;
+                    // Create gain node for ADSR envelope
+                    const gainNode = audioContext.createGain();
+                    gainNode.gain.value = 0;
 
-      sliceData.set(path, { index:i, startAngle:startA, endAngle:endA });
-      attachPointerHandlers(path, i, startA, endA);
-      frag.appendChild(path);
-    }
+                    // Connect audio graph
+                    oscillator.connect(gainNode);
+                    gainNode.connect(masterGain);
 
-    svg.appendChild(frag);
-  }
+                    // Apply attack and decay envelope
+                    gainNode.gain.setValueAtTime(0, now);
+                    gainNode.gain.linearRampToValueAtTime(1, now + ENVELOPE.attack);
+                    gainNode.gain.linearRampToValueAtTime(ENVELOPE.sustain, now + ENVELOPE.attack + ENVELOPE.decay);
 
-  // ----------------
-  // Pointer handling
-  // ----------------
-  function attachPointerHandlers(el, index, startAngle, endAngle){
-    const press = () => { el.classList.add('pressed'); dragState.pressed.add(el); };
-    const release = () => { el.classList.remove('pressed'); dragState.pressed.delete(el); };
-    const trigger = () => handleSliceInteraction(index, startAngle, endAngle);
+                    // Start oscillator
+                    oscillator.start(now);
 
-    el.addEventListener('pointerdown', (e)=>{
-      el.setPointerCapture(e.pointerId);
-      dragState.isDragging = true;
-      press(); trigger();
-    });
-    el.addEventListener('pointerenter', ()=>{
-      if(!dragState.isDragging) return;
-      press(); trigger();
-    });
-    el.addEventListener('pointerleave', ()=>{
-      if(!dragState.isDragging) return;
-      release();
-    });
-    el.addEventListener('pointerup', ()=>{
-      release();
-      dragState.isDragging = false;
-    });
-  }
+                    // Store active note
+                    activeNotes.set(sliceIndex, {
+                        oscillator,
+                        gainNode,
+                        startTime: now
+                    });
 
-  function endDrag(){
-    if(!dragState.isDragging) return;
-    dragState.isDragging = false;
-    dragState.pressed.forEach(el=>el.classList.remove('pressed'));
-    dragState.pressed.clear();
-  }
-  document.addEventListener('pointerup', endDrag);
-  document.addEventListener('pointercancel', endDrag);
+                } catch (error) {
+                    console.error('Error playing note:', error);
+                }
+            }
 
-  // No-op hook for now
-  function handleSliceInteraction(index/*,startA,endA*/){
-    // console.log('slice', index);
-  }
+            function stopNote(sliceIndex) {
+                if (!activeNotes.has(sliceIndex)) return;
 
-  // ------------
-  // Resize/debounce
-  // ------------
-  let rAF = null, needs = false;
-  function scheduleRender(){
-    if(rAF) { needs = true; return; }
-    rAF = requestAnimationFrame(()=>{
-      rAF = null;
-      render();
-      if(needs){ needs=false; scheduleRender(); }
-    });
-  }
-  window.addEventListener('resize', scheduleRender);
+                try {
+                    const { oscillator, gainNode } = activeNotes.get(sliceIndex);
+                    const now = audioContext.currentTime;
 
-  // Init
-  render();
-</script>
+                    // Apply release envelope
+                    gainNode.gain.cancelScheduledValues(now);
+                    gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+                    gainNode.gain.linearRampToValueAtTime(0, now + ENVELOPE.release);
+
+                    // Stop and cleanup after release
+                    oscillator.stop(now + ENVELOPE.release);
+                    
+                    // Cleanup
+                    setTimeout(() => {
+                        try {
+                            oscillator.disconnect();
+                            gainNode.disconnect();
+                        } catch (e) {
+                            // Already disconnected, ignore
+                        }
+                        activeNotes.delete(sliceIndex);
+                    }, ENVELOPE.release * 1000 + 100);
+
+                } catch (error) {
+                    console.error('Error stopping note:', error);
+                    activeNotes.delete(sliceIndex);
+                }
+            }
+
+            function setVolume(volumePercent) {
+                if (!isInitialized) return;
+                const volume = volumePercent / 100;
+                masterGain.gain.setValueAtTime(volume, audioContext.currentTime);
+            }
+
+            function stopAllNotes() {
+                activeNotes.forEach((_, sliceIndex) => stopNote(sliceIndex));
+            }
+
+            return {
+                playNote,
+                stopNote,
+                setVolume,
+                stopAllNotes,
+                isInitialized: () => isInitialized
+            };
+        })();
+
+        const INNER_CIRCLE_RADIUS_RATIO = 0.25;
+        const DRAGGABLE_RING_RATIO = 0.6;
+        const VIEWPORT_SAFETY_BUFFER = 1.2;
+
+        const elements = {
+            svg: document.getElementById('pianoSvg'),
+            mainContent: document.querySelector('.main-content'),
+            modalBackdrop: document.getElementById('modalBackdrop'),
+            modalContent: document.getElementById('modalContent'),
+            toggleBtn: document.getElementById('toggleBtn'),
+            closeBtn: document.getElementById('closeBtn'),
+            sliceCount: document.getElementById('sliceCount'),
+            sliceDecBtn: document.getElementById('sliceDecBtn'),
+            sliceIncBtn: document.getElementById('sliceIncBtn'),
+            bgGraySlider: document.getElementById('bgGraySlider'),
+            bgGrayValue: document.getElementById('bgGrayValue'),
+            offsetXSlider: document.getElementById('offsetXSlider'),
+            offsetXValue: document.getElementById('offsetXValue'),
+            offsetYSlider: document.getElementById('offsetYSlider'),
+            offsetYValue: document.getElementById('offsetYValue'),
+            radiusSlider: document.getElementById('radiusSlider'),
+            radiusValue: document.getElementById('radiusValue'),
+            rotationSlider: document.getElementById('rotationSlider'),
+            rotationValue: document.getElementById('rotationValue'),
+            gapSizeSlider: document.getElementById('gapSizeSlider'),
+            gapSizeValue: document.getElementById('gapSizeValue'),
+            gripThicknessSlider: document.getElementById('gripThicknessSlider'),
+            gripThicknessValue: document.getElementById('gripThicknessValue'),
+            ticksPerEdgeSlider: document.getElementById('ticksPerEdgeSlider'),
+            ticksPerEdgeValue: document.getElementById('ticksPerEdgeValue'),
+            gripOpacitySlider: document.getElementById('gripOpacitySlider'),
+            gripOpacityValue: document.getElementById('gripOpacityValue'),
+            gripRingOpacitySlider: document.getElementById('gripRingOpacitySlider'),
+            gripRingOpacityValue: document.getElementById('gripRingOpacityValue'),
+            gripInsetSlider: document.getElementById('gripInsetSlider'),
+            gripInsetValue: document.getElementById('gripInsetValue'),
+            pressShrinkSlider: document.getElementById('pressShrinkSlider'),
+            pressShrinkValue: document.getElementById('pressShrinkValue'),
+            pressBrightnessSlider: document.getElementById('pressBrightnessSlider'),
+            pressBrightnessValue: document.getElementById('pressBrightnessValue'),
+            volumeSlider: document.getElementById('volumeSlider'),
+            volumeValue: document.getElementById('volumeValue')
+        };
+
+        const state = {
+            sliceCount: 32,
+            bgGray: 18,
+            offsetX: 0,
+            offsetY: 0,
+            radius: 100,
+            rotation: 58,
+            gapSize: 0.2,
+            gripThickness: 2,
+            gripOpacity: 10,
+            ticksPerEdge: 4,
+            gripRingOpacity: 5,
+            gripInset: 5,
+            pressShrink: 2,
+            pressBrightness: 30,
+            volume: 70
+        };
+
+        const dragState = {
+            isDragging: false,
+            pressedSlices: new Set(),
+            isRotating: false,
+            lastAngle: 0,
+            innerCircleData: null,
+            lastRotationSlice: null,
+            wasInGripperZone: false,
+            startedFromSlice: false,
+            lastTouchedSlice: null
+        };
+
+        const sliceDataMap = new Map();
+        const slicePathGenerators = new Map();
+
+        const CORNER_COORDS = {
+            'bottom-right': { x: 100, y: 100 }
+        };
+
+        function getViewportSize() {
+            return {
+                width: window.innerWidth,
+                height: window.innerHeight
+            };
+        }
+
+        function updateViewBox() {
+            const size = getViewportSize();
+            elements.svg.setAttribute('viewBox', `0 0 ${size.width} ${size.height}`);
+        }
+
+        function calculateCenter() {
+            const size = getViewportSize();
+            const base = CORNER_COORDS['bottom-right'];
+
+            const baseX = (base.x / 100) * size.width;
+            const baseY = (base.y / 100) * size.height;
+
+            const offsetXPixels = (state.offsetX / 100) * size.width;
+            const offsetYPixels = (state.offsetY / 100) * size.width;
+
+            return {
+                x: baseX + offsetXPixels,
+                y: baseY + offsetYPixels
+            };
+        }
+
+        function calculateRadii() {
+            const size = getViewportSize();
+            const center = calculateCenter();
+
+            const corners = [
+                { x: 0, y: 0 },
+                { x: size.width, y: 0 },
+                { x: 0, y: size.height },
+                { x: size.width, y: size.height }
+            ];
+
+            const maxDistance = Math.max(...corners.map(corner =>
+                Math.sqrt((corner.x - center.x) ** 2 + (corner.y - center.y) ** 2)
+            ));
+
+            const safeDistance = maxDistance * VIEWPORT_SAFETY_BUFFER;
+            const baseRadius = safeDistance;
+            const scaledRadius = (state.radius / 100) * baseRadius;
+
+            return {
+                rx: scaledRadius,
+                ry: scaledRadius
+            };
+        }
+
+        function getRadiusAtAngle(angle, rx, ry) {
+            const rad = angle * Math.PI / 180;
+            const cosA = Math.cos(rad);
+            const sinA = Math.sin(rad);
+            return (rx * ry) / Math.sqrt((ry * cosA) ** 2 + (rx * sinA) ** 2);
+        }
+
+        function handleSliceInteraction(index, startAngle, endAngle) {
+            audioEngine.playNote(index);
+        }
+
+        function getPressNarrowFactor() {
+            return 1 - (state.pressShrink / 100);
+        }
+
+        function getPressColor() {
+            const brightness = Math.round((state.pressBrightness / 100) * 255);
+            const hexValue = brightness.toString(16).padStart(2, '0');
+            return `#${hexValue}${hexValue}${hexValue}`;
+        }
+
+        function setupRotationInteraction() {
+            const getAngleFromPoint = (x, y) => {
+                if (!dragState.innerCircleData) return 0;
+                const center = dragState.innerCircleData.center;
+                const dx = x - center.x;
+                const dy = y - center.y;
+                return Math.atan2(dy, dx) * 180 / Math.PI;
+            };
+
+            const isInDraggableRing = (x, y) => {
+                if (!dragState.innerCircleData) return false;
+                const { center, innerRadius } = dragState.innerCircleData;
+                const draggableRingStart = innerRadius * DRAGGABLE_RING_RATIO;
+                const dx = x - center.x;
+                const dy = y - center.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                return distance >= draggableRingStart && distance <= innerRadius;
+            };
+
+            window.isInGripperZone = isInDraggableRing;
+            window.getAngleFromPoint = getAngleFromPoint;
+
+            const activateSliceAt = (x, y) => {
+                if (!dragState.innerCircleData) return;
+
+                const center = dragState.innerCircleData.center;
+                const dx = x - center.x;
+                const dy = y - center.y;
+                let angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+                angle = (angle + 360) % 360;
+                angle = (angle - state.rotation + 360) % 360;
+
+                const anglePerSlice = 360 / state.sliceCount;
+                const sliceIndex = Math.floor(angle / anglePerSlice);
+
+                const slices = document.querySelectorAll('.slice');
+                const targetSlice = Array.from(slices).find(s =>
+                    parseInt(s.getAttribute('data-slice')) === sliceIndex
+                );
+
+                if (dragState.lastRotationSlice && dragState.lastRotationSlice !== targetSlice) {
+                    const lastIndex = parseInt(dragState.lastRotationSlice.getAttribute('data-slice'));
+                    const stop2 = document.querySelector(`.stop2-${lastIndex}`);
+                    if (stop2) {
+                        stop2.style.transition = 'stop-color 300ms ease-out';
+                        stop2.setAttribute('stop-color', '#000');
+                    }
+                    const pathGen = slicePathGenerators.get(lastIndex);
+                    if (pathGen) {
+                        dragState.lastRotationSlice.style.transition = 'd 300ms ease-out';
+                        dragState.lastRotationSlice.setAttribute('d', pathGen(1));
+                    }
+                    dragState.pressedSlices.delete(dragState.lastRotationSlice);
+                    audioEngine.stopNote(lastIndex);
+                }
+
+                if (targetSlice && targetSlice !== dragState.lastRotationSlice) {
+                    const sliceData = sliceDataMap.get(targetSlice);
+                    if (sliceData) {
+                        const stop2 = document.querySelector(`.stop2-${sliceData.index}`);
+                        if (stop2) {
+                            stop2.style.transition = 'stop-color 120ms cubic-bezier(0.4, 0.0, 0.2, 1)';
+                            stop2.setAttribute('stop-color', getPressColor());
+                        }
+                        const pathGen = slicePathGenerators.get(sliceData.index);
+                        if (pathGen) {
+                            targetSlice.style.transition = 'd 120ms cubic-bezier(0.4, 0.0, 0.2, 1)';
+                            targetSlice.setAttribute('d', pathGen(getPressNarrowFactor()));
+                        }
+                        dragState.pressedSlices.add(targetSlice);
+                        dragState.lastRotationSlice = targetSlice;
+                        handleSliceInteraction(sliceData.index, sliceData.startAngle, sliceData.endAngle);
+                    }
+                }
+            };
+
+            const startRotation = (e) => {
+                const isInnerCircle = e.target.id === 'innerRotationPlate';
+
+                const rect = elements.svg.getBoundingClientRect();
+                const x = (e.clientX || e.touches[0].clientX) - rect.left;
+                const y = (e.clientY || e.touches[0].clientY) - rect.top;
+
+                const viewBox = elements.svg.viewBox.baseVal;
+                const scaleX = viewBox.width / rect.width;
+                const scaleY = viewBox.height / rect.height;
+                const svgX = x * scaleX;
+                const svgY = y * scaleY;
+
+                const inDraggableRing = isInDraggableRing(svgX, svgY);
+
+                if (isInnerCircle && inDraggableRing) {
+                    dragState.isRotating = true;
+                    dragState.wasInGripperZone = true;
+                    dragState.startedFromSlice = false;
+                    dragState.lastAngle = getAngleFromPoint(svgX, svgY);
+                    e.target.style.cursor = 'grabbing';
+
+                    e.preventDefault();
+                }
+            };
+
+            const handleRotation = (e) => {
+                if (dragState.isDragging || dragState.isRotating) {
+                    const rect = elements.svg.getBoundingClientRect();
+                    const x = (e.clientX || e.touches[0].clientX) - rect.left;
+                    const y = (e.clientY || e.touches[0].clientY) - rect.top;
+
+                    const viewBox = elements.svg.viewBox.baseVal;
+                    const scaleX = viewBox.width / rect.width;
+                    const scaleY = viewBox.height / rect.height;
+                    const svgX = x * scaleX;
+                    const svgY = y * scaleY;
+
+                    const inGripperZone = isInDraggableRing(svgX, svgY);
+
+                    if (inGripperZone && !dragState.wasInGripperZone) {
+                        dragState.isRotating = true;
+                        dragState.wasInGripperZone = true;
+                        dragState.lastAngle = getAngleFromPoint(svgX, svgY);
+                        const innerCircle = document.getElementById('innerRotationPlate');
+                        if (innerCircle) innerCircle.style.cursor = 'grabbing';
+                    }
+                    else if (!inGripperZone && dragState.wasInGripperZone) {
+                        dragState.isRotating = false;
+                        dragState.wasInGripperZone = false;
+                        const innerCircle = document.getElementById('innerRotationPlate');
+                        if (innerCircle) innerCircle.style.cursor = 'grab';
+                    }
+
+                    if (dragState.isRotating) {
+                        const currentAngle = getAngleFromPoint(svgX, svgY);
+                        let angleDiff = currentAngle - dragState.lastAngle;
+
+                        if (angleDiff > 180) angleDiff -= 360;
+                        if (angleDiff < -180) angleDiff += 360;
+
+                        state.rotation = (state.rotation + angleDiff + 360) % 360;
+                        elements.rotationSlider.value = Math.round(state.rotation);
+                        elements.rotationValue.textContent = Math.round(state.rotation);
+
+                        dragState.lastAngle = currentAngle;
+
+                        if (dragState.startedFromSlice) {
+                            activateSliceAt(svgX, svgY);
+                        }
+
+                        updateRotationTransform();
+                        e.preventDefault();
+                    }
+                }
+            };
+
+            const endRotation = () => {
+                if (dragState.isRotating) {
+                    dragState.isRotating = false;
+                    dragState.wasInGripperZone = false;
+                    dragState.startedFromSlice = false;
+
+                    if (dragState.lastRotationSlice) {
+                        const lastIndex = parseInt(dragState.lastRotationSlice.getAttribute('data-slice'));
+                        const stop2 = document.querySelector(`.stop2-${lastIndex}`);
+                        if (stop2) {
+                            stop2.style.transition = 'stop-color 300ms ease-out';
+                            stop2.setAttribute('stop-color', '#000');
+                        }
+                        const pathGen = slicePathGenerators.get(lastIndex);
+                        if (pathGen) {
+                            dragState.lastRotationSlice.style.transition = 'd 300ms ease-out';
+                            dragState.lastRotationSlice.setAttribute('d', pathGen(1));
+                        }
+                        dragState.pressedSlices.delete(dragState.lastRotationSlice);
+                        audioEngine.stopNote(lastIndex);
+                        dragState.lastRotationSlice = null;
+                    }
+
+                    const innerCircle = document.getElementById('innerRotationPlate');
+                    if (innerCircle) {
+                        innerCircle.style.cursor = 'grab';
+                    }
+                }
+            };
+
+            elements.svg.addEventListener('mousedown', startRotation);
+            elements.svg.addEventListener('touchstart', startRotation, { passive: false });
+            document.addEventListener('mousemove', handleRotation);
+            document.addEventListener('touchmove', handleRotation, { passive: false });
+            document.addEventListener('mouseup', endRotation);
+            document.addEventListener('touchend', endRotation);
+        }
+
+        function updateRotationTransform() {
+            const sliceGroup = document.getElementById('sliceGroup');
+            if (sliceGroup) {
+                const center = calculateCenter();
+                sliceGroup.setAttribute('transform', `rotate(${state.rotation} ${center.x} ${center.y})`);
+            }
+        }
+
+        function createSlice(index, center, radii, anglePerSlice) {
+            const startAngle = (index * anglePerSlice) + (state.gapSize / 2);
+            const endAngle = ((index + 1) * anglePerSlice) - (state.gapSize / 2);
+
+            const { rx, ry } = radii;
+
+            const r1 = getRadiusAtAngle(startAngle, rx, ry);
+            const r2 = getRadiusAtAngle(endAngle, rx, ry);
+            const avgRadius = (r1 + r2) / 2;
+
+            const startRad = (startAngle * Math.PI) / 180;
+            const endRad = (endAngle * Math.PI) / 180;
+
+            const originalPoints = {
+                x1: center.x + r1 * Math.cos(startRad),
+                y1: center.y + r1 * Math.sin(startRad),
+                x2: center.x + r2 * Math.cos(endRad),
+                y2: center.y + r2 * Math.sin(endRad)
+            };
+
+            const generatePath = (narrowFactor = 1) => {
+                const midAngle = (startAngle + endAngle) / 2;
+                const midRad = (midAngle * Math.PI) / 180;
+
+                const x1 = originalPoints.x1 + (center.x + avgRadius * Math.cos(midRad) - originalPoints.x1) * (1 - narrowFactor);
+                const y1 = originalPoints.y1 + (center.y + avgRadius * Math.sin(midRad) - originalPoints.y1) * (1 - narrowFactor);
+                const x2 = originalPoints.x2 + (center.x + avgRadius * Math.cos(midRad) - originalPoints.x2) * (1 - narrowFactor);
+                const y2 = originalPoints.y2 + (center.y + avgRadius * Math.sin(midRad) - originalPoints.y2) * (1 - narrowFactor);
+
+                return [
+                    `M ${center.x} ${center.y}`,
+                    `L ${x1} ${y1}`,
+                    `A ${avgRadius} ${avgRadius} 0 0 1 ${x2} ${y2}`,
+                    `Z`
+                ].join(' ');
+            };
+
+            slicePathGenerators.set(index, generatePath);
+
+            const slice = document.createElementNS(SVG_NS, 'path');
+            slice.setAttribute('d', generatePath(1));
+            slice.setAttribute('class', 'slice');
+            slice.setAttribute('fill', `url(#gradient${index})`);
+            slice.setAttribute('data-slice', index);
+            slice.setAttribute('tabindex', '0');
+            slice.setAttribute('role', 'button');
+            slice.setAttribute('aria-label', `Slice ${index + 1} of ${state.sliceCount}`);
+            slice.style.transformOrigin = `${center.x}px ${center.y}px`;
+
+            sliceDataMap.set(slice, { index, startAngle, endAngle });
+
+            const triggerSlice = () => {
+                handleSliceInteraction(index, startAngle, endAngle);
+            };
+
+            const pressSlice = () => {
+                const stop2 = document.querySelector(`.stop2-${index}`);
+                if (stop2) {
+                    stop2.style.transition = 'stop-color 120ms cubic-bezier(0.4, 0.0, 0.2, 1)';
+                    stop2.setAttribute('stop-color', getPressColor());
+                }
+                const pathGen = slicePathGenerators.get(index);
+                if (pathGen) {
+                    slice.style.transition = 'd 120ms cubic-bezier(0.4, 0.0, 0.2, 1)';
+                    slice.setAttribute('d', pathGen(getPressNarrowFactor()));
+                }
+                dragState.pressedSlices.add(slice);
+            };
+
+            const releaseSlice = () => {
+                const stop2 = document.querySelector(`.stop2-${index}`);
+                if (stop2) {
+                    stop2.style.transition = 'stop-color 300ms ease-out';
+                    stop2.setAttribute('stop-color', '#000');
+                }
+                const pathGen = slicePathGenerators.get(index);
+                if (pathGen) {
+                    slice.style.transition = 'd 300ms ease-out';
+                    slice.setAttribute('d', pathGen(1));
+                }
+                dragState.pressedSlices.delete(slice);
+                audioEngine.stopNote(index);
+            };
+
+            const releaseSliceVisual = () => {
+                // Only release visual feedback, keep audio playing
+                const stop2 = document.querySelector(`.stop2-${index}`);
+                if (stop2) {
+                    stop2.style.transition = 'stop-color 300ms ease-out';
+                    stop2.setAttribute('stop-color', '#000');
+                }
+                const pathGen = slicePathGenerators.get(index);
+                if (pathGen) {
+                    slice.style.transition = 'd 300ms ease-out';
+                    slice.setAttribute('d', pathGen(1));
+                }
+                dragState.pressedSlices.delete(slice);
+            };
+
+            const startDrag = (e) => {
+                dragState.isDragging = true;
+                dragState.startedFromSlice = true;
+                pressSlice();
+                triggerSlice();
+            };
+
+            const handleDragOver = (e) => {
+                if (dragState.isDragging && !dragState.isRotating) {
+                    pressSlice();
+                    triggerSlice();
+                }
+            };
+
+            const handleDragLeave = (e) => {
+                if (dragState.isDragging && !dragState.isRotating) {
+                    releaseSliceVisual();
+                }
+            };
+
+            slice.addEventListener('mousedown', startDrag);
+            slice.addEventListener('mouseenter', handleDragOver);
+            slice.addEventListener('mouseleave', handleDragLeave);
+
+            slice.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                startDrag(e);
+            });
+
+            slice.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    pressSlice();
+                    setTimeout(() => {
+                        releaseSlice();
+                    }, 350);
+                    handleSliceInteraction(index, startAngle, endAngle);
+                }
+            });
+
+            return slice;
+        }
+
+        function renderSlices() {
+            try {
+                updateViewBox();
+                elements.svg.innerHTML = '';
+                sliceDataMap.clear();
+                slicePathGenerators.clear();
+
+                const center = calculateCenter();
+                const radii = calculateRadii();
+                const anglePerSlice = 360 / state.sliceCount;
+
+                const sliceGroup = document.createElementNS(SVG_NS, 'g');
+                sliceGroup.setAttribute('id', 'sliceGroup');
+                sliceGroup.setAttribute('transform', `rotate(${state.rotation} ${center.x} ${center.y})`);
+
+                const defs = document.createElementNS(SVG_NS, 'defs');
+                sliceGroup.appendChild(defs);
+
+                for (let i = 0; i < state.sliceCount; i++) {
+                    const midAngle = ((i + 0.5) * anglePerSlice) * Math.PI / 180;
+                    const r = Math.max(radii.rx, radii.ry);
+
+                    const x2 = center.x + r * Math.cos(midAngle);
+                    const y2 = center.y + r * Math.sin(midAngle);
+
+                    const gradient = document.createElementNS(SVG_NS, 'linearGradient');
+                    gradient.setAttribute('id', `gradient${i}`);
+                    gradient.setAttribute('x1', center.x);
+                    gradient.setAttribute('y1', center.y);
+                    gradient.setAttribute('x2', x2);
+                    gradient.setAttribute('y2', y2);
+                    gradient.setAttribute('gradientUnits', 'userSpaceOnUse');
+
+                    const stop1 = document.createElementNS(SVG_NS, 'stop');
+                    stop1.setAttribute('offset', '0%');
+                    stop1.setAttribute('stop-color', '#000');
+
+                    const stop2 = document.createElementNS(SVG_NS, 'stop');
+                    stop2.setAttribute('class', `stop2-${i}`);
+                    stop2.setAttribute('offset', '100%');
+                    stop2.setAttribute('stop-color', '#000');
+
+                    gradient.appendChild(stop1);
+                    gradient.appendChild(stop2);
+                    defs.appendChild(gradient);
+                }
+
+                const fragment = document.createDocumentFragment();
+                for (let i = 0; i < state.sliceCount; i++) {
+                    fragment.appendChild(createSlice(i, center, radii, anglePerSlice));
+                }
+
+                sliceGroup.appendChild(fragment);
+                elements.svg.appendChild(sliceGroup);
+
+                const avgRadius = (radii.rx + radii.ry) / 2;
+                const innerRadius = avgRadius * INNER_CIRCLE_RADIUS_RATIO;
+
+                dragState.innerCircleData = { center, innerRadius };
+
+                const innerCircle = document.createElementNS(SVG_NS, 'circle');
+                innerCircle.setAttribute('cx', center.x);
+                innerCircle.setAttribute('cy', center.y);
+                innerCircle.setAttribute('r', innerRadius);
+                innerCircle.setAttribute('fill', 'transparent');
+                innerCircle.setAttribute('stroke', '#fff');
+                innerCircle.setAttribute('stroke-width', '0');
+                innerCircle.setAttribute('id', 'innerRotationPlate');
+                innerCircle.style.cursor = 'grab';
+                innerCircle.style.pointerEvents = 'all';
+
+                sliceGroup.appendChild(innerCircle);
+
+                // Add grip ring background
+                const gripRingRadius = innerRadius * DRAGGABLE_RING_RATIO;
+                const gripRing = document.createElementNS(SVG_NS, 'circle');
+                gripRing.setAttribute('cx', center.x);
+                gripRing.setAttribute('cy', center.y);
+                gripRing.setAttribute('r', (gripRingRadius + innerRadius) / 2);
+                gripRing.setAttribute('fill', 'none');
+                gripRing.setAttribute('stroke', '#fff');
+                gripRing.setAttribute('stroke-width', innerRadius - gripRingRadius);
+                gripRing.setAttribute('opacity', state.gripRingOpacity / 100);
+                gripRing.style.pointerEvents = 'none';
+
+                sliceGroup.appendChild(gripRing);
+
+                const totalTicks = state.sliceCount * state.ticksPerEdge;
+                const gripRingWidth = innerRadius - gripRingRadius;
+                const insetAmount = (state.gripInset / 100) * gripRingWidth;
+                const innerTickRadius = gripRingRadius + insetAmount;
+                const outerTickRadius = innerRadius - insetAmount;
+
+                for (let i = 0; i < totalTicks; i++) {
+                    const angle = (i / totalTicks) * 360;
+                    const angleRad = (angle * Math.PI) / 180;
+
+                    const x1 = center.x + innerTickRadius * Math.cos(angleRad);
+                    const y1 = center.y + innerTickRadius * Math.sin(angleRad);
+                    const x2 = center.x + outerTickRadius * Math.cos(angleRad);
+                    const y2 = center.y + outerTickRadius * Math.sin(angleRad);
+
+                    const tick = document.createElementNS(SVG_NS, 'line');
+                    tick.setAttribute('x1', x1);
+                    tick.setAttribute('y1', y1);
+                    tick.setAttribute('x2', x2);
+                    tick.setAttribute('y2', y2);
+                    tick.setAttribute('stroke', '#fff');
+                    tick.setAttribute('stroke-width', state.gripThickness);
+                    tick.setAttribute('opacity', state.gripOpacity / 100);
+                    tick.style.pointerEvents = 'none';
+
+                    sliceGroup.appendChild(tick);
+                }
+
+                // Add base note indicators (dots for C notes)
+                for (let i = 0; i < state.sliceCount; i++) {
+                    // Only mark C notes (every 7 slices, starting at 0)
+                    if (i % 7 === 0) {
+                        const midAngle = ((i + 0.5) * anglePerSlice) * Math.PI / 180;
+                        const dotRadius = innerRadius * 1.08; // Just outside the inner circle
+                        
+                        const dotX = center.x + dotRadius * Math.cos(midAngle);
+                        const dotY = center.y + dotRadius * Math.sin(midAngle);
+                        
+                        const dot = document.createElementNS(SVG_NS, 'circle');
+                        dot.setAttribute('cx', dotX);
+                        dot.setAttribute('cy', dotY);
+                        dot.setAttribute('r', 4);
+                        dot.setAttribute('fill', '#fff');
+                        dot.setAttribute('opacity', '0.8');
+                        dot.style.pointerEvents = 'none';
+                        
+                        sliceGroup.appendChild(dot);
+                    }
+                }
+
+            } catch (error) {
+                console.error('Error rendering slices:', error);
+            }
+        }
+
+        function updateSetting(settingKey, value, displayElement, suffix = '') {
+            state[settingKey] = value;
+            if (displayElement) {
+                const displayValue = typeof value === 'number' && value % 1 !== 0 ? value.toFixed(1) : value;
+                displayElement.textContent = displayValue + suffix;
+            }
+
+            // Update background color if bgGray changed
+            if (settingKey === 'bgGray') {
+                const grayValue = Math.round((value / 100) * 255);
+                const hexValue = grayValue.toString(16).padStart(2, '0');
+                document.documentElement.style.setProperty('--bg-primary', `#${hexValue}${hexValue}${hexValue}`);
+            }
+
+            renderSlices();
+        }
+
+        function validateNumberInput(value, min, max) {
+            const num = parseInt(value, 10);
+            if (isNaN(num)) return min;
+            return Math.max(min, Math.min(max, num));
+        }
+
+        function openModal() {
+            elements.modalBackdrop.classList.add('active');
+            elements.toggleBtn.classList.add('active');
+            elements.toggleBtn.setAttribute('aria-label', 'Close controls');
+        }
+
+        function closeModal() {
+            elements.modalBackdrop.classList.remove('active');
+            elements.toggleBtn.classList.remove('active');
+            elements.toggleBtn.setAttribute('aria-label', 'Open controls');
+        }
+
+        function toggleModal() {
+            if (elements.modalBackdrop.classList.contains('active')) {
+                closeModal();
+            } else {
+                openModal();
+            }
+        }
+
+        function changeSlices(delta) {
+            const newValue = validateNumberInput(
+                parseInt(elements.sliceCount.value) + delta,
+                6,
+                72
+            );
+            elements.sliceCount.value = newValue;
+            updateSlices();
+        }
+
+        function updateSlices() {
+            const value = validateNumberInput(elements.sliceCount.value, 6, 72);
+            elements.sliceCount.value = value;
+            updateSetting('sliceCount', value);
+        }
+
+        function setReferenceCorner(corner) {
+            if (!CORNER_COORDS[corner]) return;
+
+            state.referenceCorner = corner;
+
+            elements.referenceButtons.forEach(btn => {
+                const isActive = btn.getAttribute('data-corner') === corner;
+                btn.classList.toggle('active', isActive);
+                btn.setAttribute('aria-pressed', isActive);
+            });
+
+            renderSlices();
+        }
+
+        elements.toggleBtn.addEventListener('click', toggleModal);
+        elements.closeBtn.addEventListener('click', closeModal);
+
+        elements.modalBackdrop.addEventListener('click', (e) => {
+            if (e.target === elements.modalBackdrop) {
+                closeModal();
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && elements.modalBackdrop.classList.contains('active')) {
+                closeModal();
+            }
+        });
+
+        elements.sliceDecBtn.addEventListener('click', () => changeSlices(-1));
+        elements.sliceIncBtn.addEventListener('click', () => changeSlices(1));
+        elements.sliceCount.addEventListener('change', updateSlices);
+
+        elements.bgGraySlider.addEventListener('input', (e) => {
+            updateSetting('bgGray', parseInt(e.target.value), elements.bgGrayValue, '%');
+        });
+
+        elements.offsetXSlider.addEventListener('input', (e) => {
+            updateSetting('offsetX', parseInt(e.target.value), elements.offsetXValue, '%');
+        });
+
+        elements.offsetYSlider.addEventListener('input', (e) => {
+            updateSetting('offsetY', parseInt(e.target.value), elements.offsetYValue, '%');
+        });
+
+        elements.radiusSlider.addEventListener('input', (e) => {
+            updateSetting('radius', parseInt(e.target.value), elements.radiusValue, '%');
+        });
+
+        elements.rotationSlider.addEventListener('input', (e) => {
+            state.rotation = parseInt(e.target.value);
+            elements.rotationValue.textContent = state.rotation + '°';
+            updateRotationTransform();
+        });
+
+        elements.gapSizeSlider.addEventListener('input', (e) => {
+            updateSetting('gapSize', parseFloat(e.target.value), elements.gapSizeValue, '°');
+        });
+
+        elements.gripThicknessSlider.addEventListener('input', (e) => {
+            updateSetting('gripThickness', parseFloat(e.target.value), elements.gripThicknessValue, 'px');
+        });
+
+        elements.ticksPerEdgeSlider.addEventListener('input', (e) => {
+            updateSetting('ticksPerEdge', parseInt(e.target.value), elements.ticksPerEdgeValue, '');
+        });
+
+        elements.gripOpacitySlider.addEventListener('input', (e) => {
+            updateSetting('gripOpacity', parseInt(e.target.value), elements.gripOpacityValue, '%');
+        });
+
+        elements.gripRingOpacitySlider.addEventListener('input', (e) => {
+            updateSetting('gripRingOpacity', parseInt(e.target.value), elements.gripRingOpacityValue, '%');
+        });
+
+        elements.gripInsetSlider.addEventListener('input', (e) => {
+            updateSetting('gripInset', parseInt(e.target.value), elements.gripInsetValue, '%');
+        });
+
+        elements.pressShrinkSlider.addEventListener('input', (e) => {
+            updateSetting('pressShrink', parseInt(e.target.value), elements.pressShrinkValue, '%');
+        });
+
+        elements.pressBrightnessSlider.addEventListener('input', (e) => {
+            updateSetting('pressBrightness', parseInt(e.target.value), elements.pressBrightnessValue, '%');
+        });
+
+        elements.volumeSlider.addEventListener('input', (e) => {
+            const volume = parseInt(e.target.value);
+            state.volume = volume;
+            elements.volumeValue.textContent = volume;
+            audioEngine.setVolume(volume);
+        });
+
+        function endDrag() {
+            if (dragState.isDragging) {
+                dragState.isDragging = false;
+                dragState.isRotating = false;
+                dragState.wasInGripperZone = false;
+                dragState.startedFromSlice = false;
+
+                dragState.pressedSlices.forEach(slice => {
+                    const index = parseInt(slice.getAttribute('data-slice'));
+                    const stop2 = document.querySelector(`.stop2-${index}`);
+                    if (stop2) {
+                        stop2.style.transition = 'stop-color 300ms ease-out';
+                        stop2.setAttribute('stop-color', '#000');
+                    }
+                    const pathGen = slicePathGenerators.get(index);
+                    if (pathGen) {
+                        slice.style.transition = 'd 300ms ease-out';
+                        slice.setAttribute('d', pathGen(1));
+                    }
+                    audioEngine.stopNote(index);
+                });
+                dragState.pressedSlices.clear();
+                dragState.lastTouchedSlice = null;
+
+                const innerCircle = document.getElementById('innerRotationPlate');
+                if (innerCircle) innerCircle.style.cursor = 'grab';
+            }
+        }
+
+        document.addEventListener('mouseup', endDrag);
+        document.addEventListener('touchend', endDrag);
+        document.addEventListener('touchcancel', endDrag);
+
+        document.addEventListener('touchmove', (e) => {
+            if (dragState.isDragging) {
+                e.preventDefault();
+                const touch = e.touches[0];
+
+                const rect = elements.svg.getBoundingClientRect();
+                const x = touch.clientX - rect.left;
+                const y = touch.clientY - rect.top;
+                const viewBox = elements.svg.viewBox.baseVal;
+                const scaleX = viewBox.width / rect.width;
+                const scaleY = viewBox.height / rect.height;
+                const svgX = x * scaleX;
+                const svgY = y * scaleY;
+
+                const inGripperZone = window.isInGripperZone && window.isInGripperZone(svgX, svgY);
+
+                if (inGripperZone && !dragState.wasInGripperZone) {
+                    dragState.isRotating = true;
+                    dragState.wasInGripperZone = true;
+                    if (window.getAngleFromPoint) {
+                        dragState.lastAngle = window.getAngleFromPoint(svgX, svgY);
+                    }
+                    const innerCircle = document.getElementById('innerRotationPlate');
+                    if (innerCircle) innerCircle.style.cursor = 'grabbing';
+                }
+                else if (!inGripperZone && dragState.wasInGripperZone) {
+                    dragState.isRotating = false;
+                    dragState.wasInGripperZone = false;
+                    const innerCircle = document.getElementById('innerRotationPlate');
+                    if (innerCircle) innerCircle.style.cursor = 'grab';
+                }
+
+                if (inGripperZone && dragState.isRotating && window.getAngleFromPoint) {
+                    const currentAngle = window.getAngleFromPoint(svgX, svgY);
+                    let angleDiff = currentAngle - dragState.lastAngle;
+
+                    if (angleDiff > 180) angleDiff -= 360;
+                    if (angleDiff < -180) angleDiff += 360;
+
+                    state.rotation = (state.rotation + angleDiff + 360) % 360;
+                    elements.rotationSlider.value = Math.round(state.rotation);
+                    elements.rotationValue.textContent = Math.round(state.rotation);
+
+                    dragState.lastAngle = currentAngle;
+                    updateRotationTransform();
+
+                    if (dragState.startedFromSlice) {
+                        const center = calculateCenter();
+                        const dx = svgX - center.x;
+                        const dy = svgY - center.y;
+                        let angle = Math.atan2(dy, dx) * 180 / Math.PI;
+                        angle = (angle + 360) % 360;
+                        angle = (angle - state.rotation + 360) % 360;
+
+                        const anglePerSlice = 360 / state.sliceCount;
+                        const sliceIndex = Math.floor(angle / anglePerSlice);
+
+                        const slices = document.querySelectorAll('.slice');
+                        const targetSlice = Array.from(slices).find(s =>
+                            parseInt(s.getAttribute('data-slice')) === sliceIndex
+                        );
+
+                        if (targetSlice && targetSlice !== dragState.lastRotationSlice) {
+                            if (dragState.lastRotationSlice) {
+                                const lastIndex = parseInt(dragState.lastRotationSlice.getAttribute('data-slice'));
+                                const stop2 = document.querySelector(`.stop2-${lastIndex}`);
+                                if (stop2) {
+                                    stop2.style.transition = 'stop-color 300ms ease-out';
+                                    stop2.setAttribute('stop-color', '#000');
+                                }
+                                const pathGen = slicePathGenerators.get(lastIndex);
+                                if (pathGen) {
+                                    dragState.lastRotationSlice.style.transition = 'd 300ms ease-out';
+                                    dragState.lastRotationSlice.setAttribute('d', pathGen(1));
+                                }
+                                dragState.pressedSlices.delete(dragState.lastRotationSlice);
+                                audioEngine.stopNote(lastIndex);
+                            }
+
+                            const sliceData = sliceDataMap.get(targetSlice);
+                            if (sliceData) {
+                                const stop2 = document.querySelector(`.stop2-${sliceData.index}`);
+                                if (stop2) {
+                                    stop2.style.transition = 'stop-color 120ms cubic-bezier(0.4, 0.0, 0.2, 1)';
+                                    stop2.setAttribute('stop-color', getPressColor());
+                                }
+                                const pathGen = slicePathGenerators.get(sliceData.index);
+                                if (pathGen) {
+                                    targetSlice.style.transition = 'd 120ms cubic-bezier(0.4, 0.0, 0.2, 1)';
+                                    targetSlice.setAttribute('d', pathGen(getPressNarrowFactor()));
+                                }
+                                dragState.pressedSlices.add(targetSlice);
+                                dragState.lastRotationSlice = targetSlice;
+                                handleSliceInteraction(sliceData.index, sliceData.startAngle, sliceData.endAngle);
+                            }
+                        }
+                    }
+                }
+
+                if (!dragState.isRotating) {
+                    const element = document.elementFromPoint(touch.clientX, touch.clientY);
+
+                    if (dragState.lastTouchedSlice && dragState.lastTouchedSlice !== element) {
+                        const lastIndex = parseInt(dragState.lastTouchedSlice.getAttribute('data-slice'));
+                        const stop2 = document.querySelector(`.stop2-${lastIndex}`);
+                        if (stop2) {
+                            stop2.style.transition = 'stop-color 300ms ease-out';
+                            stop2.setAttribute('stop-color', '#000');
+                        }
+                        const pathGen = slicePathGenerators.get(lastIndex);
+                        if (pathGen) {
+                            dragState.lastTouchedSlice.style.transition = 'd 300ms ease-out';
+                            dragState.lastTouchedSlice.setAttribute('d', pathGen(1));
+                        }
+                        dragState.pressedSlices.delete(dragState.lastTouchedSlice);
+                        audioEngine.stopNote(lastIndex);
+                    }
+
+                    if (element && element.classList && element.classList.contains('slice')) {
+                        const sliceData = sliceDataMap.get(element);
+                        if (sliceData && element !== dragState.lastTouchedSlice) {
+                            const stop2 = document.querySelector(`.stop2-${sliceData.index}`);
+                            if (stop2) {
+                                stop2.style.transition = 'stop-color 120ms cubic-bezier(0.4, 0.0, 0.2, 1)';
+                                stop2.setAttribute('stop-color', getPressColor());
+                            }
+                            const pathGen = slicePathGenerators.get(sliceData.index);
+                            if (pathGen) {
+                                element.style.transition = 'd 120ms cubic-bezier(0.4, 0.0, 0.2, 1)';
+                                element.setAttribute('d', pathGen(getPressNarrowFactor()));
+                            }
+                            dragState.pressedSlices.add(element);
+                            handleSliceInteraction(sliceData.index, sliceData.startAngle, sliceData.endAngle);
+                        }
+                        dragState.lastTouchedSlice = element;
+                    } else {
+                        dragState.lastTouchedSlice = null;
+                    }
+                }
+            }
+        }, { passive: false });
+
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(renderSlices, RESIZE_DEBOUNCE_MS);
+        });
+
+        setupRotationInteraction();
+
+        renderSlices();
+    </script>
 </body>
 </html>
