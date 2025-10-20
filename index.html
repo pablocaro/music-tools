@@ -14,6 +14,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      transition: background-color 3s ease-in-out;
     }
     h1 { font-size: 2rem; margin-bottom: .5rem; }
     p { color: #555; }
@@ -23,8 +24,13 @@
       font-size: .9rem;
       color: #888;
     }
-    button {
+    .nav-links {
       margin-top: 2rem;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    a {
       padding: 12px 24px;
       font-size: 1rem;
       background: #007acc;
@@ -33,23 +39,32 @@
       border-radius: 8px;
       cursor: pointer;
       transition: background-color 0.2s;
+      text-decoration: none;
+      display: inline-block;
     }
-    button:hover { background: #005a9e; }
+    a:hover { background: #005a9e; }
   </style>
 </head>
 <body>
   <h1>🎵 Music Tools</h1>
   <p>A simple playground for music experiments.</p>
-  <button onclick="changeBackground()">🎨 Change Colors</button>
+  
+  <div class="nav-links">
+    <a href="piano.html">🎹 Piano</a>
+    <a href="piano2.html">🎹 Piano 2</a>
+  </div>
   <footer>Built with GitHub Pages + Codespaces</footer>
   <script>
     const colors = ['#f4f4f4', '#e8f4f8', '#f0f8e8', '#fff0e8', '#f8e8f4', '#e8e8f8', '#f8f8e8'];
     let currentIndex = 0;
     
-    function changeBackground() {
+    function cycleColors() {
       currentIndex = (currentIndex + 1) % colors.length;
-      document.body.style.background = colors[currentIndex];
+      document.body.style.backgroundColor = colors[currentIndex];
     }
+    
+    // Start the automatic color cycling when page loads
+    setInterval(cycleColors, 8000); // Change color every 8 seconds
   </script>
   <script src="script.js"></script>
 </body>
