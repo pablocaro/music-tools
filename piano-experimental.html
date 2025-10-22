@@ -1028,6 +1028,42 @@
                     return;
                 }
 
+                // If we were pinching but now have less than 2 touches, reset pinch state
+                // and transition to appropriate single-touch interaction
+                if (this.dragState.isPinching && e.touches && e.touches.length < 2) {
+                    console.log('🤏 → ☝️ Transition from pinch to single touch');
+                    this.dragState.isPinching = false;
+                    this.dragState.lastPinchDistance = 0;
+
+                    // Determine what the remaining touch is over and set up appropriate state
+                    const clientX = e.touches[0].clientX;
+                    const clientY = e.touches[0].clientY;
+                    const { x, y } = this.getSVGCoordinates(clientX, clientY);
+                    const innerCircleData = this.renderer.getInnerCircleData();
+                    const inGripperZone = this.geometry.isInDraggableRing(x, y, innerCircleData.center, innerCircleData.innerRadius);
+
+                    if (inGripperZone) {
+                        // Start rotation from gripper
+                        this.dragState.isRotating = true;
+                        this.dragState.wasInGripperZone = true;
+                        this.dragState.lastAngle = this.geometry.getAngleFromPoint(x, y, innerCircleData.center);
+                        const innerCircle = document.getElementById('innerRotationPlate');
+                        if (innerCircle) innerCircle.style.cursor = 'grabbing';
+                    } else {
+                        // Check if over a slice and start dragging
+                        const element = document.elementFromPoint(clientX, clientY);
+                        if (element && element.classList && element.classList.contains('slice')) {
+                            this.dragState.isDragging = true;
+                            this.dragState.startedFromSlice = true;
+                            const index = parseInt(element.getAttribute('data-slice'));
+                            this.activateSlice(index);
+                        } else {
+                            // Not over anything specific, just mark as dragging to allow movement
+                            this.dragState.isDragging = true;
+                        }
+                    }
+                }
+
                 if (!this.dragState.isDragging && !this.dragState.isRotating) return;
 
                 const clientX = e.clientX || (e.touches && e.touches[0].clientX);
@@ -1066,8 +1102,8 @@
                 const currentDistance = this.getTouchDistance(touch1, touch2);
                 const distanceDelta = currentDistance - this.dragState.lastPinchDistance;
 
-                // Sensitivity: ~40px change = 1 slice (more sensitive for smoother feel)
-                const sliceChange = Math.round(distanceDelta / 40);
+                // Sensitivity: ~20px change = 1 slice (more sensitive for smoother feel)
+                const sliceChange = Math.round(distanceDelta / 20);
 
                 if (sliceChange !== 0) {
                     const currentSliceCount = this.state.get('sliceCount');
