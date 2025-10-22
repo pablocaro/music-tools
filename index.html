@@ -6,67 +6,124 @@
   <title>Music Tools</title>
   <style>
     body {
-      font: 1.1rem -apple-system, system-ui, sans-serif;
+      font-family: -apple-system, system-ui, sans-serif;
       background: #f4f4f4;
       margin: 0;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      transition: background-color 3s ease-in-out;
+      padding: 2rem;
+      line-height: 1.6;
     }
-    h1 { font-size: 2rem; margin-bottom: .5rem; }
-    p { color: #555; }
+
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+      color: #222;
+    }
+
+    .subtitle {
+      color: #666;
+      margin-bottom: 3rem;
+      font-size: 1.1rem;
+    }
+
+    .tools-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .tool-item {
+      background: white;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      padding: 1.5rem;
+      transition: box-shadow 0.2s, transform 0.2s;
+      border: 1px solid #e0e0e0;
+    }
+
+    .tool-item:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      transform: translateY(-2px);
+    }
+
+    .tool-link {
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+
+    .tool-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #007acc;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .tool-description {
+      color: #555;
+      margin: 0;
+      font-size: 1rem;
+    }
+
     footer {
-      position: absolute;
-      bottom: 1rem;
-      font-size: .9rem;
+      margin-top: 4rem;
+      text-align: center;
+      font-size: 0.9rem;
       color: #888;
     }
-    .nav-links {
-      margin-top: 2rem;
-      display: flex;
-      gap: 1rem;
-      flex-wrap: wrap;
-    }
-    a {
-      padding: 12px 24px;
-      font-size: 1rem;
-      background: #007acc;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: background-color 0.2s;
-      text-decoration: none;
-      display: inline-block;
-    }
-    a:hover { background: #005a9e; }
   </style>
 </head>
 <body>
-  <h1>🎵 Music Tools</h1>
-  <p>A simple playground for music experiments.</p>
-  
-  <div class="nav-links">
-    <a href="piano.html">🎹 Piano</a>
-    <a href="piano2.html">🎹 Piano 2</a>
-    <a href="piano-refactored.html">🎹 Piano Refactored</a>
+  <div class="container">
+    <h1>🎵 Music Tools</h1>
+    <p class="subtitle">A collection of interactive music experiments and prototypes</p>
+
+    <ul class="tools-list">
+      <li class="tool-item">
+        <a href="piano.html" class="tool-link">
+          <div class="tool-title">🎹 Piano Prototype</div>
+          <p class="tool-description">Original radial piano prototype with circular layout and touch support</p>
+        </a>
+      </li>
+
+      <li class="tool-item">
+        <a href="piano2.html" class="tool-link">
+          <div class="tool-title">🎹 Piano 2</div>
+          <p class="tool-description">Second iteration of the radial piano with improved dark theme</p>
+        </a>
+      </li>
+
+      <li class="tool-item">
+        <a href="piano-refactored.html" class="tool-link">
+          <div class="tool-title">🎹 Piano Refactored</div>
+          <p class="tool-description">Refactored version with cleaner code structure and enhanced features including pinch-to-zoom and octave markers</p>
+        </a>
+      </li>
+
+      <li class="tool-item">
+        <a href="piano-experimental.html" class="tool-link">
+          <div class="tool-title">🎹 Piano Experimental</div>
+          <p class="tool-description">Experimental branch for testing new features and interactions</p>
+        </a>
+      </li>
+
+      <li class="tool-item">
+        <a href="piano-visual-only.html" class="tool-link">
+          <div class="tool-title">🎹 Piano Visual Only</div>
+          <p class="tool-description">Visual-only version of the radial piano interface without audio</p>
+        </a>
+      </li>
+    </ul>
+
+    <footer>Built with GitHub Pages + Codespaces</footer>
   </div>
-  <footer>Built with GitHub Pages + Codespaces</footer>
-  <script>
-    const colors = ['#f4f4f4', '#e8f4f8', '#f0f8e8', '#fff0e8', '#f8e8f4', '#e8e8f8', '#f8f8e8'];
-    let currentIndex = 0;
-    
-    function cycleColors() {
-      currentIndex = (currentIndex + 1) % colors.length;
-      document.body.style.backgroundColor = colors[currentIndex];
-    }
-    
-    // Start the automatic color cycling when page loads
-    setInterval(cycleColors, 8000); // Change color every 8 seconds
-  </script>
   <script src="script.js"></script>
 </body>
 </html>
