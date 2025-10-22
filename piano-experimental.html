@@ -964,10 +964,21 @@
 
             handleStart(e) {
                 // Check for multi-touch (pinch gesture)
+                // Only enable pinch if BOTH touches are in the gripper area
                 if (e.touches && e.touches.length >= 2) {
-                    this.startPinch(e.touches[0], e.touches[1]);
-                    e.preventDefault();
-                    return;
+                    const touch1Coords = this.getSVGCoordinates(e.touches[0].clientX, e.touches[0].clientY);
+                    const touch2Coords = this.getSVGCoordinates(e.touches[1].clientX, e.touches[1].clientY);
+                    const innerCircleData = this.renderer.getInnerCircleData();
+
+                    const touch1InGripper = this.geometry.isInDraggableRing(touch1Coords.x, touch1Coords.y, innerCircleData.center, innerCircleData.innerRadius);
+                    const touch2InGripper = this.geometry.isInDraggableRing(touch2Coords.x, touch2Coords.y, innerCircleData.center, innerCircleData.innerRadius);
+
+                    if (touch1InGripper && touch2InGripper) {
+                        this.startPinch(e.touches[0], e.touches[1]);
+                        e.preventDefault();
+                        return;
+                    }
+                    // Otherwise fall through to allow multi-touch on slices
                 }
 
                 const clientX = e.clientX || (e.touches && e.touches[0].clientX);
@@ -1055,8 +1066,8 @@
                 const currentDistance = this.getTouchDistance(touch1, touch2);
                 const distanceDelta = currentDistance - this.dragState.lastPinchDistance;
 
-                // Sensitivity: ~100px change = 1 slice
-                const sliceChange = Math.round(distanceDelta / 100);
+                // Sensitivity: ~40px change = 1 slice (more sensitive for smoother feel)
+                const sliceChange = Math.round(distanceDelta / 40);
 
                 if (sliceChange !== 0) {
                     const currentSliceCount = this.state.get('sliceCount');
