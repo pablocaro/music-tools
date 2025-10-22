@@ -809,7 +809,7 @@
 
                 const fragment = document.createDocumentFragment();
                 for (let i = 0; i < sliceCount; i++) {
-                    if (i % 8 === 0) {
+                    if (i % 7 === 0) {
                         const midAngle = ((i + 0.5) * anglePerSlice) * Math.PI / 180;
                         const markerRadius = innerRadius * 1.08;
 
@@ -917,12 +917,14 @@
                 this.dragState = {
                     isDragging: false,
                     isRotating: false,
+                    isPinching: false,
                     pressedSlices: new Set(),
                     lastAngle: 0,
                     lastRotationSlice: null,
                     wasInGripperZone: false,
                     startedFromSlice: false,
-                    lastTouchedSlice: null
+                    lastTouchedSlice: null,
+                    lastPinchDistance: 0
                 };
 
                 this.setupEventListeners();
@@ -954,7 +956,20 @@
                 return { x: x * scaleX, y: y * scaleY };
             }
 
+            getTouchDistance(touch1, touch2) {
+                const dx = touch2.clientX - touch1.clientX;
+                const dy = touch2.clientY - touch1.clientY;
+                return Math.sqrt(dx * dx + dy * dy);
+            }
+
             handleStart(e) {
+                // Check for multi-touch (pinch gesture)
+                if (e.touches && e.touches.length >= 2) {
+                    this.startPinch(e.touches[0], e.touches[1]);
+                    e.preventDefault();
+                    return;
+                }
+
                 const clientX = e.clientX || (e.touches && e.touches[0].clientX);
                 const clientY = e.clientY || (e.touches && e.touches[0].clientY);
                 const { x, y } = this.getSVGCoordinates(clientX, clientY);
@@ -969,6 +984,12 @@
                 } else if (e.target.classList.contains('slice')) {
                     this.startSliceDrag(e.target);
                 }
+            }
+
+            startPinch(touch1, touch2) {
+                this.dragState.isPinching = true;
+                this.dragState.lastPinchDistance = this.getTouchDistance(touch1, touch2);
+                console.log('🤏 Pinch started, distance:', this.dragState.lastPinchDistance);
             }
 
             startRotation(x, y, innerCircleData) {
@@ -989,6 +1010,13 @@
             }
 
             handleMove(e) {
+                // Handle pinch gesture
+                if (this.dragState.isPinching && e.touches && e.touches.length >= 2) {
+                    this.handlePinch(e.touches[0], e.touches[1]);
+                    e.preventDefault();
+                    return;
+                }
+
                 if (!this.dragState.isDragging && !this.dragState.isRotating) return;
 
                 const clientX = e.clientX || (e.touches && e.touches[0].clientX);
@@ -1006,7 +1034,7 @@
                         this.deactivateSlice(lastIndex);
                         this.dragState.lastTouchedSlice = null;
                     }
-                    
+
                     this.dragState.isRotating = true;
                     this.dragState.wasInGripperZone = true;
                     this.dragState.lastAngle = this.geometry.getAngleFromPoint(x, y, innerCircleData.center);
@@ -1021,6 +1049,28 @@
                 }
 
                 e.preventDefault();
+            }
+
+            handlePinch(touch1, touch2) {
+                const currentDistance = this.getTouchDistance(touch1, touch2);
+                const distanceDelta = currentDistance - this.dragState.lastPinchDistance;
+
+                // Sensitivity: ~100px change = 1 slice
+                const sliceChange = Math.round(distanceDelta / 100);
+
+                if (sliceChange !== 0) {
+                    const currentSliceCount = this.state.get('sliceCount');
+                    // Pinch in (smaller distance) = MORE slices
+                    // Expand out (larger distance) = FEWER slices
+                    const newSliceCount = Math.max(6, Math.min(72, currentSliceCount - sliceChange));
+
+                    if (newSliceCount !== currentSliceCount) {
+                        console.log(`🤏 Pinch: ${currentSliceCount} → ${newSliceCount} slices`);
+                        this.state.set('sliceCount', newSliceCount);
+                        this.renderer.render();
+                        this.dragState.lastPinchDistance = currentDistance;
+                    }
+                }
             }
 
             handleRotation(x, y, innerCircleData) {
@@ -1092,7 +1142,7 @@
                 // Always stop all notes on any release event as a failsafe
                 this.audio.stopAllNotes();
 
-                if (this.dragState.isDragging || this.dragState.isRotating) {
+                if (this.dragState.isDragging || this.dragState.isRotating || this.dragState.isPinching) {
                     // Release all pressed slices
                     this.dragState.pressedSlices.forEach(slice => {
                         const index = parseInt(slice.getAttribute('data-slice'));
@@ -1106,10 +1156,12 @@
                     // Reset drag state
                     this.dragState.isDragging = false;
                     this.dragState.isRotating = false;
+                    this.dragState.isPinching = false;
                     this.dragState.wasInGripperZone = false;
                     this.dragState.startedFromSlice = false;
                     this.dragState.lastRotationSlice = null;
                     this.dragState.lastTouchedSlice = null;
+                    this.dragState.lastPinchDistance = 0;
                     this.dragState.pressedSlices.clear();
 
                     const innerCircle = document.getElementById('innerRotationPlate');
@@ -1214,6 +1266,11 @@
                     this.elements.rotationSlider.value = Math.round(value);
                     this.elements.rotationValue.textContent = Math.round(value);
                     this.renderer.updateRotation();
+                });
+
+                // Subscribe to slice count changes from pinch gesture
+                this.state.subscribe('sliceCount', (value) => {
+                    this.elements.sliceCount.value = value;
                 });
             }
 
