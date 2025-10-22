@@ -987,7 +987,20 @@
             }
 
             startPinch(touch1, touch2) {
+                // Stop all notes and clear any active slices
+                this.audio.stopAllNotes();
+
+                // Release all pressed slices
+                this.dragState.pressedSlices.forEach(slice => {
+                    const index = parseInt(slice.getAttribute('data-slice'));
+                    this.renderer.releaseSlice(index);
+                });
+                this.dragState.pressedSlices.clear();
+
+                // Enter pinch mode
                 this.dragState.isPinching = true;
+                this.dragState.isDragging = false;
+                this.dragState.isRotating = false;
                 this.dragState.lastPinchDistance = this.getTouchDistance(touch1, touch2);
                 console.log('🤏 Pinch started, distance:', this.dragState.lastPinchDistance);
             }
@@ -1010,6 +1023,13 @@
             }
 
             handleMove(e) {
+                // Detect transition to pinch (second finger added)
+                if (e.touches && e.touches.length >= 2 && !this.dragState.isPinching) {
+                    this.startPinch(e.touches[0], e.touches[1]);
+                    e.preventDefault();
+                    return;
+                }
+
                 // Handle pinch gesture
                 if (this.dragState.isPinching && e.touches && e.touches.length >= 2) {
                     this.handlePinch(e.touches[0], e.touches[1]);
@@ -1055,8 +1075,8 @@
                 const currentDistance = this.getTouchDistance(touch1, touch2);
                 const distanceDelta = currentDistance - this.dragState.lastPinchDistance;
 
-                // Sensitivity: ~100px change = 1 slice
-                const sliceChange = Math.round(distanceDelta / 100);
+                // Sensitivity: ~30px change = 1 slice (more responsive)
+                const sliceChange = Math.round(distanceDelta / 30);
 
                 if (sliceChange !== 0) {
                     const currentSliceCount = this.state.get('sliceCount');
@@ -1068,6 +1088,7 @@
                         console.log(`🤏 Pinch: ${currentSliceCount} → ${newSliceCount} slices`);
                         this.state.set('sliceCount', newSliceCount);
                         this.renderer.render();
+                        // Update reference distance for smoother incremental changes
                         this.dragState.lastPinchDistance = currentDistance;
                     }
                 }
