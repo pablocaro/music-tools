@@ -12,6 +12,24 @@
             --bg-primary: #2e2e2e;
             --slice-color: #000;
             --accent-color: #007bff;
+            --text-color: #333;
+            --modal-bg: rgba(255, 255, 255, 0.9);
+            --modal-text: #333;
+            --control-bg: #333;
+            --control-text: #fff;
+            --grip-color: #fff;
+        }
+
+        :root[data-theme="light"] {
+            --bg-primary: #f5f5f5;
+            --slice-color: #fff;
+            --accent-color: #007bff;
+            --text-color: #333;
+            --modal-bg: rgba(255, 255, 255, 0.95);
+            --modal-text: #333;
+            --control-bg: #fff;
+            --control-text: #333;
+            --grip-color: #333;
         }
 
         * {
@@ -84,7 +102,7 @@
         }
 
         .modal-content {
-            background: rgba(255, 255, 255, 0.9);
+            background: var(--modal-bg);
             backdrop-filter: blur(10px);
             border-radius: 16px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
@@ -122,7 +140,7 @@
         .modal-content h3 {
             margin-top: 0;
             margin-bottom: 24px;
-            color: #333;
+            color: var(--modal-text);
             font-size: 20px;
         }
 
@@ -133,8 +151,8 @@
             transform: translateX(-50%);
             width: 56px;
             height: 56px;
-            background: #333;
-            color: white;
+            background: var(--control-bg);
+            color: var(--control-text);
             border: none;
             border-radius: 50%;
             cursor: pointer;
@@ -145,6 +163,30 @@
             z-index: 50;
             transition: all 0.2s ease;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .theme-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            background: var(--control-bg);
+            color: var(--control-text);
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            z-index: 50;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.1);
         }
 
         .toggle-controls:hover {
@@ -164,7 +206,7 @@
             display: block;
             margin-bottom: 8px;
             font-weight: bold;
-            color: #555;
+            color: var(--modal-text);
             font-size: 14px;
         }
 
@@ -221,10 +263,27 @@
             border-color: #ccc;
             background: #f0f0f0;
         }
+
+        /* ============================================
+           GRIPPER ANIMATION
+           ============================================ */
+        .gripper-active #innerRotationPlate {
+            transition: r 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+        }
+
+        .gripper-active .grip-ring {
+            transition: r 0.2s cubic-bezier(0.4, 0.0, 0.2, 1),
+                       stroke-width 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+        }
+
+        .gripper-active .grip-tick {
+            transition: opacity 0.2s ease;
+        }
     </style>
 </head>
 <body>
     <button class="toggle-controls" id="toggleBtn" aria-label="Open controls">⚙</button>
+    <button class="theme-toggle" id="themeBtn" aria-label="Toggle theme">☀️</button>
 
     <div class="modal-backdrop" id="modalBackdrop">
         <div class="modal-content" id="modalContent">
@@ -341,7 +400,8 @@
             gripRingOpacity: 5,
             gripInset: 5,
             pressShrink: 2,
-            pressBrightness: 30
+            pressBrightness: 30,
+            theme: 'dark'
         };
 
         // ============================================
@@ -733,7 +793,7 @@
                 this.innerCircle.setAttribute('cy', center.y);
                 this.innerCircle.setAttribute('r', innerRadius);
                 this.innerCircle.setAttribute('fill', 'transparent');
-                this.innerCircle.setAttribute('stroke', '#fff');
+                this.innerCircle.setAttribute('stroke', 'var(--grip-color)');
                 this.innerCircle.setAttribute('stroke-width', '0');
                 this.innerCircle.setAttribute('id', 'innerRotationPlate');
                 this.innerCircle.style.cursor = 'grab';
@@ -749,11 +809,12 @@
                 const gripRingOpacity = this.state.get('gripRingOpacity');
 
                 const gripRing = document.createElementNS(SVG_NS, 'circle');
+                gripRing.setAttribute('class', 'grip-ring');
                 gripRing.setAttribute('cx', center.x);
                 gripRing.setAttribute('cy', center.y);
                 gripRing.setAttribute('r', (gripRingRadius + innerRadius) / 2);
                 gripRing.setAttribute('fill', 'none');
-                gripRing.setAttribute('stroke', '#fff');
+                gripRing.setAttribute('stroke', 'var(--grip-color)');
                 gripRing.setAttribute('stroke-width', innerRadius - gripRingRadius);
                 gripRing.setAttribute('opacity', gripRingOpacity / 100);
                 gripRing.style.pointerEvents = 'none';
@@ -787,11 +848,12 @@
                     const y2 = center.y + outerTickRadius * Math.sin(angleRad);
 
                     const tick = document.createElementNS(SVG_NS, 'line');
+                    tick.setAttribute('class', 'grip-tick');
                     tick.setAttribute('x1', x1);
                     tick.setAttribute('y1', y1);
                     tick.setAttribute('x2', x2);
                     tick.setAttribute('y2', y2);
-                    tick.setAttribute('stroke', '#fff');
+                    tick.setAttribute('stroke', 'var(--grip-color)');
                     tick.setAttribute('stroke-width', gripThickness);
                     tick.setAttribute('opacity', gripOpacity / 100);
                     tick.style.pointerEvents = 'none';
@@ -900,6 +962,66 @@
                 const avgRadius = (radii.rx + radii.ry) / 2;
                 const innerRadius = avgRadius * INNER_CIRCLE_RADIUS_RATIO;
                 return { center, innerRadius };
+            }
+
+            activateGripper() {
+                if (this.sliceGroup) {
+                    this.sliceGroup.classList.add('gripper-active');
+
+                    // Grow the inner circle
+                    if (this.innerCircle) {
+                        const currentRadius = parseFloat(this.innerCircle.getAttribute('r'));
+                        this.innerCircle.setAttribute('r', currentRadius * 1.15);
+                    }
+
+                    // Grow the grip ring
+                    const gripRing = this.sliceGroup.querySelector('.grip-ring');
+                    if (gripRing) {
+                        const currentRadius = parseFloat(gripRing.getAttribute('r'));
+                        gripRing.setAttribute('r', currentRadius * 1.15);
+
+                        const currentWidth = parseFloat(gripRing.getAttribute('stroke-width'));
+                        gripRing.setAttribute('stroke-width', currentWidth * 1.15);
+                    }
+
+                    // Brighten the grip ticks
+                    const gripTicks = this.sliceGroup.querySelectorAll('.grip-tick');
+                    gripTicks.forEach(tick => {
+                        const currentOpacity = parseFloat(tick.getAttribute('opacity'));
+                        tick.setAttribute('opacity', Math.min(1, currentOpacity * 1.5));
+                    });
+                }
+            }
+
+            deactivateGripper() {
+                if (this.sliceGroup) {
+                    this.sliceGroup.classList.remove('gripper-active');
+
+                    // Reset the inner circle
+                    if (this.innerCircle) {
+                        const center = this.geometry.calculateCenter();
+                        const radii = this.geometry.calculateRadii();
+                        const avgRadius = (radii.rx + radii.ry) / 2;
+                        const innerRadius = avgRadius * INNER_CIRCLE_RADIUS_RATIO;
+                        this.innerCircle.setAttribute('r', innerRadius);
+                    }
+
+                    // Reset the grip ring
+                    const innerCircleData = this.getInnerCircleData();
+                    const gripRingRadius = innerCircleData.innerRadius * DRAGGABLE_RING_RATIO;
+                    const gripRing = this.sliceGroup.querySelector('.grip-ring');
+                    if (gripRing) {
+                        gripRing.setAttribute('r', (gripRingRadius + innerCircleData.innerRadius) / 2);
+                        gripRing.setAttribute('stroke-width', innerCircleData.innerRadius - gripRingRadius);
+                    }
+
+                    // Reset grip ticks
+                    const gripOpacity = this.state.get('gripOpacity');
+                    const gripTicks = this.sliceGroup.querySelectorAll('.grip-tick');
+                    gripTicks.forEach(tick => {
+                        tick.setAttribute('opacity', gripOpacity / 100);
+                    });
+                }
             }
         }
 
@@ -1011,6 +1133,9 @@
 
                 const innerCircle = document.getElementById('innerRotationPlate');
                 if (innerCircle) innerCircle.style.cursor = 'grabbing';
+
+                // Activate gripper animation
+                this.renderer.activateGripper();
             }
 
             startSliceDrag(sliceElement) {
@@ -1049,6 +1174,7 @@
                         this.dragState.lastAngle = this.geometry.getAngleFromPoint(x, y, innerCircleData.center);
                         const innerCircle = document.getElementById('innerRotationPlate');
                         if (innerCircle) innerCircle.style.cursor = 'grabbing';
+                        this.renderer.activateGripper();
                     } else {
                         // Check if over a slice and start dragging
                         const element = document.elementFromPoint(clientX, clientY);
@@ -1087,6 +1213,7 @@
                     this.dragState.lastAngle = this.geometry.getAngleFromPoint(x, y, innerCircleData.center);
                     const innerCircle = document.getElementById('innerRotationPlate');
                     if (innerCircle) innerCircle.style.cursor = 'grabbing';
+                    this.renderer.activateGripper();
                 }
 
                 if (this.dragState.isRotating) {
@@ -1200,6 +1327,11 @@
                         this.renderer.releaseSlice(this.dragState.lastRotationSlice);
                     }
 
+                    // Deactivate gripper animation if rotating
+                    if (this.dragState.isRotating) {
+                        this.renderer.deactivateGripper();
+                    }
+
                     // Reset drag state
                     this.dragState.isDragging = false;
                     this.dragState.isRotating = false;
@@ -1241,6 +1373,7 @@
             getElements() {
                 return {
                     toggleBtn: document.getElementById('toggleBtn'),
+                    themeBtn: document.getElementById('themeBtn'),
                     closeBtn: document.getElementById('closeBtn'),
                     modalBackdrop: document.getElementById('modalBackdrop'),
                     sliceCount: document.getElementById('sliceCount'),
@@ -1278,6 +1411,7 @@
             setupEventListeners() {
                 // Modal controls
                 this.elements.toggleBtn.addEventListener('click', () => this.toggleModal());
+                this.elements.themeBtn.addEventListener('click', () => this.toggleTheme());
                 this.elements.closeBtn.addEventListener('click', () => this.closeModal());
                 this.elements.modalBackdrop.addEventListener('click', (e) => {
                     if (e.target === this.elements.modalBackdrop) this.closeModal();
@@ -1384,6 +1518,36 @@
                     }
                 });
             }
+
+            toggleTheme() {
+                const currentTheme = this.state.get('theme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                this.state.set('theme', newTheme);
+
+                // Update the document theme
+                document.documentElement.setAttribute('data-theme', newTheme);
+
+                // Update button icon
+                this.elements.themeBtn.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+
+                // Update slice colors
+                this.updateSliceColors(newTheme);
+            }
+
+            updateSliceColors(theme) {
+                const sliceColor = theme === 'dark' ? '#000' : '#fff';
+                const sliceCount = this.state.get('sliceCount');
+
+                // Update all gradient stop colors
+                for (let i = 0; i < sliceCount; i++) {
+                    const stop1 = document.querySelector(`#gradient${i} stop:first-child`);
+                    const stop2 = document.querySelector(`#gradient${i} stop:last-child`);
+                    if (stop1) stop1.setAttribute('stop-color', sliceColor);
+                    if (stop2 && !stop2.style.transition) {
+                        stop2.setAttribute('stop-color', sliceColor);
+                    }
+                }
+            }
         }
 
         // ============================================
@@ -1401,6 +1565,10 @@
             }
 
             init() {
+                // Initialize theme
+                const theme = this.stateManager.get('theme');
+                document.documentElement.setAttribute('data-theme', theme);
+
                 // Initialize background color
                 const grayValue = Math.round((this.stateManager.get('bgGray') / 100) * 255);
                 const hexValue = grayValue.toString(16).padStart(2, '0');
