@@ -620,6 +620,7 @@
             constructor() {
                 this.synth = null;
                 this.activeNotes = new Map(); // Maps index -> note
+                this.lockedDrones = new Map(); // Maps index -> note (for locked drones)
                 this.noteTimeouts = new Map(); // Maps index -> timeout ID for auto-release
                 this.AUTO_RELEASE_MS = 4000; // 4 seconds
             }
@@ -654,6 +655,13 @@
             async playNote(index) {
                 await this.init();
                 const note = this.getNote(index);
+
+                // Don't play if already locked (wait for toggle-off)
+                if (this.lockedDrones.has(index)) {
+                    console.log(`🔒 Note ${note} is locked, skipping (index ${index})`);
+                    return;
+                }
+
                 if (!this.activeNotes.has(index)) {
                     console.log(`🎵 Playing note ${note} (index ${index}) - Context state: ${Tone.context.state}`);
                     this.synth.triggerAttack(note);
@@ -670,7 +678,13 @@
                 }
             }
 
-            stopNote(index) {
+            stopNote(index, force = false) {
+                // Don't stop if locked (unless forced)
+                if (this.lockedDrones.has(index) && !force) {
+                    console.log(`🔒 Note at index ${index} is locked, not stopping`);
+                    return;
+                }
+
                 if (this.activeNotes.has(index)) {
                     const note = this.activeNotes.get(index);
                     console.log(`🛑 Stopping note ${note} (index ${index})`);
@@ -689,16 +703,58 @@
                 }
             }
 
+            lockDrone(index) {
+                if (this.activeNotes.has(index)) {
+                    const note = this.activeNotes.get(index);
+                    console.log(`🔒 Locking drone ${note} (index ${index})`);
+                    this.lockedDrones.set(index, note);
+
+                    // Clear auto-release timeout since it's locked
+                    if (this.noteTimeouts.has(index)) {
+                        clearTimeout(this.noteTimeouts.get(index));
+                        this.noteTimeouts.delete(index);
+                    }
+                }
+            }
+
+            unlockDrone(index) {
+                if (this.lockedDrones.has(index)) {
+                    const note = this.lockedDrones.get(index);
+                    console.log(`🔓 Unlocking and stopping drone ${note} (index ${index})`);
+                    this.lockedDrones.delete(index);
+
+                    // Force stop the note
+                    if (this.synth) {
+                        this.synth.triggerRelease(note);
+                    }
+                    this.activeNotes.delete(index);
+                }
+            }
+
+            isLocked(index) {
+                return this.lockedDrones.has(index);
+            }
+
             stopAllNotes() {
-                console.log(`🔇 Stopping ALL notes. Active count: ${this.activeNotes.size}`);
+                console.log(`🔇 Stopping ALL notes. Active: ${this.activeNotes.size}, Locked: ${this.lockedDrones.size}`);
+
+                // Stop all active notes
                 if (this.synth && this.activeNotes.size > 0) {
-                    // Release each note individually
                     this.activeNotes.forEach((note, index) => {
                         console.log(`  - Releasing ${note} (index ${index})`);
                         this.synth.triggerRelease(note);
                     });
                 }
                 this.activeNotes.clear();
+
+                // Stop all locked drones
+                if (this.synth && this.lockedDrones.size > 0) {
+                    this.lockedDrones.forEach((note, index) => {
+                        console.log(`  - Releasing locked drone ${note} (index ${index})`);
+                        this.synth.triggerRelease(note);
+                    });
+                }
+                this.lockedDrones.clear();
 
                 // Clear all auto-release timeouts
                 this.noteTimeouts.forEach((timeoutId) => {
@@ -720,6 +776,7 @@
                 this.geometry = geometryEngine;
                 this.sliceElements = new Map();
                 this.pathGenerators = new Map();
+                this.lockedSlices = new Set(); // Track locked drone slices
                 this.sliceGroup = null;
                 this.innerCircle = null;
             }
@@ -903,6 +960,10 @@
                     const x2 = center.x + outerTickRadius * Math.cos(angleRad);
                     const y2 = center.y + outerTickRadius * Math.sin(angleRad);
 
+                    // Calculate center point of the tick
+                    const centerX = (x1 + x2) / 2;
+                    const centerY = (y1 + y2) / 2;
+
                     const tick = document.createElementNS(SVG_NS, 'line');
                     tick.setAttribute('class', 'grip-tick');
                     tick.setAttribute('x1', x1);
@@ -913,6 +974,14 @@
                     tick.setAttribute('stroke-width', gripThickness);
                     tick.setAttribute('opacity', gripOpacity / 100);
                     tick.style.pointerEvents = 'none';
+
+                    // Store original positions for animation
+                    tick.setAttribute('data-x1', x1);
+                    tick.setAttribute('data-y1', y1);
+                    tick.setAttribute('data-x2', x2);
+                    tick.setAttribute('data-y2', y2);
+                    tick.setAttribute('data-center-x', centerX);
+                    tick.setAttribute('data-center-y', centerY);
 
                     fragment.appendChild(tick);
                 }
@@ -949,6 +1018,9 @@
             }
 
             render() {
+                // Clear locked slices when re-rendering (slice indices change)
+                this.lockedSlices.clear();
+
                 this.updateViewBox();
                 this.clear();
                 this.renderBackground();
@@ -994,6 +1066,11 @@
             }
 
             releaseSlice(index) {
+                // Don't release if locked
+                if (this.lockedSlices.has(index)) {
+                    return;
+                }
+
                 const stop2 = document.querySelector(`.stop2-${index}`);
                 if (stop2) {
                     stop2.style.transition = 'stop-color 300ms ease-out';
@@ -1006,6 +1083,31 @@
                     slice.style.transition = 'd 300ms ease-out';
                     slice.setAttribute('d', pathGen(1));
                 }
+            }
+
+            lockSlice(index) {
+                this.lockedSlices.add(index);
+                console.log(`🎨 Visually locking slice ${index}`);
+                // Slice stays in pressed state
+            }
+
+            unlockSlice(index) {
+                this.lockedSlices.delete(index);
+                console.log(`🎨 Visually unlocking slice ${index}`);
+                // Now release the visual
+                this.releaseSlice(index);
+            }
+
+            isSliceLocked(index) {
+                return this.lockedSlices.has(index);
+            }
+
+            clearAllLockedSlices() {
+                console.log(`🎨 Clearing all ${this.lockedSlices.size} locked slices`);
+                this.lockedSlices.forEach(index => {
+                    this.releaseSlice(index);
+                });
+                this.lockedSlices.clear();
             }
 
             getSliceElement(index) {
@@ -1034,11 +1136,31 @@
                         gripRing.setAttribute('opacity', currentOpacity * 2);
                     }
 
-                    // Brighten the grip ticks
+                    // Brighten and extend the grip ticks
                     const gripTicks = this.sliceGroup.querySelectorAll('.grip-tick');
                     gripTicks.forEach(tick => {
+                        // Brighten opacity
                         const currentOpacity = parseFloat(tick.getAttribute('opacity'));
                         tick.setAttribute('opacity', Math.min(1, currentOpacity * 1.5));
+
+                        // Extend tick length (1.3x from center point)
+                        const x1 = parseFloat(tick.getAttribute('data-x1'));
+                        const y1 = parseFloat(tick.getAttribute('data-y1'));
+                        const x2 = parseFloat(tick.getAttribute('data-x2'));
+                        const y2 = parseFloat(tick.getAttribute('data-y2'));
+                        const centerX = parseFloat(tick.getAttribute('data-center-x'));
+                        const centerY = parseFloat(tick.getAttribute('data-center-y'));
+
+                        const GROWTH_FACTOR = 1.3;
+                        const newX1 = centerX + (x1 - centerX) * GROWTH_FACTOR;
+                        const newY1 = centerY + (y1 - centerY) * GROWTH_FACTOR;
+                        const newX2 = centerX + (x2 - centerX) * GROWTH_FACTOR;
+                        const newY2 = centerY + (y2 - centerY) * GROWTH_FACTOR;
+
+                        tick.setAttribute('x1', newX1);
+                        tick.setAttribute('y1', newY1);
+                        tick.setAttribute('x2', newX2);
+                        tick.setAttribute('y2', newY2);
                     });
                 }
             }
@@ -1057,11 +1179,23 @@
                         gripRing.setAttribute('opacity', gripRingOpacity / 100);
                     }
 
-                    // Reset grip ticks
+                    // Reset grip ticks to original positions and opacity
                     const gripOpacity = this.state.get('gripOpacity');
                     const gripTicks = this.sliceGroup.querySelectorAll('.grip-tick');
                     gripTicks.forEach(tick => {
+                        // Reset opacity
                         tick.setAttribute('opacity', gripOpacity / 100);
+
+                        // Restore original positions
+                        const x1 = parseFloat(tick.getAttribute('data-x1'));
+                        const y1 = parseFloat(tick.getAttribute('data-y1'));
+                        const x2 = parseFloat(tick.getAttribute('data-x2'));
+                        const y2 = parseFloat(tick.getAttribute('data-y2'));
+
+                        tick.setAttribute('x1', x1);
+                        tick.setAttribute('y1', y1);
+                        tick.setAttribute('x2', x2);
+                        tick.setAttribute('y2', y2);
                     });
                 }
             }
@@ -1090,6 +1224,10 @@
                     lastTouchedSlice: null,
                     lastPinchDistance: 0
                 };
+
+                // Track slice interactions for drone lock
+                this.sliceInteractions = new Map(); // index -> {startTime, originalIndex, wasDragged}
+                this.DRONE_LOCK_THRESHOLD_MS = 4000;
 
                 this.setupEventListeners();
             }
@@ -1127,6 +1265,18 @@
             }
 
             handleStart(e) {
+                // Check if tapping a locked slice to unlock it
+                if (e.target.classList.contains('slice')) {
+                    const index = parseInt(e.target.getAttribute('data-slice'));
+                    if (this.audio.isLocked(index)) {
+                        console.log(`👆 Tapping locked slice ${index} to unlock`);
+                        this.audio.unlockDrone(index);
+                        this.renderer.unlockSlice(index);
+                        e.preventDefault();
+                        return; // Don't start new interaction
+                    }
+                }
+
                 // Check for multi-touch (pinch gesture)
                 // Only enable pinch if BOTH touches are in the gripper area
                 if (e.touches && e.touches.length >= 2) {
@@ -1243,6 +1393,11 @@
 
                 // Transition to rotation mode if entering gripper zone
                 if (inGripperZone && !this.dragState.wasInGripperZone) {
+                    // Mark all active interactions as dragged
+                    this.sliceInteractions.forEach((interaction) => {
+                        interaction.wasDragged = true;
+                    });
+
                     // Release any currently touched slice when transitioning to rotation
                     if (this.dragState.lastTouchedSlice) {
                         const lastIndex = parseInt(this.dragState.lastTouchedSlice.getAttribute('data-slice'));
@@ -1310,15 +1465,32 @@
 
                 if (this.dragState.lastTouchedSlice && this.dragState.lastTouchedSlice !== element) {
                     const lastIndex = parseInt(this.dragState.lastTouchedSlice.getAttribute('data-slice'));
+
+                    // Mark as dragged since we're moving between slices
+                    if (this.sliceInteractions.has(lastIndex)) {
+                        this.sliceInteractions.get(lastIndex).wasDragged = true;
+                    }
+
                     this.deactivateSlice(lastIndex);
                     this.dragState.lastTouchedSlice = null;
                 }
 
                 if (element && element.classList && element.classList.contains('slice')) {
                     const index = parseInt(element.getAttribute('data-slice'));
+
+                    // Skip locked slices during drag
+                    if (this.audio.isLocked(index)) {
+                        return;
+                    }
+
                     if (element !== this.dragState.lastTouchedSlice) {
                         this.activateSlice(index);
                         this.dragState.lastTouchedSlice = element;
+
+                        // This is a new slice in a drag operation
+                        if (this.sliceInteractions.has(index)) {
+                            this.sliceInteractions.get(index).wasDragged = true;
+                        }
                     }
                 }
             }
@@ -1337,12 +1509,26 @@
             }
 
             activateSlice(index) {
+                // Skip if this slice is locked
+                if (this.audio.isLocked(index)) {
+                    return;
+                }
+
                 this.renderer.pressSlice(index);
                 const sliceElement = this.renderer.getSliceElement(index);
                 if (sliceElement) {
                     this.dragState.pressedSlices.add(sliceElement);
                 }
                 this.audio.playNote(index);
+
+                // Record interaction start for drone lock detection
+                if (!this.sliceInteractions.has(index)) {
+                    this.sliceInteractions.set(index, {
+                        startTime: Date.now(),
+                        originalIndex: index,
+                        wasDragged: false
+                    });
+                }
             }
 
             deactivateSlice(index) {
@@ -1355,18 +1541,35 @@
             }
 
             handleEnd() {
-                // Always stop all notes on any release event as a failsafe
-                this.audio.stopAllNotes();
-
                 if (this.dragState.isDragging || this.dragState.isRotating || this.dragState.isPinching) {
-                    // Release all pressed slices
+                    // Check each pressed slice for drone lock condition
                     this.dragState.pressedSlices.forEach(slice => {
                         const index = parseInt(slice.getAttribute('data-slice'));
-                        this.renderer.releaseSlice(index);
+                        const interaction = this.sliceInteractions.get(index);
+
+                        if (interaction && !interaction.wasDragged) {
+                            const holdDuration = Date.now() - interaction.startTime;
+                            if (holdDuration >= this.DRONE_LOCK_THRESHOLD_MS) {
+                                // Lock this drone
+                                console.log(`🔒 Locking drone at index ${index} (held ${holdDuration}ms)`);
+                                this.audio.lockDrone(index);
+                                this.renderer.lockSlice(index);
+                                // Don't release the slice visual or audio
+                            } else {
+                                // Normal release
+                                this.renderer.releaseSlice(index);
+                                this.audio.stopNote(index);
+                            }
+                        } else {
+                            // Was dragged or no interaction data - normal release
+                            this.renderer.releaseSlice(index);
+                            this.audio.stopNote(index);
+                        }
                     });
 
                     if (this.dragState.lastRotationSlice !== null) {
                         this.renderer.releaseSlice(this.dragState.lastRotationSlice);
+                        this.audio.stopNote(this.dragState.lastRotationSlice);
                     }
 
                     // Deactivate gripper animation if rotating
@@ -1384,6 +1587,9 @@
                     this.dragState.lastTouchedSlice = null;
                     this.dragState.lastPinchDistance = 0;
                     this.dragState.pressedSlices.clear();
+
+                    // Clear interaction tracking
+                    this.sliceInteractions.clear();
 
                     const innerCircle = document.getElementById('innerRotationPlate');
                     if (innerCircle) innerCircle.style.cursor = 'grab';
