@@ -44,6 +44,12 @@
             background: var(--bg-primary);
             overflow: hidden;
             font-family: Arial, sans-serif;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
@@ -70,6 +76,7 @@
             width: 100%;
             height: 100%;
             background: var(--bg-primary);
+            touch-action: none;
         }
 
         .slice {
@@ -613,6 +620,8 @@
             constructor() {
                 this.synth = null;
                 this.activeNotes = new Map(); // Maps index -> note
+                this.noteTimeouts = new Map(); // Maps index -> timeout ID for auto-release
+                this.AUTO_RELEASE_MS = 4000; // 4 seconds
             }
 
             async init() {
@@ -649,6 +658,13 @@
                     console.log(`🎵 Playing note ${note} (index ${index}) - Context state: ${Tone.context.state}`);
                     this.synth.triggerAttack(note);
                     this.activeNotes.set(index, note);
+
+                    // Set auto-release timeout after 4 seconds
+                    const timeoutId = setTimeout(() => {
+                        console.log(`⏰ Auto-releasing note ${note} after ${this.AUTO_RELEASE_MS}ms (index ${index})`);
+                        this.stopNote(index);
+                    }, this.AUTO_RELEASE_MS);
+                    this.noteTimeouts.set(index, timeoutId);
                 } else {
                     console.log(`⏭️ Note ${note} already playing (index ${index})`);
                 }
@@ -662,6 +678,12 @@
                         this.synth.triggerRelease(note);
                     }
                     this.activeNotes.delete(index);
+
+                    // Clear the auto-release timeout
+                    if (this.noteTimeouts.has(index)) {
+                        clearTimeout(this.noteTimeouts.get(index));
+                        this.noteTimeouts.delete(index);
+                    }
                 } else {
                     console.log(`⚠️ Tried to stop note at index ${index} but it wasn't active`);
                 }
@@ -677,6 +699,13 @@
                     });
                 }
                 this.activeNotes.clear();
+
+                // Clear all auto-release timeouts
+                this.noteTimeouts.forEach((timeoutId) => {
+                    clearTimeout(timeoutId);
+                });
+                this.noteTimeouts.clear();
+
                 console.log(`✅ All notes cleared`);
             }
         }
@@ -1591,6 +1620,14 @@
             }
 
             init() {
+                // Prevent context menu on iOS and other touch devices
+                this.svgElement.addEventListener('contextmenu', (e) => e.preventDefault());
+                document.addEventListener('contextmenu', (e) => {
+                    if (e.target.closest('.radial-piano')) {
+                        e.preventDefault();
+                    }
+                });
+
                 // Initialize theme
                 const theme = this.stateManager.get('theme');
                 document.documentElement.setAttribute('data-theme', theme);
