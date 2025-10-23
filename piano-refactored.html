@@ -927,6 +927,10 @@
                     lastPinchDistance: 0
                 };
 
+                // Sustained key press tracking
+                this.lockedSlices = new Set(); // Tracks which slices are locked
+                this.sliceTimers = new Map(); // Tracks 4-second timers for each slice
+
                 this.setupEventListeners();
             }
 
@@ -982,6 +986,16 @@
                     this.startRotation(x, y, innerCircleData);
                     e.preventDefault();
                 } else if (e.target.classList.contains('slice')) {
+                    const index = parseInt(e.target.getAttribute('data-slice'));
+
+                    // Check if this slice is locked - if so, unlock it instead of activating
+                    if (this.lockedSlices.has(index)) {
+                        console.log(`🔓 Unlocking slice ${index}`);
+                        this.unlockSlice(index);
+                        e.preventDefault();
+                        return;
+                    }
+
                     this.startSliceDrag(e.target);
                 }
             }
@@ -1066,6 +1080,7 @@
 
                     if (newSliceCount !== currentSliceCount) {
                         console.log(`🤏 Pinch: ${currentSliceCount} → ${newSliceCount} slices`);
+                        this.cleanupBeforeRender();
                         this.state.set('sliceCount', newSliceCount);
                         this.renderer.render();
                         this.dragState.lastPinchDistance = currentDistance;
@@ -1121,15 +1136,61 @@
             }
 
             activateSlice(index) {
+                // Don't reactivate if already active
+                if (this.dragState.pressedSlices.has(this.renderer.getSliceElement(index))) {
+                    return;
+                }
+
                 this.renderer.pressSlice(index);
                 const sliceElement = this.renderer.getSliceElement(index);
                 if (sliceElement) {
                     this.dragState.pressedSlices.add(sliceElement);
                 }
                 this.audio.playNote(index);
+
+                // Start 4-second timer to lock the slice
+                if (!this.sliceTimers.has(index)) {
+                    const timer = setTimeout(() => {
+                        console.log(`🔒 Locking slice ${index} after 4 seconds`);
+                        this.lockedSlices.add(index);
+                        this.sliceTimers.delete(index);
+                    }, 4000);
+                    this.sliceTimers.set(index, timer);
+                }
             }
 
             deactivateSlice(index) {
+                // Clear any pending timer for this slice
+                if (this.sliceTimers.has(index)) {
+                    clearTimeout(this.sliceTimers.get(index));
+                    this.sliceTimers.delete(index);
+                }
+
+                // Don't deactivate if slice is locked
+                if (this.lockedSlices.has(index)) {
+                    console.log(`⏸️ Slice ${index} is locked, not deactivating`);
+                    return;
+                }
+
+                this.renderer.releaseSlice(index);
+                const sliceElement = this.renderer.getSliceElement(index);
+                if (sliceElement) {
+                    this.dragState.pressedSlices.delete(sliceElement);
+                }
+                this.audio.stopNote(index);
+            }
+
+            unlockSlice(index) {
+                // Remove from locked set
+                this.lockedSlices.delete(index);
+
+                // Clear any pending timer
+                if (this.sliceTimers.has(index)) {
+                    clearTimeout(this.sliceTimers.get(index));
+                    this.sliceTimers.delete(index);
+                }
+
+                // Release the slice
                 this.renderer.releaseSlice(index);
                 const sliceElement = this.renderer.getSliceElement(index);
                 if (sliceElement) {
@@ -1139,19 +1200,25 @@
             }
 
             handleEnd() {
-                // Always stop all notes on any release event as a failsafe
-                this.audio.stopAllNotes();
-
                 if (this.dragState.isDragging || this.dragState.isRotating || this.dragState.isPinching) {
-                    // Release all pressed slices
+                    // Release all pressed slices, but preserve locked ones
+                    const slicesToRelease = new Set();
+
                     this.dragState.pressedSlices.forEach(slice => {
                         const index = parseInt(slice.getAttribute('data-slice'));
-                        this.renderer.releaseSlice(index);
+                        if (!this.lockedSlices.has(index)) {
+                            slicesToRelease.add(index);
+                        }
                     });
 
-                    if (this.dragState.lastRotationSlice !== null) {
-                        this.renderer.releaseSlice(this.dragState.lastRotationSlice);
+                    if (this.dragState.lastRotationSlice !== null && !this.lockedSlices.has(this.dragState.lastRotationSlice)) {
+                        slicesToRelease.add(this.dragState.lastRotationSlice);
                     }
+
+                    // Release non-locked slices
+                    slicesToRelease.forEach(index => {
+                        this.deactivateSlice(index);
+                    });
 
                     // Reset drag state
                     this.dragState.isDragging = false;
@@ -1162,7 +1229,16 @@
                     this.dragState.lastRotationSlice = null;
                     this.dragState.lastTouchedSlice = null;
                     this.dragState.lastPinchDistance = 0;
-                    this.dragState.pressedSlices.clear();
+
+                    // Clear pressedSlices but keep locked ones
+                    const lockedSliceElements = new Set();
+                    this.dragState.pressedSlices.forEach(slice => {
+                        const index = parseInt(slice.getAttribute('data-slice'));
+                        if (this.lockedSlices.has(index)) {
+                            lockedSliceElements.add(slice);
+                        }
+                    });
+                    this.dragState.pressedSlices = lockedSliceElements;
 
                     const innerCircle = document.getElementById('innerRotationPlate');
                     if (innerCircle) innerCircle.style.cursor = 'grab';
@@ -1177,15 +1253,32 @@
                     setTimeout(() => this.deactivateSlice(index), 350);
                 }
             }
+
+            cleanupBeforeRender() {
+                // Clear all active timers
+                this.sliceTimers.forEach((timer, index) => {
+                    clearTimeout(timer);
+                });
+                this.sliceTimers.clear();
+
+                // Unlock and release all locked slices
+                this.lockedSlices.forEach(index => {
+                    this.unlockSlice(index);
+                });
+                this.lockedSlices.clear();
+
+                console.log('🧹 Cleaned up all timers and locked slices before render');
+            }
         }
 
         // ============================================
         // CONTROLS MANAGER
         // ============================================
         class ControlsManager {
-            constructor(stateManager, renderEngine) {
+            constructor(stateManager, renderEngine, interactionManager) {
                 this.state = stateManager;
                 this.renderer = renderEngine;
+                this.interaction = interactionManager;
                 this.elements = this.getElements();
                 this.setupEventListeners();
                 this.syncUIWithState();
@@ -1248,16 +1341,16 @@
 
                 // Slider controls
                 this.setupSlider('bgGraySlider', 'bgGray', 'bgGrayValue', '%', (value) => this.updateBackgroundColor(value));
-                this.setupSlider('offsetXSlider', 'offsetX', 'offsetXValue', '%', () => this.renderer.render());
-                this.setupSlider('offsetYSlider', 'offsetY', 'offsetYValue', '%', () => this.renderer.render());
-                this.setupSlider('radiusSlider', 'radius', 'radiusValue', '%', () => this.renderer.render());
+                this.setupSlider('offsetXSlider', 'offsetX', 'offsetXValue', '%', () => this.renderWithCleanup());
+                this.setupSlider('offsetYSlider', 'offsetY', 'offsetYValue', '%', () => this.renderWithCleanup());
+                this.setupSlider('radiusSlider', 'radius', 'radiusValue', '%', () => this.renderWithCleanup());
                 this.setupSlider('rotationSlider', 'rotation', 'rotationValue', '°', () => this.renderer.updateRotation());
-                this.setupSlider('gapSizeSlider', 'gapSize', 'gapSizeValue', '°', () => this.renderer.render());
-                this.setupSlider('gripThicknessSlider', 'gripThickness', 'gripThicknessValue', 'px', () => this.renderer.render());
-                this.setupSlider('ticksPerEdgeSlider', 'ticksPerEdge', 'ticksPerEdgeValue', '', () => this.renderer.render());
-                this.setupSlider('gripOpacitySlider', 'gripOpacity', 'gripOpacityValue', '%', () => this.renderer.render());
-                this.setupSlider('gripRingOpacitySlider', 'gripRingOpacity', 'gripRingOpacityValue', '%', () => this.renderer.render());
-                this.setupSlider('gripInsetSlider', 'gripInset', 'gripInsetValue', '%', () => this.renderer.render());
+                this.setupSlider('gapSizeSlider', 'gapSize', 'gapSizeValue', '°', () => this.renderWithCleanup());
+                this.setupSlider('gripThicknessSlider', 'gripThickness', 'gripThicknessValue', 'px', () => this.renderWithCleanup());
+                this.setupSlider('ticksPerEdgeSlider', 'ticksPerEdge', 'ticksPerEdgeValue', '', () => this.renderWithCleanup());
+                this.setupSlider('gripOpacitySlider', 'gripOpacity', 'gripOpacityValue', '%', () => this.renderWithCleanup());
+                this.setupSlider('gripRingOpacitySlider', 'gripRingOpacity', 'gripRingOpacityValue', '%', () => this.renderWithCleanup());
+                this.setupSlider('gripInsetSlider', 'gripInset', 'gripInsetValue', '%', () => this.renderWithCleanup());
                 this.setupSlider('pressShrinkSlider', 'pressShrink', 'pressShrinkValue', '%');
                 this.setupSlider('pressBrightnessSlider', 'pressBrightness', 'pressBrightnessValue', '%');
 
@@ -1287,6 +1380,13 @@
                 });
             }
 
+            renderWithCleanup() {
+                if (this.interaction) {
+                    this.interaction.cleanupBeforeRender();
+                }
+                this.renderer.render();
+            }
+
             changeSliceCount(delta) {
                 const current = parseInt(this.elements.sliceCount.value);
                 const newValue = Math.max(6, Math.min(72, current + delta));
@@ -1298,14 +1398,14 @@
                 const value = Math.max(6, Math.min(72, parseInt(this.elements.sliceCount.value)));
                 this.elements.sliceCount.value = value;
                 this.state.set('sliceCount', value);
-                this.renderer.render();
+                this.renderWithCleanup();
             }
 
             updateBackgroundColor(value) {
                 const grayValue = Math.round((value / 100) * 255);
                 const hexValue = grayValue.toString(16).padStart(2, '0');
                 document.documentElement.style.setProperty('--bg-primary', `#${hexValue}${hexValue}${hexValue}`);
-                this.renderer.render();
+                this.renderWithCleanup();
             }
 
             toggleModal() {
@@ -1371,32 +1471,36 @@
                     this.audioEngine
                 );
 
-                this.controlsManager = new ControlsManager(this.stateManager, this.renderEngine);
+                this.controlsManager = new ControlsManager(this.stateManager, this.renderEngine, this.interactionManager);
 
                 // Setup resize handler
                 let resizeTimeout;
                 window.addEventListener('resize', () => {
                     clearTimeout(resizeTimeout);
                     resizeTimeout = setTimeout(() => {
+                        this.interactionManager.cleanupBeforeRender();
                         this.stateManager.invalidateComputed();
                         this.renderEngine.render();
                     }, RESIZE_DEBOUNCE_MS);
                 });
 
-                // Add failsafe event listeners to prevent stuck notes
+                // Add failsafe event listeners to prevent stuck notes and unlock locked slices
                 window.addEventListener('blur', () => {
+                    this.interactionManager.cleanupBeforeRender();
                     this.audioEngine.stopAllNotes();
                 });
 
                 document.addEventListener('visibilitychange', () => {
                     if (document.hidden) {
+                        this.interactionManager.cleanupBeforeRender();
                         this.audioEngine.stopAllNotes();
                     }
                 });
 
-                // Add Escape key as panic button
+                // Add Escape key as panic button to clear everything
                 document.addEventListener('keydown', (e) => {
                     if (e.key === 'Escape') {
+                        this.interactionManager.cleanupBeforeRender();
                         this.audioEngine.stopAllNotes();
                     }
                 });
