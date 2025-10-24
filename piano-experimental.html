@@ -294,10 +294,7 @@
 
         .gripper-active .grip-tick {
             transition: opacity var(--notch-activation-speed, 200ms) ease-in-out,
-                       x1 var(--notch-activation-speed, 200ms) ease-in-out,
-                       y1 var(--notch-activation-speed, 200ms) ease-in-out,
-                       x2 var(--notch-activation-speed, 200ms) ease-in-out,
-                       y2 var(--notch-activation-speed, 200ms) ease-in-out;
+                       transform var(--notch-activation-speed, 200ms) ease-in-out;
         }
 
         .grip-ring {
@@ -307,10 +304,7 @@
 
         .grip-tick {
             transition: opacity var(--notch-deactivation-speed, 300ms) ease-in-out,
-                       x1 var(--notch-deactivation-speed, 300ms) ease-in-out,
-                       y1 var(--notch-deactivation-speed, 300ms) ease-in-out,
-                       x2 var(--notch-deactivation-speed, 300ms) ease-in-out,
-                       y2 var(--notch-deactivation-speed, 300ms) ease-in-out;
+                       transform var(--notch-deactivation-speed, 300ms) ease-in-out;
         }
     </style>
 </head>
@@ -1024,6 +1018,7 @@
                     tick.setAttribute('stroke-width', gripThickness);
                     tick.setAttribute('opacity', gripOpacity / 100);
                     tick.style.pointerEvents = 'none';
+                    tick.style.transformOrigin = `${centerX}px ${centerY}px`;
 
                     // Store original positions for animation
                     tick.setAttribute('data-x1', x1);
@@ -1231,54 +1226,25 @@
                     const ringThicknessBoost = this.state.get('ringThicknessBoost');
                     const notchBrightnessBoost = this.state.get('notchBrightnessBoost');
                     const notchGrowthFactor = this.state.get('notchGrowthFactor');
-                    const activationSpeed = this.state.get('notchActivationSpeed');
 
                     // Thicken the grip ring
                     const gripRing = this.sliceGroup.querySelector('.grip-ring');
                     if (gripRing) {
                         const currentWidth = parseFloat(gripRing.getAttribute('stroke-width'));
-                        const targetWidth = currentWidth * ringThicknessBoost;
-                        const currentOpacity = parseFloat(gripRing.getAttribute('opacity'));
-                        const targetOpacity = Math.min(1, currentOpacity * 2);
+                        gripRing.setAttribute('stroke-width', currentWidth * ringThicknessBoost);
 
-                        gripRing.animate([
-                            { strokeWidth: currentWidth, opacity: currentOpacity },
-                            { strokeWidth: targetWidth, opacity: targetOpacity }
-                        ], {
-                            duration: activationSpeed,
-                            easing: 'ease-in-out',
-                            fill: 'forwards'
-                        });
+                        const currentOpacity = parseFloat(gripRing.getAttribute('opacity'));
+                        gripRing.setAttribute('opacity', Math.min(1, currentOpacity * 2));
                     }
 
-                    // Brighten and extend the grip ticks
+                    // Brighten and scale the grip ticks using CSS transforms
                     const gripTicks = this.sliceGroup.querySelectorAll('.grip-tick');
                     gripTicks.forEach(tick => {
                         const currentOpacity = parseFloat(tick.getAttribute('opacity'));
-                        const targetOpacity = Math.min(1, currentOpacity * notchBrightnessBoost);
+                        tick.setAttribute('opacity', Math.min(1, currentOpacity * notchBrightnessBoost));
 
-                        // Get original and target positions
-                        const x1 = parseFloat(tick.getAttribute('data-x1'));
-                        const y1 = parseFloat(tick.getAttribute('data-y1'));
-                        const x2 = parseFloat(tick.getAttribute('data-x2'));
-                        const y2 = parseFloat(tick.getAttribute('data-y2'));
-                        const centerX = parseFloat(tick.getAttribute('data-center-x'));
-                        const centerY = parseFloat(tick.getAttribute('data-center-y'));
-
-                        const newX1 = centerX + (x1 - centerX) * notchGrowthFactor;
-                        const newY1 = centerY + (y1 - centerY) * notchGrowthFactor;
-                        const newX2 = centerX + (x2 - centerX) * notchGrowthFactor;
-                        const newY2 = centerY + (y2 - centerY) * notchGrowthFactor;
-
-                        // Use Web Animations API for smooth animation
-                        tick.animate([
-                            { opacity: currentOpacity, x1: x1, y1: y1, x2: x2, y2: y2 },
-                            { opacity: targetOpacity, x1: newX1, y1: newY1, x2: newX2, y2: newY2 }
-                        ], {
-                            duration: activationSpeed,
-                            easing: 'ease-in-out',
-                            fill: 'forwards'
-                        });
+                        // Apply scale transform (CSS transition will animate it smoothly)
+                        tick.style.transform = `scale(${notchGrowthFactor})`;
                     });
                 }
             }
@@ -1287,55 +1253,24 @@
                 if (this.sliceGroup) {
                     this.sliceGroup.classList.remove('gripper-active');
 
-                    const deactivationSpeed = this.state.get('notchDeactivationSpeed');
-
                     // Reset the grip ring to original width and opacity
                     const innerCircleData = this.getInnerCircleData();
                     const gripRingRadius = innerCircleData.innerRadius * DRAGGABLE_RING_RATIO;
                     const gripRingOpacity = this.state.get('gripRingOpacity');
                     const gripRing = this.sliceGroup.querySelector('.grip-ring');
                     if (gripRing) {
-                        const currentWidth = parseFloat(gripRing.getAttribute('stroke-width')) || (innerCircleData.innerRadius - gripRingRadius);
-                        const currentOpacity = parseFloat(gripRing.getAttribute('opacity')) || (gripRingOpacity / 100);
-                        const targetWidth = innerCircleData.innerRadius - gripRingRadius;
-                        const targetOpacity = gripRingOpacity / 100;
-
-                        gripRing.animate([
-                            { strokeWidth: currentWidth, opacity: currentOpacity },
-                            { strokeWidth: targetWidth, opacity: targetOpacity }
-                        ], {
-                            duration: deactivationSpeed,
-                            easing: 'ease-in-out',
-                            fill: 'forwards'
-                        });
+                        gripRing.setAttribute('stroke-width', innerCircleData.innerRadius - gripRingRadius);
+                        gripRing.setAttribute('opacity', gripRingOpacity / 100);
                     }
 
-                    // Reset grip ticks to original positions and opacity
+                    // Reset grip ticks to original scale and opacity
                     const gripOpacity = this.state.get('gripOpacity');
                     const gripTicks = this.sliceGroup.querySelectorAll('.grip-tick');
                     gripTicks.forEach(tick => {
-                        const targetOpacity = gripOpacity / 100;
+                        tick.setAttribute('opacity', gripOpacity / 100);
 
-                        // Get current and target positions
-                        const currentX1 = parseFloat(tick.getAttribute('x1'));
-                        const currentY1 = parseFloat(tick.getAttribute('y1'));
-                        const currentX2 = parseFloat(tick.getAttribute('x2'));
-                        const currentY2 = parseFloat(tick.getAttribute('y2'));
-                        const currentOpacity = parseFloat(tick.getAttribute('opacity')) || targetOpacity;
-
-                        const x1 = parseFloat(tick.getAttribute('data-x1'));
-                        const y1 = parseFloat(tick.getAttribute('data-y1'));
-                        const x2 = parseFloat(tick.getAttribute('data-x2'));
-                        const y2 = parseFloat(tick.getAttribute('data-y2'));
-
-                        tick.animate([
-                            { opacity: currentOpacity, x1: currentX1, y1: currentY1, x2: currentX2, y2: currentY2 },
-                            { opacity: targetOpacity, x1: x1, y1: y1, x2: x2, y2: y2 }
-                        ], {
-                            duration: deactivationSpeed,
-                            easing: 'ease-in-out',
-                            fill: 'forwards'
-                        });
+                        // Reset transform to scale(1) - CSS transition will animate it smoothly
+                        tick.style.transform = 'scale(1)';
                     });
                 }
             }
