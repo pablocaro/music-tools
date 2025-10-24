@@ -382,8 +382,8 @@
             </div>
 
             <div class="control-group">
-                <label for="gripRingOpacitySlider">Grip Ring Opacity: <span class="range-value" id="gripRingOpacityValue">5</span>%</label>
-                <input type="range" id="gripRingOpacitySlider" min="0" max="100" step="5" value="5" aria-label="Grip ring opacity">
+                <label for="gripRingOpacitySlider">Grip Ring Opacity: <span class="range-value" id="gripRingOpacityValue">0</span>%</label>
+                <input type="range" id="gripRingOpacitySlider" min="0" max="100" step="5" value="0" aria-label="Grip ring opacity">
             </div>
 
             <div class="control-group">
@@ -404,8 +404,8 @@
             <h3 style="margin-top: 32px; padding-top: 24px; border-top: 2px solid #e0e0e0;">Experimental Settings</h3>
 
             <div class="control-group">
-                <label for="droneLockTimeSlider">Drone Lock Time: <span class="range-value" id="droneLockTimeValue">4000</span>ms</label>
-                <input type="range" id="droneLockTimeSlider" min="1000" max="8000" step="500" value="4000" aria-label="Drone lock time">
+                <label for="droneLockTimeSlider">Drone Lock Time: <span class="range-value" id="droneLockTimeValue">3000</span>ms</label>
+                <input type="range" id="droneLockTimeSlider" min="1000" max="8000" step="500" value="3000" aria-label="Drone lock time">
             </div>
 
             <div class="control-group">
@@ -465,13 +465,13 @@
             gripThickness: 2,
             gripOpacity: 10,
             ticksPerEdge: 4,
-            gripRingOpacity: 5,
+            gripRingOpacity: 0,
             gripInset: 5,
             pressShrink: 2,
             pressBrightness: 30,
             theme: 'dark',
             // Experimental: Drone lock timing
-            droneLockTime: 4000,
+            droneLockTime: 3000,
             // Experimental: Gripper animations
             notchGrowthFactor: 1.3,
             notchActivationSpeed: 200,
@@ -1017,6 +1017,7 @@
                     tick.setAttribute('stroke', 'var(--grip-color)');
                     tick.setAttribute('stroke-width', gripThickness);
                     tick.setAttribute('opacity', gripOpacity / 100);
+                    tick.setAttribute('vector-effect', 'non-scaling-stroke');
                     tick.style.pointerEvents = 'none';
                     tick.style.transformOrigin = `${centerX}px ${centerY}px`;
 
