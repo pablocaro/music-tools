@@ -286,28 +286,85 @@
         /* ============================================
            NOTE KEYBOARD
            ============================================ */
-        .note-keyboard {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-            gap: 10px;
+        .octave-container {
+            margin-bottom: 20px;
+        }
+
+        .octave-display {
+            text-align: center;
+            font-size: 16px;
+            color: var(--text-secondary);
             margin-bottom: 15px;
+            font-weight: 500;
+        }
+
+        .keyboard-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .octave-arrow {
+            width: 44px;
+            height: 44px;
+            min-width: 44px;
+            background: var(--accent);
+            border: none;
+            border-radius: 50%;
+            color: #fff;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .octave-arrow:hover {
+            background: var(--accent-hover);
+            transform: scale(1.05);
+        }
+
+        .octave-arrow:active {
+            transform: scale(0.95);
+        }
+
+        .octave-arrow:disabled {
+            background: var(--bg-tertiary);
+            color: var(--text-dim);
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .note-keyboard {
+            display: flex;
+            gap: 8px;
+            flex: 1;
+            justify-content: center;
+            max-width: 600px;
         }
 
         .note-btn {
-            padding: 20px;
-            background: var(--bg-tertiary);
-            border: 2px solid var(--border);
-            border-radius: 8px;
-            color: var(--text-primary);
+            padding: 18px 12px;
+            background: #f5f5f5;
+            border: 2px solid #d0d0d0;
+            border-radius: 0 0 6px 6px;
+            color: #222;
             font-size: 18px;
             font-weight: bold;
             cursor: pointer;
             transition: all 0.15s;
             position: relative;
+            flex: 1;
+            min-width: 50px;
+            max-width: 70px;
+            box-shadow: 0 4px 0 #b0b0b0;
         }
 
         .note-btn:hover {
-            background: var(--border);
+            background: #e8e8e8;
             border-color: var(--accent);
         }
 
@@ -315,16 +372,22 @@
         .note-btn.playing {
             background: var(--accent);
             border-color: var(--accent);
-            transform: scale(0.95);
+            color: #fff;
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #3a8eef;
         }
 
         .note-btn .key-hint {
             position: absolute;
             top: 5px;
             right: 8px;
-            font-size: 11px;
-            color: var(--text-dim);
+            font-size: 10px;
+            color: #888;
             font-weight: normal;
+        }
+
+        .note-btn.playing .key-hint {
+            color: rgba(255, 255, 255, 0.7);
         }
 
         /* ============================================
@@ -474,8 +537,26 @@
                 width: 100%;
             }
 
+            .keyboard-row {
+                gap: 8px;
+            }
+
+            .octave-arrow {
+                width: 40px;
+                height: 40px;
+                min-width: 40px;
+                font-size: 18px;
+            }
+
             .note-keyboard {
-                grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+                gap: 5px;
+            }
+
+            .note-btn {
+                min-width: 40px;
+                max-width: 50px;
+                padding: 15px 8px;
+                font-size: 16px;
             }
         }
     </style>
@@ -572,6 +653,11 @@
                 this.synth = null;
                 this.filter = null;
 
+                // Octave settings
+                this.currentOctave = 4;
+                this.minOctave = 2;
+                this.maxOctave = 6;
+
                 // Default settings
                 this.defaults = {
                     waveform: 'sine',
@@ -580,17 +666,22 @@
                     sustain: 0.3,
                     release: 0.8,
                     filterFreq: 5000,
-                    volume: -10
+                    volume: -10,
+                    octave: 4
                 };
 
                 // Current settings (will be loaded from localStorage or defaults)
                 this.settings = { ...this.defaults };
 
-                // Key bindings for notes
+                // Key bindings for notes (just note names, octave added dynamically)
                 this.keyMap = {
-                    'a': 'C4', 's': 'D4', 'd': 'E4', 'f': 'F4',
-                    'g': 'G4', 'h': 'A4', 'j': 'B4'
+                    'a': 'C', 's': 'D', 'd': 'E', 'f': 'F',
+                    'g': 'G', 'h': 'A', 'j': 'B'
                 };
+
+                // Touch tracking for swipe gestures
+                this.touchStartX = 0;
+                this.touchEndX = 0;
             }
 
             mount() {
@@ -658,6 +749,26 @@
                     }
                 });
 
+                // Octave controls
+                const octaveDown = document.getElementById('basics-octave-down');
+                const octaveUp = document.getElementById('basics-octave-up');
+
+                if (octaveDown) {
+                    octaveDown.addEventListener('click', () => this.changeOctave(-1));
+                }
+                if (octaveUp) {
+                    octaveUp.addEventListener('click', () => this.changeOctave(1));
+                }
+
+                // Swipe gesture support
+                const keyboard = document.getElementById('basics-keyboard');
+                if (keyboard) {
+                    this.touchStartHandler = (e) => this.handleTouchStart(e);
+                    this.touchEndHandler = (e) => this.handleTouchEnd(e);
+                    keyboard.addEventListener('touchstart', this.touchStartHandler, { passive: true });
+                    keyboard.addEventListener('touchend', this.touchEndHandler, { passive: true });
+                }
+
                 // Note buttons
                 document.querySelectorAll('.note-btn').forEach(btn => {
                     btn.addEventListener('mousedown', (e) => this.playNote(e.target.dataset.note));
@@ -686,11 +797,20 @@
                 this.keyupHandler = (e) => this.handleKeyUp(e);
                 document.addEventListener('keydown', this.keydownHandler);
                 document.addEventListener('keyup', this.keyupHandler);
+
+                // Update octave display
+                this.updateOctaveDisplay();
             }
 
             removeEventListeners() {
                 document.removeEventListener('keydown', this.keydownHandler);
                 document.removeEventListener('keyup', this.keyupHandler);
+
+                const keyboard = document.getElementById('basics-keyboard');
+                if (keyboard && this.touchStartHandler && this.touchEndHandler) {
+                    keyboard.removeEventListener('touchstart', this.touchStartHandler);
+                    keyboard.removeEventListener('touchend', this.touchEndHandler);
+                }
             }
 
             // Handle waveform change
@@ -741,8 +861,10 @@
                 await Tone.start();
 
                 if (this.synth) {
-                    this.synth.triggerAttack(note);
-                    console.log(`🎵 Playing: ${note}`);
+                    // Combine note name with current octave
+                    const noteWithOctave = `${note}${this.currentOctave}`;
+                    this.synth.triggerAttack(noteWithOctave);
+                    console.log(`🎵 Playing: ${noteWithOctave}`);
 
                     // Visual feedback
                     const btn = document.querySelector(`[data-note="${note}"]`);
@@ -762,10 +884,82 @@
                 }
             }
 
+            // Change octave
+            changeOctave(direction) {
+                const newOctave = this.currentOctave + direction;
+
+                if (newOctave >= this.minOctave && newOctave <= this.maxOctave) {
+                    this.currentOctave = newOctave;
+                    this.settings.octave = newOctave;
+                    this.updateOctaveDisplay();
+                    this.saveSettings();
+                    console.log(`🎼 Octave changed to: ${this.currentOctave}`);
+                }
+            }
+
+            // Update octave display and button states
+            updateOctaveDisplay() {
+                const display = document.getElementById('basics-octave-display');
+                const downBtn = document.getElementById('basics-octave-down');
+                const upBtn = document.getElementById('basics-octave-up');
+
+                if (display) {
+                    display.textContent = `Octave ${this.currentOctave}`;
+                }
+
+                // Disable buttons at limits
+                if (downBtn) {
+                    downBtn.disabled = this.currentOctave <= this.minOctave;
+                }
+                if (upBtn) {
+                    upBtn.disabled = this.currentOctave >= this.maxOctave;
+                }
+            }
+
+            // Handle touch start for swipe detection
+            handleTouchStart(e) {
+                this.touchStartX = e.changedTouches[0].screenX;
+            }
+
+            // Handle touch end for swipe detection
+            handleTouchEnd(e) {
+                this.touchEndX = e.changedTouches[0].screenX;
+                this.handleSwipe();
+            }
+
+            // Detect swipe direction and change octave
+            handleSwipe() {
+                const swipeThreshold = 50; // Minimum distance for swipe
+                const diff = this.touchStartX - this.touchEndX;
+
+                if (Math.abs(diff) > swipeThreshold) {
+                    if (diff > 0) {
+                        // Swiped left - increase octave
+                        this.changeOctave(1);
+                    } else {
+                        // Swiped right - decrease octave
+                        this.changeOctave(-1);
+                    }
+                }
+            }
+
             // Handle keyboard input
             handleKeyDown(e) {
                 if (e.repeat) return; // Ignore key repeat
 
+                // Arrow keys for octave control
+                if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    this.changeOctave(-1);
+                    return;
+                }
+                if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    this.changeOctave(1);
+                    return;
+                }
+
+                // Note keys
                 const note = this.keyMap[e.key.toLowerCase()];
                 if (note) {
                     e.preventDefault();
@@ -784,7 +978,9 @@
             // Reset to default settings
             resetToDefaults() {
                 this.settings = { ...this.defaults };
+                this.currentOctave = this.defaults.octave;
                 this.updateAllDisplays();
+                this.updateOctaveDisplay();
                 this.createAudioChain(); // Recreate synth with defaults
                 this.saveSettings();
                 console.log('🔄 Reset to defaults');
@@ -827,6 +1023,10 @@
                 if (saved) {
                     try {
                         this.settings = { ...this.defaults, ...JSON.parse(saved) };
+                        // Load octave setting
+                        if (this.settings.octave) {
+                            this.currentOctave = this.settings.octave;
+                        }
                         console.log('📂 Settings loaded from localStorage');
                     } catch (e) {
                         console.warn('Failed to load settings, using defaults');
@@ -852,16 +1052,24 @@
                     <div class="section">
                         <h3>Play Notes</h3>
                         <div class="section-description">
-                            Click the buttons below or use your keyboard (A, S, D, F, G, H, J) to play notes. The synth uses an ADSR envelope to shape each note.
+                            Click the buttons or use your keyboard (A, S, D, F, G, H, J) to play notes. Use arrows or swipe to change octaves.
                         </div>
-                        <div class="note-keyboard">
-                            <button class="note-btn" data-note="C4">C<span class="key-hint">A</span></button>
-                            <button class="note-btn" data-note="D4">D<span class="key-hint">S</span></button>
-                            <button class="note-btn" data-note="E4">E<span class="key-hint">D</span></button>
-                            <button class="note-btn" data-note="F4">F<span class="key-hint">F</span></button>
-                            <button class="note-btn" data-note="G4">G<span class="key-hint">G</span></button>
-                            <button class="note-btn" data-note="A4">A<span class="key-hint">H</span></button>
-                            <button class="note-btn" data-note="B4">B<span class="key-hint">J</span></button>
+
+                        <div class="octave-container">
+                            <div class="octave-display" id="basics-octave-display">Octave 4</div>
+                            <div class="keyboard-row">
+                                <button class="octave-arrow" id="basics-octave-down" aria-label="Previous octave">◀</button>
+                                <div class="note-keyboard" id="basics-keyboard">
+                                    <button class="note-btn" data-note="C">C<span class="key-hint">A</span></button>
+                                    <button class="note-btn" data-note="D">D<span class="key-hint">S</span></button>
+                                    <button class="note-btn" data-note="E">E<span class="key-hint">D</span></button>
+                                    <button class="note-btn" data-note="F">F<span class="key-hint">F</span></button>
+                                    <button class="note-btn" data-note="G">G<span class="key-hint">G</span></button>
+                                    <button class="note-btn" data-note="A">A<span class="key-hint">H</span></button>
+                                    <button class="note-btn" data-note="B">B<span class="key-hint">J</span></button>
+                                </div>
+                                <button class="octave-arrow" id="basics-octave-up" aria-label="Next octave">▶</button>
+                            </div>
                         </div>
                     </div>
 
