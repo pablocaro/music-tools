@@ -435,11 +435,13 @@
             background: rgba(0, 0, 0, 0.5);
             z-index: 999;
             opacity: 0;
+            pointer-events: none;
             transition: opacity 0.3s;
         }
 
         .sidebar-backdrop.active {
             opacity: 1;
+            pointer-events: auto;
         }
 
         /* ============================================
