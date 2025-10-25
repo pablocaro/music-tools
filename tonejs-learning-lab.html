@@ -53,6 +53,7 @@
             display: flex;
             flex-direction: column;
             padding: 20px 0;
+            transition: transform 0.3s ease;
         }
 
         .sidebar-header {
@@ -381,15 +382,94 @@
         }
 
         /* ============================================
+           MOBILE MENU BUTTON
+           ============================================ */
+        .menu-toggle {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1001;
+            width: 44px;
+            height: 44px;
+            background: var(--accent);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            transition: all 0.3s;
+        }
+
+        .menu-toggle span {
+            display: block;
+            width: 22px;
+            height: 2px;
+            background: #fff;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .menu-toggle.active span:nth-child(1) {
+            transform: translateY(7px) rotate(45deg);
+        }
+
+        .menu-toggle.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .menu-toggle.active span:nth-child(3) {
+            transform: translateY(-7px) rotate(-45deg);
+        }
+
+        /* Backdrop overlay for mobile menu */
+        .sidebar-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .sidebar-backdrop.active {
+            opacity: 1;
+        }
+
+        /* ============================================
            RESPONSIVE
            ============================================ */
         @media (max-width: 768px) {
+            .menu-toggle {
+                display: flex;
+            }
+
             .sidebar {
-                width: 200px;
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                z-index: 1000;
+                transform: translateX(-100%);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .sidebar-backdrop {
+                display: block;
             }
 
             .main-content {
-                padding: 20px;
+                padding: 80px 20px 20px;
+                width: 100%;
             }
 
             .note-keyboard {
@@ -399,9 +479,19 @@
     </style>
 </head>
 <body>
+    <!-- Mobile Menu Toggle Button -->
+    <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <!-- Backdrop for mobile menu -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
     <div class="app-container">
         <!-- Sidebar Navigation -->
-        <nav class="sidebar">
+        <nav class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <h1>Tone.js Lab</h1>
                 <p>Interactive Learning</p>
@@ -989,10 +1079,55 @@
                 // Build navigation
                 this.buildNavigation();
 
+                // Setup mobile menu
+                this.setupMobileMenu();
+
                 // Load first module
                 this.switchToModule('basics');
 
                 console.log('🚀 Tone.js Learning Lab initialized');
+            }
+
+            // Setup mobile menu toggle
+            setupMobileMenu() {
+                const menuToggle = document.getElementById('menuToggle');
+                const sidebar = document.getElementById('sidebar');
+                const backdrop = document.getElementById('sidebarBackdrop');
+
+                if (!menuToggle || !sidebar || !backdrop) return;
+
+                // Toggle menu
+                const toggleMenu = () => {
+                    const isOpen = sidebar.classList.contains('open');
+
+                    if (isOpen) {
+                        sidebar.classList.remove('open');
+                        backdrop.classList.remove('active');
+                        menuToggle.classList.remove('active');
+                    } else {
+                        sidebar.classList.add('open');
+                        backdrop.classList.add('active');
+                        menuToggle.classList.add('active');
+                    }
+                };
+
+                // Menu button click
+                menuToggle.addEventListener('click', toggleMenu);
+
+                // Backdrop click closes menu
+                backdrop.addEventListener('click', toggleMenu);
+
+                // Close menu when nav item clicked (on mobile)
+                this.navContainer.addEventListener('click', (e) => {
+                    if (e.target.closest('.nav-item') && !e.target.closest('.nav-item').classList.contains('disabled')) {
+                        // Small delay to let the click register
+                        setTimeout(() => {
+                            if (window.innerWidth <= 768) {
+                                toggleMenu();
+                            }
+                        }, 200);
+                    }
+                });
             }
 
             // Register a new module
