@@ -257,6 +257,11 @@
                     </div>
 
                     <div class="control-group">
+                        <label>Octave: <span class="value-display" id="tapOctaveVal">4</span></label>
+                        <input id="tapOctave" type="range" min="2" max="7" step="1" value="4">
+                    </div>
+
+                    <div class="control-group">
                         <label>Attack: <span class="value-display" id="tapAttackValue">0.05</span>s</label>
                         <input type="range" id="tapAttack" min="0.001" max="1" step="0.001" value="0.05">
                     </div>
@@ -307,6 +312,27 @@
                     </div>
 
                     <div class="control-group">
+                        <label>Drone Note</label>
+                        <select id="droneNote">
+                            <option value="C2">C2</option>
+                            <option value="D2">D2</option>
+                            <option value="E2">E2</option>
+                            <option value="G2">G2</option>
+                            <option value="A2">A2</option>
+                            <option value="C3" selected>C3</option>
+                            <option value="D3">D3</option>
+                            <option value="E3">E3</option>
+                            <option value="G3">G3</option>
+                            <option value="A3">A3</option>
+                            <option value="C4">C4</option>
+                            <option value="D4">D4</option>
+                            <option value="E4">E4</option>
+                            <option value="G4">G4</option>
+                            <option value="A4">A4</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
                         <label>Attack: <span class="value-display" id="droneAttackValue">0.5</span>s</label>
                         <input type="range" id="droneAttack" min="0.001" max="3" step="0.01" value="0.5">
                     </div>
@@ -329,6 +355,27 @@
                     <div class="control-group">
                         <label>Filter Frequency: <span class="value-display" id="droneFilterValue">3000</span> Hz</label>
                         <input type="range" id="droneFilter" min="100" max="10000" step="100" value="3000">
+                    </div>
+
+                    <div class="control-group">
+                        <label>Drone Stack</label>
+                        <div id="droneStackControls" style="display:flex; gap:10px; flex-wrap:wrap;">
+                            <select class="droneStackNote">
+                                <option value="C3">C3</option>
+                                <option value="D3">D3</option>
+                                <option value="E3">E3</option>
+                                <option value="G3">G3</option>
+                                <option value="A3" selected>A3</option>
+                                <option value="C4">C4</option>
+                                <option value="D4">D4</option>
+                                <option value="E4">E4</option>
+                                <option value="G4">G4</option>
+                                <option value="A4">A4</option>
+                            </select>
+                            <button id="addDroneVoice" class="preset-btn">+ Add Drone</button>
+                            <button id="clearDroneVoices" class="preset-btn">Clear</button>
+                        </div>
+                        <div id="droneStackList" style="margin-top:8px; font-size:13px; color:#bbb;"></div>
                     </div>
                 </div>
 
@@ -360,8 +407,12 @@
                 this.droneSynth = null;
                 this.tapFilter = new Tone.Filter(5000, 'lowpass').toDestination();
                 this.droneFilter = new Tone.Filter(3000, 'lowpass').toDestination();
-                this.droneNote = null;
                 this.isDroneActive = false;
+
+                // --- new state
+                this.tapOctave = 4;          // default octave for tap notes
+                this.droneNote = 'C3';       // default selected drone
+                this.droneVoices = [];       // optional layered drones (synths) beyond the main droneSynth
 
                 this.init();
             }
@@ -435,6 +486,78 @@
                 this.setupSlider('droneVolume', 'droneVolumeValue', ' dB', (val) => this.droneSynth.volume.value = val);
                 this.setupSlider('droneFilter', 'droneFilterValue', ' Hz', (val) => this.droneFilter.frequency.value = val);
 
+                // --- TAP OCTAVE
+                const tapOctave = document.getElementById('tapOctave');
+                const tapOctaveVal = document.getElementById('tapOctaveVal');
+                tapOctave.addEventListener('input', (e) => {
+                    this.tapOctave = +e.target.value;
+                    tapOctaveVal.textContent = e.target.value;
+                    this.saveSettings();
+                });
+
+                // --- DRONE NOTE (single primary drone)
+                const droneNoteSel = document.getElementById('droneNote');
+                if (droneNoteSel) {
+                    droneNoteSel.addEventListener('change', (e) => {
+                        this.droneNote = e.target.value;
+                        // If main drone is currently on, retune it smoothly:
+                        if (this.isDroneActive && this.droneSynth) {
+                            this.droneSynth.setNote(this.droneNote);
+                            const btn = document.getElementById('droneToggle');
+                            if (btn) btn.textContent = `Drone: On (${this.droneNote})`;
+                        }
+                        this.saveSettings();
+                    });
+                }
+
+                // --- OPTIONAL DRONE STACK
+                const addBtn = document.getElementById('addDroneVoice');
+                const clearBtn = document.getElementById('clearDroneVoices');
+                const stackSel = document.querySelector('#droneStackControls .droneStackNote');
+                const stackList = document.getElementById('droneStackList');
+
+                if (addBtn && clearBtn && stackSel && stackList) {
+                    addBtn.addEventListener('click', async () => {
+                        await Tone.start();
+                        const note = stackSel.value;
+
+                        // Create a lightweight drone voice connected through same droneFilter → FX
+                        const v = new Tone.Synth({
+                            oscillator: { type: this.droneSynth?.oscillator?.type || 'triangle' },
+                            envelope: {
+                                attack: this.droneSynth?.envelope?.attack ?? 0.5,
+                                decay: 0.1,
+                                sustain: this.droneSynth?.envelope?.sustain ?? 0.8,
+                                release: this.droneSynth?.envelope?.release ?? 2
+                            }
+                        }).connect(this.droneFilter);
+
+                        v.volume.value = this.droneSynth?.volume?.value ?? -15;
+                        v.triggerAttack(note);
+                        this.droneVoices.push({ synth: v, note });
+
+                        renderStackList();
+                    });
+
+                    clearBtn.addEventListener('click', () => {
+                        this.droneVoices.forEach(v => {
+                            try { v.synth.triggerRelease(); v.synth.dispose(); } catch(e){}
+                        });
+                        this.droneVoices = [];
+                        renderStackList();
+                    });
+
+                    const renderStackList = () => {
+                        if (!this.droneVoices.length) {
+                            stackList.textContent = 'No extra drones.';
+                            return;
+                        }
+                        stackList.textContent = 'Extra drones: ' + this.droneVoices.map(v => v.note).join(', ');
+                    };
+                    // initialize label
+                    stackList.textContent = 'No extra drones.';
+                }
+
                 // Preset buttons
                 document.querySelectorAll('.preset-btn[data-preset]').forEach(btn => {
                     btn.addEventListener('click', (e) => this.loadPreset(e.target.dataset.preset));
@@ -463,9 +586,12 @@
 
             async handleNotePress(e) {
                 await Tone.start();
-                const note = e.target.dataset.note;
-                console.log(`🎵 Playing ${note}`);
-                this.tapSynth.triggerAttack(note);
+                const raw = e.target.dataset.note;                 // e.g., "C3" or "F#3"
+                const m = raw.match(/^[A-G][b#]?/i);               // extract "C", "F#"
+                const base = m ? m[0].toUpperCase() : raw;
+                const finalNote = `${base}${this.tapOctave}`;      // e.g., "C5"
+                console.log(`🎵 Playing ${finalNote}`);
+                this.tapSynth.triggerAttack(finalNote);
             }
 
             handleNoteRelease(e) {
@@ -478,21 +604,22 @@
                 const btn = document.getElementById('droneToggle');
 
                 if (this.isDroneActive) {
-                    // Turn off drone
+                    // Turn off main drone
                     this.droneSynth.triggerRelease();
                     this.isDroneActive = false;
-                    this.droneNote = null;
-                    btn.classList.remove('active');
-                    btn.textContent = 'Drone: Off';
+                    btn?.classList.remove('active');
+                    if (btn) btn.textContent = 'Drone: Off';
+
                     console.log('🛑 Drone off');
                 } else {
-                    // Turn on drone (C3)
-                    this.droneNote = 'C3';
-                    this.droneSynth.triggerAttack(this.droneNote);
+                    // Turn on main drone with selected note
+                    const note = this.droneNote || 'C3';
+                    this.droneSynth.triggerAttack(note);
                     this.isDroneActive = true;
-                    btn.classList.add('active');
-                    btn.textContent = `Drone: On (${this.droneNote})`;
-                    console.log(`🎶 Drone on: ${this.droneNote}`);
+                    btn?.classList.add('active');
+                    if (btn) btn.textContent = `Drone: On (${note})`;
+
+                    console.log(`🎶 Drone on: ${note}`);
                 }
             }
 
@@ -586,6 +713,7 @@
                     tap: {
                         synthType: document.getElementById('tapSynthType').value,
                         waveform: document.getElementById('tapWaveform').value,
+                        octave: document.getElementById('tapOctave').value,
                         attack: document.getElementById('tapAttack').value,
                         decay: document.getElementById('tapDecay').value,
                         release: document.getElementById('tapRelease').value,
@@ -595,6 +723,7 @@
                     drone: {
                         synthType: document.getElementById('droneSynthType').value,
                         waveform: document.getElementById('droneWaveform').value,
+                        note: document.getElementById('droneNote')?.value || this.droneNote,
                         attack: document.getElementById('droneAttack').value,
                         sustain: document.getElementById('droneSustain').value,
                         release: document.getElementById('droneRelease').value,
@@ -628,6 +757,19 @@
                     document.getElementById('droneRelease').value = settings.drone.release;
                     document.getElementById('droneVolume').value = settings.drone.volume;
                     document.getElementById('droneFilter').value = settings.drone.filter;
+
+                    // Load tap octave
+                    if (settings.tap?.octave) {
+                        document.getElementById('tapOctave').value = settings.tap.octave;
+                        document.getElementById('tapOctaveVal').textContent = settings.tap.octave;
+                        this.tapOctave = +settings.tap.octave;
+                    }
+
+                    // Load drone note
+                    if (settings.drone?.note && document.getElementById('droneNote')) {
+                        document.getElementById('droneNote').value = settings.drone.note;
+                        this.droneNote = settings.drone.note;
+                    }
 
                     // Trigger change events to update displays
                     document.querySelectorAll('input[type="range"]').forEach(el => {
