@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sound Testing Lab - Tone.js Explorer</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #fff;
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 30px;
+        }
+
+        /* Keyboard Section */
+        .keyboard-section {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 12px;
+        }
+
+        .keyboard-section h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #fff;
+        }
+
+        .note-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .note-btn {
+            padding: 15px;
+            background: #3a3a3a;
+            border: 2px solid #4a4a4a;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .note-btn:hover {
+            background: #4a4a4a;
+            border-color: #007bff;
+        }
+
+        .note-btn:active {
+            background: #007bff;
+            transform: scale(0.98);
+        }
+
+        .drone-toggle {
+            padding: 15px;
+            background: #2d5016;
+            border: 2px solid #3d6020;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .drone-toggle:hover {
+            background: #3d6020;
+        }
+
+        .drone-toggle.active {
+            background: #4caf50;
+            border-color: #66bb6a;
+        }
+
+        /* Controls Section */
+        .controls-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .control-panel {
+            background: #2a2a2a;
+            padding: 25px;
+            border-radius: 12px;
+        }
+
+        .control-panel h2 {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #007bff;
+            border-bottom: 2px solid #3a3a3a;
+            padding-bottom: 10px;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #b0b0b0;
+        }
+
+        .control-group select,
+        .control-group input[type="range"] {
+            width: 100%;
+        }
+
+        .control-group select {
+            padding: 8px;
+            background: #3a3a3a;
+            border: 1px solid #4a4a4a;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .control-group input[type="range"] {
+            margin-top: 5px;
+        }
+
+        .value-display {
+            display: inline-block;
+            min-width: 60px;
+            text-align: right;
+            color: #fff;
+            font-weight: bold;
+        }
+
+        /* Presets Section */
+        .presets-section {
+            background: #2a2a2a;
+            padding: 25px;
+            border-radius: 12px;
+        }
+
+        .presets-section h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #ff9800;
+        }
+
+        .preset-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 10px;
+        }
+
+        .preset-btn {
+            padding: 12px;
+            background: #3a3a3a;
+            border: 2px solid #4a4a4a;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .preset-btn:hover {
+            background: #4a4a4a;
+            border-color: #ff9800;
+        }
+
+        .preset-btn.save {
+            background: #1565c0;
+            border-color: #1976d2;
+        }
+
+        .preset-btn.save:hover {
+            background: #1976d2;
+            border-color: #2196f3;
+        }
+
+        @media (max-width: 900px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎹 Sound Testing Lab - Tone.js Explorer</h1>
+
+        <div class="main-layout">
+            <!-- Keyboard Section -->
+            <div class="keyboard-section">
+                <h2>Test Notes (C Major Scale)</h2>
+                <div class="note-buttons">
+                    <button class="note-btn" data-note="C3">C</button>
+                    <button class="note-btn" data-note="D3">D</button>
+                    <button class="note-btn" data-note="E3">E</button>
+                    <button class="note-btn" data-note="F3">F</button>
+                    <button class="note-btn" data-note="G3">G</button>
+                    <button class="note-btn" data-note="A3">A</button>
+                    <button class="note-btn" data-note="B3">B</button>
+                </div>
+                <button class="drone-toggle" id="droneToggle">Drone: Off</button>
+            </div>
+
+            <!-- Controls Section -->
+            <div class="controls-section">
+                <!-- Tap Sound Controls -->
+                <div class="control-panel">
+                    <h2>🎵 TAP SOUND CONTROLS</h2>
+
+                    <div class="control-group">
+                        <label>Synth Type</label>
+                        <select id="tapSynthType">
+                            <option value="Synth">Synth (Basic)</option>
+                            <option value="AMSynth">AMSynth (Rich Harmonics)</option>
+                            <option value="FMSynth">FMSynth (Bell-like)</option>
+                            <option value="DuoSynth">DuoSynth (Thick/Layered)</option>
+                            <option value="PluckSynth">PluckSynth (Guitar/Harp)</option>
+                            <option value="MembraneSynth">MembraneSynth (Percussive)</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label>Waveform (for basic Synth)</label>
+                        <select id="tapWaveform">
+                            <option value="sine">Sine (Pure/Soft)</option>
+                            <option value="triangle">Triangle (Slightly Rich)</option>
+                            <option value="square">Square (Harsh/Buzzy)</option>
+                            <option value="sawtooth">Sawtooth (Bright/Rich)</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label>Attack: <span class="value-display" id="tapAttackValue">0.05</span>s</label>
+                        <input type="range" id="tapAttack" min="0.001" max="1" step="0.001" value="0.05">
+                    </div>
+
+                    <div class="control-group">
+                        <label>Decay: <span class="value-display" id="tapDecayValue">0.1</span>s</label>
+                        <input type="range" id="tapDecay" min="0.001" max="2" step="0.01" value="0.1">
+                    </div>
+
+                    <div class="control-group">
+                        <label>Release: <span class="value-display" id="tapReleaseValue">0.5</span>s</label>
+                        <input type="range" id="tapRelease" min="0.001" max="3" step="0.01" value="0.5">
+                    </div>
+
+                    <div class="control-group">
+                        <label>Volume: <span class="value-display" id="tapVolumeValue">-10</span> dB</label>
+                        <input type="range" id="tapVolume" min="-30" max="0" step="1" value="-10">
+                    </div>
+
+                    <div class="control-group">
+                        <label>Filter Frequency: <span class="value-display" id="tapFilterValue">5000</span> Hz</label>
+                        <input type="range" id="tapFilter" min="100" max="10000" step="100" value="5000">
+                    </div>
+                </div>
+
+                <!-- Drone Sound Controls -->
+                <div class="control-panel">
+                    <h2>🎶 DRONE SOUND CONTROLS</h2>
+
+                    <div class="control-group">
+                        <label>Synth Type</label>
+                        <select id="droneSynthType">
+                            <option value="Synth">Synth (Basic)</option>
+                            <option value="AMSynth">AMSynth (Rich Harmonics)</option>
+                            <option value="FMSynth">FMSynth (Bell-like)</option>
+                            <option value="DuoSynth">DuoSynth (Thick/Layered)</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label>Waveform (for basic Synth)</label>
+                        <select id="droneWaveform">
+                            <option value="sine">Sine (Pure/Soft)</option>
+                            <option value="triangle" selected>Triangle (Slightly Rich)</option>
+                            <option value="square">Square (Harsh/Buzzy)</option>
+                            <option value="sawtooth">Sawtooth (Bright/Rich)</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label>Attack: <span class="value-display" id="droneAttackValue">0.5</span>s</label>
+                        <input type="range" id="droneAttack" min="0.001" max="3" step="0.01" value="0.5">
+                    </div>
+
+                    <div class="control-group">
+                        <label>Sustain: <span class="value-display" id="droneSustainValue">0.8</span></label>
+                        <input type="range" id="droneSustain" min="0" max="1" step="0.01" value="0.8">
+                    </div>
+
+                    <div class="control-group">
+                        <label>Release: <span class="value-display" id="droneReleaseValue">2</span>s</label>
+                        <input type="range" id="droneRelease" min="0.001" max="5" step="0.01" value="2">
+                    </div>
+
+                    <div class="control-group">
+                        <label>Volume: <span class="value-display" id="droneVolumeValue">-15</span> dB</label>
+                        <input type="range" id="droneVolume" min="-30" max="0" step="1" value="-15">
+                    </div>
+
+                    <div class="control-group">
+                        <label>Filter Frequency: <span class="value-display" id="droneFilterValue">3000</span> Hz</label>
+                        <input type="range" id="droneFilter" min="100" max="10000" step="100" value="3000">
+                    </div>
+                </div>
+
+                <!-- Presets Section -->
+                <div class="presets-section">
+                    <h2>📦 PRESETS</h2>
+                    <div class="preset-buttons">
+                        <button class="preset-btn" data-preset="soft-pad">Soft Pad</button>
+                        <button class="preset-btn" data-preset="plucked">Plucked</button>
+                        <button class="preset-btn" data-preset="bell-like">Bell-like</button>
+                        <button class="preset-btn" data-preset="warm-drone">Warm Drone</button>
+                        <button class="preset-btn save" id="saveCustom">Save Custom</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script>
+        'use strict';
+
+        // ============================================
+        // SOUND LAB APPLICATION
+        // ============================================
+        class SoundLab {
+            constructor() {
+                this.tapSynth = null;
+                this.droneSynth = null;
+                this.tapFilter = new Tone.Filter(5000, 'lowpass').toDestination();
+                this.droneFilter = new Tone.Filter(3000, 'lowpass').toDestination();
+                this.droneNote = null;
+                this.isDroneActive = false;
+
+                this.init();
+            }
+
+            init() {
+                this.createSynths();
+                this.setupEventListeners();
+                this.loadSettings();
+                console.log('🎹 Sound Lab initialized!');
+            }
+
+            createSynths() {
+                // Create tap synth
+                this.tapSynth = new Tone.Synth({
+                    oscillator: { type: 'sine' },
+                    envelope: {
+                        attack: 0.05,
+                        decay: 0.1,
+                        sustain: 0.3,
+                        release: 0.5
+                    }
+                }).connect(this.tapFilter);
+                this.tapSynth.volume.value = -10;
+
+                // Create drone synth
+                this.droneSynth = new Tone.Synth({
+                    oscillator: { type: 'triangle' },
+                    envelope: {
+                        attack: 0.5,
+                        decay: 0.1,
+                        sustain: 0.8,
+                        release: 2
+                    }
+                }).connect(this.droneFilter);
+                this.droneSynth.volume.value = -15;
+            }
+
+            setupEventListeners() {
+                // Note buttons
+                document.querySelectorAll('.note-btn').forEach(btn => {
+                    btn.addEventListener('mousedown', (e) => this.handleNotePress(e));
+                    btn.addEventListener('mouseup', (e) => this.handleNoteRelease(e));
+                    btn.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        this.handleNotePress(e);
+                    });
+                    btn.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        this.handleNoteRelease(e);
+                    });
+                });
+
+                // Drone toggle
+                document.getElementById('droneToggle').addEventListener('click', () => this.toggleDrone());
+
+                // Tap controls
+                this.setupControl('tapSynthType', (val) => this.updateTapSynth());
+                this.setupControl('tapWaveform', (val) => this.updateTapWaveform(val));
+                this.setupSlider('tapAttack', 'tapAttackValue', 's', (val) => this.tapSynth.envelope.attack = val);
+                this.setupSlider('tapDecay', 'tapDecayValue', 's', (val) => this.tapSynth.envelope.decay = val);
+                this.setupSlider('tapRelease', 'tapReleaseValue', 's', (val) => this.tapSynth.envelope.release = val);
+                this.setupSlider('tapVolume', 'tapVolumeValue', ' dB', (val) => this.tapSynth.volume.value = val);
+                this.setupSlider('tapFilter', 'tapFilterValue', ' Hz', (val) => this.tapFilter.frequency.value = val);
+
+                // Drone controls
+                this.setupControl('droneSynthType', (val) => this.updateDroneSynth());
+                this.setupControl('droneWaveform', (val) => this.updateDroneWaveform(val));
+                this.setupSlider('droneAttack', 'droneAttackValue', 's', (val) => this.droneSynth.envelope.attack = val);
+                this.setupSlider('droneSustain', 'droneSustainValue', '', (val) => this.droneSynth.envelope.sustain = val);
+                this.setupSlider('droneRelease', 'droneReleaseValue', 's', (val) => this.droneSynth.envelope.release = val);
+                this.setupSlider('droneVolume', 'droneVolumeValue', ' dB', (val) => this.droneSynth.volume.value = val);
+                this.setupSlider('droneFilter', 'droneFilterValue', ' Hz', (val) => this.droneFilter.frequency.value = val);
+
+                // Preset buttons
+                document.querySelectorAll('.preset-btn[data-preset]').forEach(btn => {
+                    btn.addEventListener('click', (e) => this.loadPreset(e.target.dataset.preset));
+                });
+                document.getElementById('saveCustom').addEventListener('click', () => this.saveSettings());
+            }
+
+            setupControl(id, callback) {
+                const el = document.getElementById(id);
+                el.addEventListener('change', (e) => {
+                    callback(e.target.value);
+                    this.saveSettings();
+                });
+            }
+
+            setupSlider(sliderId, displayId, suffix, callback) {
+                const slider = document.getElementById(sliderId);
+                const display = document.getElementById(displayId);
+                slider.addEventListener('input', (e) => {
+                    const val = parseFloat(e.target.value);
+                    display.textContent = val.toFixed(val < 1 ? 3 : (val < 10 ? 2 : 0)) + suffix;
+                    callback(val);
+                    this.saveSettings();
+                });
+            }
+
+            async handleNotePress(e) {
+                await Tone.start();
+                const note = e.target.dataset.note;
+                console.log(`🎵 Playing ${note}`);
+                this.tapSynth.triggerAttack(note);
+            }
+
+            handleNoteRelease(e) {
+                const note = e.target.dataset.note;
+                this.tapSynth.triggerRelease();
+            }
+
+            async toggleDrone() {
+                await Tone.start();
+                const btn = document.getElementById('droneToggle');
+
+                if (this.isDroneActive) {
+                    // Turn off drone
+                    this.droneSynth.triggerRelease();
+                    this.isDroneActive = false;
+                    this.droneNote = null;
+                    btn.classList.remove('active');
+                    btn.textContent = 'Drone: Off';
+                    console.log('🛑 Drone off');
+                } else {
+                    // Turn on drone (C3)
+                    this.droneNote = 'C3';
+                    this.droneSynth.triggerAttack(this.droneNote);
+                    this.isDroneActive = true;
+                    btn.classList.add('active');
+                    btn.textContent = `Drone: On (${this.droneNote})`;
+                    console.log(`🎶 Drone on: ${this.droneNote}`);
+                }
+            }
+
+            updateTapSynth() {
+                const type = document.getElementById('tapSynthType').value;
+                const oldVolume = this.tapSynth.volume.value;
+
+                // Dispose old synth
+                this.tapSynth.dispose();
+
+                // Create new synth based on type
+                this.tapSynth = this.createSynthByType(type, 'tap');
+                this.tapSynth.connect(this.tapFilter);
+                this.tapSynth.volume.value = oldVolume;
+
+                console.log(`🔄 Tap synth changed to ${type}`);
+            }
+
+            updateDroneSynth() {
+                const type = document.getElementById('droneSynthType').value;
+                const oldVolume = this.droneSynth.volume.value;
+                const wasActive = this.isDroneActive;
+                const note = this.droneNote;
+
+                // Stop if active
+                if (wasActive) {
+                    this.droneSynth.triggerRelease();
+                }
+
+                // Dispose old synth
+                this.droneSynth.dispose();
+
+                // Create new synth
+                this.droneSynth = this.createSynthByType(type, 'drone');
+                this.droneSynth.connect(this.droneFilter);
+                this.droneSynth.volume.value = oldVolume;
+
+                // Restart if was active
+                if (wasActive) {
+                    setTimeout(() => {
+                        this.droneSynth.triggerAttack(note);
+                    }, 50);
+                }
+
+                console.log(`🔄 Drone synth changed to ${type}`);
+            }
+
+            createSynthByType(type, mode) {
+                const isTap = mode === 'tap';
+                let synth;
+
+                switch(type) {
+                    case 'AMSynth':
+                        synth = new Tone.AMSynth();
+                        break;
+                    case 'FMSynth':
+                        synth = new Tone.FMSynth();
+                        break;
+                    case 'DuoSynth':
+                        synth = new Tone.DuoSynth();
+                        break;
+                    case 'PluckSynth':
+                        synth = new Tone.PluckSynth();
+                        break;
+                    case 'MembraneSynth':
+                        synth = new Tone.MembraneSynth();
+                        break;
+                    default:
+                        synth = new Tone.Synth({
+                            oscillator: { type: isTap ? 'sine' : 'triangle' }
+                        });
+                }
+
+                return synth;
+            }
+
+            updateTapWaveform(waveform) {
+                if (this.tapSynth.oscillator) {
+                    this.tapSynth.oscillator.type = waveform;
+                }
+            }
+
+            updateDroneWaveform(waveform) {
+                if (this.droneSynth.oscillator) {
+                    this.droneSynth.oscillator.type = waveform;
+                }
+            }
+
+            saveSettings() {
+                const settings = {
+                    tap: {
+                        synthType: document.getElementById('tapSynthType').value,
+                        waveform: document.getElementById('tapWaveform').value,
+                        attack: document.getElementById('tapAttack').value,
+                        decay: document.getElementById('tapDecay').value,
+                        release: document.getElementById('tapRelease').value,
+                        volume: document.getElementById('tapVolume').value,
+                        filter: document.getElementById('tapFilter').value
+                    },
+                    drone: {
+                        synthType: document.getElementById('droneSynthType').value,
+                        waveform: document.getElementById('droneWaveform').value,
+                        attack: document.getElementById('droneAttack').value,
+                        sustain: document.getElementById('droneSustain').value,
+                        release: document.getElementById('droneRelease').value,
+                        volume: document.getElementById('droneVolume').value,
+                        filter: document.getElementById('droneFilter').value
+                    }
+                };
+                localStorage.setItem('soundLabSettings', JSON.stringify(settings));
+                console.log('💾 Settings saved');
+            }
+
+            loadSettings() {
+                const saved = localStorage.getItem('soundLabSettings');
+                if (saved) {
+                    const settings = JSON.parse(saved);
+
+                    // Load tap settings
+                    document.getElementById('tapSynthType').value = settings.tap.synthType;
+                    document.getElementById('tapWaveform').value = settings.tap.waveform;
+                    document.getElementById('tapAttack').value = settings.tap.attack;
+                    document.getElementById('tapDecay').value = settings.tap.decay;
+                    document.getElementById('tapRelease').value = settings.tap.release;
+                    document.getElementById('tapVolume').value = settings.tap.volume;
+                    document.getElementById('tapFilter').value = settings.tap.filter;
+
+                    // Load drone settings
+                    document.getElementById('droneSynthType').value = settings.drone.synthType;
+                    document.getElementById('droneWaveform').value = settings.drone.waveform;
+                    document.getElementById('droneAttack').value = settings.drone.attack;
+                    document.getElementById('droneSustain').value = settings.drone.sustain;
+                    document.getElementById('droneRelease').value = settings.drone.release;
+                    document.getElementById('droneVolume').value = settings.drone.volume;
+                    document.getElementById('droneFilter').value = settings.drone.filter;
+
+                    // Trigger change events to update displays
+                    document.querySelectorAll('input[type="range"]').forEach(el => {
+                        el.dispatchEvent(new Event('input'));
+                    });
+
+                    console.log('📂 Settings loaded');
+                }
+            }
+
+            loadPreset(presetName) {
+                const presets = {
+                    'soft-pad': {
+                        tap: { synthType: 'Synth', waveform: 'triangle', attack: 0.1, decay: 0.3, release: 1, volume: -12, filter: 3000 },
+                        drone: { synthType: 'Synth', waveform: 'triangle', attack: 1, sustain: 0.7, release: 3, volume: -18, filter: 2000 }
+                    },
+                    'plucked': {
+                        tap: { synthType: 'PluckSynth', waveform: 'sine', attack: 0.001, decay: 0.2, release: 0.3, volume: -8, filter: 8000 },
+                        drone: { synthType: 'FMSynth', waveform: 'triangle', attack: 0.3, sustain: 0.9, release: 2, volume: -15, filter: 4000 }
+                    },
+                    'bell-like': {
+                        tap: { synthType: 'FMSynth', waveform: 'sine', attack: 0.01, decay: 0.5, release: 1.5, volume: -10, filter: 6000 },
+                        drone: { synthType: 'FMSynth', waveform: 'triangle', attack: 0.5, sustain: 0.85, release: 2.5, volume: -16, filter: 3500 }
+                    },
+                    'warm-drone': {
+                        tap: { synthType: 'Synth', waveform: 'sine', attack: 0.05, decay: 0.2, release: 0.8, volume: -12, filter: 5000 },
+                        drone: { synthType: 'DuoSynth', waveform: 'triangle', attack: 0.8, sustain: 0.9, release: 3, volume: -18, filter: 2500 }
+                    }
+                };
+
+                const preset = presets[presetName];
+                if (preset) {
+                    // Apply settings
+                    Object.keys(preset.tap).forEach(key => {
+                        const el = document.getElementById(`tap${key.charAt(0).toUpperCase() + key.slice(1)}`);
+                        if (el) el.value = preset.tap[key];
+                    });
+                    Object.keys(preset.drone).forEach(key => {
+                        const el = document.getElementById(`drone${key.charAt(0).toUpperCase() + key.slice(1)}`);
+                        if (el) el.value = preset.drone[key];
+                    });
+
+                    // Trigger updates
+                    document.querySelectorAll('input[type="range"], select').forEach(el => {
+                        el.dispatchEvent(new Event('input'));
+                        el.dispatchEvent(new Event('change'));
+                    });
+
+                    console.log(`📦 Loaded preset: ${presetName}`);
+                }
+            }
+        }
+
+        // Start the application
+        const soundLab = new SoundLab();
+    </script>
+</body>
+</html>
