@@ -129,6 +129,7 @@
             flex: 1;
             overflow-y: auto;
             padding: 40px;
+            padding-bottom: 180px; /* Space for floating keyboard dock */
         }
 
         .module {
@@ -284,10 +285,23 @@
         }
 
         /* ============================================
-           NOTE KEYBOARD
+           NOTE KEYBOARD - FLOATING DOCK
            ============================================ */
+        .keyboard-dock {
+            position: fixed;
+            bottom: 0;
+            left: 260px;
+            right: 0;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+            z-index: 100;
+            padding: 20px;
+        }
+
         .octave-container {
-            margin-bottom: 20px;
+            max-width: 900px;
+            margin: 0 auto;
         }
 
         .octave-display {
@@ -534,7 +548,13 @@
 
             .main-content {
                 padding: 80px 20px 20px;
+                padding-bottom: 180px;
                 width: 100%;
+            }
+
+            .keyboard-dock {
+                left: 0;
+                padding: 15px;
             }
 
             .keyboard-row {
@@ -590,6 +610,11 @@
                 <!-- Modules will be dynamically inserted -->
             </div>
         </main>
+    </div>
+
+    <!-- Floating Keyboard Dock -->
+    <div class="keyboard-dock" id="keyboardDock" style="display: none;">
+        <!-- Keyboard will be dynamically inserted when Basics module is active -->
     </div>
 
     <!-- Tone.js CDN -->
@@ -688,14 +713,51 @@
                 super.mount();
                 this.loadSettings();
                 this.createAudioChain();
+                this.showKeyboardDock();
                 this.attachEventListeners();
                 this.updateAllDisplays();
             }
 
             unmount() {
                 super.unmount();
+                this.hideKeyboardDock();
                 this.removeEventListeners();
                 this.disposeAudio();
+            }
+
+            // Show and populate the floating keyboard dock
+            showKeyboardDock() {
+                const dock = document.getElementById('keyboardDock');
+                if (dock) {
+                    dock.style.display = 'block';
+                    dock.innerHTML = `
+                        <div class="octave-container">
+                            <div class="octave-display" id="basics-octave-display">Octave 4</div>
+                            <div class="keyboard-row">
+                                <button class="octave-arrow" id="basics-octave-down" aria-label="Previous octave">◀</button>
+                                <div class="note-keyboard" id="basics-keyboard">
+                                    <button class="note-btn" data-note="C">C<span class="key-hint">A</span></button>
+                                    <button class="note-btn" data-note="D">D<span class="key-hint">S</span></button>
+                                    <button class="note-btn" data-note="E">E<span class="key-hint">D</span></button>
+                                    <button class="note-btn" data-note="F">F<span class="key-hint">F</span></button>
+                                    <button class="note-btn" data-note="G">G<span class="key-hint">G</span></button>
+                                    <button class="note-btn" data-note="A">A<span class="key-hint">H</span></button>
+                                    <button class="note-btn" data-note="B">B<span class="key-hint">J</span></button>
+                                </div>
+                                <button class="octave-arrow" id="basics-octave-up" aria-label="Next octave">▶</button>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            // Hide the floating keyboard dock
+            hideKeyboardDock() {
+                const dock = document.getElementById('keyboardDock');
+                if (dock) {
+                    dock.style.display = 'none';
+                    dock.innerHTML = '';
+                }
             }
 
             // Create Tone.js synth and effects chain
@@ -1045,32 +1107,7 @@
                     <!-- Introduction -->
                     <div class="info-box">
                         <h4>Welcome to Tone.js!</h4>
-                        <p>Tone.js is a Web Audio framework for creating interactive music. In this module, you'll learn how to create a simple synthesizer, play notes, and control its sound.</p>
-                    </div>
-
-                    <!-- Note Playing Section -->
-                    <div class="section">
-                        <h3>Play Notes</h3>
-                        <div class="section-description">
-                            Click the buttons or use your keyboard (A, S, D, F, G, H, J) to play notes. Use arrows or swipe to change octaves.
-                        </div>
-
-                        <div class="octave-container">
-                            <div class="octave-display" id="basics-octave-display">Octave 4</div>
-                            <div class="keyboard-row">
-                                <button class="octave-arrow" id="basics-octave-down" aria-label="Previous octave">◀</button>
-                                <div class="note-keyboard" id="basics-keyboard">
-                                    <button class="note-btn" data-note="C">C<span class="key-hint">A</span></button>
-                                    <button class="note-btn" data-note="D">D<span class="key-hint">S</span></button>
-                                    <button class="note-btn" data-note="E">E<span class="key-hint">D</span></button>
-                                    <button class="note-btn" data-note="F">F<span class="key-hint">F</span></button>
-                                    <button class="note-btn" data-note="G">G<span class="key-hint">G</span></button>
-                                    <button class="note-btn" data-note="A">A<span class="key-hint">H</span></button>
-                                    <button class="note-btn" data-note="B">B<span class="key-hint">J</span></button>
-                                </div>
-                                <button class="octave-arrow" id="basics-octave-up" aria-label="Next octave">▶</button>
-                            </div>
-                        </div>
+                        <p>Tone.js is a Web Audio framework for creating interactive music. In this module, you'll learn how to create a simple synthesizer, play notes, and control its sound. The keyboard is pinned at the bottom - play notes while scrolling through controls!</p>
                     </div>
 
                     <!-- Waveform Selection -->
