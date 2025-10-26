@@ -536,6 +536,87 @@
             background: var(--text-dim);
         }
 
+        .oscillator-mix {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .oscillator-mix h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 20px;
+        }
+
+        .oscillators-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .oscillator-card {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 15px;
+        }
+
+        .oscillator-card h4 {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        .osc-control {
+            margin-bottom: 12px;
+        }
+
+        .osc-control:last-child {
+            margin-bottom: 0;
+        }
+
+        .osc-control label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .osc-control select {
+            width: 100%;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .osc-control .volume-display {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .osc-control input[type="range"] {
+            width: 100%;
+        }
+
+        @media (max-width: 768px) {
+            .oscillators-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
         /* ============================================
            DRONES MODULE
            ============================================ */
@@ -925,7 +1006,7 @@
         // ============================================
         class BasicsModule extends BaseModule {
             constructor() {
-                super('basics', '🎹 Basics', '🎹');
+                super('basics', 'Basics', '🎹');
 
                 // Synth and audio components
                 this.synth = null;
@@ -1353,7 +1434,7 @@
             render() {
                 return `
                     <div class="module-header">
-                        <h2>🎹 Basics</h2>
+                        <h2>Basics</h2>
                         <p>Learn the fundamentals of Tone.js: creating sounds, shaping them with envelopes, and adding filters.</p>
                     </div>
 
@@ -1446,7 +1527,7 @@
         // ============================================
         class SequencerModule extends BaseModule {
             constructor() {
-                super('sequencer', '⏱️ Sequencer & Transport', '⏱️');
+                super('sequencer', 'Sequencer & Transport', '⏱️');
 
                 // Audio components
                 this.synth = null;
@@ -1653,7 +1734,7 @@
             render() {
                 return `
                     <div class="module-header">
-                        <h2>⏱️ Sequencer & Transport</h2>
+                        <h2>Sequencer & Transport</h2>
                         <p>Create patterns and learn about timing and scheduling with Tone.Transport.</p>
                     </div>
 
@@ -1715,10 +1796,11 @@
         // ============================================
         class FXModule extends BaseModule {
             constructor() {
-                super('fx', '✨ FX & Modulation', '✨');
+                super('fx', 'FX & Modulation', '✨');
 
                 // Audio chain
-                this.synth = null;
+                this.osc1 = null;
+                this.osc2 = null;
                 this.reverb = null;
                 this.delay = null;
                 this.distortion = null;
@@ -1727,6 +1809,10 @@
 
                 // State
                 this.defaults = {
+                    osc1Waveform: 'sine',
+                    osc1Volume: -6,
+                    osc2Waveform: 'triangle',
+                    osc2Volume: -6,
                     reverbDecay: 1.5,
                     reverbWet: 0.3,
                     reverbBypass: false,
@@ -1782,30 +1868,68 @@
                 this.lfo = new Tone.LFO(this.settings.lfoRate, 200, 3000);
                 this.lfo.connect(this.filter.frequency);
 
-                // Create synth
-                this.synth = new Tone.Synth({
-                    oscillator: { type: 'sawtooth' },
+                // Create dual oscillators
+                this.osc1 = new Tone.Synth({
+                    oscillator: { type: this.settings.osc1Waveform },
                     envelope: {
                         attack: 0.1,
                         decay: 0.2,
                         sustain: 0.5,
                         release: 0.8
-                    }
+                    },
+                    volume: this.settings.osc1Volume
                 }).connect(this.filter);
 
-                this.synth.volume.value = -10;
+                this.osc2 = new Tone.Synth({
+                    oscillator: { type: this.settings.osc2Waveform },
+                    envelope: {
+                        attack: 0.1,
+                        decay: 0.2,
+                        sustain: 0.5,
+                        release: 0.8
+                    },
+                    volume: this.settings.osc2Volume
+                }).connect(this.filter);
 
                 // Apply bypass states
                 this.applyBypassStates();
             }
 
             disposeAudio() {
-                [this.synth, this.reverb, this.delay, this.distortion, this.filter, this.lfo].forEach(node => {
+                [this.osc1, this.osc2, this.reverb, this.delay, this.distortion, this.filter, this.lfo].forEach(node => {
                     if (node) node.dispose();
                 });
             }
 
             attachEventListeners() {
+                // Oscillator 1 controls
+                const osc1Wave = document.getElementById('osc1-waveform');
+                if (osc1Wave) {
+                    osc1Wave.addEventListener('change', (e) => {
+                        this.settings.osc1Waveform = e.target.value;
+                        this.osc1.oscillator.type = e.target.value;
+                        this.saveSettings();
+                    });
+                }
+                this.setupSlider('osc1-volume', 'osc1-volume-value', ' dB', (v) => {
+                    this.settings.osc1Volume = v;
+                    this.osc1.volume.value = v;
+                });
+
+                // Oscillator 2 controls
+                const osc2Wave = document.getElementById('osc2-waveform');
+                if (osc2Wave) {
+                    osc2Wave.addEventListener('change', (e) => {
+                        this.settings.osc2Waveform = e.target.value;
+                        this.osc2.oscillator.type = e.target.value;
+                        this.saveSettings();
+                    });
+                }
+                this.setupSlider('osc2-volume', 'osc2-volume-value', ' dB', (v) => {
+                    this.settings.osc2Volume = v;
+                    this.osc2.volume.value = v;
+                });
+
                 // Reverb controls
                 this.setupSlider('fx-reverb-decay', 'fx-reverb-decay-value', 's', (v) => {
                     this.settings.reverbDecay = v;
@@ -1922,20 +2046,34 @@
 
             async playNote(note) {
                 await Tone.start();
-                if (this.synth) {
-                    this.synth.triggerAttack(note);
+                if (this.osc1) {
+                    this.osc1.triggerAttack(note);
+                }
+                if (this.osc2) {
+                    this.osc2.triggerAttack(note);
                 }
             }
 
             releaseNote() {
-                if (this.synth) {
-                    this.synth.triggerRelease();
+                if (this.osc1) {
+                    this.osc1.triggerRelease();
+                }
+                if (this.osc2) {
+                    this.osc2.triggerRelease();
                 }
             }
 
             updateAllDisplays() {
+                // Update oscillator waveform selectors
+                const osc1Wave = document.getElementById('osc1-waveform');
+                const osc2Wave = document.getElementById('osc2-waveform');
+                if (osc1Wave) osc1Wave.value = this.settings.osc1Waveform;
+                if (osc2Wave) osc2Wave.value = this.settings.osc2Waveform;
+
                 // Update all slider displays
                 const params = [
+                    ['osc1-volume', 'osc1-volume-value', 'osc1Volume', ' dB'],
+                    ['osc2-volume', 'osc2-volume-value', 'osc2Volume', ' dB'],
                     ['fx-reverb-decay', 'fx-reverb-decay-value', 'reverbDecay', 's'],
                     ['fx-reverb-wet', 'fx-reverb-wet-value', 'reverbWet', ''],
                     ['fx-delay-time', 'fx-delay-time-value', 'delayTime', 's'],
@@ -1975,13 +2113,62 @@
             render() {
                 return `
                     <div class="module-header">
-                        <h2>✨ FX & Modulation</h2>
+                        <h2>FX & Modulation</h2>
                         <p>Transform your sounds with effects and modulation. Learn how to chain effects and use LFOs to create movement.</p>
                     </div>
 
                     <div class="info-box">
                         <h4>Signal Flow & Effects Chain</h4>
-                        <p>Audio flows through a chain: Synth → Filter → Distortion → Reverb & Delay → Output. Each effect processes the signal and passes it forward. The LFO (Low Frequency Oscillator) modulates the filter cutoff to create wobbling, sweeping sounds.</p>
+                        <p>Audio flows through a chain: Osc1 + Osc2 → Filter → Distortion → Reverb & Delay → Output. Each effect processes the signal and passes it forward. The LFO (Low Frequency Oscillator) modulates the filter cutoff to create wobbling, sweeping sounds.</p>
+                    </div>
+
+                    <!-- Oscillator Mix Section -->
+                    <div class="oscillator-mix">
+                        <h3>Oscillator Mix</h3>
+                        <div class="section-description" style="margin-bottom: 20px;">
+                            Blend two oscillators with different waveforms to create unique timbres. Adjust each oscillator's volume to find the perfect mix.
+                        </div>
+                        <div class="oscillators-grid">
+                            <div class="oscillator-card">
+                                <h4>Oscillator 1</h4>
+                                <div class="osc-control">
+                                    <label>Waveform</label>
+                                    <select id="osc1-waveform">
+                                        <option value="sine">Sine</option>
+                                        <option value="square">Square</option>
+                                        <option value="sawtooth">Sawtooth</option>
+                                        <option value="triangle">Triangle</option>
+                                    </select>
+                                </div>
+                                <div class="osc-control">
+                                    <div class="volume-display">
+                                        <label>Volume</label>
+                                        <span id="osc1-volume-value">-6.00 dB</span>
+                                    </div>
+                                    <input type="range" id="osc1-volume" min="-40" max="0" step="0.5" value="-6">
+                                </div>
+                            </div>
+
+                            <div class="oscillator-card">
+                                <h4>Oscillator 2</h4>
+                                <div class="osc-control">
+                                    <label>Waveform</label>
+                                    <select id="osc2-waveform">
+                                        <option value="sine">Sine</option>
+                                        <option value="square">Square</option>
+                                        <option value="sawtooth">Sawtooth</option>
+                                        <option value="triangle">Triangle</option>
+                                    </select>
+                                </div>
+                                <div class="osc-control">
+                                    <div class="volume-display">
+                                        <label>Volume</label>
+                                        <span id="osc2-volume-value">-6.00 dB</span>
+                                    </div>
+                                    <input type="range" id="osc2-volume" min="-40" max="0" step="0.5" value="-6">
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Test Keyboard -->
@@ -2093,7 +2280,7 @@
         // ============================================
         class DronesModule extends BaseModule {
             constructor() {
-                super('drones', '🎶 Drones & Octaves', '🎶');
+                super('drones', 'Drones & Octaves', '🎶');
 
                 // Drone management
                 this.drones = []; // Array of {id, note, octave, volume, synth}
@@ -2358,7 +2545,7 @@
             render() {
                 return `
                     <div class="module-header">
-                        <h2>🎶 Drones & Octaves</h2>
+                        <h2>Drones & Octaves</h2>
                         <p>Create sustained tones and explore polyphony and octave relationships</p>
                     </div>
 
@@ -2392,7 +2579,7 @@
 
         class VisualizationModule extends BaseModule {
             constructor() {
-                super('visualization', '📊 Visualization', '📊');
+                super('visualization', 'Visualization', '📊');
                 this.isStub = true;
             }
 
@@ -2410,7 +2597,7 @@
 
         class MIDIModule extends BaseModule {
             constructor() {
-                super('midi', '🎹 MIDI Input', '🎹');
+                super('midi', 'MIDI Input', '🎹');
                 this.isStub = true;
             }
 
@@ -2428,7 +2615,7 @@
 
         class AdvancedModule extends BaseModule {
             constructor() {
-                super('advanced', '🚀 Advanced', '🚀');
+                super('advanced', 'Advanced', '🚀');
                 this.isStub = true;
             }
 
