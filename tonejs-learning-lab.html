@@ -537,6 +537,127 @@
         }
 
         /* ============================================
+           DRONES MODULE
+           ============================================ */
+        .drones-container {
+            max-width: 800px;
+        }
+
+        .add-drone-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 20px;
+            transition: all 0.2s;
+        }
+
+        .add-drone-btn:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        .add-drone-btn:disabled {
+            background: var(--text-dim);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .drones-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .drone-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .drone-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .drone-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .remove-drone-btn {
+            background: rgba(255, 100, 100, 0.2);
+            color: #ff6464;
+            border: 1px solid #ff6464;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .remove-drone-btn:hover {
+            background: rgba(255, 100, 100, 0.3);
+        }
+
+        .drone-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .drone-control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .drone-control-group label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .drone-control-group select,
+        .drone-control-group input[type="range"] {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 8px;
+            border-radius: 4px;
+        }
+
+        .drone-control-group select {
+            cursor: pointer;
+        }
+
+        .volume-display {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        @media (max-width: 768px) {
+            .drone-controls {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ============================================
            INFO BOXES
            ============================================ */
         .info-box {
@@ -1966,19 +2087,304 @@
             }
         }
 
+        // ============================================
+        // DRONES & OCTAVES MODULE
+        // Teaches polyphony and sustained tones
+        // ============================================
         class DronesModule extends BaseModule {
             constructor() {
                 super('drones', '🎶 Drones & Octaves', '🎶');
-                this.isStub = true;
+
+                // Drone management
+                this.drones = []; // Array of {id, note, octave, volume, synth}
+                this.nextDroneId = 1;
+                this.maxDrones = 6;
+
+                // Available notes (chromatic scale)
+                this.notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+                this.octaves = [1, 2, 3, 4, 5, 6, 7];
+
+                // Default settings
+                this.defaults = {
+                    drones: [] // Array of {id, note, octave, volume}
+                };
+
+                this.settings = { ...this.defaults, drones: [] };
+            }
+
+            mount() {
+                super.mount();
+                this.loadSettings();
+                this.restoreDrones();
+                this.attachEventListeners();
+                console.log('🎶 Drones module loaded');
+            }
+
+            unmount() {
+                super.unmount();
+                this.stopAllDrones();
+            }
+
+            loadSettings() {
+                const saved = localStorage.getItem('toneLab_drones');
+                if (saved) {
+                    try {
+                        const parsed = JSON.parse(saved);
+                        this.settings = { ...this.defaults, ...parsed };
+                    } catch (e) {
+                        console.warn('Failed to load drones settings');
+                    }
+                }
+            }
+
+            saveSettings() {
+                // Save drone configurations (not the synth objects)
+                this.settings.drones = this.drones.map(d => ({
+                    id: d.id,
+                    note: d.note,
+                    octave: d.octave,
+                    volume: d.volume
+                }));
+                localStorage.setItem('toneLab_drones', JSON.stringify(this.settings));
+            }
+
+            restoreDrones() {
+                // Restore saved drones from settings
+                if (this.settings.drones && this.settings.drones.length > 0) {
+                    this.settings.drones.forEach(droneData => {
+                        this.addDrone(droneData.note, droneData.octave, droneData.volume, droneData.id);
+                    });
+                }
+            }
+
+            addDrone(note = 'C', octave = 3, volume = -12, id = null) {
+                if (this.drones.length >= this.maxDrones) {
+                    return;
+                }
+
+                // Create synth for this drone
+                const synth = new Tone.Synth({
+                    oscillator: { type: 'sine' },
+                    envelope: {
+                        attack: 0.5,
+                        decay: 0,
+                        sustain: 1,
+                        release: 0.5
+                    },
+                    volume: volume
+                }).toDestination();
+
+                const droneId = id !== null ? id : this.nextDroneId++;
+                const fullNote = `${note}${octave}`;
+
+                const drone = {
+                    id: droneId,
+                    note: note,
+                    octave: octave,
+                    volume: volume,
+                    synth: synth
+                };
+
+                this.drones.push(drone);
+
+                // Start the drone
+                synth.triggerAttack(fullNote);
+
+                this.updateDronesList();
+                this.saveSettings();
+            }
+
+            removeDrone(droneId) {
+                const index = this.drones.findIndex(d => d.id === droneId);
+                if (index !== -1) {
+                    const drone = this.drones[index];
+
+                    // Stop and dispose the synth
+                    drone.synth.triggerRelease();
+                    setTimeout(() => {
+                        drone.synth.dispose();
+                    }, 600);
+
+                    this.drones.splice(index, 1);
+                    this.updateDronesList();
+                    this.saveSettings();
+                }
+            }
+
+            updateDrone(droneId, property, value) {
+                const drone = this.drones.find(d => d.id === droneId);
+                if (!drone) return;
+
+                if (property === 'note') {
+                    drone.note = value;
+                    // Restart drone with new note
+                    const fullNote = `${drone.note}${drone.octave}`;
+                    drone.synth.triggerRelease();
+                    setTimeout(() => {
+                        drone.synth.triggerAttack(fullNote);
+                    }, 100);
+                } else if (property === 'octave') {
+                    drone.octave = parseInt(value);
+                    // Restart drone with new octave
+                    const fullNote = `${drone.note}${drone.octave}`;
+                    drone.synth.triggerRelease();
+                    setTimeout(() => {
+                        drone.synth.triggerAttack(fullNote);
+                    }, 100);
+                } else if (property === 'volume') {
+                    drone.volume = parseFloat(value);
+                    drone.synth.volume.value = drone.volume;
+                    this.updateVolumeDisplay(droneId);
+                }
+
+                this.saveSettings();
+            }
+
+            updateVolumeDisplay(droneId) {
+                const display = document.getElementById(`drone-${droneId}-volume-display`);
+                const drone = this.drones.find(d => d.id === droneId);
+                if (display && drone) {
+                    display.textContent = `${drone.volume.toFixed(1)} dB`;
+                }
+            }
+
+            stopAllDrones() {
+                this.drones.forEach(drone => {
+                    drone.synth.triggerRelease();
+                    drone.synth.dispose();
+                });
+                this.drones = [];
+            }
+
+            updateDronesList() {
+                const list = document.getElementById('dronesList');
+                const addBtn = document.getElementById('addDroneBtn');
+
+                if (!list) return;
+
+                if (this.drones.length === 0) {
+                    list.innerHTML = '<p style="text-align: center; color: var(--text-dim); padding: 40px;">No drones active. Click "Add Drone" to start.</p>';
+                } else {
+                    list.innerHTML = this.drones.map(drone => `
+                        <div class="drone-card">
+                            <div class="drone-header">
+                                <span class="drone-title">Drone ${drone.id} - ${drone.note}${drone.octave}</span>
+                                <button class="remove-drone-btn" data-drone-id="${drone.id}">Remove</button>
+                            </div>
+                            <div class="drone-controls">
+                                <div class="drone-control-group">
+                                    <label>Note</label>
+                                    <select data-drone-id="${drone.id}" data-property="note">
+                                        ${this.notes.map(n => `<option value="${n}" ${n === drone.note ? 'selected' : ''}>${n}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div class="drone-control-group">
+                                    <label>Octave</label>
+                                    <select data-drone-id="${drone.id}" data-property="octave">
+                                        ${this.octaves.map(o => `<option value="${o}" ${o === drone.octave ? 'selected' : ''}>${o}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div class="drone-control-group" style="grid-column: 1 / -1;">
+                                    <div class="volume-display">
+                                        <label>Volume</label>
+                                        <span id="drone-${drone.id}-volume-display">${drone.volume.toFixed(1)} dB</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="-40"
+                                        max="0"
+                                        step="1"
+                                        value="${drone.volume}"
+                                        data-drone-id="${drone.id}"
+                                        data-property="volume"
+                                    >
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+                // Update add button state
+                if (addBtn) {
+                    addBtn.disabled = this.drones.length >= this.maxDrones;
+                }
+            }
+
+            attachEventListeners() {
+                // Add drone button
+                const addBtn = document.getElementById('addDroneBtn');
+                if (addBtn) {
+                    addBtn.addEventListener('click', async () => {
+                        await Tone.start();
+                        this.addDrone();
+                    });
+                }
+
+                // Delegate events for drone controls
+                const list = document.getElementById('dronesList');
+                if (list) {
+                    list.addEventListener('click', (e) => {
+                        // Remove button
+                        if (e.target.classList.contains('remove-drone-btn')) {
+                            const droneId = parseInt(e.target.dataset.droneId);
+                            this.removeDrone(droneId);
+                        }
+                    });
+
+                    list.addEventListener('change', (e) => {
+                        const droneId = parseInt(e.target.dataset.droneId);
+                        const property = e.target.dataset.property;
+                        const value = e.target.value;
+
+                        if (droneId && property) {
+                            this.updateDrone(droneId, property, value);
+                        }
+                    });
+
+                    list.addEventListener('input', (e) => {
+                        if (e.target.type === 'range') {
+                            const droneId = parseInt(e.target.dataset.droneId);
+                            const property = e.target.dataset.property;
+                            const value = e.target.value;
+
+                            if (droneId && property) {
+                                this.updateDrone(droneId, property, value);
+                            }
+                        }
+                    });
+                }
             }
 
             render() {
                 return `
-                    <div class="stub-content">
-                        <h3>🎶 Drones & Octaves</h3>
-                        <p>Create sustained tones and explore octave relationships</p>
-                        <p>Topics: Sustained notes, octave control, polyphony, voice stacking</p>
-                        <span class="coming-soon">Coming Soon</span>
+                    <div class="module-header">
+                        <h2>🎶 Drones & Octaves</h2>
+                        <p>Create sustained tones and explore polyphony and octave relationships</p>
+                    </div>
+
+                    <div class="info-box">
+                        <h4>📚 What You'll Learn</h4>
+                        <p>
+                            <strong>Drones:</strong> Sustained tones that continue indefinitely until stopped.<br>
+                            <strong>Polyphony:</strong> Multiple sounds playing simultaneously.<br>
+                            <strong>Octaves:</strong> Same note at different frequencies (doubling = up one octave).<br>
+                            <strong>Voice Stacking:</strong> Layering multiple tones to create rich, complex sounds.
+                        </p>
+                    </div>
+
+                    <div class="drones-container">
+                        <button id="addDroneBtn" class="add-drone-btn">+ Add Drone</button>
+                        <div id="dronesList" class="drones-list"></div>
+                    </div>
+
+                    <div class="info-box" style="margin-top: 30px;">
+                        <h4>💡 Tips</h4>
+                        <p>
+                            • Try octaves of the same note (e.g., C2, C3, C4) for harmonic layers<br>
+                            • Experiment with intervals like fifths (C + G) or thirds (C + E)<br>
+                            • Adjust volumes to balance your drones<br>
+                            • Maximum ${this.maxDrones} drones can be active at once
+                        </p>
                     </div>
                 `;
             }
