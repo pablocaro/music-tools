@@ -1180,6 +1180,10 @@
                         e.preventDefault();
                         this.releaseNote();
                     });
+                    btn.addEventListener('touchcancel', (e) => {
+                        e.preventDefault();
+                        this.releaseNote();
+                    });
                 });
 
                 // Reset button
@@ -1978,6 +1982,21 @@
                 document.querySelectorAll('.fx-note-btn').forEach(btn => {
                     btn.addEventListener('mousedown', (e) => this.playNote(e.target.dataset.note));
                     btn.addEventListener('mouseup', () => this.releaseNote());
+                    btn.addEventListener('mouseleave', () => this.releaseNote());
+
+                    // Touch support
+                    btn.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        this.playNote(e.target.dataset.note);
+                    });
+                    btn.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        this.releaseNote();
+                    });
+                    btn.addEventListener('touchcancel', (e) => {
+                        e.preventDefault();
+                        this.releaseNote();
+                    });
                 });
             }
 
