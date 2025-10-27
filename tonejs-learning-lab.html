@@ -661,7 +661,23 @@
             padding: 20px;
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 20px;
+            transition: all 0.3s;
+        }
+
+        .drone-card.playing {
+            border-color: var(--success);
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.3);
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(76, 175, 80, 0.3);
+            }
+            50% {
+                box-shadow: 0 0 30px rgba(76, 175, 80, 0.5);
+            }
         }
 
         .drone-header {
@@ -718,36 +734,130 @@
             background: rgba(255, 100, 100, 0.3);
         }
 
-        .drone-controls {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-        }
-
-        .drone-control-group {
+        .drone-section {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 12px;
         }
 
-        .drone-control-group label {
+        .drone-section-header {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        /* Note Picker Grid */
+        .note-picker {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 4px;
+        }
+
+        .note-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 8px 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 500;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .note-btn:hover {
+            background: var(--bg-primary);
+            border-color: var(--accent);
+        }
+
+        .note-btn.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .note-btn.sharp {
+            opacity: 0.8;
+        }
+
+        /* Octave Stepper */
+        .octave-stepper {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        .octave-stepper-label {
             font-size: 12px;
             color: var(--text-secondary);
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
-        .drone-control-group select,
-        .drone-control-group input[type="range"] {
-            background: var(--bg-primary);
+        .octave-stepper-btn {
+            background: var(--bg-tertiary);
             border: 1px solid var(--border);
             color: var(--text-primary);
-            padding: 8px;
+            width: 32px;
+            height: 32px;
             border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        .drone-control-group select {
-            cursor: pointer;
+        .octave-stepper-btn:hover:not(:disabled) {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+
+        .octave-stepper-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .octave-display {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+            min-width: 30px;
+            text-align: center;
+        }
+
+        /* Slider Controls */
+        .slider-control {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .slider-label-text {
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .slider-value {
+            color: var(--text-primary);
+            font-weight: 500;
+            font-family: 'Courier New', monospace;
         }
 
         .volume-display {
@@ -2562,6 +2672,9 @@
                     const fullNote = `${drone.note}${drone.octave}`;
                     drone.oscillator.frequency.rampTo(fullNote, 0.1);
 
+                    // Update title display
+                    this.updateDroneTitle(droneId);
+
                 } else if (property === 'volume') {
                     drone.volume = parseFloat(value);
                     drone.baseGain = Tone.dbToGain(drone.volume);
@@ -2599,6 +2712,17 @@
                 this.saveSettings();
             }
 
+            updateDroneTitle(droneId) {
+                const card = document.getElementById(`drone-card-${droneId}`);
+                const drone = this.drones.find(d => d.id === droneId);
+                if (card && drone) {
+                    const title = card.querySelector('.drone-title');
+                    if (title) {
+                        title.textContent = `Drone ${drone.id} – ${drone.note}${drone.octave}`;
+                    }
+                }
+            }
+
             updateVolumeDisplay(droneId) {
                 const display = document.getElementById(`drone-${droneId}-volume-display`);
                 const drone = this.drones.find(d => d.id === droneId);
@@ -2611,17 +2735,48 @@
                 const display = document.getElementById(`drone-${droneId}-detune-display`);
                 const drone = this.drones.find(d => d.id === droneId);
                 if (display && drone) {
-                    display.textContent = `${drone.detune.toFixed(0)}¢`;
+                    const sign = drone.detune > 0 ? '+' : '';
+                    display.textContent = `${sign}${drone.detune.toFixed(0)}¢`;
                 }
             }
 
             updatePlayPauseButton(droneId) {
                 const btn = document.getElementById(`drone-${droneId}-playpause`);
+                const card = document.getElementById(`drone-card-${droneId}`);
                 const drone = this.drones.find(d => d.id === droneId);
                 if (btn && drone) {
                     btn.textContent = drone.isPlaying ? '⏸ Pause' : '▶ Play';
                     btn.classList.toggle('playing', drone.isPlaying);
                 }
+                if (card && drone) {
+                    card.classList.toggle('playing', drone.isPlaying);
+                }
+            }
+
+            changeOctave(droneId, direction) {
+                const drone = this.drones.find(d => d.id === droneId);
+                if (!drone) return;
+
+                const newOctave = drone.octave + direction;
+                if (newOctave >= 1 && newOctave <= 7) {
+                    this.updateDrone(droneId, 'octave', newOctave);
+                    this.updateOctaveDisplay(droneId);
+                }
+            }
+
+            updateOctaveDisplay(droneId) {
+                const display = document.getElementById(`drone-${droneId}-octave`);
+                const drone = this.drones.find(d => d.id === droneId);
+                if (display && drone) {
+                    display.textContent = drone.octave;
+                }
+
+                // Update stepper button states
+                const decreaseBtn = document.querySelector(`button[data-drone-id="${droneId}"][data-direction="-1"]`);
+                const increaseBtn = document.querySelector(`button[data-drone-id="${droneId}"][data-direction="1"]`);
+
+                if (decreaseBtn) decreaseBtn.disabled = drone.octave <= 1;
+                if (increaseBtn) increaseBtn.disabled = drone.octave >= 7;
             }
 
             stopAllDrones() {
@@ -2645,9 +2800,9 @@
                     list.innerHTML = '<p style="text-align: center; color: var(--text-dim); padding: 40px;">No drones yet. Click "+ Add Drone" to create one (it starts paused).</p>';
                 } else {
                     list.innerHTML = this.drones.map(drone => `
-                        <div class="drone-card">
+                        <div class="drone-card ${drone.isPlaying ? 'playing' : ''}" id="drone-card-${drone.id}">
                             <div class="drone-header">
-                                <span class="drone-title">Drone ${drone.id} - ${drone.note}${drone.octave}</span>
+                                <span class="drone-title">Drone ${drone.id} – ${drone.note}${drone.octave}</span>
                                 <div class="drone-header-buttons">
                                     <button
                                         class="play-pause-btn ${drone.isPlaying ? 'playing' : ''}"
@@ -2658,38 +2813,68 @@
                                     <button class="remove-drone-btn" data-drone-id="${drone.id}">Remove</button>
                                 </div>
                             </div>
-                            <div class="drone-controls">
-                                <div class="drone-control-group">
-                                    <label>Note</label>
-                                    <select data-drone-id="${drone.id}" data-property="note">
-                                        ${this.notes.map(n => `<option value="${n}" ${n === drone.note ? 'selected' : ''}>${n}</option>`).join('')}
-                                    </select>
+
+                            <!-- PITCH SECTION -->
+                            <div class="drone-section">
+                                <div class="drone-section-header">🎵 Pitch</div>
+
+                                <!-- Note Picker Grid -->
+                                <div class="note-picker">
+                                    ${this.notes.map(note => `
+                                        <button
+                                            class="note-btn ${note.includes('#') ? 'sharp' : ''} ${note === drone.note ? 'active' : ''}"
+                                            data-drone-id="${drone.id}"
+                                            data-note="${note}">
+                                            ${note}
+                                        </button>
+                                    `).join('')}
                                 </div>
-                                <div class="drone-control-group">
-                                    <label>Octave</label>
-                                    <select data-drone-id="${drone.id}" data-property="octave">
-                                        ${this.octaves.map(o => `<option value="${o}" ${o === drone.octave ? 'selected' : ''}>${o}</option>`).join('')}
-                                    </select>
+
+                                <!-- Octave Stepper -->
+                                <div class="octave-stepper">
+                                    <span class="octave-stepper-label">Octave</span>
+                                    <button
+                                        class="octave-stepper-btn"
+                                        data-drone-id="${drone.id}"
+                                        data-direction="-1"
+                                        ${drone.octave <= 1 ? 'disabled' : ''}>
+                                        −
+                                    </button>
+                                    <span class="octave-display" id="drone-${drone.id}-octave">${drone.octave}</span>
+                                    <button
+                                        class="octave-stepper-btn"
+                                        data-drone-id="${drone.id}"
+                                        data-direction="1"
+                                        ${drone.octave >= 7 ? 'disabled' : ''}>
+                                        +
+                                    </button>
                                 </div>
-                                <div class="drone-control-group" style="grid-column: 1 / -1;">
-                                    <div class="volume-display">
-                                        <label>Volume</label>
-                                        <span id="drone-${drone.id}-volume-display">${drone.volume.toFixed(1)} dB</span>
+                            </div>
+
+                            <!-- TONE SECTION -->
+                            <div class="drone-section">
+                                <div class="drone-section-header">🔊 Tone</div>
+
+                                <div class="slider-control">
+                                    <div class="slider-label">
+                                        <span class="slider-label-text">Volume</span>
+                                        <span class="slider-value" id="drone-${drone.id}-volume-display">${drone.volume.toFixed(1)} dB</span>
                                     </div>
                                     <input
                                         type="range"
                                         min="-40"
                                         max="0"
-                                        step="1"
+                                        step="0.5"
                                         value="${drone.volume}"
                                         data-drone-id="${drone.id}"
                                         data-property="volume"
                                     >
                                 </div>
-                                <div class="drone-control-group" style="grid-column: 1 / -1;">
-                                    <div class="volume-display">
-                                        <label>Detune</label>
-                                        <span id="drone-${drone.id}-detune-display">${drone.detune.toFixed(0)}¢</span>
+
+                                <div class="slider-control">
+                                    <div class="slider-label">
+                                        <span class="slider-label-text">Detune</span>
+                                        <span class="slider-value" id="drone-${drone.id}-detune-display">${drone.detune > 0 ? '+' : ''}${drone.detune.toFixed(0)}¢</span>
                                     </div>
                                     <input
                                         type="range"
@@ -2701,17 +2886,20 @@
                                         data-property="detune"
                                     >
                                 </div>
-                                <div class="drone-control-group" style="grid-column: 1 / -1;">
-                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                        <input
-                                            type="checkbox"
-                                            ${drone.evolving ? 'checked' : ''}
-                                            data-drone-id="${drone.id}"
-                                            data-property="evolving"
-                                        >
-                                        <span>Evolving (LFO modulation)</span>
-                                    </label>
-                                </div>
+                            </div>
+
+                            <!-- MOTION SECTION -->
+                            <div class="drone-section">
+                                <div class="drone-section-header">🌊 Motion</div>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input
+                                        type="checkbox"
+                                        ${drone.evolving ? 'checked' : ''}
+                                        data-drone-id="${drone.id}"
+                                        data-property="evolving"
+                                    >
+                                    <span style="color: var(--text-secondary); font-size: 13px;">Evolving (LFO modulation)</span>
+                                </label>
                             </div>
                         </div>
                     `).join('');
@@ -2747,6 +2935,21 @@
                         if (e.target.classList.contains('remove-drone-btn')) {
                             const droneId = parseInt(e.target.dataset.droneId);
                             this.removeDrone(droneId);
+                        }
+
+                        // Note button
+                        if (e.target.classList.contains('note-btn')) {
+                            const droneId = parseInt(e.target.dataset.droneId);
+                            const note = e.target.dataset.note;
+                            this.updateDrone(droneId, 'note', note);
+                            this.updateDronesList();
+                        }
+
+                        // Octave stepper
+                        if (e.target.classList.contains('octave-stepper-btn')) {
+                            const droneId = parseInt(e.target.dataset.droneId);
+                            const direction = parseInt(e.target.dataset.direction);
+                            this.changeOctave(droneId, direction);
                         }
                     });
 
