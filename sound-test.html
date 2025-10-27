@@ -201,6 +201,35 @@
             border-color: #2196f3;
         }
 
+        .preset-btn.custom {
+            position: relative;
+            padding-right: 35px;
+        }
+
+        .preset-delete {
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            background: #d32f2f;
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 12px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .preset-delete:hover {
+            background: #f44336;
+        }
+
         @media (max-width: 900px) {
             .main-layout {
                 grid-template-columns: 1fr;
@@ -388,6 +417,21 @@
                         <button class="preset-btn" data-preset="bell-like">Bell-like</button>
                         <button class="preset-btn" data-preset="warm-drone">Warm Drone</button>
                         <button class="preset-btn save" id="saveCustom">Save Custom</button>
+                    <div class="preset-category">
+                        <h3 style="font-size: 14px; color: #999; margin-bottom: 10px;">Built-in</h3>
+                        <div class="preset-buttons">
+                            <button class="preset-btn" data-preset="soft-pad">Soft Pad</button>
+                            <button class="preset-btn" data-preset="plucked">Plucked</button>
+                            <button class="preset-btn" data-preset="bell-like">Bell-like</button>
+                            <button class="preset-btn" data-preset="warm-drone">Warm Drone</button>
+                        </div>
+                    </div>
+                    <div class="preset-category" style="margin-top: 20px;">
+                        <h3 style="font-size: 14px; color: #999; margin-bottom: 10px;">Custom</h3>
+                        <div class="preset-buttons" id="customPresets">
+                            <!-- Custom presets will be dynamically added here -->
+                        </div>
+                        <button class="preset-btn save" id="saveNewPreset" style="margin-top: 10px;">+ Save New Preset</button>
                     </div>
                 </div>
             </div>
@@ -414,6 +458,9 @@
                 this.droneNote = 'C3';       // default selected drone
                 this.droneVoices = [];       // optional layered drones (synths) beyond the main droneSynth
 
+                this.droneNote = null;
+                this.isDroneActive = false;
+
                 this.init();
             }
 
@@ -421,6 +468,7 @@
                 this.createSynths();
                 this.setupEventListeners();
                 this.loadSettings();
+                this.loadCustomPresets();
                 console.log('🎹 Sound Lab initialized!');
             }
 
@@ -563,6 +611,7 @@
                     btn.addEventListener('click', (e) => this.loadPreset(e.target.dataset.preset));
                 });
                 document.getElementById('saveCustom').addEventListener('click', () => this.saveSettings());
+                document.getElementById('saveNewPreset').addEventListener('click', () => this.saveNewPreset());
             }
 
             setupControl(id, callback) {
@@ -592,6 +641,9 @@
                 const finalNote = `${base}${this.tapOctave}`;      // e.g., "C5"
                 console.log(`🎵 Playing ${finalNote}`);
                 this.tapSynth.triggerAttack(finalNote);
+                const note = e.target.dataset.note;
+                console.log(`🎵 Playing ${note}`);
+                this.tapSynth.triggerAttack(note);
             }
 
             handleNoteRelease(e) {
@@ -620,6 +672,21 @@
                     if (btn) btn.textContent = `Drone: On (${note})`;
 
                     console.log(`🎶 Drone on: ${note}`);
+                    // Turn off drone
+                    this.droneSynth.triggerRelease();
+                    this.isDroneActive = false;
+                    this.droneNote = null;
+                    btn.classList.remove('active');
+                    btn.textContent = 'Drone: Off';
+                    console.log('🛑 Drone off');
+                } else {
+                    // Turn on drone (C3)
+                    this.droneNote = 'C3';
+                    this.droneSynth.triggerAttack(this.droneNote);
+                    this.isDroneActive = true;
+                    btn.classList.add('active');
+                    btn.textContent = `Drone: On (${this.droneNote})`;
+                    console.log(`🎶 Drone on: ${this.droneNote}`);
                 }
             }
 
@@ -820,6 +887,137 @@
 
                     console.log(`📦 Loaded preset: ${presetName}`);
                 }
+            }
+
+            saveNewPreset() {
+                const presets = this.getCustomPresets();
+
+                // Check limit
+                if (presets.length >= 10) {
+                    alert('Maximum 10 custom presets allowed. Please delete one first.');
+                    return;
+                }
+
+                // Prompt for name
+                const name = prompt('Enter preset name:');
+                if (!name || name.trim() === '') {
+                    return;
+                }
+
+                // Check if name already exists
+                if (presets.some(p => p.name === name)) {
+                    alert('A preset with this name already exists.');
+                    return;
+                }
+
+                // Get current settings
+                const preset = {
+                    name: name.trim(),
+                    tap: {
+                        synthType: document.getElementById('tapSynthType').value,
+                        waveform: document.getElementById('tapWaveform').value,
+                        attack: parseFloat(document.getElementById('tapAttack').value),
+                        decay: parseFloat(document.getElementById('tapDecay').value),
+                        release: parseFloat(document.getElementById('tapRelease').value),
+                        volume: parseFloat(document.getElementById('tapVolume').value),
+                        filter: parseFloat(document.getElementById('tapFilter').value)
+                    },
+                    drone: {
+                        synthType: document.getElementById('droneSynthType').value,
+                        waveform: document.getElementById('droneWaveform').value,
+                        attack: parseFloat(document.getElementById('droneAttack').value),
+                        sustain: parseFloat(document.getElementById('droneSustain').value),
+                        release: parseFloat(document.getElementById('droneRelease').value),
+                        volume: parseFloat(document.getElementById('droneVolume').value),
+                        filter: parseFloat(document.getElementById('droneFilter').value)
+                    }
+                };
+
+                // Save to array
+                presets.push(preset);
+                localStorage.setItem('soundLabPresets', JSON.stringify(presets));
+
+                // Render the new preset
+                this.renderCustomPreset(preset);
+
+                console.log(`💾 Saved custom preset: ${name}`);
+            }
+
+            getCustomPresets() {
+                const saved = localStorage.getItem('soundLabPresets');
+                return saved ? JSON.parse(saved) : [];
+            }
+
+            loadCustomPresets() {
+                const presets = this.getCustomPresets();
+                presets.forEach(preset => this.renderCustomPreset(preset));
+            }
+
+            renderCustomPreset(preset) {
+                const container = document.getElementById('customPresets');
+
+                const btn = document.createElement('button');
+                btn.className = 'preset-btn custom';
+                btn.textContent = preset.name;
+                btn.addEventListener('click', () => this.loadCustomPreset(preset.name));
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'preset-delete';
+                deleteBtn.textContent = '✕';
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.deleteCustomPreset(preset.name);
+                });
+
+                btn.appendChild(deleteBtn);
+                container.appendChild(btn);
+            }
+
+            loadCustomPreset(name) {
+                const presets = this.getCustomPresets();
+                const preset = presets.find(p => p.name === name);
+
+                if (preset) {
+                    // Apply settings
+                    Object.keys(preset.tap).forEach(key => {
+                        const el = document.getElementById(`tap${key.charAt(0).toUpperCase() + key.slice(1)}`);
+                        if (el) el.value = preset.tap[key];
+                    });
+                    Object.keys(preset.drone).forEach(key => {
+                        const el = document.getElementById(`drone${key.charAt(0).toUpperCase() + key.slice(1)}`);
+                        if (el) el.value = preset.drone[key];
+                    });
+
+                    // Trigger updates
+                    document.querySelectorAll('input[type="range"], select').forEach(el => {
+                        el.dispatchEvent(new Event('input'));
+                        el.dispatchEvent(new Event('change'));
+                    });
+
+                    console.log(`📦 Loaded custom preset: ${name}`);
+                }
+            }
+
+            deleteCustomPreset(name) {
+                if (!confirm(`Delete preset "${name}"?`)) {
+                    return;
+                }
+
+                // Remove from storage
+                let presets = this.getCustomPresets();
+                presets = presets.filter(p => p.name !== name);
+                localStorage.setItem('soundLabPresets', JSON.stringify(presets));
+
+                // Remove button from UI
+                const container = document.getElementById('customPresets');
+                const buttons = container.querySelectorAll('.preset-btn.custom');
+                buttons.forEach(btn => {
+                    if (btn.textContent.replace('✕', '').trim() === name) {
+                        btn.remove();
+                    }
+                });
+
+                console.log(`🗑️ Deleted custom preset: ${name}`);
             }
         }
 

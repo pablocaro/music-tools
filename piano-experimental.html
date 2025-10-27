@@ -288,21 +288,23 @@
            GRIPPER ANIMATION
            ============================================ */
         .gripper-active .grip-ring {
-            transition: stroke-width 0.2s cubic-bezier(0.4, 0.0, 0.2, 1),
-                       opacity 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+            transition: stroke-width var(--notch-activation-speed, 200ms) ease-in-out,
+                       opacity var(--notch-activation-speed, 200ms) ease-in-out;
         }
 
         .gripper-active .grip-tick {
-            transition: opacity 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+            transition: opacity var(--notch-activation-speed, 200ms) ease-in-out,
+                       transform var(--notch-activation-speed, 200ms) ease-in-out;
         }
 
         .grip-ring {
-            transition: stroke-width 0.3s ease-out,
-                       opacity 0.3s ease-out;
+            transition: stroke-width var(--notch-deactivation-speed, 300ms) ease-in-out,
+                       opacity var(--notch-deactivation-speed, 300ms) ease-in-out;
         }
 
         .grip-tick {
-            transition: opacity 0.3s ease-out;
+            transition: opacity var(--notch-deactivation-speed, 300ms) ease-in-out,
+                       transform var(--notch-deactivation-speed, 300ms) ease-in-out;
         }
     </style>
 </head>
@@ -380,8 +382,8 @@
             </div>
 
             <div class="control-group">
-                <label for="gripRingOpacitySlider">Grip Ring Opacity: <span class="range-value" id="gripRingOpacityValue">5</span>%</label>
-                <input type="range" id="gripRingOpacitySlider" min="0" max="100" step="5" value="5" aria-label="Grip ring opacity">
+                <label for="gripRingOpacitySlider">Grip Ring Opacity: <span class="range-value" id="gripRingOpacityValue">0</span>%</label>
+                <input type="range" id="gripRingOpacitySlider" min="0" max="100" step="5" value="0" aria-label="Grip ring opacity">
             </div>
 
             <div class="control-group">
@@ -397,6 +399,38 @@
             <div class="control-group">
                 <label for="pressBrightnessSlider">Press Brightness: <span class="range-value" id="pressBrightnessValue">30</span>%</label>
                 <input type="range" id="pressBrightnessSlider" min="0" max="100" step="5" value="30" aria-label="Press brightness">
+            </div>
+
+            <h3 style="margin-top: 32px; padding-top: 24px; border-top: 2px solid #e0e0e0;">Experimental Settings</h3>
+
+            <div class="control-group">
+                <label for="droneLockTimeSlider">Drone Lock Time: <span class="range-value" id="droneLockTimeValue">3000</span>ms</label>
+                <input type="range" id="droneLockTimeSlider" min="1000" max="8000" step="500" value="3000" aria-label="Drone lock time">
+            </div>
+
+            <div class="control-group">
+                <label for="notchGrowthFactorSlider">Notch Growth Factor: <span class="range-value" id="notchGrowthFactorValue">1.3</span>x</label>
+                <input type="range" id="notchGrowthFactorSlider" min="1.0" max="2.0" step="0.1" value="1.3" aria-label="Notch growth factor">
+            </div>
+
+            <div class="control-group">
+                <label for="notchActivationSpeedSlider">Notch Activation Speed: <span class="range-value" id="notchActivationSpeedValue">200</span>ms</label>
+                <input type="range" id="notchActivationSpeedSlider" min="50" max="1000" step="50" value="200" aria-label="Notch activation speed">
+            </div>
+
+            <div class="control-group">
+                <label for="notchDeactivationSpeedSlider">Notch Deactivation Speed: <span class="range-value" id="notchDeactivationSpeedValue">300</span>ms</label>
+                <input type="range" id="notchDeactivationSpeedSlider" min="50" max="1000" step="50" value="300" aria-label="Notch deactivation speed">
+            </div>
+
+            <div class="control-group">
+                <label for="notchBrightnessBoostSlider">Notch Brightness Boost: <span class="range-value" id="notchBrightnessBoostValue">1.5</span>x</label>
+                <input type="range" id="notchBrightnessBoostSlider" min="1.0" max="3.0" step="0.1" value="1.5" aria-label="Notch brightness boost">
+            </div>
+
+            <div class="control-group">
+                <label for="ringThicknessBoostSlider">Ring Thickness Boost: <span class="range-value" id="ringThicknessBoostValue">1.3</span>x</label>
+                <input type="range" id="ringThicknessBoostSlider" min="1.0" max="2.0" step="0.1" value="1.3" aria-label="Ring thickness boost">
             </div>
         </div>
     </div>
@@ -431,11 +465,19 @@
             gripThickness: 2,
             gripOpacity: 10,
             ticksPerEdge: 4,
-            gripRingOpacity: 5,
+            gripRingOpacity: 0,
             gripInset: 5,
             pressShrink: 2,
             pressBrightness: 30,
-            theme: 'dark'
+            theme: 'dark',
+            // Experimental: Drone lock timing
+            droneLockTime: 3000,
+            // Experimental: Gripper animations
+            notchGrowthFactor: 1.3,
+            notchActivationSpeed: 200,
+            notchDeactivationSpeed: 300,
+            notchBrightnessBoost: 1.5,
+            ringThicknessBoost: 1.3
         };
 
         // ============================================
@@ -617,12 +659,12 @@
         // AUDIO ENGINE
         // ============================================
         class AudioEngine {
-            constructor() {
+            constructor(stateManager) {
+                this.state = stateManager;
                 this.synth = null;
                 this.activeNotes = new Map(); // Maps index -> note
                 this.lockedDrones = new Map(); // Maps index -> note (for locked drones)
-                this.noteTimeouts = new Map(); // Maps index -> timeout ID for auto-release
-                this.AUTO_RELEASE_MS = 4000; // 4 seconds
+                this.lockTimeouts = new Map(); // Maps index -> timeout ID for auto-lock
             }
 
             async init() {
@@ -652,7 +694,7 @@
                 return C_MAJOR_SCALE[noteInScale] + octave;
             }
 
-            async playNote(index) {
+            async playNote(index, onAutoLock) {
                 await this.init();
                 const note = this.getNote(index);
 
@@ -667,12 +709,14 @@
                     this.synth.triggerAttack(note);
                     this.activeNotes.set(index, note);
 
-                    // Set auto-release timeout after 4 seconds
+                    // Set auto-lock timeout (Option C: auto-lock at threshold time)
+                    const lockTime = this.state.get('droneLockTime');
                     const timeoutId = setTimeout(() => {
-                        console.log(`⏰ Auto-releasing note ${note} after ${this.AUTO_RELEASE_MS}ms (index ${index})`);
-                        this.stopNote(index);
-                    }, this.AUTO_RELEASE_MS);
-                    this.noteTimeouts.set(index, timeoutId);
+                        console.log(`🔒 Auto-locking drone ${note} after ${lockTime}ms (index ${index})`);
+                        this.lockDrone(index);
+                        if (onAutoLock) onAutoLock(index);
+                    }, lockTime);
+                    this.lockTimeouts.set(index, timeoutId);
                 } else {
                     console.log(`⏭️ Note ${note} already playing (index ${index})`);
                 }
@@ -693,10 +737,10 @@
                     }
                     this.activeNotes.delete(index);
 
-                    // Clear the auto-release timeout
-                    if (this.noteTimeouts.has(index)) {
-                        clearTimeout(this.noteTimeouts.get(index));
-                        this.noteTimeouts.delete(index);
+                    // Clear the auto-lock timeout (user released before lock time)
+                    if (this.lockTimeouts.has(index)) {
+                        clearTimeout(this.lockTimeouts.get(index));
+                        this.lockTimeouts.delete(index);
                     }
                 } else {
                     console.log(`⚠️ Tried to stop note at index ${index} but it wasn't active`);
@@ -709,10 +753,10 @@
                     console.log(`🔒 Locking drone ${note} (index ${index})`);
                     this.lockedDrones.set(index, note);
 
-                    // Clear auto-release timeout since it's locked
-                    if (this.noteTimeouts.has(index)) {
-                        clearTimeout(this.noteTimeouts.get(index));
-                        this.noteTimeouts.delete(index);
+                    // Clear auto-lock timeout since it's now locked
+                    if (this.lockTimeouts.has(index)) {
+                        clearTimeout(this.lockTimeouts.get(index));
+                        this.lockTimeouts.delete(index);
                     }
                 }
             }
@@ -756,11 +800,11 @@
                 }
                 this.lockedDrones.clear();
 
-                // Clear all auto-release timeouts
-                this.noteTimeouts.forEach((timeoutId) => {
+                // Clear all auto-lock timeouts
+                this.lockTimeouts.forEach((timeoutId) => {
                     clearTimeout(timeoutId);
                 });
-                this.noteTimeouts.clear();
+                this.lockTimeouts.clear();
 
                 console.log(`✅ All notes cleared`);
             }
@@ -973,7 +1017,9 @@
                     tick.setAttribute('stroke', 'var(--grip-color)');
                     tick.setAttribute('stroke-width', gripThickness);
                     tick.setAttribute('opacity', gripOpacity / 100);
+                    tick.setAttribute('vector-effect', 'non-scaling-stroke');
                     tick.style.pointerEvents = 'none';
+                    tick.style.transformOrigin = `${centerX}px ${centerY}px`;
 
                     // Store original positions for animation
                     tick.setAttribute('data-x1', x1);
@@ -1089,6 +1135,57 @@
                 this.lockedSlices.add(index);
                 console.log(`🎨 Visually locking slice ${index}`);
                 // Slice stays in pressed state
+
+                // Add visual feedback pulse
+                this.pulseLockFeedback(index);
+            }
+
+            pulseLockFeedback(index) {
+                const slice = this.sliceElements.get(index);
+                const stop2 = document.querySelector(`.stop2-${index}`);
+                const pathGen = this.pathGenerators.get(index);
+
+                if (!slice || !stop2 || !pathGen) return;
+
+                const pressBrightness = this.state.get('pressBrightness');
+                const normalBrightness = pressBrightness / 100;
+                const pulseBrightness = Math.min(1, normalBrightness * 1.8); // 80% brighter pulse
+
+                const normalValue = Math.round(normalBrightness * 255);
+                const pulseValue = Math.round(pulseBrightness * 255);
+
+                const normalHex = normalValue.toString(16).padStart(2, '0');
+                const pulseHex = pulseValue.toString(16).padStart(2, '0');
+
+                const normalColor = `#${normalHex}${normalHex}${normalHex}`;
+                const pulseColor = `#${pulseHex}${pulseHex}${pulseHex}`;
+
+                // Quick pulse animation: bright -> normal -> bright -> normal
+                stop2.animate([
+                    { stopColor: normalColor },
+                    { stopColor: pulseColor, offset: 0.25 },
+                    { stopColor: normalColor, offset: 0.5 },
+                    { stopColor: pulseColor, offset: 0.75 },
+                    { stopColor: normalColor }
+                ], {
+                    duration: 600,
+                    easing: 'ease-in-out'
+                });
+
+                // Quick scale pulse
+                const narrowFactor = this.getPressNarrowFactor();
+                const pulseFactor = narrowFactor * 0.92; // Slightly smaller for pulse
+
+                slice.animate([
+                    { d: pathGen(narrowFactor) },
+                    { d: pathGen(pulseFactor), offset: 0.25 },
+                    { d: pathGen(narrowFactor), offset: 0.5 },
+                    { d: pathGen(pulseFactor), offset: 0.75 },
+                    { d: pathGen(narrowFactor) }
+                ], {
+                    duration: 600,
+                    easing: 'ease-in-out'
+                });
             }
 
             unlockSlice(index) {
@@ -1126,41 +1223,29 @@
                 if (this.sliceGroup) {
                     this.sliceGroup.classList.add('gripper-active');
 
+                    // Get state values for animation
+                    const ringThicknessBoost = this.state.get('ringThicknessBoost');
+                    const notchBrightnessBoost = this.state.get('notchBrightnessBoost');
+                    const notchGrowthFactor = this.state.get('notchGrowthFactor');
+
                     // Thicken the grip ring
                     const gripRing = this.sliceGroup.querySelector('.grip-ring');
                     if (gripRing) {
                         const currentWidth = parseFloat(gripRing.getAttribute('stroke-width'));
-                        gripRing.setAttribute('stroke-width', currentWidth * 1.3);
+                        gripRing.setAttribute('stroke-width', currentWidth * ringThicknessBoost);
 
                         const currentOpacity = parseFloat(gripRing.getAttribute('opacity'));
-                        gripRing.setAttribute('opacity', currentOpacity * 2);
+                        gripRing.setAttribute('opacity', Math.min(1, currentOpacity * 2));
                     }
 
-                    // Brighten and extend the grip ticks
+                    // Brighten and scale the grip ticks using CSS transforms
                     const gripTicks = this.sliceGroup.querySelectorAll('.grip-tick');
                     gripTicks.forEach(tick => {
-                        // Brighten opacity
                         const currentOpacity = parseFloat(tick.getAttribute('opacity'));
-                        tick.setAttribute('opacity', Math.min(1, currentOpacity * 1.5));
+                        tick.setAttribute('opacity', Math.min(1, currentOpacity * notchBrightnessBoost));
 
-                        // Extend tick length (1.3x from center point)
-                        const x1 = parseFloat(tick.getAttribute('data-x1'));
-                        const y1 = parseFloat(tick.getAttribute('data-y1'));
-                        const x2 = parseFloat(tick.getAttribute('data-x2'));
-                        const y2 = parseFloat(tick.getAttribute('data-y2'));
-                        const centerX = parseFloat(tick.getAttribute('data-center-x'));
-                        const centerY = parseFloat(tick.getAttribute('data-center-y'));
-
-                        const GROWTH_FACTOR = 1.3;
-                        const newX1 = centerX + (x1 - centerX) * GROWTH_FACTOR;
-                        const newY1 = centerY + (y1 - centerY) * GROWTH_FACTOR;
-                        const newX2 = centerX + (x2 - centerX) * GROWTH_FACTOR;
-                        const newY2 = centerY + (y2 - centerY) * GROWTH_FACTOR;
-
-                        tick.setAttribute('x1', newX1);
-                        tick.setAttribute('y1', newY1);
-                        tick.setAttribute('x2', newX2);
-                        tick.setAttribute('y2', newY2);
+                        // Apply scale transform (CSS transition will animate it smoothly)
+                        tick.style.transform = `scale(${notchGrowthFactor})`;
                     });
                 }
             }
@@ -1179,23 +1264,14 @@
                         gripRing.setAttribute('opacity', gripRingOpacity / 100);
                     }
 
-                    // Reset grip ticks to original positions and opacity
+                    // Reset grip ticks to original scale and opacity
                     const gripOpacity = this.state.get('gripOpacity');
                     const gripTicks = this.sliceGroup.querySelectorAll('.grip-tick');
                     gripTicks.forEach(tick => {
-                        // Reset opacity
                         tick.setAttribute('opacity', gripOpacity / 100);
 
-                        // Restore original positions
-                        const x1 = parseFloat(tick.getAttribute('data-x1'));
-                        const y1 = parseFloat(tick.getAttribute('data-y1'));
-                        const x2 = parseFloat(tick.getAttribute('data-x2'));
-                        const y2 = parseFloat(tick.getAttribute('data-y2'));
-
-                        tick.setAttribute('x1', x1);
-                        tick.setAttribute('y1', y1);
-                        tick.setAttribute('x2', x2);
-                        tick.setAttribute('y2', y2);
+                        // Reset transform to scale(1) - CSS transition will animate it smoothly
+                        tick.style.transform = 'scale(1)';
                     });
                 }
             }
@@ -1224,10 +1300,6 @@
                     lastTouchedSlice: null,
                     lastPinchDistance: 0
                 };
-
-                // Track slice interactions for drone lock
-                this.sliceInteractions = new Map(); // index -> {startTime, originalIndex, wasDragged}
-                this.DRONE_LOCK_THRESHOLD_MS = 4000;
 
                 this.setupEventListeners();
             }
@@ -1393,11 +1465,6 @@
 
                 // Transition to rotation mode if entering gripper zone
                 if (inGripperZone && !this.dragState.wasInGripperZone) {
-                    // Mark all active interactions as dragged
-                    this.sliceInteractions.forEach((interaction) => {
-                        interaction.wasDragged = true;
-                    });
-
                     // Release any currently touched slice when transitioning to rotation
                     if (this.dragState.lastTouchedSlice) {
                         const lastIndex = parseInt(this.dragState.lastTouchedSlice.getAttribute('data-slice'));
@@ -1465,12 +1532,6 @@
 
                 if (this.dragState.lastTouchedSlice && this.dragState.lastTouchedSlice !== element) {
                     const lastIndex = parseInt(this.dragState.lastTouchedSlice.getAttribute('data-slice'));
-
-                    // Mark as dragged since we're moving between slices
-                    if (this.sliceInteractions.has(lastIndex)) {
-                        this.sliceInteractions.get(lastIndex).wasDragged = true;
-                    }
-
                     this.deactivateSlice(lastIndex);
                     this.dragState.lastTouchedSlice = null;
                 }
@@ -1486,11 +1547,6 @@
                     if (element !== this.dragState.lastTouchedSlice) {
                         this.activateSlice(index);
                         this.dragState.lastTouchedSlice = element;
-
-                        // This is a new slice in a drag operation
-                        if (this.sliceInteractions.has(index)) {
-                            this.sliceInteractions.get(index).wasDragged = true;
-                        }
                     }
                 }
             }
@@ -1519,16 +1575,15 @@
                 if (sliceElement) {
                     this.dragState.pressedSlices.add(sliceElement);
                 }
-                this.audio.playNote(index);
 
-                // Record interaction start for drone lock detection
-                if (!this.sliceInteractions.has(index)) {
-                    this.sliceInteractions.set(index, {
-                        startTime: Date.now(),
-                        originalIndex: index,
-                        wasDragged: false
-                    });
-                }
+                // Pass callback to handle auto-lock visual update
+                this.audio.playNote(index, (lockedIndex) => {
+                    console.log(`🎨 Auto-lock callback: visually locking slice ${lockedIndex}`);
+                    this.renderer.lockSlice(lockedIndex);
+                });
+
+                // No longer need interaction tracking for manual lock detection
+                // Auto-lock handles it via timeout
             }
 
             deactivateSlice(index) {
@@ -1542,34 +1597,21 @@
 
             handleEnd() {
                 if (this.dragState.isDragging || this.dragState.isRotating || this.dragState.isPinching) {
-                    // Check each pressed slice for drone lock condition
+                    // Release all pressed slices (unless they're already locked by auto-lock)
                     this.dragState.pressedSlices.forEach(slice => {
                         const index = parseInt(slice.getAttribute('data-slice'));
-                        const interaction = this.sliceInteractions.get(index);
-
-                        if (interaction && !interaction.wasDragged) {
-                            const holdDuration = Date.now() - interaction.startTime;
-                            if (holdDuration >= this.DRONE_LOCK_THRESHOLD_MS) {
-                                // Lock this drone
-                                console.log(`🔒 Locking drone at index ${index} (held ${holdDuration}ms)`);
-                                this.audio.lockDrone(index);
-                                this.renderer.lockSlice(index);
-                                // Don't release the slice visual or audio
-                            } else {
-                                // Normal release
-                                this.renderer.releaseSlice(index);
-                                this.audio.stopNote(index);
-                            }
-                        } else {
-                            // Was dragged or no interaction data - normal release
+                        // Only release if not already locked
+                        if (!this.audio.isLocked(index)) {
                             this.renderer.releaseSlice(index);
                             this.audio.stopNote(index);
                         }
                     });
 
                     if (this.dragState.lastRotationSlice !== null) {
-                        this.renderer.releaseSlice(this.dragState.lastRotationSlice);
-                        this.audio.stopNote(this.dragState.lastRotationSlice);
+                        if (!this.audio.isLocked(this.dragState.lastRotationSlice)) {
+                            this.renderer.releaseSlice(this.dragState.lastRotationSlice);
+                            this.audio.stopNote(this.dragState.lastRotationSlice);
+                        }
                     }
 
                     // Deactivate gripper animation if rotating
@@ -1587,9 +1629,6 @@
                     this.dragState.lastTouchedSlice = null;
                     this.dragState.lastPinchDistance = 0;
                     this.dragState.pressedSlices.clear();
-
-                    // Clear interaction tracking
-                    this.sliceInteractions.clear();
 
                     const innerCircle = document.getElementById('innerRotationPlate');
                     if (innerCircle) innerCircle.style.cursor = 'grab';
@@ -1616,6 +1655,7 @@
                 this.elements = this.getElements();
                 this.setupEventListeners();
                 this.syncUIWithState();
+                this.updateAnimationSpeed(); // Initialize CSS variables for animation speeds
             }
 
             getElements() {
@@ -1653,7 +1693,20 @@
                     pressShrinkSlider: document.getElementById('pressShrinkSlider'),
                     pressShrinkValue: document.getElementById('pressShrinkValue'),
                     pressBrightnessSlider: document.getElementById('pressBrightnessSlider'),
-                    pressBrightnessValue: document.getElementById('pressBrightnessValue')
+                    pressBrightnessValue: document.getElementById('pressBrightnessValue'),
+                    // Experimental controls
+                    droneLockTimeSlider: document.getElementById('droneLockTimeSlider'),
+                    droneLockTimeValue: document.getElementById('droneLockTimeValue'),
+                    notchGrowthFactorSlider: document.getElementById('notchGrowthFactorSlider'),
+                    notchGrowthFactorValue: document.getElementById('notchGrowthFactorValue'),
+                    notchActivationSpeedSlider: document.getElementById('notchActivationSpeedSlider'),
+                    notchActivationSpeedValue: document.getElementById('notchActivationSpeedValue'),
+                    notchDeactivationSpeedSlider: document.getElementById('notchDeactivationSpeedSlider'),
+                    notchDeactivationSpeedValue: document.getElementById('notchDeactivationSpeedValue'),
+                    notchBrightnessBoostSlider: document.getElementById('notchBrightnessBoostSlider'),
+                    notchBrightnessBoostValue: document.getElementById('notchBrightnessBoostValue'),
+                    ringThicknessBoostSlider: document.getElementById('ringThicknessBoostSlider'),
+                    ringThicknessBoostValue: document.getElementById('ringThicknessBoostValue')
                 };
             }
 
@@ -1691,6 +1744,14 @@
                 this.setupSlider('gripInsetSlider', 'gripInset', 'gripInsetValue', '%', () => this.renderer.render());
                 this.setupSlider('pressShrinkSlider', 'pressShrink', 'pressShrinkValue', '%');
                 this.setupSlider('pressBrightnessSlider', 'pressBrightness', 'pressBrightnessValue', '%');
+
+                // Experimental sliders
+                this.setupSlider('droneLockTimeSlider', 'droneLockTime', 'droneLockTimeValue', 'ms');
+                this.setupSlider('notchGrowthFactorSlider', 'notchGrowthFactor', 'notchGrowthFactorValue', 'x');
+                this.setupSlider('notchActivationSpeedSlider', 'notchActivationSpeed', 'notchActivationSpeedValue', 'ms', (value) => this.updateAnimationSpeed());
+                this.setupSlider('notchDeactivationSpeedSlider', 'notchDeactivationSpeed', 'notchDeactivationSpeedValue', 'ms', (value) => this.updateAnimationSpeed());
+                this.setupSlider('notchBrightnessBoostSlider', 'notchBrightnessBoost', 'notchBrightnessBoostValue', 'x');
+                this.setupSlider('ringThicknessBoostSlider', 'ringThicknessBoost', 'ringThicknessBoostValue', 'x');
 
                 // Subscribe to rotation changes from interaction
                 this.state.subscribe('rotation', (value) => {
@@ -1737,6 +1798,13 @@
                 const hexValue = grayValue.toString(16).padStart(2, '0');
                 document.documentElement.style.setProperty('--bg-primary', `#${hexValue}${hexValue}${hexValue}`);
                 this.renderer.render();
+            }
+
+            updateAnimationSpeed() {
+                const activationSpeed = this.state.get('notchActivationSpeed');
+                const deactivationSpeed = this.state.get('notchDeactivationSpeed');
+                document.documentElement.style.setProperty('--notch-activation-speed', `${activationSpeed}ms`);
+                document.documentElement.style.setProperty('--notch-deactivation-speed', `${deactivationSpeed}ms`);
             }
 
             toggleModal() {
@@ -1819,7 +1887,7 @@
                 this.svgElement = document.getElementById('pianoSvg');
                 this.stateManager = new StateManager(INITIAL_STATE);
                 this.geometryEngine = new GeometryEngine(this.stateManager);
-                this.audioEngine = new AudioEngine();
+                this.audioEngine = new AudioEngine(this.stateManager);
                 this.renderEngine = new RenderEngine(this.svgElement, this.stateManager, this.geometryEngine);
                 this.interactionManager = null;
                 this.controlsManager = null;
