@@ -1,0 +1,4148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tone.js Learning Lab</title>
+    <style>
+        /* ============================================
+           RESET & VARIABLES
+           ============================================ */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2a2a2a;
+            --bg-tertiary: #333;
+            --accent: #4a9eff;
+            --accent-hover: #6bb3ff;
+            --text-primary: #e0e0e0;
+            --text-secondary: #b0b0b0;
+            --text-dim: #808080;
+            --border: #404040;
+            --success: #4caf50;
+            --warning: #ff9800;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+
+        /* ============================================
+           LAYOUT
+           ============================================ */
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* ============================================
+           SIDEBAR NAVIGATION
+           ============================================ */
+        .sidebar {
+            width: 260px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 20px 0;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-header {
+            padding: 0 20px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-header h1 {
+            font-size: 20px;
+            color: var(--accent);
+            margin-bottom: 5px;
+        }
+
+        .sidebar-header p {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        .nav-list {
+            list-style: none;
+            padding: 20px 0;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .nav-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-item:hover:not(.disabled) {
+            background: var(--bg-tertiary);
+        }
+
+        .nav-item.active {
+            background: var(--bg-tertiary);
+            border-left-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .nav-item.disabled {
+            color: var(--text-dim);
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .nav-item-icon {
+            font-size: 18px;
+        }
+
+        .nav-item-text {
+            flex: 1;
+        }
+
+        .nav-item-badge {
+            background: var(--warning);
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        /* ============================================
+           MAIN CONTENT AREA
+           ============================================ */
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 40px;
+            padding-bottom: 180px; /* Space for floating keyboard dock */
+        }
+
+        .module {
+            display: none;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .module.active {
+            display: block;
+        }
+
+        .module-header {
+            margin-bottom: 30px;
+        }
+
+        .module-header h2 {
+            font-size: 32px;
+            margin-bottom: 10px;
+            color: var(--accent);
+        }
+
+        .module-header p {
+            font-size: 16px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* ============================================
+           CARDS & SECTIONS
+           ============================================ */
+        .section {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+
+        .section h3 {
+            font-size: 20px;
+            margin-bottom: 15px;
+            color: var(--text-primary);
+        }
+
+        .section-description {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 20px;
+            padding: 12px;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            border-left: 3px solid var(--accent);
+        }
+
+        /* ============================================
+           CONTROLS
+           ============================================ */
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .control-group select,
+        .control-group input[type="range"] {
+            width: 100%;
+        }
+
+        .control-group select {
+            padding: 10px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .control-group input[type="range"] {
+            height: 6px;
+            background: var(--bg-tertiary);
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .control-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--accent);
+            cursor: pointer;
+            border-radius: 50%;
+        }
+
+        .control-group input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--accent);
+            cursor: pointer;
+            border-radius: 50%;
+            border: none;
+        }
+
+        .value-display {
+            display: inline-block;
+            min-width: 60px;
+            text-align: right;
+            color: var(--accent);
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        /* ============================================
+           BUTTONS
+           ============================================ */
+        .btn {
+            padding: 12px 20px;
+            background: var(--accent);
+            border: none;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border);
+        }
+
+        /* ============================================
+           NOTE KEYBOARD - FLOATING DOCK
+           ============================================ */
+        .keyboard-dock {
+            position: fixed;
+            bottom: 0;
+            left: 260px;
+            right: 0;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+            z-index: 100;
+            padding: 20px;
+        }
+
+        .octave-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .octave-display {
+            text-align: center;
+            font-size: 16px;
+            color: var(--text-secondary);
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+
+        .keyboard-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .octave-arrow {
+            width: 44px;
+            height: 44px;
+            min-width: 44px;
+            background: var(--accent);
+            border: none;
+            border-radius: 50%;
+            color: #fff;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .octave-arrow:hover {
+            background: var(--accent-hover);
+            transform: scale(1.05);
+        }
+
+        .octave-arrow:active {
+            transform: scale(0.95);
+        }
+
+        .octave-arrow:disabled {
+            background: var(--bg-tertiary);
+            color: var(--text-dim);
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .note-keyboard {
+            display: flex;
+            gap: 8px;
+            flex: 1;
+            justify-content: center;
+            max-width: 600px;
+        }
+
+        .note-btn {
+            padding: 18px 12px;
+            background: #f5f5f5;
+            border: 2px solid #d0d0d0;
+            border-radius: 0 0 6px 6px;
+            color: #222;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.15s;
+            position: relative;
+            flex: 1;
+            min-width: 50px;
+            max-width: 70px;
+            box-shadow: 0 4px 0 #b0b0b0;
+        }
+
+        .note-btn:hover {
+            background: #e8e8e8;
+            border-color: var(--accent);
+        }
+
+        .note-btn:active,
+        .note-btn.playing {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #3a8eef;
+        }
+
+        .note-btn .key-hint {
+            position: absolute;
+            top: 5px;
+            right: 8px;
+            font-size: 10px;
+            color: #888;
+            font-weight: normal;
+        }
+
+        .note-btn.playing .key-hint {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        /* ============================================
+           SEQUENCER & TRANSPORT CONTROLS
+           ============================================ */
+        .transport-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .transport-btn {
+            padding: 12px 24px;
+            background: var(--accent);
+            border: none;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .transport-btn:hover {
+            background: var(--accent-hover);
+        }
+
+        .transport-btn.stop {
+            background: #dc3545;
+        }
+
+        .transport-btn.stop:hover {
+            background: #c82333;
+        }
+
+        .transport-btn:disabled {
+            background: var(--bg-tertiary);
+            color: var(--text-dim);
+            cursor: not-allowed;
+        }
+
+        .bpm-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sequencer-grid {
+            display: grid;
+            grid-template-columns: repeat(16, 1fr);
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .step-cell {
+            aspect-ratio: 1;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s;
+            position: relative;
+        }
+
+        .step-cell:hover {
+            border-color: var(--accent);
+        }
+
+        .step-cell.active {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .step-cell.current {
+            box-shadow: 0 0 0 3px var(--success);
+            animation: pulse 0.3s ease;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        /* ============================================
+           FX & MODULATION CONTROLS
+           ============================================ */
+        .fx-chain {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .fx-unit {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 20px;
+            border: 2px solid var(--border);
+        }
+
+        .fx-unit.bypassed {
+            opacity: 0.5;
+        }
+
+        .fx-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .fx-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .bypass-toggle {
+            padding: 6px 12px;
+            background: var(--success);
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .bypass-toggle.bypassed {
+            background: var(--text-dim);
+        }
+
+        .oscillator-mix {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .oscillator-mix h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 20px;
+        }
+
+        .oscillators-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .oscillator-card {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 15px;
+        }
+
+        .oscillator-card h4 {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        .osc-control {
+            margin-bottom: 12px;
+        }
+
+        .osc-control:last-child {
+            margin-bottom: 0;
+        }
+
+        .osc-control label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .osc-control select {
+            width: 100%;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .osc-control .volume-display {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .osc-control input[type="range"] {
+            width: 100%;
+        }
+
+        @media (max-width: 768px) {
+            .oscillators-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ============================================
+           DRONES MODULE
+           ============================================ */
+        .drones-container {
+            max-width: 800px;
+        }
+
+        .add-drone-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 20px;
+            transition: all 0.2s;
+        }
+
+        .add-drone-btn:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        .add-drone-btn:disabled {
+            background: var(--text-dim);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .drones-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .drone-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            transition: all 0.3s;
+        }
+
+        .drone-card.playing {
+            border-color: var(--success);
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.3);
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(76, 175, 80, 0.3);
+            }
+            50% {
+                box-shadow: 0 0 30px rgba(76, 175, 80, 0.5);
+            }
+        }
+
+        .drone-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .drone-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .drone-header-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .play-pause-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .play-pause-btn:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        .play-pause-btn.playing {
+            background: var(--success);
+        }
+
+        .remove-drone-btn {
+            background: rgba(255, 100, 100, 0.2);
+            color: #ff6464;
+            border: 1px solid #ff6464;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .remove-drone-btn:hover {
+            background: rgba(255, 100, 100, 0.3);
+        }
+
+        .drone-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .drone-section-header {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        /* Note Picker Grid */
+        .note-picker {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 4px;
+        }
+
+        .note-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 8px 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 500;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .note-btn:hover {
+            background: var(--bg-primary);
+            border-color: var(--accent);
+        }
+
+        .note-btn.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .note-btn.sharp {
+            opacity: 0.8;
+        }
+
+        /* Octave Stepper */
+        .octave-stepper {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        .octave-stepper-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .octave-stepper-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            width: 32px;
+            height: 32px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .octave-stepper-btn:hover:not(:disabled) {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+
+        .octave-stepper-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .octave-display {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+            min-width: 30px;
+            text-align: center;
+        }
+
+        /* Slider Controls */
+        .slider-control {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .slider-label-text {
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .slider-value {
+            color: var(--text-primary);
+            font-weight: 500;
+            font-family: 'Courier New', monospace;
+        }
+
+        .volume-display {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        @media (max-width: 768px) {
+            .drone-controls {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ============================================
+           VISUALIZATION MODULE
+           ============================================ */
+        .viz-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 15px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .viz-control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .viz-control-group label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .viz-control-group select,
+        .viz-control-group button {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .viz-control-group button.active {
+            background: var(--success);
+            border-color: var(--success);
+            color: white;
+        }
+
+        .viz-control-group button:hover {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+
+        .viz-widget {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .viz-widget-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .viz-widget-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .viz-widget-hint {
+            font-size: 12px;
+            color: var(--text-dim);
+            font-style: italic;
+            margin-top: 10px;
+        }
+
+        .viz-canvas-container {
+            background: #0a0a0a;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .viz-canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+
+        .fps-counter {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.5);
+            font-family: monospace;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        /* ============================================
+           INFO BOXES
+           ============================================ */
+        .info-box {
+            background: rgba(74, 158, 255, 0.1);
+            border: 1px solid var(--accent);
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .info-box h4 {
+            color: var(--accent);
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        /* ============================================
+           STUB MODULE
+           ============================================ */
+        .stub-content {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .stub-content h3 {
+            font-size: 28px;
+            margin-bottom: 15px;
+            color: var(--text-primary);
+        }
+
+        .stub-content p {
+            font-size: 16px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+
+        .stub-content .coming-soon {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 8px 16px;
+            background: var(--warning);
+            color: #fff;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        /* ============================================
+           MOBILE MENU BUTTON
+           ============================================ */
+        .menu-toggle {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1001;
+            width: 44px;
+            height: 44px;
+            background: var(--accent);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            transition: all 0.3s;
+        }
+
+        .menu-toggle span {
+            display: block;
+            width: 22px;
+            height: 2px;
+            background: #fff;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .menu-toggle.active span:nth-child(1) {
+            transform: translateY(7px) rotate(45deg);
+        }
+
+        .menu-toggle.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .menu-toggle.active span:nth-child(3) {
+            transform: translateY(-7px) rotate(-45deg);
+        }
+
+        /* Backdrop overlay for mobile menu */
+        .sidebar-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .sidebar-backdrop.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* ============================================
+           RESPONSIVE
+           ============================================ */
+        @media (max-width: 768px) {
+            .menu-toggle {
+                display: flex;
+            }
+
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                z-index: 1000;
+                transform: translateX(-100%);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .sidebar-backdrop {
+                display: block;
+            }
+
+            .main-content {
+                padding: 80px 20px 20px;
+                padding-bottom: 180px;
+                width: 100%;
+            }
+
+            .keyboard-dock {
+                left: 0;
+                padding: 15px;
+            }
+
+            .keyboard-row {
+                gap: 8px;
+            }
+
+            .octave-arrow {
+                width: 40px;
+                height: 40px;
+                min-width: 40px;
+                font-size: 18px;
+            }
+
+            .note-keyboard {
+                gap: 5px;
+            }
+
+            .note-btn {
+                min-width: 40px;
+                max-width: 50px;
+                padding: 15px 8px;
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile Menu Toggle Button -->
+    <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <!-- Backdrop for mobile menu -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h1>Tone.js Lab</h1>
+                <p>Interactive Learning</p>
+            </div>
+            <ul class="nav-list" id="navList">
+                <!-- Navigation items will be dynamically inserted -->
+            </ul>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <div id="moduleContainer">
+                <!-- Modules will be dynamically inserted -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Floating Keyboard Dock -->
+    <div class="keyboard-dock" id="keyboardDock" style="display: none;">
+        <!-- Keyboard will be dynamically inserted when Basics module is active -->
+    </div>
+
+    <!-- Tone.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+
+    <script>
+        'use strict';
+
+        /* ============================================
+           TONE.JS LEARNING LAB
+           ============================================
+
+           Architecture:
+           - ToneLabApp: Main application controller
+           - BaseModule: Base class for all learning modules
+           - Individual module classes extend BaseModule
+           - Each module manages its own UI, state, and Tone.js objects
+
+           ============================================ */
+
+        // ============================================
+        // BASE MODULE CLASS
+        // All learning modules inherit from this
+        // ============================================
+        class BaseModule {
+            constructor(id, title, icon) {
+                this.id = id;
+                this.title = title;
+                this.icon = icon;
+                this.isStub = false;
+            }
+
+            // Called when module becomes active
+            mount() {
+                console.log(`📚 Loading module: ${this.title}`);
+            }
+
+            // Called when module becomes inactive
+            unmount() {
+                console.log(`👋 Unloading module: ${this.title}`);
+            }
+
+            // Generate the HTML content for this module
+            render() {
+                return `<div class="module-header">
+                    <h2>${this.title}</h2>
+                    <p>Module content goes here</p>
+                </div>`;
+            }
+        }
+
+        // ============================================
+        // BASICS MODULE
+        // Teaches fundamental Tone.js concepts
+        // ============================================
+        class BasicsModule extends BaseModule {
+            constructor() {
+                super('basics', 'Basics', '🎹');
+
+                // Synth and audio components
+                this.synth = null;
+                this.filter = null;
+
+                // Octave settings
+                this.currentOctave = 4;
+                this.minOctave = 2;
+                this.maxOctave = 6;
+
+                // Default settings
+                this.defaults = {
+                    waveform: 'sine',
+                    attack: 0.05,
+                    decay: 0.1,
+                    sustain: 0.3,
+                    release: 0.8,
+                    filterFreq: 5000,
+                    volume: -10,
+                    octave: 4
+                };
+
+                // Current settings (will be loaded from localStorage or defaults)
+                this.settings = { ...this.defaults };
+
+                // Key bindings for notes (just note names, octave added dynamically)
+                this.keyMap = {
+                    'a': 'C', 's': 'D', 'd': 'E', 'f': 'F',
+                    'g': 'G', 'h': 'A', 'j': 'B'
+                };
+
+                // Touch tracking for swipe gestures
+                this.touchStartX = 0;
+                this.touchEndX = 0;
+            }
+
+            mount() {
+                super.mount();
+                this.loadSettings();
+                this.createAudioChain();
+                this.showKeyboardDock();
+                this.attachEventListeners();
+                this.updateAllDisplays();
+            }
+
+            unmount() {
+                super.unmount();
+                this.hideKeyboardDock();
+                this.removeEventListeners();
+                this.disposeAudio();
+            }
+
+            // Show and populate the floating keyboard dock
+            showKeyboardDock() {
+                const dock = document.getElementById('keyboardDock');
+                if (dock) {
+                    dock.style.display = 'block';
+                    dock.innerHTML = `
+                        <div class="octave-container">
+                            <div class="octave-display" id="basics-octave-display">Octave 4</div>
+                            <div class="keyboard-row">
+                                <button class="octave-arrow" id="basics-octave-down" aria-label="Previous octave">◀</button>
+                                <div class="note-keyboard" id="basics-keyboard">
+                                    <button class="note-btn" data-note="C">C<span class="key-hint">A</span></button>
+                                    <button class="note-btn" data-note="D">D<span class="key-hint">S</span></button>
+                                    <button class="note-btn" data-note="E">E<span class="key-hint">D</span></button>
+                                    <button class="note-btn" data-note="F">F<span class="key-hint">F</span></button>
+                                    <button class="note-btn" data-note="G">G<span class="key-hint">G</span></button>
+                                    <button class="note-btn" data-note="A">A<span class="key-hint">H</span></button>
+                                    <button class="note-btn" data-note="B">B<span class="key-hint">J</span></button>
+                                </div>
+                                <button class="octave-arrow" id="basics-octave-up" aria-label="Next octave">▶</button>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            // Hide the floating keyboard dock
+            hideKeyboardDock() {
+                const dock = document.getElementById('keyboardDock');
+                if (dock) {
+                    dock.style.display = 'none';
+                    dock.innerHTML = '';
+                }
+            }
+
+            // Create Tone.js synth and effects chain
+            createAudioChain() {
+                // Create a lowpass filter to tame harsh frequencies
+                this.filter = new Tone.Filter(this.settings.filterFreq, 'lowpass');
+
+                // Connect to master bus if available
+                if (window.app && window.app.getMasterBus) {
+                    this.filter.connect(window.app.getMasterBus());
+                } else {
+                    this.filter.toDestination();
+                }
+
+                // Create a basic synth with configurable envelope
+                this.synth = new Tone.Synth({
+                    oscillator: { type: this.settings.waveform },
+                    envelope: {
+                        attack: this.settings.attack,
+                        decay: this.settings.decay,
+                        sustain: this.settings.sustain,
+                        release: this.settings.release
+                    }
+                }).connect(this.filter);
+
+                // Set volume
+                this.synth.volume.value = this.settings.volume;
+
+                console.log('🎵 Audio chain created: Synth → Filter → Destination');
+            }
+
+            // Clean up audio resources
+            disposeAudio() {
+                if (this.synth) {
+                    this.synth.dispose();
+                    this.synth = null;
+                }
+                if (this.filter) {
+                    this.filter.dispose();
+                    this.filter = null;
+                }
+            }
+
+            // Attach event listeners to controls
+            attachEventListeners() {
+                // Waveform selector
+                const waveform = document.getElementById('basics-waveform');
+                if (waveform) {
+                    waveform.addEventListener('change', (e) => this.handleWaveformChange(e));
+                }
+
+                // ADSR sliders
+                const sliders = ['attack', 'decay', 'sustain', 'release', 'filterFreq', 'volume'];
+                sliders.forEach(param => {
+                    const slider = document.getElementById(`basics-${param}`);
+                    if (slider) {
+                        slider.addEventListener('input', (e) => this.handleSliderChange(param, e));
+                    }
+                });
+
+                // Octave controls
+                const octaveDown = document.getElementById('basics-octave-down');
+                const octaveUp = document.getElementById('basics-octave-up');
+
+                if (octaveDown) {
+                    octaveDown.addEventListener('click', () => this.changeOctave(-1));
+                }
+                if (octaveUp) {
+                    octaveUp.addEventListener('click', () => this.changeOctave(1));
+                }
+
+                // Swipe gesture support
+                const keyboard = document.getElementById('basics-keyboard');
+                if (keyboard) {
+                    this.touchStartHandler = (e) => this.handleTouchStart(e);
+                    this.touchEndHandler = (e) => this.handleTouchEnd(e);
+                    keyboard.addEventListener('touchstart', this.touchStartHandler, { passive: true });
+                    keyboard.addEventListener('touchend', this.touchEndHandler, { passive: true });
+                }
+
+                // Note buttons
+                document.querySelectorAll('.note-btn').forEach(btn => {
+                    btn.addEventListener('mousedown', (e) => this.playNote(e.target.dataset.note));
+                    btn.addEventListener('mouseup', () => this.releaseNote());
+                    btn.addEventListener('mouseleave', () => this.releaseNote());
+
+                    // Touch support
+                    btn.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        this.playNote(e.target.dataset.note);
+                    });
+                    btn.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        this.releaseNote();
+                    });
+                    btn.addEventListener('touchcancel', (e) => {
+                        e.preventDefault();
+                        this.releaseNote();
+                    });
+                });
+
+                // Reset button
+                const resetBtn = document.getElementById('basics-reset');
+                if (resetBtn) {
+                    resetBtn.addEventListener('click', () => this.resetToDefaults());
+                }
+
+                // Keyboard support
+                this.keydownHandler = (e) => this.handleKeyDown(e);
+                this.keyupHandler = (e) => this.handleKeyUp(e);
+                document.addEventListener('keydown', this.keydownHandler);
+                document.addEventListener('keyup', this.keyupHandler);
+
+                // Update octave display
+                this.updateOctaveDisplay();
+            }
+
+            removeEventListeners() {
+                document.removeEventListener('keydown', this.keydownHandler);
+                document.removeEventListener('keyup', this.keyupHandler);
+
+                const keyboard = document.getElementById('basics-keyboard');
+                if (keyboard && this.touchStartHandler && this.touchEndHandler) {
+                    keyboard.removeEventListener('touchstart', this.touchStartHandler);
+                    keyboard.removeEventListener('touchend', this.touchEndHandler);
+                }
+            }
+
+            // Handle waveform change
+            handleWaveformChange(e) {
+                this.settings.waveform = e.target.value;
+                if (this.synth && this.synth.oscillator) {
+                    this.synth.oscillator.type = this.settings.waveform;
+                }
+                this.saveSettings();
+                console.log(`🎚️ Waveform: ${this.settings.waveform}`);
+            }
+
+            // Handle slider changes
+            handleSliderChange(param, e) {
+                const value = parseFloat(e.target.value);
+                this.settings[param] = value;
+
+                // Update display
+                const display = document.getElementById(`basics-${param}-value`);
+                if (display) {
+                    if (param === 'filterFreq') {
+                        display.textContent = value + ' Hz';
+                    } else if (param === 'volume') {
+                        display.textContent = value + ' dB';
+                    } else {
+                        display.textContent = value.toFixed(2) + 's';
+                    }
+                }
+
+                // Apply to synth
+                if (this.synth) {
+                    if (param === 'volume') {
+                        this.synth.volume.value = value;
+                    } else if (param === 'filterFreq') {
+                        this.filter.frequency.value = value;
+                    } else {
+                        // ADSR parameters
+                        this.synth.envelope[param] = value;
+                    }
+                }
+
+                this.saveSettings();
+            }
+
+            // Play a note
+            async playNote(note) {
+                // Ensure Tone.js audio context is started
+                await Tone.start();
+
+                if (this.synth) {
+                    // Combine note name with current octave
+                    const noteWithOctave = `${note}${this.currentOctave}`;
+                    this.synth.triggerAttack(noteWithOctave);
+                    console.log(`🎵 Playing: ${noteWithOctave}`);
+
+                    // Visual feedback
+                    const btn = document.querySelector(`[data-note="${note}"]`);
+                    if (btn) btn.classList.add('playing');
+                }
+            }
+
+            // Release the note
+            releaseNote() {
+                if (this.synth) {
+                    this.synth.triggerRelease();
+
+                    // Remove visual feedback
+                    document.querySelectorAll('.note-btn').forEach(btn => {
+                        btn.classList.remove('playing');
+                    });
+                }
+            }
+
+            // Change octave
+            changeOctave(direction) {
+                const newOctave = this.currentOctave + direction;
+
+                if (newOctave >= this.minOctave && newOctave <= this.maxOctave) {
+                    this.currentOctave = newOctave;
+                    this.settings.octave = newOctave;
+                    this.updateOctaveDisplay();
+                    this.saveSettings();
+                    console.log(`🎼 Octave changed to: ${this.currentOctave}`);
+                }
+            }
+
+            // Update octave display and button states
+            updateOctaveDisplay() {
+                const display = document.getElementById('basics-octave-display');
+                const downBtn = document.getElementById('basics-octave-down');
+                const upBtn = document.getElementById('basics-octave-up');
+
+                if (display) {
+                    display.textContent = `Octave ${this.currentOctave}`;
+                }
+
+                // Disable buttons at limits
+                if (downBtn) {
+                    downBtn.disabled = this.currentOctave <= this.minOctave;
+                }
+                if (upBtn) {
+                    upBtn.disabled = this.currentOctave >= this.maxOctave;
+                }
+            }
+
+            // Handle touch start for swipe detection
+            handleTouchStart(e) {
+                this.touchStartX = e.changedTouches[0].screenX;
+            }
+
+            // Handle touch end for swipe detection
+            handleTouchEnd(e) {
+                this.touchEndX = e.changedTouches[0].screenX;
+                this.handleSwipe();
+            }
+
+            // Detect swipe direction and change octave
+            handleSwipe() {
+                const swipeThreshold = 50; // Minimum distance for swipe
+                const diff = this.touchStartX - this.touchEndX;
+
+                if (Math.abs(diff) > swipeThreshold) {
+                    if (diff > 0) {
+                        // Swiped left - increase octave
+                        this.changeOctave(1);
+                    } else {
+                        // Swiped right - decrease octave
+                        this.changeOctave(-1);
+                    }
+                }
+            }
+
+            // Handle keyboard input
+            handleKeyDown(e) {
+                if (e.repeat) return; // Ignore key repeat
+
+                // Arrow keys for octave control
+                if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    this.changeOctave(-1);
+                    return;
+                }
+                if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    this.changeOctave(1);
+                    return;
+                }
+
+                // Note keys
+                const note = this.keyMap[e.key.toLowerCase()];
+                if (note) {
+                    e.preventDefault();
+                    this.playNote(note);
+                }
+            }
+
+            handleKeyUp(e) {
+                const note = this.keyMap[e.key.toLowerCase()];
+                if (note) {
+                    e.preventDefault();
+                    this.releaseNote();
+                }
+            }
+
+            // Reset to default settings
+            resetToDefaults() {
+                this.settings = { ...this.defaults };
+                this.currentOctave = this.defaults.octave;
+                this.updateAllDisplays();
+                this.updateOctaveDisplay();
+                this.createAudioChain(); // Recreate synth with defaults
+                this.saveSettings();
+                console.log('🔄 Reset to defaults');
+            }
+
+            // Update all UI displays to match current settings
+            updateAllDisplays() {
+                // Waveform
+                const waveform = document.getElementById('basics-waveform');
+                if (waveform) waveform.value = this.settings.waveform;
+
+                // Sliders
+                const params = ['attack', 'decay', 'sustain', 'release', 'filterFreq', 'volume'];
+                params.forEach(param => {
+                    const slider = document.getElementById(`basics-${param}`);
+                    const display = document.getElementById(`basics-${param}-value`);
+
+                    if (slider) slider.value = this.settings[param];
+                    if (display) {
+                        const value = this.settings[param];
+                        if (param === 'filterFreq') {
+                            display.textContent = value + ' Hz';
+                        } else if (param === 'volume') {
+                            display.textContent = value + ' dB';
+                        } else {
+                            display.textContent = value.toFixed(2) + 's';
+                        }
+                    }
+                });
+            }
+
+            // Save settings to localStorage
+            saveSettings() {
+                localStorage.setItem('tonejs-lab-basics', JSON.stringify(this.settings));
+            }
+
+            // Load settings from localStorage
+            loadSettings() {
+                const saved = localStorage.getItem('tonejs-lab-basics');
+                if (saved) {
+                    try {
+                        this.settings = { ...this.defaults, ...JSON.parse(saved) };
+                        // Load octave setting
+                        if (this.settings.octave) {
+                            this.currentOctave = this.settings.octave;
+                        }
+                        console.log('📂 Settings loaded from localStorage');
+                    } catch (e) {
+                        console.warn('Failed to load settings, using defaults');
+                        this.settings = { ...this.defaults };
+                    }
+                }
+            }
+
+            render() {
+                return `
+                    <div class="module-header">
+                        <h2>Basics</h2>
+                        <p>Learn the fundamentals of Tone.js: creating sounds, shaping them with envelopes, and adding filters.</p>
+                    </div>
+
+                    <!-- Introduction -->
+                    <div class="info-box">
+                        <h4>Welcome to Tone.js!</h4>
+                        <p>Tone.js is a Web Audio framework for creating interactive music. In this module, you'll learn how to create a simple synthesizer, play notes, and control its sound. The keyboard is pinned at the bottom - play notes while scrolling through controls!</p>
+                    </div>
+
+                    <!-- Waveform Selection -->
+                    <div class="section">
+                        <h3>Waveform</h3>
+                        <div class="section-description">
+                            The oscillator's waveform determines the tone color. Sine is pure and soft, triangle is mellow, square is hollow and buzzy, sawtooth is bright and rich.
+                        </div>
+                        <div class="control-group">
+                            <label>Oscillator Type</label>
+                            <select id="basics-waveform">
+                                <option value="sine">Sine Wave (Pure & Soft)</option>
+                                <option value="triangle">Triangle (Mellow)</option>
+                                <option value="square">Square (Buzzy)</option>
+                                <option value="sawtooth">Sawtooth (Bright)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- ADSR Envelope -->
+                    <div class="section">
+                        <h3>Envelope (ADSR)</h3>
+                        <div class="section-description">
+                            The envelope shapes how a note evolves over time. Attack = how quickly it reaches full volume, Decay = how quickly it falls to the sustain level, Sustain = the held volume level, Release = how quickly it fades after you let go.
+                        </div>
+
+                        <div class="control-group">
+                            <label>Attack: <span class="value-display" id="basics-attack-value">0.05s</span></label>
+                            <input type="range" id="basics-attack" min="0.001" max="2" step="0.01" value="0.05">
+                        </div>
+
+                        <div class="control-group">
+                            <label>Decay: <span class="value-display" id="basics-decay-value">0.1s</span></label>
+                            <input type="range" id="basics-decay" min="0.001" max="2" step="0.01" value="0.1">
+                        </div>
+
+                        <div class="control-group">
+                            <label>Sustain: <span class="value-display" id="basics-sustain-value">0.30s</span></label>
+                            <input type="range" id="basics-sustain" min="0" max="1" step="0.01" value="0.3">
+                        </div>
+
+                        <div class="control-group">
+                            <label>Release: <span class="value-display" id="basics-release-value">0.80s</span></label>
+                            <input type="range" id="basics-release" min="0.001" max="3" step="0.01" value="0.8">
+                        </div>
+                    </div>
+
+                    <!-- Filter -->
+                    <div class="section">
+                        <h3>Filter</h3>
+                        <div class="section-description">
+                            A lowpass filter cuts off high frequencies above the cutoff point, making the sound darker and warmer. Lower values = darker sound.
+                        </div>
+                        <div class="control-group">
+                            <label>Cutoff Frequency: <span class="value-display" id="basics-filterFreq-value">5000 Hz</span></label>
+                            <input type="range" id="basics-filterFreq" min="100" max="10000" step="100" value="5000">
+                        </div>
+                    </div>
+
+                    <!-- Volume -->
+                    <div class="section">
+                        <h3>Volume</h3>
+                        <div class="section-description">
+                            Master volume control in decibels (dB). 0 dB is maximum, negative values reduce volume.
+                        </div>
+                        <div class="control-group">
+                            <label>Volume: <span class="value-display" id="basics-volume-value">-10 dB</span></label>
+                            <input type="range" id="basics-volume" min="-40" max="0" step="1" value="-10">
+                        </div>
+                    </div>
+
+                    <!-- Reset -->
+                    <div class="section">
+                        <button class="btn btn-secondary" id="basics-reset">Reset to Defaults</button>
+                    </div>
+                `;
+            }
+        }
+
+        // ============================================
+        // SEQUENCER & TRANSPORT MODULE
+        // Teaches pattern creation and timing
+        // ============================================
+        class SequencerModule extends BaseModule {
+            constructor() {
+                super('sequencer', 'Sequencer & Transport', '⏱️');
+
+                // Audio components
+                this.synth = null;
+                this.sequence = null;
+
+                // Sequencer state
+                this.pattern = new Array(16).fill(false); // 16 steps, false = rest
+                this.currentStep = -1;
+                this.isPlaying = false;
+
+                // Default settings
+                this.defaults = {
+                    bpm: 120,
+                    pattern: new Array(16).fill(false)
+                };
+
+                this.settings = { ...this.defaults, pattern: [...this.defaults.pattern] };
+            }
+
+            mount() {
+                super.mount();
+                this.loadSettings();
+                this.createAudioChain();
+                this.attachEventListeners();
+                console.log('🎼 Sequencer module loaded');
+            }
+
+            unmount() {
+                super.unmount();
+                this.stop();
+                this.disposeAudio();
+            }
+
+            createAudioChain() {
+                // Create a simple synth for playback
+                this.synth = new Tone.Synth({
+                    oscillator: { type: 'triangle' },
+                    envelope: {
+                        attack: 0.005,
+                        decay: 0.1,
+                        sustain: 0.3,
+                        release: 0.1
+                    }
+                });
+
+                // Connect to master bus if available
+                if (window.app && window.app.getMasterBus) {
+                    this.synth.connect(window.app.getMasterBus());
+                } else {
+                    this.synth.toDestination();
+                }
+
+                this.synth.volume.value = -10;
+
+                // Set BPM
+                Tone.Transport.bpm.value = this.settings.bpm;
+            }
+
+            disposeAudio() {
+                if (this.sequence) {
+                    this.sequence.dispose();
+                    this.sequence = null;
+                }
+                if (this.synth) {
+                    this.synth.dispose();
+                    this.synth = null;
+                }
+            }
+
+            attachEventListeners() {
+                // Transport controls
+                const playBtn = document.getElementById('seq-play');
+                const pauseBtn = document.getElementById('seq-pause');
+                const stopBtn = document.getElementById('seq-stop');
+                const bpmSlider = document.getElementById('seq-bpm');
+                const bpmDisplay = document.getElementById('seq-bpm-value');
+
+                if (playBtn) playBtn.addEventListener('click', () => this.play());
+                if (pauseBtn) pauseBtn.addEventListener('click', () => this.pause());
+                if (stopBtn) stopBtn.addEventListener('click', () => this.stop());
+
+                if (bpmSlider) {
+                    bpmSlider.addEventListener('input', (e) => {
+                        const bpm = parseInt(e.target.value);
+                        Tone.Transport.bpm.value = bpm;
+                        this.settings.bpm = bpm;
+                        if (bpmDisplay) bpmDisplay.textContent = bpm;
+                        this.saveSettings();
+                    });
+                }
+
+                // Step cells
+                document.querySelectorAll('.step-cell').forEach((cell, index) => {
+                    cell.addEventListener('click', () => this.toggleStep(index));
+                });
+            }
+
+            toggleStep(index) {
+                this.pattern[index] = !this.pattern[index];
+                this.settings.pattern = [...this.pattern];
+                this.updateStepDisplay(index);
+                this.saveSettings();
+            }
+
+            updateStepDisplay(index) {
+                const cell = document.querySelector(`.step-cell[data-step="${index}"]`);
+                if (cell) {
+                    if (this.pattern[index]) {
+                        cell.classList.add('active');
+                    } else {
+                        cell.classList.remove('active');
+                    }
+                }
+            }
+
+            async play() {
+                await Tone.start();
+
+                if (!this.sequence) {
+                    this.createSequence();
+                }
+
+                Tone.Transport.start();
+                this.isPlaying = true;
+                this.updateTransportButtons();
+                console.log('▶️ Playing sequence');
+            }
+
+            pause() {
+                Tone.Transport.pause();
+                this.isPlaying = false;
+                this.updateTransportButtons();
+                console.log('⏸️ Paused');
+            }
+
+            stop() {
+                Tone.Transport.stop();
+                this.isPlaying = false;
+                this.currentStep = -1;
+                this.updateCurrentStepDisplay();
+                this.updateTransportButtons();
+                console.log('⏹️ Stopped');
+            }
+
+            createSequence() {
+                // Create a sequence that plays through our pattern
+                this.sequence = new Tone.Sequence((time, step) => {
+                    this.currentStep = step;
+
+                    // Update UI on main thread
+                    Tone.Draw.schedule(() => {
+                        this.updateCurrentStepDisplay();
+                    }, time);
+
+                    // Play note if step is active
+                    if (this.pattern[step]) {
+                        this.synth.triggerAttackRelease('C4', '16n', time);
+                    }
+                }, [...Array(16).keys()], '16n');
+
+                this.sequence.loop = true;
+                this.sequence.start(0);
+            }
+
+            updateCurrentStepDisplay() {
+                document.querySelectorAll('.step-cell').forEach((cell, index) => {
+                    if (index === this.currentStep) {
+                        cell.classList.add('current');
+                    } else {
+                        cell.classList.remove('current');
+                    }
+                });
+            }
+
+            updateTransportButtons() {
+                const playBtn = document.getElementById('seq-play');
+                const pauseBtn = document.getElementById('seq-pause');
+                const stopBtn = document.getElementById('seq-stop');
+
+                if (playBtn) playBtn.disabled = this.isPlaying;
+                if (pauseBtn) pauseBtn.disabled = !this.isPlaying;
+                if (stopBtn) stopBtn.disabled = !this.isPlaying;
+            }
+
+            saveSettings() {
+                localStorage.setItem('tonejs-lab-sequencer', JSON.stringify(this.settings));
+            }
+
+            loadSettings() {
+                const saved = localStorage.getItem('tonejs-lab-sequencer');
+                if (saved) {
+                    try {
+                        this.settings = { ...this.defaults, ...JSON.parse(saved) };
+                        this.pattern = [...this.settings.pattern];
+
+                        // Update BPM display
+                        const bpmSlider = document.getElementById('seq-bpm');
+                        const bpmDisplay = document.getElementById('seq-bpm-value');
+                        if (bpmSlider) bpmSlider.value = this.settings.bpm;
+                        if (bpmDisplay) bpmDisplay.textContent = this.settings.bpm;
+
+                        // Update step displays
+                        this.pattern.forEach((_, index) => this.updateStepDisplay(index));
+
+                        console.log('📂 Sequencer settings loaded');
+                    } catch (e) {
+                        console.warn('Failed to load settings');
+                    }
+                }
+            }
+
+            render() {
+                return `
+                    <div class="module-header">
+                        <h2>Sequencer & Transport</h2>
+                        <p>Create patterns and learn about timing and scheduling with Tone.Transport.</p>
+                    </div>
+
+                    <div class="info-box">
+                        <h4>What is Transport?</h4>
+                        <p>Tone.Transport is a global clock that synchronizes all time-based events. Think of it as the master timeline that keeps everything in sync. You can start, stop, and control the tempo (BPM) to schedule musical events.</p>
+                    </div>
+
+                    <!-- Transport Controls -->
+                    <div class="section">
+                        <h3>Transport Controls</h3>
+                        <div class="section-description">
+                            Control playback with Play, Pause, and Stop. The BPM (beats per minute) determines the speed.
+                        </div>
+
+                        <div class="transport-controls">
+                            <button class="transport-btn" id="seq-play">▶ Play</button>
+                            <button class="transport-btn" id="seq-pause" disabled>⏸ Pause</button>
+                            <button class="transport-btn stop" id="seq-stop" disabled>⏹ Stop</button>
+
+                            <div class="bpm-control">
+                                <label>BPM: <span class="value-display" id="seq-bpm-value">120</span></label>
+                                <input type="range" id="seq-bpm" min="60" max="200" step="1" value="120" style="width: 200px;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step Sequencer -->
+                    <div class="section">
+                        <h3>16-Step Sequencer</h3>
+                        <div class="section-description">
+                            Click squares to toggle steps on/off. Active steps (blue) will play a note. Watch the green highlight show the current step as it plays.
+                        </div>
+
+                        <div class="sequencer-grid">
+                            ${Array(16).fill(0).map((_, i) =>
+                                `<div class="step-cell" data-step="${i}"></div>`
+                            ).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Learning Points -->
+                    <div class="section">
+                        <h3>Key Concepts</h3>
+                        <div class="section-description">
+                            <strong>Tone.Sequence:</strong> Schedules a series of events that loop in time.<br>
+                            <strong>Transport.start():</strong> Begins the global timeline.<br>
+                            <strong>16n:</strong> Musical notation for sixteenth notes (16 per bar).<br>
+                            <strong>Scheduling:</strong> Events are scheduled ahead of time for perfect timing.
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // ============================================
+        // FX & MODULATION MODULE
+        // Teaches effects and LFO modulation
+        // ============================================
+        class FXModule extends BaseModule {
+            constructor() {
+                super('fx', 'FX & Modulation', '✨');
+
+                // Audio chain
+                this.osc1 = null;
+                this.osc2 = null;
+                this.reverb = null;
+                this.delay = null;
+                this.distortion = null;
+                this.filter = null;
+                this.lfo = null;
+
+                // State
+                this.defaults = {
+                    osc1Waveform: 'sine',
+                    osc1Volume: -6,
+                    osc2Waveform: 'triangle',
+                    osc2Volume: -6,
+                    reverbDecay: 1.5,
+                    reverbWet: 0.3,
+                    reverbBypass: false,
+                    delayTime: 0.25,
+                    delayFeedback: 0.3,
+                    delayWet: 0.3,
+                    delayBypass: false,
+                    distortionAmount: 0.4,
+                    distortionBypass: false,
+                    lfoRate: 2,
+                    lfoDepth: 1000,
+                    lfoBypass: false
+                };
+
+                this.settings = { ...this.defaults };
+            }
+
+            mount() {
+                super.mount();
+                this.loadSettings();
+                this.createAudioChain();
+                this.attachEventListeners();
+                this.updateAllDisplays();
+                console.log('✨ FX module loaded');
+            }
+
+            unmount() {
+                super.unmount();
+                this.disposeAudio();
+            }
+
+            createAudioChain() {
+                // Create effects
+                this.reverb = new Tone.Reverb({
+                    decay: this.settings.reverbDecay,
+                    wet: this.settings.reverbWet
+                });
+
+                this.delay = new Tone.FeedbackDelay({
+                    delayTime: this.settings.delayTime,
+                    feedback: this.settings.delayFeedback,
+                    wet: this.settings.delayWet
+                });
+
+                // Connect to master bus if available
+                if (window.app && window.app.getMasterBus) {
+                    const masterBus = window.app.getMasterBus();
+                    this.reverb.connect(masterBus);
+                    this.delay.connect(masterBus);
+                } else {
+                    this.reverb.toDestination();
+                    this.delay.toDestination();
+                }
+
+                this.distortion = new Tone.Distortion({
+                    distortion: this.settings.distortionAmount,
+                    wet: 1
+                }).connect(this.reverb).connect(this.delay);
+
+                this.filter = new Tone.Filter(1000, 'lowpass').connect(this.distortion);
+
+                // Create LFO for filter modulation
+                this.lfo = new Tone.LFO(this.settings.lfoRate, 200, 3000);
+                this.lfo.connect(this.filter.frequency);
+
+                // Create dual oscillators
+                this.osc1 = new Tone.Synth({
+                    oscillator: { type: this.settings.osc1Waveform },
+                    envelope: {
+                        attack: 0.1,
+                        decay: 0.2,
+                        sustain: 0.5,
+                        release: 0.8
+                    },
+                    volume: this.settings.osc1Volume
+                }).connect(this.filter);
+
+                this.osc2 = new Tone.Synth({
+                    oscillator: { type: this.settings.osc2Waveform },
+                    envelope: {
+                        attack: 0.1,
+                        decay: 0.2,
+                        sustain: 0.5,
+                        release: 0.8
+                    },
+                    volume: this.settings.osc2Volume
+                }).connect(this.filter);
+
+                // Apply bypass states
+                this.applyBypassStates();
+            }
+
+            disposeAudio() {
+                [this.osc1, this.osc2, this.reverb, this.delay, this.distortion, this.filter, this.lfo].forEach(node => {
+                    if (node) node.dispose();
+                });
+            }
+
+            attachEventListeners() {
+                // Oscillator 1 controls
+                const osc1Wave = document.getElementById('osc1-waveform');
+                if (osc1Wave) {
+                    osc1Wave.addEventListener('change', (e) => {
+                        this.settings.osc1Waveform = e.target.value;
+                        this.osc1.oscillator.type = e.target.value;
+                        this.saveSettings();
+                    });
+                }
+                this.setupSlider('osc1-volume', 'osc1-volume-value', ' dB', (v) => {
+                    this.settings.osc1Volume = v;
+                    this.osc1.volume.value = v;
+                });
+
+                // Oscillator 2 controls
+                const osc2Wave = document.getElementById('osc2-waveform');
+                if (osc2Wave) {
+                    osc2Wave.addEventListener('change', (e) => {
+                        this.settings.osc2Waveform = e.target.value;
+                        this.osc2.oscillator.type = e.target.value;
+                        this.saveSettings();
+                    });
+                }
+                this.setupSlider('osc2-volume', 'osc2-volume-value', ' dB', (v) => {
+                    this.settings.osc2Volume = v;
+                    this.osc2.volume.value = v;
+                });
+
+                // Reverb controls
+                this.setupSlider('fx-reverb-decay', 'fx-reverb-decay-value', 's', (v) => {
+                    this.settings.reverbDecay = v;
+                    this.reverb.decay = v;
+                });
+                this.setupSlider('fx-reverb-wet', 'fx-reverb-wet-value', '', (v) => {
+                    this.settings.reverbWet = v;
+                    this.reverb.wet.value = v;
+                });
+                this.setupBypass('fx-reverb-bypass', 'reverbBypass', this.reverb);
+
+                // Delay controls
+                this.setupSlider('fx-delay-time', 'fx-delay-time-value', 's', (v) => {
+                    this.settings.delayTime = v;
+                    this.delay.delayTime.value = v;
+                });
+                this.setupSlider('fx-delay-feedback', 'fx-delay-feedback-value', '', (v) => {
+                    this.settings.delayFeedback = v;
+                    this.delay.feedback.value = v;
+                });
+                this.setupSlider('fx-delay-wet', 'fx-delay-wet-value', '', (v) => {
+                    this.settings.delayWet = v;
+                    this.delay.wet.value = v;
+                });
+                this.setupBypass('fx-delay-bypass', 'delayBypass', this.delay);
+
+                // Distortion controls
+                this.setupSlider('fx-dist-amount', 'fx-dist-amount-value', '', (v) => {
+                    this.settings.distortionAmount = v;
+                    this.distortion.distortion = v;
+                });
+                this.setupBypass('fx-dist-bypass', 'distortionBypass', this.distortion);
+
+                // LFO controls
+                this.setupSlider('fx-lfo-rate', 'fx-lfo-rate-value', ' Hz', (v) => {
+                    this.settings.lfoRate = v;
+                    this.lfo.frequency.value = v;
+                });
+                this.setupSlider('fx-lfo-depth', 'fx-lfo-depth-value', ' Hz', (v) => {
+                    this.settings.lfoDepth = v;
+                    this.lfo.max = v;
+                });
+                this.setupBypass('fx-lfo-bypass', 'lfoBypass', this.lfo);
+
+                // Note buttons
+                document.querySelectorAll('.fx-note-btn').forEach(btn => {
+                    btn.addEventListener('mousedown', (e) => this.playNote(e.target.dataset.note));
+                    btn.addEventListener('mouseup', () => this.releaseNote());
+                    btn.addEventListener('mouseleave', () => this.releaseNote());
+
+                    // Touch support
+                    btn.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        this.playNote(e.target.dataset.note);
+                    });
+                    btn.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        this.releaseNote();
+                    });
+                    btn.addEventListener('touchcancel', (e) => {
+                        e.preventDefault();
+                        this.releaseNote();
+                    });
+                });
+            }
+
+            setupSlider(sliderId, displayId, suffix, callback) {
+                const slider = document.getElementById(sliderId);
+                const display = document.getElementById(displayId);
+                if (slider && display) {
+                    slider.addEventListener('input', (e) => {
+                        const val = parseFloat(e.target.value);
+                        display.textContent = val.toFixed(2) + suffix;
+                        callback(val);
+                        this.saveSettings();
+                    });
+                }
+            }
+
+            setupBypass(btnId, settingKey, audioNode) {
+                const btn = document.getElementById(btnId);
+                if (btn) {
+                    btn.addEventListener('click', () => {
+                        this.settings[settingKey] = !this.settings[settingKey];
+                        this.applyBypassState(btnId, settingKey, audioNode);
+                        this.saveSettings();
+                    });
+                }
+            }
+
+            applyBypassStates() {
+                this.applyBypassState('fx-reverb-bypass', 'reverbBypass', this.reverb);
+                this.applyBypassState('fx-delay-bypass', 'delayBypass', this.delay);
+                this.applyBypassState('fx-dist-bypass', 'distortionBypass', this.distortion);
+                this.applyBypassState('fx-lfo-bypass', 'lfoBypass', this.lfo);
+            }
+
+            applyBypassState(btnId, settingKey, audioNode) {
+                const btn = document.getElementById(btnId);
+                const bypassed = this.settings[settingKey];
+
+                if (btn) {
+                    if (bypassed) {
+                        btn.classList.add('bypassed');
+                        btn.textContent = 'Bypassed';
+                        btn.closest('.fx-unit')?.classList.add('bypassed');
+                    } else {
+                        btn.classList.remove('bypassed');
+                        btn.textContent = 'Active';
+                        btn.closest('.fx-unit')?.classList.remove('bypassed');
+                    }
+                }
+
+                // Toggle audio processing
+                if (audioNode) {
+                    if (audioNode === this.lfo) {
+                        // LFO: start/stop
+                        if (bypassed) {
+                            this.lfo.stop();
+                        } else {
+                            this.lfo.start();
+                        }
+                    } else {
+                        // Effects: wet control
+                        audioNode.wet.value = bypassed ? 0 : this.settings[settingKey.replace('Bypass', 'Wet')] || 1;
+                    }
+                }
+            }
+
+            async playNote(note) {
+                await Tone.start();
+                if (this.osc1) {
+                    this.osc1.triggerAttack(note);
+                }
+                if (this.osc2) {
+                    this.osc2.triggerAttack(note);
+                }
+            }
+
+            releaseNote() {
+                if (this.osc1) {
+                    this.osc1.triggerRelease();
+                }
+                if (this.osc2) {
+                    this.osc2.triggerRelease();
+                }
+            }
+
+            updateAllDisplays() {
+                // Update oscillator waveform selectors
+                const osc1Wave = document.getElementById('osc1-waveform');
+                const osc2Wave = document.getElementById('osc2-waveform');
+                if (osc1Wave) osc1Wave.value = this.settings.osc1Waveform;
+                if (osc2Wave) osc2Wave.value = this.settings.osc2Waveform;
+
+                // Update all slider displays
+                const params = [
+                    ['osc1-volume', 'osc1-volume-value', 'osc1Volume', ' dB'],
+                    ['osc2-volume', 'osc2-volume-value', 'osc2Volume', ' dB'],
+                    ['fx-reverb-decay', 'fx-reverb-decay-value', 'reverbDecay', 's'],
+                    ['fx-reverb-wet', 'fx-reverb-wet-value', 'reverbWet', ''],
+                    ['fx-delay-time', 'fx-delay-time-value', 'delayTime', 's'],
+                    ['fx-delay-feedback', 'fx-delay-feedback-value', 'delayFeedback', ''],
+                    ['fx-delay-wet', 'fx-delay-wet-value', 'delayWet', ''],
+                    ['fx-dist-amount', 'fx-dist-amount-value', 'distortionAmount', ''],
+                    ['fx-lfo-rate', 'fx-lfo-rate-value', 'lfoRate', ' Hz'],
+                    ['fx-lfo-depth', 'fx-lfo-depth-value', 'lfoDepth', ' Hz']
+                ];
+
+                params.forEach(([sliderId, displayId, settingKey, suffix]) => {
+                    const slider = document.getElementById(sliderId);
+                    const display = document.getElementById(displayId);
+                    if (slider && display) {
+                        slider.value = this.settings[settingKey];
+                        display.textContent = this.settings[settingKey].toFixed(2) + suffix;
+                    }
+                });
+            }
+
+            saveSettings() {
+                localStorage.setItem('tonejs-lab-fx', JSON.stringify(this.settings));
+            }
+
+            loadSettings() {
+                const saved = localStorage.getItem('tonejs-lab-fx');
+                if (saved) {
+                    try {
+                        this.settings = { ...this.defaults, ...JSON.parse(saved) };
+                        console.log('📂 FX settings loaded');
+                    } catch (e) {
+                        console.warn('Failed to load settings');
+                    }
+                }
+            }
+
+            render() {
+                return `
+                    <div class="module-header">
+                        <h2>FX & Modulation</h2>
+                        <p>Transform your sounds with effects and modulation. Learn how to chain effects and use LFOs to create movement.</p>
+                    </div>
+
+                    <div class="info-box">
+                        <h4>Signal Flow & Effects Chain</h4>
+                        <p>Audio flows through a chain: Osc1 + Osc2 → Filter → Distortion → Reverb & Delay → Output. Each effect processes the signal and passes it forward. The LFO (Low Frequency Oscillator) modulates the filter cutoff to create wobbling, sweeping sounds.</p>
+                    </div>
+
+                    <!-- Oscillator Mix Section -->
+                    <div class="oscillator-mix">
+                        <h3>Oscillator Mix</h3>
+                        <div class="section-description" style="margin-bottom: 20px;">
+                            Blend two oscillators with different waveforms to create unique timbres. Adjust each oscillator's volume to find the perfect mix.
+                        </div>
+                        <div class="oscillators-grid">
+                            <div class="oscillator-card">
+                                <h4>Oscillator 1</h4>
+                                <div class="osc-control">
+                                    <label>Waveform</label>
+                                    <select id="osc1-waveform">
+                                        <option value="sine">Sine</option>
+                                        <option value="square">Square</option>
+                                        <option value="sawtooth">Sawtooth</option>
+                                        <option value="triangle">Triangle</option>
+                                    </select>
+                                </div>
+                                <div class="osc-control">
+                                    <div class="volume-display">
+                                        <label>Volume</label>
+                                        <span id="osc1-volume-value">-6.00 dB</span>
+                                    </div>
+                                    <input type="range" id="osc1-volume" min="-40" max="0" step="0.5" value="-6">
+                                </div>
+                            </div>
+
+                            <div class="oscillator-card">
+                                <h4>Oscillator 2</h4>
+                                <div class="osc-control">
+                                    <label>Waveform</label>
+                                    <select id="osc2-waveform">
+                                        <option value="sine">Sine</option>
+                                        <option value="square">Square</option>
+                                        <option value="sawtooth">Sawtooth</option>
+                                        <option value="triangle">Triangle</option>
+                                    </select>
+                                </div>
+                                <div class="osc-control">
+                                    <div class="volume-display">
+                                        <label>Volume</label>
+                                        <span id="osc2-volume-value">-6.00 dB</span>
+                                    </div>
+                                    <input type="range" id="osc2-volume" min="-40" max="0" step="0.5" value="-6">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Test Keyboard -->
+                    <div class="section">
+                        <h3>Test Sounds</h3>
+                        <div class="section-description">
+                            Play notes to hear the effects. Hold keys to sustain and hear modulation.
+                        </div>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button class="note-btn fx-note-btn" data-note="C3">C3</button>
+                            <button class="note-btn fx-note-btn" data-note="E3">E3</button>
+                            <button class="note-btn fx-note-btn" data-note="G3">G3</button>
+                            <button class="note-btn fx-note-btn" data-note="C4">C4</button>
+                        </div>
+                    </div>
+
+                    <!-- Effects Chain -->
+                    <div class="section">
+                        <h3>Effects Chain</h3>
+                        <div class="section-description">
+                            Toggle effects on/off with the bypass button. Adjust parameters to shape the sound.
+                        </div>
+
+                        <div class="fx-chain">
+                            <!-- Reverb -->
+                            <div class="fx-unit">
+                                <div class="fx-header">
+                                    <div class="fx-title">Reverb</div>
+                                    <button class="bypass-toggle" id="fx-reverb-bypass">Active</button>
+                                </div>
+                                <div class="control-group">
+                                    <label>Decay: <span class="value-display" id="fx-reverb-decay-value">1.50s</span></label>
+                                    <input type="range" id="fx-reverb-decay" min="0.1" max="10" step="0.1" value="1.5">
+                                </div>
+                                <div class="control-group">
+                                    <label>Wet/Dry: <span class="value-display" id="fx-reverb-wet-value">0.30</span></label>
+                                    <input type="range" id="fx-reverb-wet" min="0" max="1" step="0.01" value="0.3">
+                                </div>
+                            </div>
+
+                            <!-- Delay -->
+                            <div class="fx-unit">
+                                <div class="fx-header">
+                                    <div class="fx-title">Delay</div>
+                                    <button class="bypass-toggle" id="fx-delay-bypass">Active</button>
+                                </div>
+                                <div class="control-group">
+                                    <label>Time: <span class="value-display" id="fx-delay-time-value">0.25s</span></label>
+                                    <input type="range" id="fx-delay-time" min="0.01" max="1" step="0.01" value="0.25">
+                                </div>
+                                <div class="control-group">
+                                    <label>Feedback: <span class="value-display" id="fx-delay-feedback-value">0.30</span></label>
+                                    <input type="range" id="fx-delay-feedback" min="0" max="0.9" step="0.01" value="0.3">
+                                </div>
+                                <div class="control-group">
+                                    <label>Wet/Dry: <span class="value-display" id="fx-delay-wet-value">0.30</span></label>
+                                    <input type="range" id="fx-delay-wet" min="0" max="1" step="0.01" value="0.3">
+                                </div>
+                            </div>
+
+                            <!-- Distortion -->
+                            <div class="fx-unit">
+                                <div class="fx-header">
+                                    <div class="fx-title">Distortion</div>
+                                    <button class="bypass-toggle" id="fx-dist-bypass">Active</button>
+                                </div>
+                                <div class="control-group">
+                                    <label>Amount: <span class="value-display" id="fx-dist-amount-value">0.40</span></label>
+                                    <input type="range" id="fx-dist-amount" min="0" max="1" step="0.01" value="0.4">
+                                </div>
+                            </div>
+
+                            <!-- LFO -->
+                            <div class="fx-unit">
+                                <div class="fx-header">
+                                    <div class="fx-title">LFO → Filter</div>
+                                    <button class="bypass-toggle" id="fx-lfo-bypass">Active</button>
+                                </div>
+                                <div class="control-group">
+                                    <label>Rate: <span class="value-display" id="fx-lfo-rate-value">2.00 Hz</span></label>
+                                    <input type="range" id="fx-lfo-rate" min="0.1" max="10" step="0.1" value="2">
+                                </div>
+                                <div class="control-group">
+                                    <label>Depth: <span class="value-display" id="fx-lfo-depth-value">1000.00 Hz</span></label>
+                                    <input type="range" id="fx-lfo-depth" min="100" max="5000" step="100" value="1000">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Key Concepts -->
+                    <div class="section">
+                        <h3>Key Concepts</h3>
+                        <div class="section-description">
+                            <strong>Reverb:</strong> Simulates room reflections. Decay = how long it lasts.<br>
+                            <strong>Delay:</strong> Repeating echoes. Time = gap between repeats, Feedback = how many repeats.<br>
+                            <strong>Distortion:</strong> Adds harmonics and grit by clipping the waveform.<br>
+                            <strong>LFO:</strong> Low Frequency Oscillator modulates parameters over time (filter wobble).<br>
+                            <strong>Wet/Dry:</strong> Mix between processed (wet) and original (dry) signal.
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // ============================================
+        // DRONES & OCTAVES MODULE
+        // Teaches polyphony and sustained tones with warm sound design
+        // ============================================
+        class DronesModule extends BaseModule {
+            constructor() {
+                super('drones', 'Drones & Octaves', '🎶');
+
+                // Shared audio components
+                this.sharedReverb = null;
+                this.masterLimiter = null;
+
+                // Drone management
+                this.drones = []; // Array of drone objects
+                this.nextDroneId = 1;
+                this.maxDrones = 6;
+
+                // Available notes (chromatic scale)
+                this.notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+                this.octaves = [1, 2, 3, 4, 5, 6, 7];
+
+                // Default settings
+                this.defaults = {
+                    drones: [] // Array of {id, note, octave, volume, detune, evolving}
+                };
+
+                this.settings = { ...this.defaults, drones: [] };
+            }
+
+            mount() {
+                super.mount();
+                this.createSharedAudio();
+                this.loadSettings();
+                this.restoreDrones();
+                this.attachEventListeners();
+                console.log('🎶 Drones module loaded');
+            }
+
+            unmount() {
+                super.unmount();
+                this.stopAllDrones();
+                this.disposeSharedAudio();
+            }
+
+            createSharedAudio() {
+                // Shared reverb for warmth
+                this.sharedReverb = new Tone.Reverb({
+                    decay: 2.5,
+                    wet: 0.25
+                });
+
+                // Master limiter to prevent clipping
+                this.masterLimiter = new Tone.Limiter(-6).connect(this.sharedReverb);
+
+                // Connect to app's master bus for visualization tap
+                if (window.app && window.app.getMasterBus) {
+                    this.sharedReverb.connect(window.app.getMasterBus());
+                } else {
+                    // Fallback to Destination if app not ready
+                    this.sharedReverb.toDestination();
+                }
+            }
+
+            disposeSharedAudio() {
+                if (this.sharedReverb) this.sharedReverb.dispose();
+                if (this.masterLimiter) this.masterLimiter.dispose();
+            }
+
+            loadSettings() {
+                const saved = localStorage.getItem('toneLab_drones');
+                if (saved) {
+                    try {
+                        const parsed = JSON.parse(saved);
+                        this.settings = { ...this.defaults, ...parsed };
+                    } catch (e) {
+                        console.warn('Failed to load drones settings');
+                    }
+                }
+            }
+
+            saveSettings() {
+                // Save drone configurations (not the audio objects)
+                this.settings.drones = this.drones.map(d => ({
+                    id: d.id,
+                    note: d.note,
+                    octave: d.octave,
+                    volume: d.volume,
+                    detune: d.detune,
+                    evolving: d.evolving
+                }));
+                localStorage.setItem('toneLab_drones', JSON.stringify(this.settings));
+            }
+
+            restoreDrones() {
+                // Restore saved drones from settings (but paused)
+                if (this.settings.drones && this.settings.drones.length > 0) {
+                    this.settings.drones.forEach(droneData => {
+                        this.addDrone(
+                            droneData.note,
+                            droneData.octave,
+                            droneData.volume,
+                            droneData.detune || 0,
+                            droneData.evolving || false,
+                            droneData.id
+                        );
+                    });
+                }
+            }
+
+            addDrone(note = 'C', octave = 3, volume = -12, detune = 0, evolving = false, id = null) {
+                if (this.drones.length >= this.maxDrones) {
+                    return;
+                }
+
+                const droneId = id !== null ? id : this.nextDroneId++;
+                const fullNote = `${note}${octave}`;
+
+                // Create warm audio chain: Oscillator → Filter → Gain → (shared Reverb) → Destination
+
+                // Gentle oscillator (sine wave for warmth)
+                const oscillator = new Tone.Oscillator({
+                    type: 'sine',
+                    frequency: fullNote,
+                    detune: detune
+                });
+
+                // Lowpass filter to soften harsh frequencies
+                const filter = new Tone.Filter({
+                    type: 'lowpass',
+                    frequency: 800,
+                    rolloff: -24
+                });
+
+                // Gain node for volume control and smooth fades
+                const gain = new Tone.Gain(0).connect(filter);
+
+                // Connect filter to master limiter (which connects to shared reverb)
+                filter.connect(this.masterLimiter);
+
+                // Optional LFO for evolving drones
+                let lfo = null;
+                if (evolving) {
+                    lfo = new Tone.LFO(0.2, 500, 1200);
+                    lfo.connect(filter.frequency);
+                    lfo.start();
+                }
+
+                const drone = {
+                    id: droneId,
+                    note: note,
+                    octave: octave,
+                    volume: volume,
+                    detune: detune,
+                    evolving: evolving,
+                    isPlaying: false,
+
+                    // Audio nodes
+                    oscillator: oscillator,
+                    filter: filter,
+                    gain: gain,
+                    lfo: lfo,
+
+                    // Store base gain for volume control
+                    baseGain: Tone.dbToGain(volume)
+                };
+
+                // Connect oscillator to gain
+                oscillator.connect(gain);
+
+                // Start oscillator (but gain is 0, so silent)
+                oscillator.start();
+
+                this.drones.push(drone);
+                this.updateDronesList();
+                this.saveSettings();
+            }
+
+            async removeDrone(droneId) {
+                const index = this.drones.findIndex(d => d.id === droneId);
+                if (index !== -1) {
+                    const drone = this.drones[index];
+
+                    // Fade out before disposing
+                    if (drone.isPlaying) {
+                        await this.pauseDrone(droneId);
+                    }
+
+                    // Dispose audio nodes
+                    setTimeout(() => {
+                        drone.oscillator.stop();
+                        drone.oscillator.dispose();
+                        drone.filter.dispose();
+                        drone.gain.dispose();
+                        if (drone.lfo) drone.lfo.dispose();
+                    }, 600);
+
+                    this.drones.splice(index, 1);
+                    this.updateDronesList();
+                    this.saveSettings();
+                }
+            }
+
+            async togglePlayPause(droneId) {
+                const drone = this.drones.find(d => d.id === droneId);
+                if (!drone) return;
+
+                if (drone.isPlaying) {
+                    await this.pauseDrone(droneId);
+                } else {
+                    await this.playDrone(droneId);
+                }
+            }
+
+            async playDrone(droneId) {
+                await Tone.start();
+                const drone = this.drones.find(d => d.id === droneId);
+                if (!drone || drone.isPlaying) return;
+
+                // Smooth fade in (0 → baseGain over 0.8 seconds)
+                drone.gain.gain.rampTo(drone.baseGain, 0.8);
+                drone.isPlaying = true;
+
+                this.updatePlayPauseButton(droneId);
+            }
+
+            async pauseDrone(droneId) {
+                const drone = this.drones.find(d => d.id === droneId);
+                if (!drone || !drone.isPlaying) return;
+
+                // Smooth fade out (baseGain → 0 over 0.5 seconds)
+                drone.gain.gain.rampTo(0, 0.5);
+                drone.isPlaying = false;
+
+                this.updatePlayPauseButton(droneId);
+            }
+
+            updateDrone(droneId, property, value) {
+                const drone = this.drones.find(d => d.id === droneId);
+                if (!drone) return;
+
+                if (property === 'note' || property === 'octave') {
+                    if (property === 'note') {
+                        drone.note = value;
+                    } else {
+                        drone.octave = parseInt(value);
+                    }
+
+                    // Update oscillator frequency
+                    const fullNote = `${drone.note}${drone.octave}`;
+                    drone.oscillator.frequency.rampTo(fullNote, 0.1);
+
+                    // Update title display
+                    this.updateDroneTitle(droneId);
+
+                } else if (property === 'volume') {
+                    drone.volume = parseFloat(value);
+                    drone.baseGain = Tone.dbToGain(drone.volume);
+
+                    // If playing, update gain
+                    if (drone.isPlaying) {
+                        drone.gain.gain.rampTo(drone.baseGain, 0.1);
+                    }
+                    this.updateVolumeDisplay(droneId);
+
+                } else if (property === 'detune') {
+                    drone.detune = parseFloat(value);
+                    drone.oscillator.detune.value = drone.detune;
+                    this.updateDetuneDisplay(droneId);
+
+                } else if (property === 'evolving') {
+                    drone.evolving = value;
+
+                    // Toggle LFO
+                    if (value && !drone.lfo) {
+                        // Create and start LFO
+                        drone.lfo = new Tone.LFO(0.2, 500, 1200);
+                        drone.lfo.connect(drone.filter.frequency);
+                        drone.lfo.start();
+                    } else if (!value && drone.lfo) {
+                        // Stop and dispose LFO
+                        drone.lfo.stop();
+                        drone.lfo.dispose();
+                        drone.lfo = null;
+                        // Reset filter to base frequency
+                        drone.filter.frequency.rampTo(800, 0.5);
+                    }
+                }
+
+                this.saveSettings();
+            }
+
+            updateDroneTitle(droneId) {
+                const card = document.getElementById(`drone-card-${droneId}`);
+                const drone = this.drones.find(d => d.id === droneId);
+                if (card && drone) {
+                    const title = card.querySelector('.drone-title');
+                    if (title) {
+                        title.textContent = `Drone ${drone.id} – ${drone.note}${drone.octave}`;
+                    }
+                }
+            }
+
+            updateVolumeDisplay(droneId) {
+                const display = document.getElementById(`drone-${droneId}-volume-display`);
+                const drone = this.drones.find(d => d.id === droneId);
+                if (display && drone) {
+                    display.textContent = `${drone.volume.toFixed(1)} dB`;
+                }
+            }
+
+            updateDetuneDisplay(droneId) {
+                const display = document.getElementById(`drone-${droneId}-detune-display`);
+                const drone = this.drones.find(d => d.id === droneId);
+                if (display && drone) {
+                    const sign = drone.detune > 0 ? '+' : '';
+                    display.textContent = `${sign}${drone.detune.toFixed(0)}¢`;
+                }
+            }
+
+            updatePlayPauseButton(droneId) {
+                const btn = document.getElementById(`drone-${droneId}-playpause`);
+                const card = document.getElementById(`drone-card-${droneId}`);
+                const drone = this.drones.find(d => d.id === droneId);
+                if (btn && drone) {
+                    btn.textContent = drone.isPlaying ? '⏸ Pause' : '▶ Play';
+                    btn.classList.toggle('playing', drone.isPlaying);
+                }
+                if (card && drone) {
+                    card.classList.toggle('playing', drone.isPlaying);
+                }
+            }
+
+            changeOctave(droneId, direction) {
+                const drone = this.drones.find(d => d.id === droneId);
+                if (!drone) return;
+
+                const newOctave = drone.octave + direction;
+                if (newOctave >= 1 && newOctave <= 7) {
+                    this.updateDrone(droneId, 'octave', newOctave);
+                    this.updateOctaveDisplay(droneId);
+                }
+            }
+
+            updateOctaveDisplay(droneId) {
+                const display = document.getElementById(`drone-${droneId}-octave`);
+                const drone = this.drones.find(d => d.id === droneId);
+                if (display && drone) {
+                    display.textContent = drone.octave;
+                }
+
+                // Update stepper button states
+                const decreaseBtn = document.querySelector(`button[data-drone-id="${droneId}"][data-direction="-1"]`);
+                const increaseBtn = document.querySelector(`button[data-drone-id="${droneId}"][data-direction="1"]`);
+
+                if (decreaseBtn) decreaseBtn.disabled = drone.octave <= 1;
+                if (increaseBtn) increaseBtn.disabled = drone.octave >= 7;
+            }
+
+            stopAllDrones() {
+                this.drones.forEach(drone => {
+                    if (drone.oscillator) drone.oscillator.stop();
+                    if (drone.oscillator) drone.oscillator.dispose();
+                    if (drone.filter) drone.filter.dispose();
+                    if (drone.gain) drone.gain.dispose();
+                    if (drone.lfo) drone.lfo.dispose();
+                });
+                this.drones = [];
+            }
+
+            // API for visualization to tap individual drone audio
+            getDroneBus(droneId) {
+                const drone = this.drones.find(d => d.id === droneId);
+                return drone ? drone.gain : null;
+            }
+
+            updateDronesList() {
+                const list = document.getElementById('dronesList');
+                const addBtn = document.getElementById('addDroneBtn');
+
+                if (!list) return;
+
+                if (this.drones.length === 0) {
+                    list.innerHTML = '<p style="text-align: center; color: var(--text-dim); padding: 40px;">No drones yet. Click "+ Add Drone" to create one (it starts paused).</p>';
+                } else {
+                    list.innerHTML = this.drones.map(drone => `
+                        <div class="drone-card ${drone.isPlaying ? 'playing' : ''}" id="drone-card-${drone.id}">
+                            <div class="drone-header">
+                                <span class="drone-title">Drone ${drone.id} – ${drone.note}${drone.octave}</span>
+                                <div class="drone-header-buttons">
+                                    <button
+                                        class="play-pause-btn ${drone.isPlaying ? 'playing' : ''}"
+                                        id="drone-${drone.id}-playpause"
+                                        data-drone-id="${drone.id}">
+                                        ${drone.isPlaying ? '⏸ Pause' : '▶ Play'}
+                                    </button>
+                                    <button class="remove-drone-btn" data-drone-id="${drone.id}">Remove</button>
+                                </div>
+                            </div>
+
+                            <!-- PITCH SECTION -->
+                            <div class="drone-section">
+                                <div class="drone-section-header">🎵 Pitch</div>
+
+                                <!-- Note Picker Grid -->
+                                <div class="note-picker">
+                                    ${this.notes.map(note => `
+                                        <button
+                                            class="note-btn ${note.includes('#') ? 'sharp' : ''} ${note === drone.note ? 'active' : ''}"
+                                            data-drone-id="${drone.id}"
+                                            data-note="${note}">
+                                            ${note}
+                                        </button>
+                                    `).join('')}
+                                </div>
+
+                                <!-- Octave Stepper -->
+                                <div class="octave-stepper">
+                                    <span class="octave-stepper-label">Octave</span>
+                                    <button
+                                        class="octave-stepper-btn"
+                                        data-drone-id="${drone.id}"
+                                        data-direction="-1"
+                                        ${drone.octave <= 1 ? 'disabled' : ''}>
+                                        −
+                                    </button>
+                                    <span class="octave-display" id="drone-${drone.id}-octave">${drone.octave}</span>
+                                    <button
+                                        class="octave-stepper-btn"
+                                        data-drone-id="${drone.id}"
+                                        data-direction="1"
+                                        ${drone.octave >= 7 ? 'disabled' : ''}>
+                                        +
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- TONE SECTION -->
+                            <div class="drone-section">
+                                <div class="drone-section-header">🔊 Tone</div>
+
+                                <div class="slider-control">
+                                    <div class="slider-label">
+                                        <span class="slider-label-text">Volume</span>
+                                        <span class="slider-value" id="drone-${drone.id}-volume-display">${drone.volume.toFixed(1)} dB</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="-40"
+                                        max="0"
+                                        step="0.5"
+                                        value="${drone.volume}"
+                                        data-drone-id="${drone.id}"
+                                        data-property="volume"
+                                    >
+                                </div>
+
+                                <div class="slider-control">
+                                    <div class="slider-label">
+                                        <span class="slider-label-text">Detune</span>
+                                        <span class="slider-value" id="drone-${drone.id}-detune-display">${drone.detune > 0 ? '+' : ''}${drone.detune.toFixed(0)}¢</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="-10"
+                                        max="10"
+                                        step="1"
+                                        value="${drone.detune}"
+                                        data-drone-id="${drone.id}"
+                                        data-property="detune"
+                                    >
+                                </div>
+                            </div>
+
+                            <!-- MOTION SECTION -->
+                            <div class="drone-section">
+                                <div class="drone-section-header">🌊 Motion</div>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input
+                                        type="checkbox"
+                                        ${drone.evolving ? 'checked' : ''}
+                                        data-drone-id="${drone.id}"
+                                        data-property="evolving"
+                                    >
+                                    <span style="color: var(--text-secondary); font-size: 13px;">Evolving (LFO modulation)</span>
+                                </label>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+                // Update add button state
+                if (addBtn) {
+                    addBtn.disabled = this.drones.length >= this.maxDrones;
+                }
+            }
+
+            attachEventListeners() {
+                // Add drone button
+                const addBtn = document.getElementById('addDroneBtn');
+                if (addBtn) {
+                    addBtn.addEventListener('click', async () => {
+                        await Tone.start();
+                        this.addDrone();
+                    });
+                }
+
+                // Delegate events for drone controls
+                const list = document.getElementById('dronesList');
+                if (list) {
+                    list.addEventListener('click', (e) => {
+                        // Play/Pause button
+                        if (e.target.classList.contains('play-pause-btn')) {
+                            const droneId = parseInt(e.target.dataset.droneId);
+                            this.togglePlayPause(droneId);
+                        }
+
+                        // Remove button
+                        if (e.target.classList.contains('remove-drone-btn')) {
+                            const droneId = parseInt(e.target.dataset.droneId);
+                            this.removeDrone(droneId);
+                        }
+
+                        // Note button
+                        if (e.target.classList.contains('note-btn')) {
+                            const droneId = parseInt(e.target.dataset.droneId);
+                            const note = e.target.dataset.note;
+                            this.updateDrone(droneId, 'note', note);
+                            this.updateDronesList();
+                        }
+
+                        // Octave stepper
+                        if (e.target.classList.contains('octave-stepper-btn')) {
+                            const droneId = parseInt(e.target.dataset.droneId);
+                            const direction = parseInt(e.target.dataset.direction);
+                            this.changeOctave(droneId, direction);
+                        }
+                    });
+
+                    list.addEventListener('change', (e) => {
+                        const droneId = parseInt(e.target.dataset.droneId);
+                        const property = e.target.dataset.property;
+
+                        if (droneId && property) {
+                            if (e.target.type === 'checkbox') {
+                                // For checkbox, use checked state
+                                this.updateDrone(droneId, property, e.target.checked);
+                            } else {
+                                // For select/range, use value
+                                this.updateDrone(droneId, property, e.target.value);
+                            }
+                        }
+                    });
+
+                    list.addEventListener('input', (e) => {
+                        if (e.target.type === 'range') {
+                            const droneId = parseInt(e.target.dataset.droneId);
+                            const property = e.target.dataset.property;
+                            const value = e.target.value;
+
+                            if (droneId && property) {
+                                this.updateDrone(droneId, property, value);
+                            }
+                        }
+                    });
+                }
+            }
+
+            render() {
+                return `
+                    <div class="module-header">
+                        <h2>Drones & Octaves</h2>
+                        <p>Create warm, sustained tones with smooth fades and musical enhancements</p>
+                    </div>
+
+                    <div class="info-box">
+                        <h4>🎵 Warm Sound Design</h4>
+                        <p>
+                            Each drone uses a carefully designed audio chain for a smooth, musical sound:<br>
+                            <strong>Sine Oscillator</strong> → <strong>Lowpass Filter</strong> → <strong>Shared Reverb</strong> → <strong>Limiter</strong><br><br>
+                            • <strong>Smooth Fades:</strong> Drones fade in/out gradually to prevent pops or clicks<br>
+                            • <strong>Detune:</strong> Slight pitch variation (±10 cents) creates natural warmth<br>
+                            • <strong>Evolving Mode:</strong> LFO modulation adds gentle filter movement<br>
+                            • <strong>Volume Limiting:</strong> Prevents clipping even with multiple drones
+                        </p>
+                    </div>
+
+                    <div class="info-box">
+                        <h4>🎹 How to Use</h4>
+                        <p>
+                            1. Click <strong>"+ Add Drone"</strong> to create a new drone (starts paused)<br>
+                            2. Choose the <strong>note</strong> and <strong>octave</strong><br>
+                            3. Click <strong>"▶ Play"</strong> to hear it fade in smoothly<br>
+                            4. Adjust <strong>volume</strong>, <strong>detune</strong>, and toggle <strong>evolving</strong> mode<br>
+                            5. Create up to ${this.maxDrones} layered drones for rich textures
+                        </p>
+                    </div>
+
+                    <div class="drones-container">
+                        <button id="addDroneBtn" class="add-drone-btn">+ Add Drone</button>
+                        <div id="dronesList" class="drones-list"></div>
+                    </div>
+
+                    <div class="info-box" style="margin-top: 30px;">
+                        <h4>💡 Musical Tips</h4>
+                        <p>
+                            • <strong>Octaves:</strong> Stack C2 + C3 + C4 for harmonic richness<br>
+                            • <strong>Fifths:</strong> Combine C + G for a powerful, consonant sound<br>
+                            • <strong>Thirds:</strong> Try C + E for a gentle, pleasant harmony<br>
+                            • <strong>Detune:</strong> Add 3-5 cents to create natural chorus/width<br>
+                            • <strong>Evolving:</strong> Enable for meditative, slowly changing textures<br>
+                            • <strong>Volume Balance:</strong> Keep drones around -12dB to -20dB for headroom
+                        </p>
+                    </div>
+                `;
+            }
+        }
+
+        // ============================================
+        // VISUALIZATION MODULE
+        // Shows real-time waveform, spectrum, and level meters
+        // ============================================
+        class VisualizationModule extends BaseModule {
+            constructor() {
+                super('visualization', 'Visualization', '📊');
+
+                // Analyzers
+                this.waveform = null;
+                this.fft = null;
+                this.meter = null;
+                this.visualTap = null;
+
+                // Canvases
+                this.waveformCanvas = null;
+                this.fftCanvas = null;
+                this.meterCanvas = null;
+
+                // RAF
+                this.rafId = null;
+                this.isRunning = false;
+                this.lastFrameTime = 0;
+                this.fps = 60;
+                this.frameCount = 0;
+                this.fpsUpdateTime = 0;
+
+                // Source management
+                this.source = 'master'; // 'master', 'drone', or 'test'
+                this.sourceId = null; // Drone ID if source is 'drone'
+                this.currentSource = null; // Current audio node connected
+                this.testTone = null; // Test oscillator
+                this.fftSmoothing = 0.8;
+            }
+
+            mount() {
+                super.mount();
+                this.createAnalyzers();
+                this.setupCanvases();
+                this.attachEventListeners();
+                this.connectToMaster();
+                this.start();
+                console.log('📊 Visualization module loaded');
+            }
+
+            unmount() {
+                super.unmount();
+                this.stop();
+                this.disconnectSource();
+                if (this.testTone) {
+                    this.testTone.dispose();
+                    this.testTone = null;
+                }
+                if (this.droneUpdateInterval) {
+                    clearInterval(this.droneUpdateInterval);
+                    this.droneUpdateInterval = null;
+                }
+                this.disposeAnalyzers();
+            }
+
+            createAnalyzers() {
+                // Create visual tap point (gain node at 0dB, doesn't affect audio)
+                this.visualTap = new Tone.Gain(1);
+
+                // Waveform analyzer (time domain)
+                this.waveform = new Tone.Waveform(1024);
+                this.visualTap.connect(this.waveform);
+
+                // FFT analyzer (frequency domain)
+                this.fft = new Tone.FFT({
+                    size: 2048,
+                    smoothing: this.fftSmoothing
+                });
+                this.visualTap.connect(this.fft);
+
+                // Level meter
+                this.meter = new Tone.Meter({ channels: 2 });
+                this.visualTap.connect(this.meter);
+            }
+
+            disposeAnalyzers() {
+                if (this.waveform) this.waveform.dispose();
+                if (this.fft) this.fft.dispose();
+                if (this.meter) this.meter.dispose();
+                if (this.visualTap) this.visualTap.dispose();
+            }
+
+            setupCanvases() {
+                // Get canvas elements after render
+                setTimeout(() => {
+                    this.waveformCanvas = document.getElementById('viz-waveform');
+                    this.fftCanvas = document.getElementById('viz-fft');
+                    this.meterCanvas = document.getElementById('viz-meter');
+
+                    // Setup retina scaling
+                    [this.waveformCanvas, this.fftCanvas, this.meterCanvas].forEach(canvas => {
+                        if (canvas) {
+                            const dpr = window.devicePixelRatio || 1;
+                            const rect = canvas.getBoundingClientRect();
+                            canvas.width = rect.width * dpr;
+                            canvas.height = rect.height * dpr;
+                            const ctx = canvas.getContext('2d');
+                            ctx.scale(dpr, dpr);
+                        }
+                    });
+                }, 100);
+            }
+
+            connectToMaster() {
+                // Connect to app's master bus
+                if (window.app && window.app.getMasterBus) {
+                    const masterBus = window.app.getMasterBus();
+                    masterBus.connect(this.visualTap);
+                    this.currentSource = masterBus;
+                    console.log('📊 Visualization connected to master bus');
+                } else {
+                    console.warn('Master bus not available');
+                }
+            }
+
+            disconnectSource() {
+                // Disconnect current source
+                if (this.currentSource) {
+                    try {
+                        this.currentSource.disconnect(this.visualTap);
+                    } catch (e) {
+                        console.warn('Could not disconnect source:', e);
+                    }
+                    this.currentSource = null;
+                }
+
+                // Stop test tone if active
+                if (this.testTone && this.testTone.state === 'started') {
+                    this.testTone.stop();
+                }
+            }
+
+            connectToSource(sourceType, sourceId = null) {
+                // Disconnect current source first
+                this.disconnectSource();
+
+                if (sourceType === 'master') {
+                    this.connectToMaster();
+                } else if (sourceType === 'drone' && sourceId !== null) {
+                    const droneBus = window.app.getDroneBus(sourceId);
+                    if (droneBus) {
+                        droneBus.connect(this.visualTap);
+                        this.currentSource = droneBus;
+                        console.log(`📊 Visualization connected to Drone ${sourceId}`);
+                    } else {
+                        console.warn(`Drone ${sourceId} not found`);
+                        this.connectToMaster(); // Fallback to master
+                    }
+                } else if (sourceType === 'test') {
+                    this.startTestTone();
+                }
+
+                this.source = sourceType;
+                this.sourceId = sourceId;
+            }
+
+            startTestTone() {
+                // Create test tone if doesn't exist
+                if (!this.testTone) {
+                    this.testTone = new Tone.Oscillator({
+                        frequency: 440,
+                        type: 'sine',
+                        volume: -12
+                    }).connect(this.visualTap);
+                }
+
+                this.testTone.start();
+                this.currentSource = this.testTone;
+                console.log('📊 Test tone started');
+            }
+
+            start() {
+                if (this.isRunning) return;
+                this.isRunning = true;
+                this.lastFrameTime = performance.now();
+                this.fpsUpdateTime = this.lastFrameTime;
+                this.animate();
+                this.updateStartStopButton();
+            }
+
+            stop() {
+                this.isRunning = false;
+                if (this.rafId) {
+                    cancelAnimationFrame(this.rafId);
+                    this.rafId = null;
+                }
+                this.updateStartStopButton();
+            }
+
+            animate() {
+                if (!this.isRunning) return;
+
+                const now = performance.now();
+                const elapsed = now - this.lastFrameTime;
+
+                // Cap to 60fps (16.67ms per frame)
+                if (elapsed >= 16.67) {
+                    this.drawVisualizations();
+                    this.lastFrameTime = now;
+
+                    // Update FPS counter
+                    this.frameCount++;
+                    if (now - this.fpsUpdateTime >= 1000) {
+                        this.fps = this.frameCount;
+                        this.frameCount = 0;
+                        this.fpsUpdateTime = now;
+                        this.updateFPSDisplay();
+                    }
+                }
+
+                this.rafId = requestAnimationFrame(() => this.animate());
+            }
+
+            drawVisualizations() {
+                this.drawWaveform();
+                this.drawFFT();
+                this.drawMeter();
+            }
+
+            drawWaveform() {
+                if (!this.waveformCanvas || !this.waveform) return;
+
+                const canvas = this.waveformCanvas;
+                const ctx = canvas.getContext('2d');
+                const rect = canvas.getBoundingClientRect();
+                const width = rect.width;
+                const height = rect.height;
+
+                // Clear
+                ctx.fillStyle = '#0a0a0a';
+                ctx.fillRect(0, 0, width, height);
+
+                // Get waveform data
+                const data = this.waveform.getValue();
+                const sliceWidth = width / data.length;
+
+                // Draw waveform
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#4A9EFF';
+                ctx.beginPath();
+
+                for (let i = 0; i < data.length; i++) {
+                    const x = i * sliceWidth;
+                    const y = (data[i] * 0.5 + 0.5) * height; // Map -1..1 to 0..height
+
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+
+                ctx.stroke();
+
+                // Draw center line
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(0, height / 2);
+                ctx.lineTo(width, height / 2);
+                ctx.stroke();
+            }
+
+            drawFFT() {
+                if (!this.fftCanvas || !this.fft) return;
+
+                const canvas = this.fftCanvas;
+                const ctx = canvas.getContext('2d');
+                const rect = canvas.getBoundingClientRect();
+                const width = rect.width;
+                const height = rect.height;
+
+                // Clear
+                ctx.fillStyle = '#0a0a0a';
+                ctx.fillRect(0, 0, width, height);
+
+                // Get FFT data (in dB)
+                const data = this.fft.getValue();
+                const barCount = Math.min(data.length / 2, 128); // Use lower half of spectrum
+                const barWidth = width / barCount;
+                const barGap = 2;
+
+                // Draw bars
+                for (let i = 0; i < barCount; i++) {
+                    const value = data[i];
+                    // Map dB (-100..0) to height (0..1)
+                    const normalized = (value + 100) / 100;
+                    const barHeight = normalized * height;
+
+                    const x = i * barWidth;
+                    const y = height - barHeight;
+
+                    // Gradient from blue to cyan
+                    const hue = 200 + (normalized * 60);
+                    ctx.fillStyle = `hsl(${hue}, 80%, 60%)`;
+                    ctx.fillRect(x, y, barWidth - barGap, barHeight);
+                }
+            }
+
+            drawMeter() {
+                if (!this.meterCanvas || !this.meter) return;
+
+                const canvas = this.meterCanvas;
+                const ctx = canvas.getContext('2d');
+                const rect = canvas.getBoundingClientRect();
+                const width = rect.width;
+                const height = rect.height;
+
+                // Clear
+                ctx.fillStyle = '#0a0a0a';
+                ctx.fillRect(0, 0, width, height);
+
+                // Get meter value
+                let levels = this.meter.getValue();
+                if (typeof levels === 'number') {
+                    levels = [levels, levels]; // Mono to stereo
+                }
+
+                const [left, right] = levels;
+                const barHeight = height / 2 - 10;
+                const barWidth = width - 100;
+
+                // Draw L channel
+                this.drawMeterBar(ctx, 10, 10, barWidth, barHeight, left, 'L');
+
+                // Draw R channel
+                this.drawMeterBar(ctx, 10, height / 2 + 5, barWidth, barHeight, right, 'R');
+            }
+
+            drawMeterBar(ctx, x, y, width, height, value, label) {
+                // Draw background
+                ctx.fillStyle = '#1a1a1a';
+                ctx.fillRect(x + 20, y, width, height);
+
+                // Convert linear to dB (approximate)
+                const dB = 20 * Math.log10(Math.max(value, 0.00001));
+                const normalized = Math.max(0, Math.min(1, (dB + 60) / 60)); // -60dB to 0dB
+
+                // Draw level bar
+                const levelWidth = normalized * width;
+                const gradient = ctx.createLinearGradient(x + 20, 0, x + 20 + width, 0);
+                gradient.addColorStop(0, '#4CAF50');
+                gradient.addColorStop(0.7, '#FFC107');
+                gradient.addColorStop(1, '#F44336');
+
+                ctx.fillStyle = gradient;
+                ctx.fillRect(x + 20, y, levelWidth, height);
+
+                // Draw label
+                ctx.fillStyle = '#888';
+                ctx.font = '12px monospace';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(label, x, y + height / 2);
+
+                // Draw dB text
+                ctx.textAlign = 'right';
+                ctx.fillText(dB.toFixed(1) + ' dB', x + 20 + width + 60, y + height / 2);
+            }
+
+            updateFPSDisplay() {
+                const fpsEl = document.getElementById('viz-fps');
+                if (fpsEl) {
+                    fpsEl.textContent = `${this.fps} FPS`;
+                }
+            }
+
+            updateStartStopButton() {
+                const btn = document.getElementById('viz-start-stop');
+                if (btn) {
+                    btn.textContent = this.isRunning ? 'Stop Visuals' : 'Start Visuals';
+                    btn.classList.toggle('active', this.isRunning);
+                }
+            }
+
+            attachEventListeners() {
+                // Start/Stop button
+                setTimeout(() => {
+                    const startStopBtn = document.getElementById('viz-start-stop');
+                    if (startStopBtn) {
+                        startStopBtn.addEventListener('click', () => {
+                            if (this.isRunning) {
+                                this.stop();
+                            } else {
+                                this.start();
+                            }
+                        });
+                    }
+
+                    // Source selector
+                    const sourceSelect = document.getElementById('viz-source-select');
+                    if (sourceSelect) {
+                        sourceSelect.addEventListener('change', (e) => {
+                            const value = e.target.value;
+                            if (value === 'master') {
+                                this.connectToSource('master');
+                            } else if (value === 'test') {
+                                this.connectToSource('test');
+                            } else if (value.startsWith('drone-')) {
+                                const droneId = parseInt(value.split('-')[1]);
+                                this.connectToSource('drone', droneId);
+                            }
+                        });
+                    }
+
+                    // Smoothing slider
+                    const smoothingSlider = document.getElementById('viz-smoothing');
+                    if (smoothingSlider) {
+                        smoothingSlider.addEventListener('input', (e) => {
+                            this.fftSmoothing = parseFloat(e.target.value);
+                            if (this.fft) {
+                                this.fft.smoothing = this.fftSmoothing;
+                            }
+                            document.getElementById('viz-smoothing-value').textContent = this.fftSmoothing.toFixed(2);
+                        });
+                    }
+
+                    // Update drone options periodically
+                    this.updateSourceOptions();
+                    this.droneUpdateInterval = setInterval(() => {
+                        this.updateSourceOptions();
+                    }, 2000); // Check every 2 seconds
+                }, 100);
+            }
+
+            updateSourceOptions() {
+                const sourceSelect = document.getElementById('viz-source-select');
+                if (!sourceSelect) return;
+
+                // Get active drones
+                const drones = window.app ? window.app.getActiveDrones() : [];
+
+                // Build options HTML
+                let optionsHtml = `
+                    <option value="master">Master Output</option>
+                    <option value="test">Test Tone (440 Hz)</option>
+                `;
+
+                // Add drone options
+                drones.forEach(drone => {
+                    const label = `Drone ${drone.id} (${drone.note}${drone.octave})${drone.isPlaying ? ' ▶' : ''}`;
+                    optionsHtml += `<option value="drone-${drone.id}">${label}</option>`;
+                });
+
+                // Update dropdown
+                const currentValue = sourceSelect.value;
+                sourceSelect.innerHTML = optionsHtml;
+
+                // Restore selection if still valid
+                const options = Array.from(sourceSelect.options);
+                if (options.some(opt => opt.value === currentValue)) {
+                    sourceSelect.value = currentValue;
+                } else {
+                    sourceSelect.value = 'master';
+                }
+            }
+
+            render() {
+                return `
+                    <div class="module-header">
+                        <h2>Visualization</h2>
+                        <p>See your sound in real-time with waveforms, spectrum analysis, and level meters</p>
+                    </div>
+
+                    <div class="info-box">
+                        <h4>📊 What You'll Learn</h4>
+                        <p>
+                            <strong>Time vs. Frequency:</strong> Waveforms show amplitude over time; spectrums show energy by frequency.<br>
+                            <strong>Passive Analyzers:</strong> These analyzers read the signal without modifying it.<br>
+                            <strong>Real-time Feedback:</strong> See how synthesis parameters affect the visual representation.
+                        </p>
+                    </div>
+
+                    <!-- Controls -->
+                    <div class="viz-controls">
+                        <div class="viz-control-group">
+                            <button id="viz-start-stop" class="active">Stop Visuals</button>
+                        </div>
+                        <div class="viz-control-group">
+                            <label>Input Source</label>
+                            <select id="viz-source-select" style="padding: 8px; border-radius: 4px; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border);">
+                                <option value="master">Master Output</option>
+                                <option value="test">Test Tone (440 Hz)</option>
+                            </select>
+                        </div>
+                        <div class="viz-control-group">
+                            <label>Smoothing</label>
+                            <input type="range" id="viz-smoothing" min="0" max="0.95" step="0.05" value="${this.fftSmoothing}">
+                            <span id="viz-smoothing-value" style="min-width: 40px; font-family: monospace; font-size: 12px; color: var(--text-primary);">${this.fftSmoothing.toFixed(2)}</span>
+                        </div>
+                        <div class="viz-control-group">
+                            <span id="viz-fps" class="fps-counter" style="position: static;">60 FPS</span>
+                        </div>
+                    </div>
+
+                    <!-- Oscilloscope -->
+                    <div class="viz-widget">
+                        <div class="viz-widget-header">
+                            <div class="viz-widget-title">Oscilloscope (Waveform)</div>
+                        </div>
+                        <div class="viz-canvas-container" style="position: relative;">
+                            <canvas id="viz-waveform" class="viz-canvas" width="800" height="200"></canvas>
+                        </div>
+                        <div class="viz-widget-hint">
+                            Shows amplitude vs. time. Smooth waveforms (sine/triangle) appear rounded; complex sounds show irregular patterns. Detune creates slow beating effects.
+                        </div>
+                    </div>
+
+                    <!-- Spectrum Analyzer -->
+                    <div class="viz-widget">
+                        <div class="viz-widget-header">
+                            <div class="viz-widget-title">Spectrum Analyzer (FFT)</div>
+                        </div>
+                        <div class="viz-canvas-container">
+                            <canvas id="viz-fft" class="viz-canvas" width="800" height="200"></canvas>
+                        </div>
+                        <div class="viz-widget-hint">
+                            Shows energy by frequency. Left = low frequencies, right = high frequencies. Low-pass filtering reduces high-frequency bars. Increase smoothing to reduce flickering.
+                        </div>
+                    </div>
+
+                    <!-- Level Meter -->
+                    <div class="viz-widget">
+                        <div class="viz-widget-header">
+                            <div class="viz-widget-title">Level Meter</div>
+                        </div>
+                        <div class="viz-canvas-container">
+                            <canvas id="viz-meter" class="viz-canvas" width="800" height="100"></canvas>
+                        </div>
+                        <div class="viz-widget-hint">
+                            Shows master output level. Keep peaks below 0 dBFS to avoid clipping. Multiple drones or loud sounds increase the overall level.
+                        </div>
+                    </div>
+
+                    <div class="info-box">
+                        <h4>💡 Tips</h4>
+                        <p>
+                            • Go to other modules (Basics, Drones, FX) and play sounds to see them visualized<br>
+                            • Try different waveforms in the Basics module to see how they look<br>
+                            • Stack multiple drones to see complex waveforms and rich spectrums<br>
+                            • Use the FX module's filter to see how it affects the frequency spectrum<br>
+                            • Higher smoothing in the spectrum analyzer creates a calmer, less jittery display
+                        </p>
+                    </div>
+                `;
+            }
+        }
+
+        class MIDIModule extends BaseModule {
+            constructor() {
+                super('midi', 'MIDI Input', '🎹');
+                this.isStub = true;
+            }
+
+            render() {
+                return `
+                    <div class="stub-content">
+                        <h3>🎹 MIDI Input</h3>
+                        <p>Connect MIDI controllers and keyboards to Tone.js</p>
+                        <p>Topics: Web MIDI API, note on/off, velocity, CC mapping</p>
+                        <span class="coming-soon">Coming Soon</span>
+                    </div>
+                `;
+            }
+        }
+
+        class AdvancedModule extends BaseModule {
+            constructor() {
+                super('advanced', 'Advanced', '🚀');
+                this.isStub = true;
+            }
+
+            render() {
+                return `
+                    <div class="stub-content">
+                        <h3>🚀 Advanced Topics</h3>
+                        <p>Explore advanced synthesis and sampling techniques</p>
+                        <p>Topics: PolySynth, Sampler, granular synthesis, custom instruments</p>
+                        <span class="coming-soon">Coming Soon</span>
+                    </div>
+                `;
+            }
+        }
+
+        // ============================================
+        // MAIN APPLICATION CONTROLLER
+        // Manages module switching and navigation
+        // ============================================
+        class ToneLabApp {
+            constructor() {
+                this.modules = [];
+                this.currentModule = null;
+                this.navContainer = document.getElementById('navList');
+                this.contentContainer = document.getElementById('moduleContainer');
+
+                // Create master bus for visualization tap
+                // All audio should eventually flow through this before Destination
+                this.masterBus = new Tone.Gain(1).toDestination();
+
+                // Make app globally available for modules to access masterBus
+                window.app = this;
+
+                this.init();
+            }
+
+            init() {
+                // Register all modules
+                this.registerModule(new BasicsModule());
+                this.registerModule(new SequencerModule());
+                this.registerModule(new FXModule());
+
+                // Store reference to Drones module for visualization access
+                this.dronesModule = new DronesModule();
+                this.registerModule(this.dronesModule);
+
+                this.registerModule(new VisualizationModule());
+                this.registerModule(new MIDIModule());
+                this.registerModule(new AdvancedModule());
+
+                // Build navigation
+                this.buildNavigation();
+
+                // Setup mobile menu
+                this.setupMobileMenu();
+
+                // Load first module
+                this.switchToModule('basics');
+
+                console.log('🚀 Tone.js Learning Lab initialized');
+            }
+
+            // API for visualization to access master bus
+            getMasterBus() {
+                return this.masterBus;
+            }
+
+            // API for visualization to access individual drone buses
+            getDroneBus(droneId) {
+                if (this.dronesModule && this.dronesModule.getDroneBus) {
+                    return this.dronesModule.getDroneBus(droneId);
+                }
+                return null;
+            }
+
+            // API to get list of active drones
+            getActiveDrones() {
+                if (this.dronesModule && this.dronesModule.drones) {
+                    return this.dronesModule.drones.map(d => ({
+                        id: d.id,
+                        note: d.note,
+                        octave: d.octave,
+                        isPlaying: d.isPlaying
+                    }));
+                }
+                return [];
+            }
+
+            // Setup mobile menu toggle
+            setupMobileMenu() {
+                const menuToggle = document.getElementById('menuToggle');
+                const sidebar = document.getElementById('sidebar');
+                const backdrop = document.getElementById('sidebarBackdrop');
+
+                if (!menuToggle || !sidebar || !backdrop) return;
+
+                // Toggle menu
+                const toggleMenu = () => {
+                    const isOpen = sidebar.classList.contains('open');
+
+                    if (isOpen) {
+                        sidebar.classList.remove('open');
+                        backdrop.classList.remove('active');
+                        menuToggle.classList.remove('active');
+                    } else {
+                        sidebar.classList.add('open');
+                        backdrop.classList.add('active');
+                        menuToggle.classList.add('active');
+                    }
+                };
+
+                // Menu button click
+                menuToggle.addEventListener('click', toggleMenu);
+
+                // Backdrop click closes menu
+                backdrop.addEventListener('click', toggleMenu);
+
+                // Close menu when nav item clicked (on mobile)
+                this.navContainer.addEventListener('click', (e) => {
+                    if (e.target.closest('.nav-item') && !e.target.closest('.nav-item').classList.contains('disabled')) {
+                        // Small delay to let the click register
+                        setTimeout(() => {
+                            if (window.innerWidth <= 768) {
+                                toggleMenu();
+                            }
+                        }, 200);
+                    }
+                });
+            }
+
+            // Register a new module
+            registerModule(module) {
+                this.modules.push(module);
+            }
+
+            // Build the navigation sidebar
+            buildNavigation() {
+                this.navContainer.innerHTML = '';
+
+                this.modules.forEach(module => {
+                    const navItem = document.createElement('li');
+                    navItem.className = 'nav-item';
+                    if (module.isStub) navItem.classList.add('disabled');
+                    navItem.dataset.moduleId = module.id;
+
+                    navItem.innerHTML = `
+                        <span class="nav-item-icon">${module.icon}</span>
+                        <span class="nav-item-text">${module.title}</span>
+                        ${module.isStub ? '<span class="nav-item-badge">Soon</span>' : ''}
+                    `;
+
+                    if (!module.isStub) {
+                        navItem.addEventListener('click', () => this.switchToModule(module.id));
+                    }
+
+                    this.navContainer.appendChild(navItem);
+                });
+            }
+
+            // Switch to a different module
+            switchToModule(moduleId) {
+                // Find the module
+                const module = this.modules.find(m => m.id === moduleId);
+                if (!module || module.isStub) return;
+
+                // Unmount current module
+                if (this.currentModule) {
+                    this.currentModule.unmount();
+                }
+
+                // Update navigation
+                document.querySelectorAll('.nav-item').forEach(item => {
+                    item.classList.remove('active');
+                    if (item.dataset.moduleId === moduleId) {
+                        item.classList.add('active');
+                    }
+                });
+
+                // Render new module
+                this.contentContainer.innerHTML = `
+                    <div class="module active" id="module-${module.id}">
+                        ${module.render()}
+                    </div>
+                `;
+
+                // Mount new module
+                this.currentModule = module;
+                this.currentModule.mount();
+            }
+        }
+
+        // ============================================
+        // START THE APPLICATION
+        // ============================================
+        document.addEventListener('DOMContentLoaded', () => {
+            window.toneLabApp = new ToneLabApp();
+        });
+
+        /* ============================================
+           ROADMAP FOR FUTURE MODULES
+           ============================================
+
+           This section outlines how each stub module would be implemented.
+           Each follows the same pattern as BasicsModule.
+
+           -------------------------------------------
+           SEQUENCER & TRANSPORT MODULE
+           -------------------------------------------
+           Purpose: Teach pattern-based music creation and timing
+
+           Key Components:
+           - Tone.Transport (global clock/scheduler)
+           - Tone.Sequence or Tone.Pattern for note patterns
+           - Step sequencer UI (8 or 16 steps)
+           - BPM control
+           - Play/Pause/Stop controls
+           - Step editing (toggle notes on/off)
+
+           Implementation:
+           class SequencerModule extends BaseModule {
+               - Create Transport controls (start, stop, pause)
+               - Build step sequencer grid (16 steps × 4 tracks)
+               - Use Tone.Sequence to schedule notes
+               - Add BPM slider (60-200)
+               - Visual feedback: highlight current step
+               - Allow pattern saving/loading
+           }
+
+           Teaching Focus:
+           - Transport is global (shared across app)
+           - Scheduling vs immediate playback
+           - Timing and quantization
+           - Loop points and repeat
+
+           -------------------------------------------
+           FX & MODULATION MODULE
+           -------------------------------------------
+           Purpose: Add effects and LFO-driven modulation
+
+           Key Components:
+           - Effects chain: Reverb, Delay, Distortion, Chorus
+           - Tone.LFO for modulation
+           - Effect bypass toggles
+           - Wet/dry mix controls
+           - LFO rate and depth
+
+           Implementation:
+           class FXModule extends BaseModule {
+               - Create synth → effects chain → destination
+               - Add reverb (room size, decay)
+               - Add delay (time, feedback)
+               - Add distortion (amount)
+               - Create LFO → modulate filter cutoff
+               - Visual representation of signal flow
+           }
+
+           Teaching Focus:
+           - Signal routing (connect vs toDestination)
+           - Wet/dry mixing
+           - LFO modulation targets
+           - Effect order matters
+
+           -------------------------------------------
+           DRONES & OCTAVES MODULE
+           -------------------------------------------
+           Purpose: Sustained tones and polyphony
+
+           Key Components:
+           - Tone.PolySynth for multiple voices
+           - Octave selector (-2 to +2)
+           - Drone lock (sustained note)
+           - Voice stacking (play multiple notes)
+           - Chord builder
+
+           Implementation:
+           class DronesModule extends BaseModule {
+               - Use PolySynth for polyphony
+               - Add octave transpose control
+               - Drone toggle locks a note
+               - Build chord presets (maj, min, 7th)
+               - Visual: show active voices
+           }
+
+           Teaching Focus:
+           - PolySynth vs monophonic Synth
+           - Voice allocation
+           - Note stacking and chords
+           - Octave relationships
+
+           -------------------------------------------
+           VISUALIZATION MODULE
+           -------------------------------------------
+           Purpose: Real-time audio visualization
+
+           Key Components:
+           - Tone.Waveform (time-domain oscilloscope)
+           - Tone.FFT (frequency spectrum)
+           - Canvas drawing
+           - Animation loop
+
+           Implementation:
+           class VisualizationModule extends BaseModule {
+               - Create canvas element
+               - Connect synth → Waveform analyzer
+               - requestAnimationFrame loop
+               - Draw waveform or FFT
+               - Add visualization style toggles
+           }
+
+           Teaching Focus:
+           - Analyzers don't affect audio (passive)
+           - Time vs frequency domain
+           - getValue() returns typed array
+           - Canvas drawing basics
+
+           -------------------------------------------
+           MIDI INPUT MODULE
+           -------------------------------------------
+           Purpose: Connect external MIDI controllers
+
+           Key Components:
+           - navigator.requestMIDIAccess()
+           - MIDI message parsing
+           - Note on/off → synth
+           - Velocity mapping
+           - CC to parameter mapping
+
+           Implementation:
+           class MIDIModule extends BaseModule {
+               - Request MIDI access
+               - List available devices
+               - Parse note on/off (0x90, 0x80)
+               - Map velocity to volume
+               - Map CC to filter cutoff
+               - Visual: show incoming messages
+           }
+
+           Teaching Focus:
+           - Web MIDI API (separate from Tone.js)
+           - MIDI message structure
+           - Note on/off, velocity, CC
+           - Mapping MIDI to parameters
+
+           -------------------------------------------
+           ADVANCED MODULE
+           -------------------------------------------
+           Purpose: Complex synthesis and sampling
+
+           Key Components:
+           - Tone.Sampler (load audio files)
+           - Tone.PolySynth with custom voice
+           - Granular synthesis concepts
+           - Custom instrument creation
+
+           Implementation:
+           class AdvancedModule extends BaseModule {
+               - Load samples into Sampler
+               - Create PolySynth with FMSynth
+               - Build custom instrument class
+               - Show signal routing diagrams
+               - Performance optimization tips
+           }
+
+           Teaching Focus:
+           - Sampler vs Synth
+           - Creating instrument classes
+           - Performance considerations
+           - Advanced routing
+
+           -------------------------------------------
+           GENERAL IMPLEMENTATION PATTERN
+           -------------------------------------------
+
+           Each module follows this structure:
+
+           1. Extend BaseModule
+           2. Define constructor with defaults
+           3. Implement mount() - create Tone.js objects
+           4. Implement unmount() - dispose objects
+           5. Implement render() - return HTML string
+           6. Add event listeners in mount()
+           7. Clean up in unmount()
+           8. Save/load state via localStorage
+
+           Module Lifecycle:
+           - User clicks nav item
+           - App calls currentModule.unmount()
+           - App renders new module HTML
+           - App calls newModule.mount()
+
+           This ensures clean state management and
+           prevents audio resource leaks.
+
+           ============================================ */
+    </script>
+</body>
+</html>
