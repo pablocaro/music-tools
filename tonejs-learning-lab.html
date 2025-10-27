@@ -1337,7 +1337,14 @@
             // Create Tone.js synth and effects chain
             createAudioChain() {
                 // Create a lowpass filter to tame harsh frequencies
-                this.filter = new Tone.Filter(this.settings.filterFreq, 'lowpass').toDestination();
+                this.filter = new Tone.Filter(this.settings.filterFreq, 'lowpass');
+
+                // Connect to master bus if available
+                if (window.app && window.app.getMasterBus) {
+                    this.filter.connect(window.app.getMasterBus());
+                } else {
+                    this.filter.toDestination();
+                }
 
                 // Create a basic synth with configurable envelope
                 this.synth = new Tone.Synth({
@@ -1815,7 +1822,15 @@
                         sustain: 0.3,
                         release: 0.1
                     }
-                }).toDestination();
+                });
+
+                // Connect to master bus if available
+                if (window.app && window.app.getMasterBus) {
+                    this.synth.connect(window.app.getMasterBus());
+                } else {
+                    this.synth.toDestination();
+                }
+
                 this.synth.volume.value = -10;
 
                 // Set BPM
@@ -2093,13 +2108,23 @@
                 this.reverb = new Tone.Reverb({
                     decay: this.settings.reverbDecay,
                     wet: this.settings.reverbWet
-                }).toDestination();
+                });
 
                 this.delay = new Tone.FeedbackDelay({
                     delayTime: this.settings.delayTime,
                     feedback: this.settings.delayFeedback,
                     wet: this.settings.delayWet
-                }).toDestination();
+                });
+
+                // Connect to master bus if available
+                if (window.app && window.app.getMasterBus) {
+                    const masterBus = window.app.getMasterBus();
+                    this.reverb.connect(masterBus);
+                    this.delay.connect(masterBus);
+                } else {
+                    this.reverb.toDestination();
+                    this.delay.toDestination();
+                }
 
                 this.distortion = new Tone.Distortion({
                     distortion: this.settings.distortionAmount,
@@ -2582,10 +2607,18 @@
                 this.sharedReverb = new Tone.Reverb({
                     decay: 2.5,
                     wet: 0.25
-                }).toDestination();
+                });
 
                 // Master limiter to prevent clipping
                 this.masterLimiter = new Tone.Limiter(-6).connect(this.sharedReverb);
+
+                // Connect to app's master bus for visualization tap
+                if (window.app && window.app.getMasterBus) {
+                    this.sharedReverb.connect(window.app.getMasterBus());
+                } else {
+                    // Fallback to Destination if app not ready
+                    this.sharedReverb.toDestination();
+                }
             }
 
             disposeSharedAudio() {
@@ -2894,6 +2927,12 @@
                 this.drones = [];
             }
 
+            // API for visualization to tap individual drone audio
+            getDroneBus(droneId) {
+                const drone = this.drones.find(d => d.id === droneId);
+                return drone ? drone.gain : null;
+            }
+
             updateDronesList() {
                 const list = document.getElementById('dronesList');
                 const addBtn = document.getElementById('addDroneBtn');
@@ -3163,8 +3202,11 @@
                 this.frameCount = 0;
                 this.fpsUpdateTime = 0;
 
-                // Settings
-                this.source = 'master'; // 'master' or 'drone-N'
+                // Source management
+                this.source = 'master'; // 'master', 'drone', or 'test'
+                this.sourceId = null; // Drone ID if source is 'drone'
+                this.currentSource = null; // Current audio node connected
+                this.testTone = null; // Test oscillator
                 this.fftSmoothing = 0.8;
             }
 
@@ -3181,6 +3223,15 @@
             unmount() {
                 super.unmount();
                 this.stop();
+                this.disconnectSource();
+                if (this.testTone) {
+                    this.testTone.dispose();
+                    this.testTone = null;
+                }
+                if (this.droneUpdateInterval) {
+                    clearInterval(this.droneUpdateInterval);
+                    this.droneUpdateInterval = null;
+                }
                 this.disposeAnalyzers();
             }
 
@@ -3233,14 +3284,71 @@
             }
 
             connectToMaster() {
-                // Try to connect to Tone.Destination
-                // In a real app, you'd connect to a master bus
-                // For now, we'll create a listener on the destination
-                try {
-                    Tone.Destination.connect(this.visualTap);
-                } catch (e) {
-                    console.warn('Could not connect to Destination:', e);
+                // Connect to app's master bus
+                if (window.app && window.app.getMasterBus) {
+                    const masterBus = window.app.getMasterBus();
+                    masterBus.connect(this.visualTap);
+                    this.currentSource = masterBus;
+                    console.log('📊 Visualization connected to master bus');
+                } else {
+                    console.warn('Master bus not available');
                 }
+            }
+
+            disconnectSource() {
+                // Disconnect current source
+                if (this.currentSource) {
+                    try {
+                        this.currentSource.disconnect(this.visualTap);
+                    } catch (e) {
+                        console.warn('Could not disconnect source:', e);
+                    }
+                    this.currentSource = null;
+                }
+
+                // Stop test tone if active
+                if (this.testTone && this.testTone.state === 'started') {
+                    this.testTone.stop();
+                }
+            }
+
+            connectToSource(sourceType, sourceId = null) {
+                // Disconnect current source first
+                this.disconnectSource();
+
+                if (sourceType === 'master') {
+                    this.connectToMaster();
+                } else if (sourceType === 'drone' && sourceId !== null) {
+                    const droneBus = window.app.getDroneBus(sourceId);
+                    if (droneBus) {
+                        droneBus.connect(this.visualTap);
+                        this.currentSource = droneBus;
+                        console.log(`📊 Visualization connected to Drone ${sourceId}`);
+                    } else {
+                        console.warn(`Drone ${sourceId} not found`);
+                        this.connectToMaster(); // Fallback to master
+                    }
+                } else if (sourceType === 'test') {
+                    this.startTestTone();
+                }
+
+                this.source = sourceType;
+                this.sourceId = sourceId;
+            }
+
+            startTestTone() {
+                // Create test tone if doesn't exist
+                if (!this.testTone) {
+                    this.testTone = new Tone.Oscillator({
+                        frequency: 440,
+                        type: 'sine',
+                        volume: -12
+                    }).connect(this.visualTap);
+                }
+
+                this.testTone.start();
+                this.currentSource = this.testTone;
+                console.log('📊 Test tone started');
             }
 
             start() {
@@ -3461,6 +3569,22 @@
                         });
                     }
 
+                    // Source selector
+                    const sourceSelect = document.getElementById('viz-source-select');
+                    if (sourceSelect) {
+                        sourceSelect.addEventListener('change', (e) => {
+                            const value = e.target.value;
+                            if (value === 'master') {
+                                this.connectToSource('master');
+                            } else if (value === 'test') {
+                                this.connectToSource('test');
+                            } else if (value.startsWith('drone-')) {
+                                const droneId = parseInt(value.split('-')[1]);
+                                this.connectToSource('drone', droneId);
+                            }
+                        });
+                    }
+
                     // Smoothing slider
                     const smoothingSlider = document.getElementById('viz-smoothing');
                     if (smoothingSlider) {
@@ -3472,7 +3596,45 @@
                             document.getElementById('viz-smoothing-value').textContent = this.fftSmoothing.toFixed(2);
                         });
                     }
+
+                    // Update drone options periodically
+                    this.updateSourceOptions();
+                    this.droneUpdateInterval = setInterval(() => {
+                        this.updateSourceOptions();
+                    }, 2000); // Check every 2 seconds
                 }, 100);
+            }
+
+            updateSourceOptions() {
+                const sourceSelect = document.getElementById('viz-source-select');
+                if (!sourceSelect) return;
+
+                // Get active drones
+                const drones = window.app ? window.app.getActiveDrones() : [];
+
+                // Build options HTML
+                let optionsHtml = `
+                    <option value="master">Master Output</option>
+                    <option value="test">Test Tone (440 Hz)</option>
+                `;
+
+                // Add drone options
+                drones.forEach(drone => {
+                    const label = `Drone ${drone.id} (${drone.note}${drone.octave})${drone.isPlaying ? ' ▶' : ''}`;
+                    optionsHtml += `<option value="drone-${drone.id}">${label}</option>`;
+                });
+
+                // Update dropdown
+                const currentValue = sourceSelect.value;
+                sourceSelect.innerHTML = optionsHtml;
+
+                // Restore selection if still valid
+                const options = Array.from(sourceSelect.options);
+                if (options.some(opt => opt.value === currentValue)) {
+                    sourceSelect.value = currentValue;
+                } else {
+                    sourceSelect.value = 'master';
+                }
             }
 
             render() {
@@ -3495,6 +3657,13 @@
                     <div class="viz-controls">
                         <div class="viz-control-group">
                             <button id="viz-start-stop" class="active">Stop Visuals</button>
+                        </div>
+                        <div class="viz-control-group">
+                            <label>Input Source</label>
+                            <select id="viz-source-select" style="padding: 8px; border-radius: 4px; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border);">
+                                <option value="master">Master Output</option>
+                                <option value="test">Test Tone (440 Hz)</option>
+                            </select>
                         </div>
                         <div class="viz-control-group">
                             <label>Smoothing</label>
@@ -3606,6 +3775,13 @@
                 this.navContainer = document.getElementById('navList');
                 this.contentContainer = document.getElementById('moduleContainer');
 
+                // Create master bus for visualization tap
+                // All audio should eventually flow through this before Destination
+                this.masterBus = new Tone.Gain(1).toDestination();
+
+                // Make app globally available for modules to access masterBus
+                window.app = this;
+
                 this.init();
             }
 
@@ -3614,7 +3790,11 @@
                 this.registerModule(new BasicsModule());
                 this.registerModule(new SequencerModule());
                 this.registerModule(new FXModule());
-                this.registerModule(new DronesModule());
+
+                // Store reference to Drones module for visualization access
+                this.dronesModule = new DronesModule();
+                this.registerModule(this.dronesModule);
+
                 this.registerModule(new VisualizationModule());
                 this.registerModule(new MIDIModule());
                 this.registerModule(new AdvancedModule());
@@ -3629,6 +3809,32 @@
                 this.switchToModule('basics');
 
                 console.log('🚀 Tone.js Learning Lab initialized');
+            }
+
+            // API for visualization to access master bus
+            getMasterBus() {
+                return this.masterBus;
+            }
+
+            // API for visualization to access individual drone buses
+            getDroneBus(droneId) {
+                if (this.dronesModule && this.dronesModule.getDroneBus) {
+                    return this.dronesModule.getDroneBus(droneId);
+                }
+                return null;
+            }
+
+            // API to get list of active drones
+            getActiveDrones() {
+                if (this.dronesModule && this.dronesModule.drones) {
+                    return this.dronesModule.drones.map(d => ({
+                        id: d.id,
+                        note: d.note,
+                        octave: d.octave,
+                        isPlaying: d.isPlaying
+                    }));
+                }
+                return [];
             }
 
             // Setup mobile menu toggle
