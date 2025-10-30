@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radial Piano - Experimental</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <button class="toggle-controls" id="toggleBtn" aria-label="Open controls">⚙</button>
+
+    <div class="modal-backdrop" id="modalBackdrop">
+        <div class="modal-content" id="modalContent">
+            <button class="modal-close" id="closeBtn" aria-label="Close controls">✕</button>
+
+            <h3>Radial Piano Controls</h3>
+
+            <div class="control-group">
+                <div class="theme-switch-container">
+                    <label>Theme:</label>
+                    <div class="theme-switch">
+                        <button class="theme-option" id="darkThemeBtn" aria-label="Dark theme">Dark</button>
+                        <button class="theme-option" id="lightThemeBtn" aria-label="Light theme">Light</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="sliceCount">Number of Slices:</label>
+                <div class="number-input">
+                    <button class="stepper-btn" id="sliceDecBtn" aria-label="Decrease slices">−</button>
+                    <input type="number" id="sliceCount" value="32" min="6" max="72" aria-label="Number of slices">
+                    <button class="stepper-btn" id="sliceIncBtn" aria-label="Increase slices">+</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="bgGraySlider">Background Gray: <span class="range-value" id="bgGrayValue">18</span>%</label>
+                <input type="range" id="bgGraySlider" min="0" max="100" value="18" aria-label="Background gray">
+            </div>
+
+            <div class="control-group">
+                <label for="offsetXSlider">Offset X: <span class="range-value" id="offsetXValue">0</span>%</label>
+                <input type="range" id="offsetXSlider" min="-100" max="100" value="0" aria-label="Horizontal offset">
+            </div>
+
+            <div class="control-group">
+                <label for="offsetYSlider">Offset Y: <span class="range-value" id="offsetYValue">0</span>%</label>
+                <input type="range" id="offsetYSlider" min="-100" max="100" value="0" aria-label="Vertical offset">
+            </div>
+
+            <div class="control-group">
+                <label for="radiusSlider">Radius: <span class="range-value" id="radiusValue">100</span>%</label>
+                <input type="range" id="radiusSlider" min="20" max="200" value="100" aria-label="Circle radius">
+            </div>
+
+            <div class="control-group">
+                <label for="rotationSlider">Rotation: <span class="range-value" id="rotationValue">58</span>°</label>
+                <input type="range" id="rotationSlider" min="0" max="359" value="58" aria-label="Circle rotation">
+            </div>
+
+            <div class="control-group">
+                <label for="gapSizeSlider">Gap Size: <span class="range-value" id="gapSizeValue">0.2</span>°</label>
+                <input type="range" id="gapSizeSlider" min="0" max="3" step="0.1" value="0.2" aria-label="Gap size">
+            </div>
+
+            <div class="control-group">
+                <label for="gripThicknessSlider">Grip Thickness: <span class="range-value" id="gripThicknessValue">2</span>px</label>
+                <input type="range" id="gripThicknessSlider" min="0.5" max="4" step="0.5" value="2" aria-label="Grip thickness">
+            </div>
+
+            <div class="control-group">
+                <label for="ticksPerEdgeSlider">Ticks Per Edge: <span class="range-value" id="ticksPerEdgeValue">4</span></label>
+                <input type="range" id="ticksPerEdgeSlider" min="0" max="20" step="1" value="4" aria-label="Ticks per edge">
+            </div>
+
+            <div class="control-group">
+                <label for="gripOpacitySlider">Grip Opacity: <span class="range-value" id="gripOpacityValue">10</span>%</label>
+                <input type="range" id="gripOpacitySlider" min="0" max="100" step="5" value="10" aria-label="Grip opacity">
+            </div>
+
+            <div class="control-group">
+                <label for="gripRingOpacitySlider">Grip Ring Opacity: <span class="range-value" id="gripRingOpacityValue">0</span>%</label>
+                <input type="range" id="gripRingOpacitySlider" min="0" max="100" step="5" value="0" aria-label="Grip ring opacity">
+            </div>
+
+            <div class="control-group">
+                <label for="gripInsetSlider">Grip Inset: <span class="range-value" id="gripInsetValue">5</span>%</label>
+                <input type="range" id="gripInsetSlider" min="0" max="50" step="5" value="5" aria-label="Grip inset">
+            </div>
+
+            <div class="control-group">
+                <label for="pressShrinkSlider">Press Shrink: <span class="range-value" id="pressShrinkValue">2</span>%</label>
+                <input type="range" id="pressShrinkSlider" min="0" max="20" step="1" value="2" aria-label="Press shrink">
+            </div>
+
+            <div class="control-group">
+                <label for="pressBrightnessSlider">Press Brightness: <span class="range-value" id="pressBrightnessValue">30</span>%</label>
+                <input type="range" id="pressBrightnessSlider" min="0" max="100" step="5" value="30" aria-label="Press brightness">
+            </div>
+
+            <h3 style="margin-top: 32px; padding-top: 24px; border-top: 2px solid #e0e0e0;">Experimental Settings</h3>
+
+            <div class="control-group">
+                <label for="droneLockTimeSlider">Drone Lock Time: <span class="range-value" id="droneLockTimeValue">3000</span>ms</label>
+                <input type="range" id="droneLockTimeSlider" min="1000" max="8000" step="500" value="3000" aria-label="Drone lock time">
+            </div>
+
+            <div class="control-group">
+                <label for="notchGrowthFactorSlider">Notch Growth Factor: <span class="range-value" id="notchGrowthFactorValue">1.3</span>x</label>
+                <input type="range" id="notchGrowthFactorSlider" min="1.0" max="2.0" step="0.1" value="1.3" aria-label="Notch growth factor">
+            </div>
+
+            <div class="control-group">
+                <label for="notchActivationSpeedSlider">Notch Activation Speed: <span class="range-value" id="notchActivationSpeedValue">200</span>ms</label>
+                <input type="range" id="notchActivationSpeedSlider" min="50" max="1000" step="50" value="200" aria-label="Notch activation speed">
+            </div>
+
+            <div class="control-group">
+                <label for="notchDeactivationSpeedSlider">Notch Deactivation Speed: <span class="range-value" id="notchDeactivationSpeedValue">300</span>ms</label>
+                <input type="range" id="notchDeactivationSpeedSlider" min="50" max="1000" step="50" value="300" aria-label="Notch deactivation speed">
+            </div>
+
+            <div class="control-group">
+                <label for="notchBrightnessBoostSlider">Notch Brightness Boost: <span class="range-value" id="notchBrightnessBoostValue">1.5</span>x</label>
+                <input type="range" id="notchBrightnessBoostSlider" min="1.0" max="3.0" step="0.1" value="1.5" aria-label="Notch brightness boost">
+            </div>
+
+            <div class="control-group">
+                <label for="ringThicknessBoostSlider">Ring Thickness Boost: <span class="range-value" id="ringThicknessBoostValue">1.3</span>x</label>
+                <input type="range" id="ringThicknessBoostSlider" min="1.0" max="2.0" step="0.1" value="1.3" aria-label="Ring thickness boost">
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <svg class="radial-piano" id="pianoSvg" role="application" aria-label="Radial piano interface"></svg>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
