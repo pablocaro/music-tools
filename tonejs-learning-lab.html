@@ -1153,6 +1153,209 @@
                 font-size: 16px;
             }
         }
+
+        /* ============================================
+           MIDI MODULE STYLES
+           ============================================ */
+
+        /* MIDI Message Log */
+        .midi-message-log {
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .midi-log-entry {
+            display: grid;
+            grid-template-columns: 100px 100px 1fr;
+            gap: 15px;
+            padding: 8px;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.15s;
+        }
+
+        .midi-log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .midi-log-entry.note-msg {
+            background: rgba(74, 158, 255, 0.1);
+        }
+
+        .midi-log-entry.cc-msg {
+            background: rgba(76, 175, 80, 0.1);
+        }
+
+        .midi-log-time {
+            color: var(--text-dim);
+            font-size: 11px;
+        }
+
+        .midi-log-type {
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        .midi-log-data {
+            color: var(--text-secondary);
+        }
+
+        /* Active Notes Display */
+        .active-note-badge {
+            display: inline-block;
+            background: var(--accent);
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 4px;
+            margin: 2px;
+            font-weight: bold;
+            font-size: 12px;
+            animation: noteFlash 0.3s ease;
+        }
+
+        @keyframes noteFlash {
+            0% { transform: scale(1.2); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* CC Mapping Grid */
+        .cc-mapping-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .cc-mapping-item {
+            background: var(--bg-tertiary);
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+        }
+
+        .cc-mapping-item label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .cc-value {
+            background: var(--bg-primary);
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            text-align: center;
+            font-weight: bold;
+            color: var(--accent);
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .cc-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .cc-buttons button {
+            flex: 1;
+        }
+
+        /* MIDI Recording Panel */
+        .midi-recording-panel {
+            background: var(--bg-tertiary);
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid var(--border);
+        }
+
+        .recording-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .recording-controls button {
+            flex: 1;
+        }
+
+        .recording-status {
+            background: var(--bg-primary);
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+
+        .recording-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border);
+        }
+
+        .recording-stats div {
+            text-align: center;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .recording-stats span {
+            display: block;
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--accent);
+            margin-top: 5px;
+        }
+
+        .recording-settings {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .recording-settings .control-group {
+            margin-bottom: 0;
+        }
+
+        /* Buttons */
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+
+        /* Responsive: MIDI Module */
+        @media (max-width: 768px) {
+            .midi-log-entry {
+                grid-template-columns: 80px 80px 1fr;
+                gap: 10px;
+                font-size: 12px;
+            }
+
+            .cc-mapping-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .recording-stats {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .recording-settings {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -3731,16 +3934,1262 @@
         class MIDIModule extends BaseModule {
             constructor() {
                 super('midi', 'MIDI Input', '🎹');
-                this.isStub = true;
+
+                // MIDI state
+                this.midiAccess = null;
+                this.selectedInput = null;
+                this.selectedInputId = null;
+
+                // Audio components
+                this.polySynth = null;
+                this.filter = null;
+                this.reverb = null;
+
+                // Active notes tracking (for polyphony)
+                this.activeNotes = new Map(); // note number -> {synth, velocity}
+
+                // Message log
+                this.messageLog = [];
+                this.maxLogEntries = 50;
+
+                // CC Mapping
+                this.ccMappings = {}; // { paramName: ccNumber }
+                this.ccLearnMode = null; // which param we're learning
+
+                // Recording state
+                this.isRecording = false;
+                this.recordedEvents = [];
+                this.recordingStartTime = null;
+                this.recordingTimer = null;
+                this.recordingDuration = 0;
+
+                // Settings
+                this.defaults = {
+                    waveform: 'sawtooth',
+                    attack: 0.05,
+                    decay: 0.2,
+                    sustain: 0.6,
+                    release: 0.5,
+                    filterFreq: 2000,
+                    filterQ: 5,
+                    reverbMix: 0.3,
+                    volume: -12,
+                    voiceCount: 8,
+                    velocityToVolume: true,
+                    velocityToFilter: true,
+                    velocityCurve: 'linear',
+                    bpm: 120,
+                    recordCC: true,
+                    selectedInputId: null
+                };
+
+                this.settings = { ...this.defaults };
+            }
+
+            mount() {
+                super.mount();
+                this.loadSettings();
+                this.createAudioChain();
+                this.attachEventListeners();
+                this.checkMIDISupport();
+                this.updateInitialDisplays();
+            }
+
+            unmount() {
+                super.unmount();
+                this.stopRecording();
+                this.removeEventListeners();
+                this.closeMIDI();
+                this.disposeAudio();
+            }
+
+            // Check if Web MIDI API is supported
+            checkMIDISupport() {
+                const statusEl = document.getElementById('midi-status');
+                if (!navigator.requestMIDIAccess) {
+                    if (statusEl) {
+                        statusEl.innerHTML = '<span style="color: var(--warning);">⚠️ Web MIDI API not supported in this browser</span>';
+                    }
+                    console.warn('Web MIDI API not supported');
+                } else {
+                    if (statusEl) {
+                        statusEl.innerHTML = '<span style="color: var(--text-dim);">⚪ Ready - Click "Request MIDI Access"</span>';
+                    }
+                }
+            }
+
+            // Request MIDI access from browser
+            async requestMIDIAccess() {
+                const statusEl = document.getElementById('midi-status');
+                const btn = document.getElementById('midi-request-btn');
+
+                try {
+                    if (statusEl) statusEl.innerHTML = '<span style="color: var(--warning);">🟡 Requesting MIDI access...</span>';
+
+                    this.midiAccess = await navigator.requestMIDIAccess();
+
+                    if (statusEl) statusEl.innerHTML = '<span style="color: var(--success);">🟢 MIDI Access Granted</span>';
+                    if (btn) btn.disabled = true;
+
+                    // Listen for device connect/disconnect
+                    this.midiAccess.onstatechange = () => this.onMIDIStateChange();
+
+                    // Populate device list
+                    this.refreshDeviceList();
+
+                    console.log('✅ MIDI Access granted');
+                } catch (err) {
+                    console.error('MIDI Access denied:', err);
+                    if (statusEl) statusEl.innerHTML = '<span style="color: var(--warning);">🔴 MIDI Access Denied</span>';
+                }
+            }
+
+            // Handle MIDI device connect/disconnect
+            onMIDIStateChange() {
+                console.log('🔌 MIDI device state changed');
+                this.refreshDeviceList();
+            }
+
+            // Refresh the device list dropdown
+            refreshDeviceList() {
+                const selectEl = document.getElementById('midi-device-select');
+                if (!selectEl || !this.midiAccess) return;
+
+                const inputs = Array.from(this.midiAccess.inputs.values());
+
+                if (inputs.length === 0) {
+                    selectEl.innerHTML = '<option value="">No MIDI devices found</option>';
+                    selectEl.disabled = true;
+                    this.updateDeviceStatus('No devices connected');
+                    return;
+                }
+
+                selectEl.disabled = false;
+                selectEl.innerHTML = '<option value="">Select a device...</option>';
+
+                inputs.forEach(input => {
+                    const option = document.createElement('option');
+                    option.value = input.id;
+                    option.textContent = `${input.name} ${input.manufacturer ? '(' + input.manufacturer + ')' : ''}`;
+                    selectEl.appendChild(option);
+                });
+
+                // Try to re-select previously selected device
+                if (this.settings.selectedInputId && inputs.find(i => i.id === this.settings.selectedInputId)) {
+                    selectEl.value = this.settings.selectedInputId;
+                    this.selectDevice(this.settings.selectedInputId);
+                }
+
+                this.updateDeviceStatus(`${inputs.length} device(s) found`);
+            }
+
+            // Select a MIDI input device
+            selectDevice(deviceId) {
+                if (!this.midiAccess) return;
+
+                // Disconnect previous device
+                if (this.selectedInput) {
+                    this.selectedInput.onmidimessage = null;
+                }
+
+                if (!deviceId) {
+                    this.selectedInput = null;
+                    this.selectedInputId = null;
+                    this.updateDeviceStatus('No device selected');
+                    return;
+                }
+
+                this.selectedInput = this.midiAccess.inputs.get(deviceId);
+                this.selectedInputId = deviceId;
+                this.settings.selectedInputId = deviceId;
+                this.saveSettings();
+
+                if (this.selectedInput) {
+                    this.selectedInput.onmidimessage = (e) => this.handleMIDIMessage(e);
+                    this.updateDeviceStatus(`Connected: ${this.selectedInput.name}`);
+                    console.log(`🎹 Connected to: ${this.selectedInput.name}`);
+                }
+            }
+
+            // Update device status display
+            updateDeviceStatus(message) {
+                const statusEl = document.getElementById('midi-device-status');
+                if (statusEl) {
+                    statusEl.textContent = message;
+                }
+            }
+
+            // Handle incoming MIDI messages
+            handleMIDIMessage(event) {
+                const [status, data1, data2] = event.data;
+                const command = status >> 4; // Upper 4 bits
+                const channel = status & 0x0F; // Lower 4 bits
+
+                // Add to message log
+                this.addToMessageLog(status, data1, data2);
+
+                // Record if recording
+                if (this.isRecording) {
+                    this.recordMIDIEvent(event);
+                }
+
+                // Handle different message types
+                switch (command) {
+                    case 0x9: // Note On
+                        if (data2 > 0) {
+                            this.handleNoteOn(data1, data2);
+                        } else {
+                            this.handleNoteOff(data1);
+                        }
+                        break;
+                    case 0x8: // Note Off
+                        this.handleNoteOff(data1);
+                        break;
+                    case 0xB: // Control Change
+                        this.handleCC(data1, data2);
+                        break;
+                }
+            }
+
+            // Add message to visual log
+            addToMessageLog(status, data1, data2) {
+                const command = status >> 4;
+                let messageType = 'Unknown';
+                let messageData = '';
+
+                switch (command) {
+                    case 0x9:
+                        messageType = data2 > 0 ? 'Note On' : 'Note Off';
+                        messageData = `Note: ${data1}, Vel: ${data2}`;
+                        break;
+                    case 0x8:
+                        messageType = 'Note Off';
+                        messageData = `Note: ${data1}`;
+                        break;
+                    case 0xB:
+                        messageType = 'CC';
+                        messageData = `CC: ${data1}, Val: ${data2}`;
+                        break;
+                }
+
+                const timestamp = new Date().toLocaleTimeString();
+                this.messageLog.unshift({ type: messageType, data: messageData, time: timestamp });
+
+                // Limit log size
+                if (this.messageLog.length > this.maxLogEntries) {
+                    this.messageLog.pop();
+                }
+
+                this.updateMessageLogDisplay();
+            }
+
+            // Update the message log UI
+            updateMessageLogDisplay() {
+                const logEl = document.getElementById('midi-message-log');
+                if (!logEl) return;
+
+                if (this.messageLog.length === 0) {
+                    logEl.innerHTML = '<div style="color: var(--text-dim); padding: 20px; text-align: center;">No MIDI messages yet...</div>';
+                    return;
+                }
+
+                logEl.innerHTML = this.messageLog.map(msg => {
+                    let colorClass = '';
+                    if (msg.type.includes('Note')) colorClass = 'note-msg';
+                    else if (msg.type === 'CC') colorClass = 'cc-msg';
+
+                    return `<div class="midi-log-entry ${colorClass}">
+                        <span class="midi-log-time">${msg.time}</span>
+                        <span class="midi-log-type">${msg.type}</span>
+                        <span class="midi-log-data">${msg.data}</span>
+                    </div>`;
+                }).join('');
+            }
+
+            // Clear message log
+            clearMessageLog() {
+                this.messageLog = [];
+                this.updateMessageLogDisplay();
+            }
+
+            // Handle Note On
+            handleNoteOn(noteNumber, velocity) {
+                if (!this.polySynth) return;
+
+                const freq = Tone.Frequency(noteNumber, 'midi').toFrequency();
+                const normVelocity = velocity / 127;
+
+                // Calculate velocity-sensitive parameters
+                let volume = 0;
+                if (this.settings.velocityToVolume) {
+                    if (this.settings.velocityCurve === 'exponential') {
+                        volume = -20 + (normVelocity * normVelocity * 20); // -20dB to 0dB
+                    } else {
+                        volume = -20 + (normVelocity * 20);
+                    }
+                } else {
+                    volume = 0;
+                }
+
+                // Trigger synth
+                this.polySynth.triggerAttack(freq, undefined, normVelocity);
+
+                // Track active note
+                this.activeNotes.set(noteNumber, { freq, velocity });
+
+                // Update active notes display
+                this.updateActiveNotesDisplay();
+            }
+
+            // Handle Note Off
+            handleNoteOff(noteNumber) {
+                if (!this.polySynth) return;
+
+                const noteInfo = this.activeNotes.get(noteNumber);
+                if (noteInfo) {
+                    this.polySynth.triggerRelease(noteInfo.freq);
+                    this.activeNotes.delete(noteNumber);
+                    this.updateActiveNotesDisplay();
+                }
+            }
+
+            // Handle Control Change
+            handleCC(ccNumber, value) {
+                // CC Learn mode
+                if (this.ccLearnMode) {
+                    this.ccMappings[this.ccLearnMode] = ccNumber;
+                    this.ccLearnMode = null;
+                    this.updateCCMappingDisplay();
+                    this.saveSettings();
+                    return;
+                }
+
+                // Handle sustain pedal (CC 64)
+                if (ccNumber === 64) {
+                    // Sustain pedal: value >= 64 is "pressed"
+                    const isSustainOn = value >= 64;
+                    this.updateSustainStatus(isSustainOn);
+                    if (!isSustainOn) {
+                        // Release all notes when sustain is released
+                        // (Note: This is simplified - real sustain behavior is more complex)
+                    }
+                    return;
+                }
+
+                // Apply mapped CC to parameters
+                const normValue = value / 127;
+
+                Object.keys(this.ccMappings).forEach(paramName => {
+                    if (this.ccMappings[paramName] === ccNumber) {
+                        this.applyCCToParameter(paramName, normValue);
+                    }
+                });
+            }
+
+            // Apply CC value to a synth parameter
+            applyCCToParameter(paramName, normValue) {
+                const slider = document.getElementById(`midi-${paramName}`);
+
+                switch (paramName) {
+                    case 'filterFreq':
+                        const freq = 100 + (normValue * 9900); // 100 to 10000 Hz
+                        this.filter.frequency.value = freq;
+                        if (slider) slider.value = freq;
+                        this.updateDisplay(`midi-${paramName}-value`, freq.toFixed(0) + ' Hz');
+                        break;
+                    case 'filterQ':
+                        const q = normValue * 20; // 0 to 20
+                        this.filter.Q.value = q;
+                        if (slider) slider.value = q;
+                        this.updateDisplay(`midi-${paramName}-value`, q.toFixed(1));
+                        break;
+                    case 'reverbMix':
+                        const mix = normValue;
+                        this.reverb.wet.value = mix;
+                        if (slider) slider.value = mix;
+                        this.updateDisplay(`midi-${paramName}-value`, (mix * 100).toFixed(0) + '%');
+                        break;
+                }
+            }
+
+            // Update active notes display
+            updateActiveNotesDisplay() {
+                const displayEl = document.getElementById('midi-active-notes');
+                if (!displayEl) return;
+
+                if (this.activeNotes.size === 0) {
+                    displayEl.innerHTML = '<div style="color: var(--text-dim);">No notes playing</div>';
+                } else {
+                    const notes = Array.from(this.activeNotes.keys()).map(nn => {
+                        const noteName = Tone.Frequency(nn, 'midi').toNote();
+                        return `<span class="active-note-badge">${noteName}</span>`;
+                    }).join(' ');
+
+                    displayEl.innerHTML = notes;
+                }
+
+                // Update voice count displays
+                const voiceCountEl = document.getElementById('midi-active-voice-count');
+                const maxVoicesEl = document.getElementById('midi-max-voices');
+                if (voiceCountEl) voiceCountEl.textContent = this.activeNotes.size;
+                if (maxVoicesEl) maxVoicesEl.textContent = this.settings.voiceCount;
+            }
+
+            // Update sustain status
+            updateSustainStatus(isOn) {
+                const statusEl = document.getElementById('midi-sustain-status');
+                if (statusEl) {
+                    statusEl.textContent = isOn ? '🟢 Sustain ON' : '⚪ Sustain OFF';
+                    statusEl.style.color = isOn ? 'var(--success)' : 'var(--text-dim)';
+                }
+            }
+
+            // Update initial display values when module mounts
+            updateInitialDisplays() {
+                // Update all slider value displays
+                this.updateDisplay('midi-attack-value', this.settings.attack.toFixed(2) + 's');
+                this.updateDisplay('midi-decay-value', this.settings.decay.toFixed(2) + 's');
+                this.updateDisplay('midi-sustain-value', this.settings.sustain.toFixed(2) + 's');
+                this.updateDisplay('midi-release-value', this.settings.release.toFixed(2) + 's');
+                this.updateDisplay('midi-filterFreq-value', this.settings.filterFreq.toFixed(0) + ' Hz');
+                this.updateDisplay('midi-filterQ-value', this.settings.filterQ.toFixed(1));
+                this.updateDisplay('midi-reverbMix-value', (this.settings.reverbMix * 100).toFixed(0) + '%');
+                this.updateDisplay('midi-volume-value', this.settings.volume.toFixed(0) + ' dB');
+
+                // Update voice counts
+                this.updateActiveNotesDisplay();
+
+                // Update CC mappings display
+                this.updateCCMappingDisplay();
+
+                // Update recording UI
+                this.updateRecordingUI();
+            }
+
+            // Create audio chain
+            createAudioChain() {
+                // Filter
+                this.filter = new Tone.Filter({
+                    frequency: this.settings.filterFreq,
+                    Q: this.settings.filterQ,
+                    type: 'lowpass'
+                });
+
+                // Reverb
+                this.reverb = new Tone.Reverb({
+                    decay: 2.5,
+                    wet: this.settings.reverbMix
+                });
+
+                // Connect to master bus
+                this.filter.connect(this.reverb);
+                if (window.app && window.app.getMasterBus) {
+                    this.reverb.connect(window.app.getMasterBus());
+                } else {
+                    this.reverb.toDestination();
+                }
+
+                // Create PolySynth
+                this.polySynth = new Tone.PolySynth(Tone.Synth, {
+                    maxPolyphony: this.settings.voiceCount,
+                    oscillator: { type: this.settings.waveform },
+                    envelope: {
+                        attack: this.settings.attack,
+                        decay: this.settings.decay,
+                        sustain: this.settings.sustain,
+                        release: this.settings.release
+                    },
+                    volume: this.settings.volume
+                }).connect(this.filter);
+
+                console.log('🎵 MIDI Audio chain: PolySynth → Filter → Reverb → Output');
+            }
+
+            // Dispose audio resources
+            disposeAudio() {
+                if (this.polySynth) {
+                    this.polySynth.dispose();
+                    this.polySynth = null;
+                }
+                if (this.filter) {
+                    this.filter.dispose();
+                    this.filter = null;
+                }
+                if (this.reverb) {
+                    this.reverb.dispose();
+                    this.reverb = null;
+                }
+            }
+
+            // Close MIDI connections
+            closeMIDI() {
+                if (this.selectedInput) {
+                    this.selectedInput.onmidimessage = null;
+                    this.selectedInput = null;
+                }
+                this.midiAccess = null;
+            }
+
+            // Start MIDI recording
+            startRecording() {
+                this.isRecording = true;
+                this.recordedEvents = [];
+                this.recordingStartTime = performance.now();
+                this.recordingDuration = 0;
+
+                // Update UI
+                this.updateRecordingUI();
+
+                // Start timer
+                this.recordingTimer = setInterval(() => {
+                    this.recordingDuration = (performance.now() - this.recordingStartTime) / 1000;
+                    this.updateRecordingDurationDisplay();
+                }, 100);
+
+                console.log('🔴 Recording started');
+            }
+
+            // Stop MIDI recording
+            stopRecording() {
+                if (!this.isRecording) return;
+
+                this.isRecording = false;
+
+                if (this.recordingTimer) {
+                    clearInterval(this.recordingTimer);
+                    this.recordingTimer = null;
+                }
+
+                this.updateRecordingUI();
+                console.log(`⏹️ Recording stopped: ${this.recordedEvents.length} events, ${this.recordingDuration.toFixed(1)}s`);
+            }
+
+            // Record a MIDI event
+            recordMIDIEvent(event) {
+                if (!this.isRecording) return;
+
+                const timestamp = performance.now() - this.recordingStartTime;
+                const [status, data1, data2] = event.data;
+                const command = status >> 4;
+
+                // Filter what we record
+                const shouldRecord =
+                    command === 0x9 || // Note On
+                    command === 0x8 || // Note Off
+                    (command === 0xB && this.settings.recordCC); // CC (if enabled)
+
+                if (shouldRecord) {
+                    this.recordedEvents.push({
+                        timestamp,
+                        status,
+                        data1,
+                        data2
+                    });
+                }
+            }
+
+            // Update recording UI
+            updateRecordingUI() {
+                const recBtn = document.getElementById('midi-rec-btn');
+                const stopBtn = document.getElementById('midi-stop-btn');
+                const statusEl = document.getElementById('midi-rec-status');
+
+                if (this.isRecording) {
+                    if (recBtn) recBtn.disabled = true;
+                    if (stopBtn) stopBtn.disabled = false;
+                    if (statusEl) statusEl.innerHTML = '<span style="color: #ff0000;">🔴 Recording...</span>';
+                } else {
+                    if (recBtn) recBtn.disabled = false;
+                    if (stopBtn) stopBtn.disabled = true;
+                    if (statusEl) {
+                        if (this.recordedEvents.length > 0) {
+                            statusEl.innerHTML = '<span style="color: var(--success);">⏹️ Recording stopped</span>';
+                        } else {
+                            statusEl.innerHTML = '<span style="color: var(--text-dim);">⚪ Ready to record</span>';
+                        }
+                    }
+                }
+
+                this.updateRecordingStatsDisplay();
+            }
+
+            // Update recording duration display
+            updateRecordingDurationDisplay() {
+                const el = document.getElementById('midi-rec-duration');
+                if (el) {
+                    const minutes = Math.floor(this.recordingDuration / 60);
+                    const seconds = Math.floor(this.recordingDuration % 60);
+                    el.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                }
+            }
+
+            // Update recording stats display
+            updateRecordingStatsDisplay() {
+                const notesEl = document.getElementById('midi-rec-notes');
+                const ccEl = document.getElementById('midi-rec-cc');
+
+                if (this.recordedEvents.length === 0) {
+                    if (notesEl) notesEl.textContent = '0';
+                    if (ccEl) ccEl.textContent = '0';
+                    return;
+                }
+
+                const noteEvents = this.recordedEvents.filter(e => {
+                    const cmd = e.status >> 4;
+                    return cmd === 0x9 || cmd === 0x8;
+                });
+
+                const ccEvents = this.recordedEvents.filter(e => (e.status >> 4) === 0xB);
+
+                if (notesEl) notesEl.textContent = noteEvents.length;
+                if (ccEl) ccEl.textContent = ccEvents.length;
+            }
+
+            // Clear recording
+            clearRecording() {
+                this.recordedEvents = [];
+                this.recordingDuration = 0;
+                this.updateRecordingUI();
+                this.updateRecordingDurationDisplay();
+                console.log('🗑️ Recording cleared');
+            }
+
+            // Download MIDI file
+            downloadMIDI() {
+                if (this.recordedEvents.length === 0) {
+                    alert('No MIDI data to export. Record something first!');
+                    return;
+                }
+
+                // Convert to MIDI file format
+                const midiData = this.convertToMIDIFile();
+
+                // Create blob and download
+                const blob = new Blob([midiData], { type: 'audio/midi' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `tonejs-recording-${Date.now()}.mid`;
+                a.click();
+                URL.revokeObjectURL(url);
+
+                console.log('💾 MIDI file downloaded');
+            }
+
+            // Convert recorded events to MIDI file format
+            convertToMIDIFile() {
+                // Simple MIDI file builder (Standard MIDI File format)
+                // This is a basic implementation - for production, use a library like midi-writer-js
+
+                const ticksPerBeat = 480;
+                const microsecondsPerBeat = 60000000 / this.settings.bpm;
+
+                // Helper to write variable length quantity
+                const writeVarLen = (value) => {
+                    const bytes = [];
+                    bytes.push(value & 0x7F);
+                    value >>= 7;
+                    while (value > 0) {
+                        bytes.unshift((value & 0x7F) | 0x80);
+                        value >>= 7;
+                    }
+                    return bytes;
+                };
+
+                // Build track events
+                const trackEvents = [];
+                let lastTimestamp = 0;
+
+                this.recordedEvents.forEach(event => {
+                    const deltaTime = Math.round((event.timestamp - lastTimestamp) * ticksPerBeat / (microsecondsPerBeat / 1000));
+                    lastTimestamp = event.timestamp;
+
+                    trackEvents.push(...writeVarLen(deltaTime));
+                    trackEvents.push(event.status, event.data1, event.data2);
+                });
+
+                // End of track
+                trackEvents.push(0x00, 0xFF, 0x2F, 0x00);
+
+                // Build header chunk
+                const header = [
+                    0x4D, 0x54, 0x68, 0x64, // "MThd"
+                    0x00, 0x00, 0x00, 0x06, // Chunk length
+                    0x00, 0x00,             // Format 0
+                    0x00, 0x01,             // 1 track
+                    (ticksPerBeat >> 8) & 0xFF, ticksPerBeat & 0xFF  // Ticks per beat
+                ];
+
+                // Build track chunk
+                const trackLength = trackEvents.length;
+                const track = [
+                    0x4D, 0x54, 0x72, 0x6B, // "MTrk"
+                    (trackLength >> 24) & 0xFF,
+                    (trackLength >> 16) & 0xFF,
+                    (trackLength >> 8) & 0xFF,
+                    trackLength & 0xFF,
+                    ...trackEvents
+                ];
+
+                return new Uint8Array([...header, ...track]);
+            }
+
+            // Start CC learn mode
+            startCCLearn(paramName) {
+                this.ccLearnMode = paramName;
+                this.updateCCMappingDisplay();
+                console.log(`🎛️ Learning CC for: ${paramName}`);
+            }
+
+            // Clear CC mapping
+            clearCCMapping(paramName) {
+                delete this.ccMappings[paramName];
+                this.ccLearnMode = null;
+                this.updateCCMappingDisplay();
+                this.saveSettings();
+            }
+
+            // Update CC mapping display
+            updateCCMappingDisplay() {
+                ['filterFreq', 'filterQ', 'reverbMix'].forEach(param => {
+                    const displayEl = document.getElementById(`midi-cc-${param}`);
+                    const learnBtn = document.getElementById(`midi-cc-learn-${param}`);
+                    const clearBtn = document.getElementById(`midi-cc-clear-${param}`);
+
+                    if (displayEl) {
+                        if (this.ccLearnMode === param) {
+                            displayEl.innerHTML = '<span style="color: var(--accent); font-weight: bold;">🎛️ Move a controller...</span>';
+                        } else if (this.ccMappings[param] !== undefined) {
+                            displayEl.textContent = `CC ${this.ccMappings[param]}`;
+                        } else {
+                            displayEl.textContent = 'Not mapped';
+                        }
+                    }
+
+                    if (learnBtn) {
+                        learnBtn.disabled = this.ccLearnMode !== null;
+                    }
+
+                    if (clearBtn) {
+                        clearBtn.disabled = this.ccMappings[param] === undefined;
+                    }
+                });
+            }
+
+            // Update display helper
+            updateDisplay(id, value) {
+                const el = document.getElementById(id);
+                if (el) el.textContent = value;
+            }
+
+            // Save settings to localStorage
+            saveSettings() {
+                const toSave = {
+                    ...this.settings,
+                    ccMappings: this.ccMappings
+                };
+                localStorage.setItem('tonejs-lab-midi', JSON.stringify(toSave));
+            }
+
+            // Load settings from localStorage
+            loadSettings() {
+                const saved = localStorage.getItem('tonejs-lab-midi');
+                if (saved) {
+                    try {
+                        const parsed = JSON.parse(saved);
+                        this.settings = { ...this.defaults, ...parsed };
+                        if (parsed.ccMappings) {
+                            this.ccMappings = parsed.ccMappings;
+                        }
+                        console.log('📂 MIDI settings loaded');
+                    } catch (e) {
+                        console.warn('Failed to load MIDI settings');
+                        this.settings = { ...this.defaults };
+                    }
+                }
+            }
+
+            // Attach event listeners
+            attachEventListeners() {
+                // Section 1: MIDI Access
+                const requestBtn = document.getElementById('midi-request-btn');
+                if (requestBtn) {
+                    requestBtn.addEventListener('click', () => this.requestMIDIAccess());
+                }
+
+                // Section 2: Device selection
+                const deviceSelect = document.getElementById('midi-device-select');
+                if (deviceSelect) {
+                    deviceSelect.addEventListener('change', (e) => this.selectDevice(e.target.value));
+                }
+
+                // Section 3: Message log
+                const clearLogBtn = document.getElementById('midi-clear-log');
+                if (clearLogBtn) {
+                    clearLogBtn.addEventListener('click', () => this.clearMessageLog());
+                }
+
+                // Section 4-7: Synth controls
+                const waveformSelect = document.getElementById('midi-waveform');
+                if (waveformSelect) {
+                    waveformSelect.addEventListener('change', (e) => {
+                        this.settings.waveform = e.target.value;
+                        if (this.polySynth) {
+                            this.polySynth.set({ oscillator: { type: e.target.value } });
+                        }
+                        this.saveSettings();
+                    });
+                }
+
+                // Envelope controls
+                ['attack', 'decay', 'sustain', 'release'].forEach(param => {
+                    const slider = document.getElementById(`midi-${param}`);
+                    if (slider) {
+                        slider.addEventListener('input', (e) => {
+                            const value = parseFloat(e.target.value);
+                            this.settings[param] = value;
+                            if (this.polySynth) {
+                                this.polySynth.set({ envelope: { [param]: value } });
+                            }
+                            this.updateDisplay(`midi-${param}-value`, value.toFixed(2) + 's');
+                            this.saveSettings();
+                        });
+                    }
+                });
+
+                // Filter controls
+                const filterFreqSlider = document.getElementById('midi-filterFreq');
+                if (filterFreqSlider) {
+                    filterFreqSlider.addEventListener('input', (e) => {
+                        const value = parseFloat(e.target.value);
+                        this.settings.filterFreq = value;
+                        if (this.filter) {
+                            this.filter.frequency.value = value;
+                        }
+                        this.updateDisplay('midi-filterFreq-value', value.toFixed(0) + ' Hz');
+                        this.saveSettings();
+                    });
+                }
+
+                const filterQSlider = document.getElementById('midi-filterQ');
+                if (filterQSlider) {
+                    filterQSlider.addEventListener('input', (e) => {
+                        const value = parseFloat(e.target.value);
+                        this.settings.filterQ = value;
+                        if (this.filter) {
+                            this.filter.Q.value = value;
+                        }
+                        this.updateDisplay('midi-filterQ-value', value.toFixed(1));
+                        this.saveSettings();
+                    });
+                }
+
+                // Reverb control
+                const reverbSlider = document.getElementById('midi-reverbMix');
+                if (reverbSlider) {
+                    reverbSlider.addEventListener('input', (e) => {
+                        const value = parseFloat(e.target.value);
+                        this.settings.reverbMix = value;
+                        if (this.reverb) {
+                            this.reverb.wet.value = value;
+                        }
+                        this.updateDisplay('midi-reverbMix-value', (value * 100).toFixed(0) + '%');
+                        this.saveSettings();
+                    });
+                }
+
+                // Volume control
+                const volumeSlider = document.getElementById('midi-volume');
+                if (volumeSlider) {
+                    volumeSlider.addEventListener('input', (e) => {
+                        const value = parseFloat(e.target.value);
+                        this.settings.volume = value;
+                        if (this.polySynth) {
+                            this.polySynth.volume.value = value;
+                        }
+                        this.updateDisplay('midi-volume-value', value.toFixed(0) + ' dB');
+                        this.saveSettings();
+                    });
+                }
+
+                // Voice count
+                const voiceCountSelect = document.getElementById('midi-voice-count');
+                if (voiceCountSelect) {
+                    voiceCountSelect.addEventListener('change', (e) => {
+                        this.settings.voiceCount = parseInt(e.target.value);
+                        // Recreate synth with new voice count
+                        this.disposeAudio();
+                        this.createAudioChain();
+                        this.updateActiveNotesDisplay(); // Update max voices display
+                        this.saveSettings();
+                    });
+                }
+
+                // Velocity toggles
+                const velToVolToggle = document.getElementById('midi-vel-to-vol');
+                if (velToVolToggle) {
+                    velToVolToggle.addEventListener('change', (e) => {
+                        this.settings.velocityToVolume = e.target.checked;
+                        this.saveSettings();
+                    });
+                }
+
+                const velToFilterToggle = document.getElementById('midi-vel-to-filter');
+                if (velToFilterToggle) {
+                    velToFilterToggle.addEventListener('change', (e) => {
+                        this.settings.velocityToFilter = e.target.checked;
+                        this.saveSettings();
+                    });
+                }
+
+                const velCurveSelect = document.getElementById('midi-vel-curve');
+                if (velCurveSelect) {
+                    velCurveSelect.addEventListener('change', (e) => {
+                        this.settings.velocityCurve = e.target.value;
+                        this.saveSettings();
+                    });
+                }
+
+                // CC Learn buttons
+                ['filterFreq', 'filterQ', 'reverbMix'].forEach(param => {
+                    const learnBtn = document.getElementById(`midi-cc-learn-${param}`);
+                    if (learnBtn) {
+                        learnBtn.addEventListener('click', () => this.startCCLearn(param));
+                    }
+
+                    const clearBtn = document.getElementById(`midi-cc-clear-${param}`);
+                    if (clearBtn) {
+                        clearBtn.addEventListener('click', () => this.clearCCMapping(param));
+                    }
+                });
+
+                // Section 8: Recording controls
+                const recBtn = document.getElementById('midi-rec-btn');
+                if (recBtn) {
+                    recBtn.addEventListener('click', () => this.startRecording());
+                }
+
+                const stopBtn = document.getElementById('midi-stop-btn');
+                if (stopBtn) {
+                    stopBtn.addEventListener('click', () => this.stopRecording());
+                }
+
+                const clearRecBtn = document.getElementById('midi-clear-rec');
+                if (clearRecBtn) {
+                    clearRecBtn.addEventListener('click', () => this.clearRecording());
+                }
+
+                const downloadBtn = document.getElementById('midi-download');
+                if (downloadBtn) {
+                    downloadBtn.addEventListener('click', () => this.downloadMIDI());
+                }
+
+                const recordCCToggle = document.getElementById('midi-record-cc');
+                if (recordCCToggle) {
+                    recordCCToggle.addEventListener('change', (e) => {
+                        this.settings.recordCC = e.target.checked;
+                        this.saveSettings();
+                    });
+                }
+
+                const bpmInput = document.getElementById('midi-bpm');
+                if (bpmInput) {
+                    bpmInput.addEventListener('input', (e) => {
+                        this.settings.bpm = parseInt(e.target.value) || 120;
+                        this.saveSettings();
+                    });
+                }
+            }
+
+            // Remove event listeners (cleanup)
+            removeEventListeners() {
+                // Event listeners are removed automatically when elements are removed from DOM
             }
 
             render() {
                 return `
-                    <div class="stub-content">
-                        <h3>🎹 MIDI Input</h3>
-                        <p>Connect MIDI controllers and keyboards to Tone.js</p>
-                        <p>Topics: Web MIDI API, note on/off, velocity, CC mapping</p>
-                        <span class="coming-soon">Coming Soon</span>
+                    <div class="module-header">
+                        <h2>MIDI Input</h2>
+                        <p>Connect MIDI controllers and keyboards to Tone.js - play, control, and record</p>
+                    </div>
+
+                    <div class="info-box">
+                        <h4>🎹 What is MIDI?</h4>
+                        <p>MIDI (Musical Instrument Digital Interface) is a protocol that allows musical instruments, computers, and other hardware to communicate. With the Web MIDI API, your browser can receive messages from MIDI keyboards, pad controllers, and other devices to control sounds in real-time.</p>
+                    </div>
+
+                    <!-- Section 1: MIDI Access -->
+                    <div class="section">
+                        <h3>1. MIDI Access & Permissions</h3>
+                        <div class="section-description">
+                            Your browser needs permission to access MIDI devices. Click the button below to request access. Make sure your MIDI device is connected before requesting access.
+                        </div>
+                        <div class="control-group">
+                            <button class="btn btn-primary" id="midi-request-btn">Request MIDI Access</button>
+                            <div id="midi-status" style="margin-top: 10px;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Device Discovery -->
+                    <div class="section">
+                        <h3>2. Device Discovery</h3>
+                        <div class="section-description">
+                            Select a connected MIDI input device from the list. If you don't see your device, try disconnecting and reconnecting it, then refresh the device list.
+                        </div>
+                        <div class="control-group">
+                            <label>MIDI Input Device</label>
+                            <select id="midi-device-select" disabled>
+                                <option value="">Request MIDI access first...</option>
+                            </select>
+                            <div id="midi-device-status" style="margin-top: 8px; color: var(--text-dim); font-size: 13px;">No device selected</div>
+                        </div>
+                    </div>
+
+                    <!-- Section 3: MIDI Message Monitor -->
+                    <div class="section">
+                        <h3>3. MIDI Message Monitor</h3>
+                        <div class="section-description">
+                            Watch MIDI messages arrive in real-time. Notes appear in blue, Control Change (CC) messages in green. This helps you understand what your controller is sending.
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <label style="margin: 0;">Live Message Log</label>
+                            <button class="btn btn-secondary btn-sm" id="midi-clear-log">Clear Log</button>
+                        </div>
+                        <div id="midi-message-log" class="midi-message-log">
+                            <div style="color: var(--text-dim); padding: 20px; text-align: center;">No MIDI messages yet...</div>
+                        </div>
+                    </div>
+
+                    <!-- Section 4: Note Mapping to Synth -->
+                    <div class="section">
+                        <h3>4. Note Mapping & Synth</h3>
+                        <div class="section-description">
+                            Play notes on your MIDI controller and hear them through a polyphonic synthesizer. Active notes are displayed below.
+                        </div>
+
+                        <div class="control-group">
+                            <label>Waveform</label>
+                            <select id="midi-waveform">
+                                <option value="sine">Sine Wave</option>
+                                <option value="triangle">Triangle</option>
+                                <option value="square">Square</option>
+                                <option value="sawtooth" selected>Sawtooth</option>
+                            </select>
+                        </div>
+
+                        <div class="control-group">
+                            <label>Active Notes</label>
+                            <div id="midi-active-notes" style="min-height: 40px; padding: 10px; background: var(--bg-tertiary); border-radius: 6px;">
+                                <div style="color: var(--text-dim);">No notes playing</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 5: Envelope (ADSR) -->
+                    <div class="section">
+                        <h3>5. Envelope (ADSR)</h3>
+                        <div class="section-description">
+                            Shape how notes evolve over time with Attack, Decay, Sustain, and Release controls.
+                        </div>
+
+                        <div class="control-group">
+                            <label>Attack: <span class="value-display" id="midi-attack-value">0.05s</span></label>
+                            <input type="range" id="midi-attack" min="0.001" max="2" step="0.01" value="0.05">
+                        </div>
+
+                        <div class="control-group">
+                            <label>Decay: <span class="value-display" id="midi-decay-value">0.20s</span></label>
+                            <input type="range" id="midi-decay" min="0.001" max="2" step="0.01" value="0.2">
+                        </div>
+
+                        <div class="control-group">
+                            <label>Sustain: <span class="value-display" id="midi-sustain-value">0.60s</span></label>
+                            <input type="range" id="midi-sustain" min="0" max="1" step="0.01" value="0.6">
+                        </div>
+
+                        <div class="control-group">
+                            <label>Release: <span class="value-display" id="midi-release-value">0.50s</span></label>
+                            <input type="range" id="midi-release" min="0.001" max="3" step="0.01" value="0.5">
+                        </div>
+                    </div>
+
+                    <!-- Section 6: Filter & Effects -->
+                    <div class="section">
+                        <h3>6. Filter & Effects</h3>
+                        <div class="section-description">
+                            Control the timbre with a lowpass filter and add space with reverb.
+                        </div>
+
+                        <div class="control-group">
+                            <label>Filter Cutoff: <span class="value-display" id="midi-filterFreq-value">2000 Hz</span></label>
+                            <input type="range" id="midi-filterFreq" min="100" max="10000" step="100" value="2000">
+                        </div>
+
+                        <div class="control-group">
+                            <label>Filter Resonance (Q): <span class="value-display" id="midi-filterQ-value">5.0</span></label>
+                            <input type="range" id="midi-filterQ" min="0" max="20" step="0.1" value="5">
+                        </div>
+
+                        <div class="control-group">
+                            <label>Reverb Mix: <span class="value-display" id="midi-reverbMix-value">30%</span></label>
+                            <input type="range" id="midi-reverbMix" min="0" max="1" step="0.01" value="0.3">
+                        </div>
+
+                        <div class="control-group">
+                            <label>Volume: <span class="value-display" id="midi-volume-value">-12 dB</span></label>
+                            <input type="range" id="midi-volume" min="-40" max="0" step="1" value="-12">
+                        </div>
+                    </div>
+
+                    <!-- Section 7: Velocity Response -->
+                    <div class="section">
+                        <h3>7. Velocity Response</h3>
+                        <div class="section-description">
+                            Map note velocity (how hard you press keys) to various parameters for expressive playing.
+                        </div>
+
+                        <div class="control-group">
+                            <label>
+                                <input type="checkbox" id="midi-vel-to-vol" checked>
+                                Velocity → Volume
+                            </label>
+                        </div>
+
+                        <div class="control-group">
+                            <label>
+                                <input type="checkbox" id="midi-vel-to-filter" checked>
+                                Velocity → Filter Cutoff
+                            </label>
+                        </div>
+
+                        <div class="control-group">
+                            <label>Velocity Curve</label>
+                            <select id="midi-vel-curve">
+                                <option value="linear">Linear</option>
+                                <option value="exponential">Exponential</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Section 8: CC Mapping -->
+                    <div class="section">
+                        <h3>8. CC Mapping (Control Change)</h3>
+                        <div class="section-description">
+                            Map MIDI controllers (knobs, faders, mod wheel) to synth parameters. Click "Learn", then move a controller on your device.
+                        </div>
+
+                        <div class="cc-mapping-grid">
+                            <div class="cc-mapping-item">
+                                <label>Filter Cutoff</label>
+                                <div id="midi-cc-filterFreq" class="cc-value">Not mapped</div>
+                                <div class="cc-buttons">
+                                    <button class="btn btn-sm btn-secondary" id="midi-cc-learn-filterFreq">Learn</button>
+                                    <button class="btn btn-sm btn-secondary" id="midi-cc-clear-filterFreq" disabled>Clear</button>
+                                </div>
+                            </div>
+
+                            <div class="cc-mapping-item">
+                                <label>Filter Resonance</label>
+                                <div id="midi-cc-filterQ" class="cc-value">Not mapped</div>
+                                <div class="cc-buttons">
+                                    <button class="btn btn-sm btn-secondary" id="midi-cc-learn-filterQ">Learn</button>
+                                    <button class="btn btn-sm btn-secondary" id="midi-cc-clear-filterQ" disabled>Clear</button>
+                                </div>
+                            </div>
+
+                            <div class="cc-mapping-item">
+                                <label>Reverb Mix</label>
+                                <div id="midi-cc-reverbMix" class="cc-value">Not mapped</div>
+                                <div class="cc-buttons">
+                                    <button class="btn btn-sm btn-secondary" id="midi-cc-learn-reverbMix">Learn</button>
+                                    <button class="btn btn-sm btn-secondary" id="midi-cc-clear-reverbMix" disabled>Clear</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 9: Polyphony & Sustain -->
+                    <div class="section">
+                        <h3>9. Polyphony & Sustain</h3>
+                        <div class="section-description">
+                            Control how many simultaneous notes can play, and use a sustain pedal (CC 64) to hold notes.
+                        </div>
+
+                        <div class="control-group">
+                            <label>Voice Count</label>
+                            <select id="midi-voice-count">
+                                <option value="4">4 Voices</option>
+                                <option value="8" selected>8 Voices</option>
+                                <option value="16">16 Voices</option>
+                                <option value="32">32 Voices</option>
+                            </select>
+                        </div>
+
+                        <div class="control-group">
+                            <label>Sustain Pedal (CC 64)</label>
+                            <div id="midi-sustain-status" style="color: var(--text-dim);">⚪ Sustain OFF</div>
+                        </div>
+
+                        <div class="control-group">
+                            <label>Active Voices</label>
+                            <div style="color: var(--text-secondary);">Playing: <span id="midi-active-voice-count">0</span> / <span id="midi-max-voices">8</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Section 10: MIDI Recording & Export -->
+                    <div class="section">
+                        <h3>10. 🔴 MIDI Recording & Export</h3>
+                        <div class="section-description">
+                            Record your MIDI performance and download it as a standard MIDI file (.mid) to use in other music software like GarageBand, Ableton, or Logic Pro.
+                        </div>
+
+                        <div class="midi-recording-panel">
+                            <div class="recording-controls">
+                                <button class="btn btn-primary" id="midi-rec-btn">⏺ Record</button>
+                                <button class="btn btn-secondary" id="midi-stop-btn" disabled>⏹ Stop</button>
+                                <button class="btn btn-secondary" id="midi-clear-rec">🗑️ Clear</button>
+                            </div>
+
+                            <div class="recording-status">
+                                <div id="midi-rec-status" style="margin-bottom: 10px;">
+                                    <span style="color: var(--text-dim);">⚪ Ready to record</span>
+                                </div>
+                                <div class="recording-stats">
+                                    <div>Duration: <span id="midi-rec-duration">00:00</span></div>
+                                    <div>Notes: <span id="midi-rec-notes">0</span></div>
+                                    <div>CC Messages: <span id="midi-rec-cc">0</span></div>
+                                </div>
+                            </div>
+
+                            <div class="recording-settings">
+                                <div class="control-group">
+                                    <label>
+                                        <input type="checkbox" id="midi-record-cc" checked>
+                                        Record CC Messages
+                                    </label>
+                                </div>
+                                <div class="control-group">
+                                    <label>BPM (for MIDI file):</label>
+                                    <input type="number" id="midi-bpm" min="20" max="300" value="120" style="width: 80px; padding: 6px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 4px; color: var(--text-primary);">
+                                </div>
+                            </div>
+
+                            <div class="control-group" style="margin-top: 15px;">
+                                <button class="btn btn-primary" id="midi-download" style="width: 100%;">
+                                    ⬇️ Download MIDI File
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="info-box">
+                        <h4>💡 Tips & Troubleshooting</h4>
+                        <p>
+                            <strong>No devices showing up?</strong> Make sure your MIDI device is connected before requesting access. Try unplugging and reconnecting.<br>
+                            <strong>Common CC numbers:</strong> 1 = Mod Wheel, 7 = Volume, 10 = Pan, 64 = Sustain Pedal, 71 = Filter Resonance, 74 = Filter Cutoff<br>
+                            <strong>Testing without hardware?</strong> Search for virtual MIDI software like "Virtual MIDI Piano Keyboard" (VMPK) or browser-based MIDI testers.<br>
+                            <strong>Browser support:</strong> Web MIDI API works best in Chrome, Edge, and Opera. Firefox requires enabling a flag.
+                        </p>
                     </div>
                 `;
             }
