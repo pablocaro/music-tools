@@ -27,6 +27,14 @@ const INITIAL_STATE = {
     pressShrink: 2,
     pressBrightness: 30,
     theme: 'dark',
+    // Gradient Experiment
+    gradientExperimentEnabled: false,
+    defaultGradientAngle: 0,
+    defaultGradientStartGray: 0,
+    defaultGradientEndGray: 0,
+    pressedGradientAngle: 0,
+    pressedGradientStartGray: 0,
+    pressedGradientEndGray: 30,
     // Experimental: Drone lock timing
     droneLockTime: 3000,
     // Experimental: Gripper animations
@@ -426,11 +434,19 @@ class RenderEngine {
     }
 
     createGradient(defs, index, center, radii, anglePerSlice) {
-        const midAngle = ((index + 0.5) * anglePerSlice) * Math.PI / 180;
+        // Calculate base angle for this slice
+        const baseAngle = ((index + 0.5) * anglePerSlice);
+
+        // Apply gradient angle offset if gradient experiment is enabled
+        const angleOffset = this.state.get('gradientExperimentEnabled')
+            ? this.state.get('defaultGradientAngle')
+            : 0;
+
+        const gradientAngle = (baseAngle + angleOffset) * Math.PI / 180;
         const r = Math.max(radii.rx, radii.ry);
 
-        const x2 = center.x + r * Math.cos(midAngle);
-        const y2 = center.y + r * Math.sin(midAngle);
+        const x2 = center.x + r * Math.cos(gradientAngle);
+        const y2 = center.y + r * Math.sin(gradientAngle);
 
         const gradient = document.createElementNS(SVG_NS, 'linearGradient');
         gradient.setAttribute('id', `gradient${index}`);
@@ -440,14 +456,25 @@ class RenderEngine {
         gradient.setAttribute('y2', y2);
         gradient.setAttribute('gradientUnits', 'userSpaceOnUse');
 
+        // Get gray levels from state
+        const startGray = this.state.get('gradientExperimentEnabled')
+            ? this.state.get('defaultGradientStartGray')
+            : 0;
+        const endGray = this.state.get('gradientExperimentEnabled')
+            ? this.state.get('defaultGradientEndGray')
+            : 0;
+
+        const startColor = this.getGrayColor(startGray);
+        const endColor = this.getGrayColor(endGray);
+
         const stop1 = document.createElementNS(SVG_NS, 'stop');
         stop1.setAttribute('offset', '0%');
-        stop1.setAttribute('stop-color', '#000');
+        stop1.setAttribute('stop-color', startColor);
 
         const stop2 = document.createElementNS(SVG_NS, 'stop');
         stop2.setAttribute('class', `stop2-${index}`);
         stop2.setAttribute('offset', '100%');
-        stop2.setAttribute('stop-color', '#000');
+        stop2.setAttribute('stop-color', endColor);
 
         gradient.appendChild(stop1);
         gradient.appendChild(stop2);
@@ -642,11 +669,19 @@ class RenderEngine {
         }
     }
 
-    getPressColor() {
-        const brightness = this.state.get('pressBrightness');
-        const value = Math.round((brightness / 100) * 255);
+    getGrayColor(grayPercent) {
+        const value = Math.round((grayPercent / 100) * 255);
         const hex = value.toString(16).padStart(2, '0');
         return `#${hex}${hex}${hex}`;
+    }
+
+    getPressColor() {
+        if (this.state.get('gradientExperimentEnabled')) {
+            const endGray = this.state.get('pressedGradientEndGray');
+            return this.getGrayColor(endGray);
+        }
+        const brightness = this.state.get('pressBrightness');
+        return this.getGrayColor(brightness);
     }
 
     getPressNarrowFactor() {
@@ -654,10 +689,32 @@ class RenderEngine {
     }
 
     pressSlice(index) {
-        const stop2 = document.querySelector(`.stop2-${index}`);
-        if (stop2) {
-            stop2.style.transition = 'stop-color 120ms cubic-bezier(0.4, 0.0, 0.2, 1)';
-            stop2.setAttribute('stop-color', this.getPressColor());
+        // Update gradient colors when pressed
+        if (this.state.get('gradientExperimentEnabled')) {
+            const gradient = document.querySelector(`#gradient${index}`);
+            if (gradient) {
+                const stop1 = gradient.querySelector('stop:first-child');
+                const stop2 = gradient.querySelector('stop:last-child');
+
+                const pressedStartGray = this.state.get('pressedGradientStartGray');
+                const pressedEndGray = this.state.get('pressedGradientEndGray');
+
+                if (stop1) {
+                    stop1.style.transition = 'stop-color 120ms cubic-bezier(0.4, 0.0, 0.2, 1)';
+                    stop1.setAttribute('stop-color', this.getGrayColor(pressedStartGray));
+                }
+                if (stop2) {
+                    stop2.style.transition = 'stop-color 120ms cubic-bezier(0.4, 0.0, 0.2, 1)';
+                    stop2.setAttribute('stop-color', this.getGrayColor(pressedEndGray));
+                }
+            }
+        } else {
+            // Original behavior: only update stop2
+            const stop2 = document.querySelector(`.stop2-${index}`);
+            if (stop2) {
+                stop2.style.transition = 'stop-color 120ms cubic-bezier(0.4, 0.0, 0.2, 1)';
+                stop2.setAttribute('stop-color', this.getPressColor());
+            }
         }
 
         const slice = this.sliceElements.get(index);
@@ -674,10 +731,32 @@ class RenderEngine {
             return;
         }
 
-        const stop2 = document.querySelector(`.stop2-${index}`);
-        if (stop2) {
-            stop2.style.transition = 'stop-color 300ms ease-out';
-            stop2.setAttribute('stop-color', '#000');
+        // Reset gradient colors
+        if (this.state.get('gradientExperimentEnabled')) {
+            const gradient = document.querySelector(`#gradient${index}`);
+            if (gradient) {
+                const stop1 = gradient.querySelector('stop:first-child');
+                const stop2 = gradient.querySelector('stop:last-child');
+
+                const defaultStartGray = this.state.get('defaultGradientStartGray');
+                const defaultEndGray = this.state.get('defaultGradientEndGray');
+
+                if (stop1) {
+                    stop1.style.transition = 'stop-color 300ms ease-out';
+                    stop1.setAttribute('stop-color', this.getGrayColor(defaultStartGray));
+                }
+                if (stop2) {
+                    stop2.style.transition = 'stop-color 300ms ease-out';
+                    stop2.setAttribute('stop-color', this.getGrayColor(defaultEndGray));
+                }
+            }
+        } else {
+            // Original behavior: only update stop2
+            const stop2 = document.querySelector(`.stop2-${index}`);
+            if (stop2) {
+                stop2.style.transition = 'stop-color 300ms ease-out';
+                stop2.setAttribute('stop-color', '#000');
+            }
         }
 
         const slice = this.sliceElements.get(index);
@@ -1263,7 +1342,23 @@ class ControlsManager {
             notchBrightnessBoostSlider: document.getElementById('notchBrightnessBoostSlider'),
             notchBrightnessBoostValue: document.getElementById('notchBrightnessBoostValue'),
             ringThicknessBoostSlider: document.getElementById('ringThicknessBoostSlider'),
-            ringThicknessBoostValue: document.getElementById('ringThicknessBoostValue')
+            ringThicknessBoostValue: document.getElementById('ringThicknessBoostValue'),
+            // Gradient experiment controls
+            gradientExpOffBtn: document.getElementById('gradientExpOffBtn'),
+            gradientExpOnBtn: document.getElementById('gradientExpOnBtn'),
+            gradientExperimentControls: document.getElementById('gradientExperimentControls'),
+            defaultGradientAngleSlider: document.getElementById('defaultGradientAngleSlider'),
+            defaultGradientAngleValue: document.getElementById('defaultGradientAngleValue'),
+            defaultGradientStartGraySlider: document.getElementById('defaultGradientStartGraySlider'),
+            defaultGradientStartGrayValue: document.getElementById('defaultGradientStartGrayValue'),
+            defaultGradientEndGraySlider: document.getElementById('defaultGradientEndGraySlider'),
+            defaultGradientEndGrayValue: document.getElementById('defaultGradientEndGrayValue'),
+            pressedGradientAngleSlider: document.getElementById('pressedGradientAngleSlider'),
+            pressedGradientAngleValue: document.getElementById('pressedGradientAngleValue'),
+            pressedGradientStartGraySlider: document.getElementById('pressedGradientStartGraySlider'),
+            pressedGradientStartGrayValue: document.getElementById('pressedGradientStartGrayValue'),
+            pressedGradientEndGraySlider: document.getElementById('pressedGradientEndGraySlider'),
+            pressedGradientEndGrayValue: document.getElementById('pressedGradientEndGrayValue')
         };
     }
 
@@ -1309,6 +1404,17 @@ class ControlsManager {
         this.setupSlider('notchDeactivationSpeedSlider', 'notchDeactivationSpeed', 'notchDeactivationSpeedValue', 'ms', (value) => this.updateAnimationSpeed());
         this.setupSlider('notchBrightnessBoostSlider', 'notchBrightnessBoost', 'notchBrightnessBoostValue', 'x');
         this.setupSlider('ringThicknessBoostSlider', 'ringThicknessBoost', 'ringThicknessBoostValue', 'x');
+
+        // Gradient experiment controls
+        this.elements.gradientExpOffBtn.addEventListener('click', () => this.toggleGradientExperiment(false));
+        this.elements.gradientExpOnBtn.addEventListener('click', () => this.toggleGradientExperiment(true));
+
+        this.setupSlider('defaultGradientAngleSlider', 'defaultGradientAngle', 'defaultGradientAngleValue', '°', () => this.renderer.render());
+        this.setupSlider('defaultGradientStartGraySlider', 'defaultGradientStartGray', 'defaultGradientStartGrayValue', '%', () => this.renderer.render());
+        this.setupSlider('defaultGradientEndGraySlider', 'defaultGradientEndGray', 'defaultGradientEndGrayValue', '%', () => this.renderer.render());
+        this.setupSlider('pressedGradientAngleSlider', 'pressedGradientAngle', 'pressedGradientAngleValue', '°');
+        this.setupSlider('pressedGradientStartGraySlider', 'pressedGradientStartGray', 'pressedGradientStartGrayValue', '%');
+        this.setupSlider('pressedGradientEndGraySlider', 'pressedGradientEndGray', 'pressedGradientEndGrayValue', '%');
 
         // Subscribe to rotation changes from interaction
         this.state.subscribe('rotation', (value) => {
@@ -1395,6 +1501,17 @@ class ControlsManager {
 
         // Sync theme buttons
         this.updateThemeButtons(state.theme);
+
+        // Sync gradient experiment buttons
+        if (state.gradientExperimentEnabled) {
+            this.elements.gradientExpOnBtn.classList.add('active');
+            this.elements.gradientExpOffBtn.classList.remove('active');
+            this.elements.gradientExperimentControls.style.display = 'block';
+        } else {
+            this.elements.gradientExpOffBtn.classList.add('active');
+            this.elements.gradientExpOnBtn.classList.remove('active');
+            this.elements.gradientExperimentControls.style.display = 'none';
+        }
     }
 
     setTheme(theme) {
@@ -1418,6 +1535,24 @@ class ControlsManager {
             this.elements.lightThemeBtn.classList.add('active');
             this.elements.darkThemeBtn.classList.remove('active');
         }
+    }
+
+    toggleGradientExperiment(enabled) {
+        this.state.set('gradientExperimentEnabled', enabled);
+
+        // Update button states
+        if (enabled) {
+            this.elements.gradientExpOnBtn.classList.add('active');
+            this.elements.gradientExpOffBtn.classList.remove('active');
+            this.elements.gradientExperimentControls.style.display = 'block';
+        } else {
+            this.elements.gradientExpOffBtn.classList.add('active');
+            this.elements.gradientExpOnBtn.classList.remove('active');
+            this.elements.gradientExperimentControls.style.display = 'none';
+        }
+
+        // Re-render to apply gradient changes
+        this.renderer.render();
     }
 
     updateSliceColors(theme) {
