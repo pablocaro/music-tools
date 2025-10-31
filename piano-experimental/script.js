@@ -422,7 +422,7 @@ class RenderEngine {
         return defs;
     }
 
-    createGrainFilter(filterId, intensity, blendMode) {
+    createGrainFilter(filterId, intensity, blendMode, useSourceGraphic = false) {
         if (intensity === 0) return;
 
         const defs = this.createDefs();
@@ -441,8 +441,8 @@ class RenderEngine {
         // Turbulence for noise
         const turbulence = document.createElementNS(SVG_NS, 'feTurbulence');
         turbulence.setAttribute('type', 'fractalNoise');
-        turbulence.setAttribute('baseFrequency', '0.65');
-        turbulence.setAttribute('numOctaves', '3');
+        turbulence.setAttribute('baseFrequency', '0.9');
+        turbulence.setAttribute('numOctaves', '4');
         turbulence.setAttribute('result', 'noise');
 
         // Make it grayscale
@@ -452,25 +452,57 @@ class RenderEngine {
         colorMatrix.setAttribute('values', '0');
         colorMatrix.setAttribute('result', 'grayNoise');
 
-        // Control intensity via alpha
-        const componentTransfer = document.createElementNS(SVG_NS, 'feComponentTransfer');
-        componentTransfer.setAttribute('in', 'grayNoise');
-        const funcA = document.createElementNS(SVG_NS, 'feFuncA');
-        funcA.setAttribute('type', 'linear');
-        funcA.setAttribute('slope', intensity / 100);
-        componentTransfer.appendChild(funcA);
-        componentTransfer.setAttribute('result', 'adjustedNoise');
-
-        // Blend with source
-        const blend = document.createElementNS(SVG_NS, 'feBlend');
-        blend.setAttribute('mode', blendMode);
-        blend.setAttribute('in', 'SourceGraphic');
-        blend.setAttribute('in2', 'adjustedNoise');
-
         filter.appendChild(turbulence);
         filter.appendChild(colorMatrix);
-        filter.appendChild(componentTransfer);
-        filter.appendChild(blend);
+
+        if (useSourceGraphic) {
+            // For grip ring: blend noise with the source graphic
+            const componentTransfer = document.createElementNS(SVG_NS, 'feComponentTransfer');
+            componentTransfer.setAttribute('in', 'grayNoise');
+            componentTransfer.setAttribute('result', 'scaledNoise');
+
+            const funcA = document.createElementNS(SVG_NS, 'feFuncA');
+            funcA.setAttribute('type', 'linear');
+            funcA.setAttribute('slope', intensity / 100);
+            componentTransfer.appendChild(funcA);
+
+            const blend = document.createElementNS(SVG_NS, 'feBlend');
+            blend.setAttribute('mode', blendMode);
+            blend.setAttribute('in', 'SourceGraphic');
+            blend.setAttribute('in2', 'scaledNoise');
+
+            filter.appendChild(componentTransfer);
+            filter.appendChild(blend);
+        } else {
+            // For global overlay: just output white noise with controlled opacity
+            const componentTransfer = document.createElementNS(SVG_NS, 'feComponentTransfer');
+            componentTransfer.setAttribute('in', 'grayNoise');
+            componentTransfer.setAttribute('result', 'opacityNoise');
+
+            const funcR = document.createElementNS(SVG_NS, 'feFuncR');
+            funcR.setAttribute('type', 'discrete');
+            funcR.setAttribute('tableValues', '1');
+
+            const funcG = document.createElementNS(SVG_NS, 'feFuncG');
+            funcG.setAttribute('type', 'discrete');
+            funcG.setAttribute('tableValues', '1');
+
+            const funcB = document.createElementNS(SVG_NS, 'feFuncB');
+            funcB.setAttribute('type', 'discrete');
+            funcB.setAttribute('tableValues', '1');
+
+            const funcA = document.createElementNS(SVG_NS, 'feFuncA');
+            funcA.setAttribute('type', 'linear');
+            funcA.setAttribute('slope', intensity / 100);
+            funcA.setAttribute('intercept', '0');
+
+            componentTransfer.appendChild(funcR);
+            componentTransfer.appendChild(funcG);
+            componentTransfer.appendChild(funcB);
+            componentTransfer.appendChild(funcA);
+
+            filter.appendChild(componentTransfer);
+        }
 
         defs.appendChild(filter);
     }
@@ -627,7 +659,7 @@ class RenderEngine {
 
         // Apply grain filter if intensity > 0
         if (gripRingGrainIntensity > 0) {
-            this.createGrainFilter('gripRingGrainFilter', gripRingGrainIntensity, gripRingGrainBlendMode);
+            this.createGrainFilter('gripRingGrainFilter', gripRingGrainIntensity, gripRingGrainBlendMode, true);
             gripRing.setAttribute('filter', 'url(#gripRingGrainFilter)');
         }
 
@@ -733,10 +765,10 @@ class RenderEngine {
 
         if (grainIntensity === 0) return;
 
-        // Create grain filter
+        // Create grain filter (just generates noise, no blending in filter)
         this.createGrainFilter('globalGrainFilter', grainIntensity, grainBlendMode);
 
-        // Create full-screen rect
+        // Create full-screen rect with grain
         const size = this.geometry.getViewportSize();
         const rect = document.createElementNS(SVG_NS, 'rect');
         rect.setAttribute('id', 'globalGrainOverlay');
@@ -744,8 +776,7 @@ class RenderEngine {
         rect.setAttribute('y', '0');
         rect.setAttribute('width', size.width);
         rect.setAttribute('height', size.height);
-        rect.setAttribute('fill', 'white');
-        rect.setAttribute('opacity', '0.5');
+        rect.setAttribute('fill', 'black');
         rect.setAttribute('filter', 'url(#globalGrainFilter)');
         rect.setAttribute('pointer-events', 'none');
         rect.style.mixBlendMode = grainBlendMode;
