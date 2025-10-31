@@ -18,7 +18,7 @@ const INITIAL_STATE = {
     offsetY: 0,
     radius: 100,
     rotation: 58,
-    gapSize: 0.2,
+    gapSize: 0,
     gripThickness: 2,
     gripOpacity: 10,
     ticksPerEdge: 4,
@@ -28,12 +28,23 @@ const INITIAL_STATE = {
     pressBrightness: 30,
     theme: 'dark',
     // Gradient Settings
-    defaultGradientAngle: 0,
-    defaultGradientStartColor: '#000000',
-    defaultGradientEndColor: '#000000',
+    defaultGradientAngle: 58,
+    defaultGradientStartColor: '#383838',
+    defaultGradientEndColor: '#bfbfbf',
     pressedGradientAngle: 0,
     pressedGradientStartColor: '#000000',
     pressedGradientEndColor: '#4d4d4d',
+    // Global Grain
+    globalGrainIntensity: 0,
+    globalGrainBlendMode: 'overlay',
+    // Grip Ring Appearance
+    gripRingColor: '#ffffff',
+    gripRingGrainIntensity: 0,
+    gripRingGrainBlendMode: 'overlay',
+    // Note Markers
+    noteMarkerSize: 4,
+    noteMarkerColor: '#999999',
+    noteMarkerPosition: 108,
     // Experimental: Drone lock timing
     droneLockTime: 3000,
     // Experimental: Gripper animations
@@ -402,6 +413,68 @@ class RenderEngine {
         this.innerCircle = null;
     }
 
+    createDefs() {
+        let defs = this.svg.querySelector('defs');
+        if (!defs) {
+            defs = document.createElementNS(SVG_NS, 'defs');
+            this.svg.insertBefore(defs, this.svg.firstChild);
+        }
+        return defs;
+    }
+
+    createGrainFilter(filterId, intensity, blendMode) {
+        if (intensity === 0) return;
+
+        const defs = this.createDefs();
+
+        // Remove existing filter with this ID
+        const existing = document.getElementById(filterId);
+        if (existing) existing.remove();
+
+        const filter = document.createElementNS(SVG_NS, 'filter');
+        filter.setAttribute('id', filterId);
+        filter.setAttribute('x', '-50%');
+        filter.setAttribute('y', '-50%');
+        filter.setAttribute('width', '200%');
+        filter.setAttribute('height', '200%');
+
+        // Turbulence for noise
+        const turbulence = document.createElementNS(SVG_NS, 'feTurbulence');
+        turbulence.setAttribute('type', 'fractalNoise');
+        turbulence.setAttribute('baseFrequency', '0.65');
+        turbulence.setAttribute('numOctaves', '3');
+        turbulence.setAttribute('result', 'noise');
+
+        // Make it grayscale
+        const colorMatrix = document.createElementNS(SVG_NS, 'feColorMatrix');
+        colorMatrix.setAttribute('in', 'noise');
+        colorMatrix.setAttribute('type', 'saturate');
+        colorMatrix.setAttribute('values', '0');
+        colorMatrix.setAttribute('result', 'grayNoise');
+
+        // Control intensity via alpha
+        const componentTransfer = document.createElementNS(SVG_NS, 'feComponentTransfer');
+        componentTransfer.setAttribute('in', 'grayNoise');
+        const funcA = document.createElementNS(SVG_NS, 'feFuncA');
+        funcA.setAttribute('type', 'linear');
+        funcA.setAttribute('slope', intensity / 100);
+        componentTransfer.appendChild(funcA);
+        componentTransfer.setAttribute('result', 'adjustedNoise');
+
+        // Blend with source
+        const blend = document.createElementNS(SVG_NS, 'feBlend');
+        blend.setAttribute('mode', blendMode);
+        blend.setAttribute('in', 'SourceGraphic');
+        blend.setAttribute('in2', 'adjustedNoise');
+
+        filter.appendChild(turbulence);
+        filter.appendChild(colorMatrix);
+        filter.appendChild(componentTransfer);
+        filter.appendChild(blend);
+
+        defs.appendChild(filter);
+    }
+
     renderBackground() {
         const size = this.geometry.getViewportSize();
         const bgRect = document.createElementNS(SVG_NS, 'rect');
@@ -537,6 +610,9 @@ class RenderEngine {
         const center = this.geometry.calculateCenter();
         const gripRingRadius = innerRadius * DRAGGABLE_RING_RATIO;
         const gripRingOpacity = this.state.get('gripRingOpacity');
+        const gripRingColor = this.state.get('gripRingColor');
+        const gripRingGrainIntensity = this.state.get('gripRingGrainIntensity');
+        const gripRingGrainBlendMode = this.state.get('gripRingGrainBlendMode');
 
         const gripRing = document.createElementNS(SVG_NS, 'circle');
         gripRing.setAttribute('class', 'grip-ring');
@@ -544,10 +620,16 @@ class RenderEngine {
         gripRing.setAttribute('cy', center.y);
         gripRing.setAttribute('r', (gripRingRadius + innerRadius) / 2);
         gripRing.setAttribute('fill', 'none');
-        gripRing.setAttribute('stroke', 'var(--grip-color)');
+        gripRing.setAttribute('stroke', gripRingColor);
         gripRing.setAttribute('stroke-width', innerRadius - gripRingRadius);
         gripRing.setAttribute('opacity', gripRingOpacity / 100);
         gripRing.style.pointerEvents = 'none';
+
+        // Apply grain filter if intensity > 0
+        if (gripRingGrainIntensity > 0) {
+            this.createGrainFilter('gripRingGrainFilter', gripRingGrainIntensity, gripRingGrainBlendMode);
+            gripRing.setAttribute('filter', 'url(#gripRingGrainFilter)');
+        }
 
         this.sliceGroup.appendChild(gripRing);
         return gripRingRadius;
@@ -613,11 +695,16 @@ class RenderEngine {
         const sliceCount = this.state.get('sliceCount');
         const anglePerSlice = 360 / sliceCount;
 
+        // Get values from state
+        const markerSize = this.state.get('noteMarkerSize');
+        const markerColor = this.state.get('noteMarkerColor');
+        const markerPosition = this.state.get('noteMarkerPosition');
+
         const fragment = document.createDocumentFragment();
         for (let i = 0; i < sliceCount; i++) {
             if (i % 7 === 0) {
                 const midAngle = ((i + 0.5) * anglePerSlice) * Math.PI / 180;
-                const markerRadius = innerRadius * 1.08;
+                const markerRadius = innerRadius * (markerPosition / 100);
 
                 const markerX = center.x + markerRadius * Math.cos(midAngle);
                 const markerY = center.y + markerRadius * Math.sin(midAngle);
@@ -625,8 +712,8 @@ class RenderEngine {
                 const marker = document.createElementNS(SVG_NS, 'circle');
                 marker.setAttribute('cx', markerX);
                 marker.setAttribute('cy', markerY);
-                marker.setAttribute('r', '4');
-                marker.setAttribute('fill', '#999');
+                marker.setAttribute('r', markerSize);
+                marker.setAttribute('fill', markerColor);
                 marker.style.pointerEvents = 'none';
 
                 fragment.appendChild(marker);
@@ -634,6 +721,37 @@ class RenderEngine {
         }
 
         this.sliceGroup.appendChild(fragment);
+    }
+
+    renderGlobalGrain() {
+        const grainIntensity = this.state.get('globalGrainIntensity');
+        const grainBlendMode = this.state.get('globalGrainBlendMode');
+
+        // Remove existing grain overlay
+        const existing = this.svg.querySelector('#globalGrainOverlay');
+        if (existing) existing.remove();
+
+        if (grainIntensity === 0) return;
+
+        // Create grain filter
+        this.createGrainFilter('globalGrainFilter', grainIntensity, grainBlendMode);
+
+        // Create full-screen rect
+        const size = this.geometry.getViewportSize();
+        const rect = document.createElementNS(SVG_NS, 'rect');
+        rect.setAttribute('id', 'globalGrainOverlay');
+        rect.setAttribute('x', '0');
+        rect.setAttribute('y', '0');
+        rect.setAttribute('width', size.width);
+        rect.setAttribute('height', size.height);
+        rect.setAttribute('fill', 'white');
+        rect.setAttribute('opacity', '0.5');
+        rect.setAttribute('filter', 'url(#globalGrainFilter)');
+        rect.setAttribute('pointer-events', 'none');
+        rect.style.mixBlendMode = grainBlendMode;
+
+        // Append as last element (on top)
+        this.svg.appendChild(rect);
     }
 
     render() {
@@ -648,6 +766,7 @@ class RenderEngine {
         const gripRingRadius = this.renderGripRing(innerRadius);
         this.renderGripTicks(innerRadius, gripRingRadius);
         this.renderNoteMarkers(innerRadius);
+        this.renderGlobalGrain();
     }
 
     updateRotation() {
@@ -1319,8 +1438,28 @@ class ControlsManager {
             pressedGradientAngleValue: document.getElementById('pressedGradientAngleValue'),
             pressedGradientStartColor: document.getElementById('pressedGradientStartColor'),
             pressedGradientEndColor: document.getElementById('pressedGradientEndColor'),
-            // Save and reset buttons
-            saveSettingsBtn: document.getElementById('saveSettingsBtn'),
+            // Global Grain controls
+            globalGrainIntensitySlider: document.getElementById('globalGrainIntensitySlider'),
+            globalGrainIntensityValue: document.getElementById('globalGrainIntensityValue'),
+            globalGrainBlendMode: document.getElementById('globalGrainBlendMode'),
+            // Grip Ring Appearance controls
+            gripRingColor: document.getElementById('gripRingColor'),
+            gripRingGrainIntensitySlider: document.getElementById('gripRingGrainIntensitySlider'),
+            gripRingGrainIntensityValue: document.getElementById('gripRingGrainIntensityValue'),
+            gripRingGrainBlendMode: document.getElementById('gripRingGrainBlendMode'),
+            // Note Marker controls
+            noteMarkerSizeSlider: document.getElementById('noteMarkerSizeSlider'),
+            noteMarkerSizeValue: document.getElementById('noteMarkerSizeValue'),
+            noteMarkerColor: document.getElementById('noteMarkerColor'),
+            noteMarkerPositionSlider: document.getElementById('noteMarkerPositionSlider'),
+            noteMarkerPositionValue: document.getElementById('noteMarkerPositionValue'),
+            // Save slot buttons
+            saveSlot1Btn: document.getElementById('saveSlot1Btn'),
+            loadSlot1Btn: document.getElementById('loadSlot1Btn'),
+            saveSlot2Btn: document.getElementById('saveSlot2Btn'),
+            loadSlot2Btn: document.getElementById('loadSlot2Btn'),
+            saveSlot3Btn: document.getElementById('saveSlot3Btn'),
+            loadSlot3Btn: document.getElementById('loadSlot3Btn'),
             resetSettingsBtn: document.getElementById('resetSettingsBtn')
         };
     }
@@ -1376,8 +1515,27 @@ class ControlsManager {
         this.setupColorInput('pressedGradientStartColor', 'pressedGradientStartColor');
         this.setupColorInput('pressedGradientEndColor', 'pressedGradientEndColor');
 
-        // Save and reset controls
-        this.elements.saveSettingsBtn.addEventListener('click', () => this.saveSettings());
+        // Global Grain controls
+        this.setupSlider('globalGrainIntensitySlider', 'globalGrainIntensity', 'globalGrainIntensityValue', '%', () => this.renderer.render());
+        this.setupDropdown('globalGrainBlendMode', 'globalGrainBlendMode', () => this.renderer.render());
+
+        // Grip Ring Appearance controls
+        this.setupColorInput('gripRingColor', 'gripRingColor', () => this.renderer.render());
+        this.setupSlider('gripRingGrainIntensitySlider', 'gripRingGrainIntensity', 'gripRingGrainIntensityValue', '%', () => this.renderer.render());
+        this.setupDropdown('gripRingGrainBlendMode', 'gripRingGrainBlendMode', () => this.renderer.render());
+
+        // Note Marker controls
+        this.setupSlider('noteMarkerSizeSlider', 'noteMarkerSize', 'noteMarkerSizeValue', 'px', () => this.renderer.render());
+        this.setupColorInput('noteMarkerColor', 'noteMarkerColor', () => this.renderer.render());
+        this.setupSlider('noteMarkerPositionSlider', 'noteMarkerPosition', 'noteMarkerPositionValue', '%', () => this.renderer.render());
+
+        // Save slot controls
+        this.elements.saveSlot1Btn.addEventListener('click', () => this.saveToSlot(1));
+        this.elements.loadSlot1Btn.addEventListener('click', () => this.loadFromSlot(1));
+        this.elements.saveSlot2Btn.addEventListener('click', () => this.saveToSlot(2));
+        this.elements.loadSlot2Btn.addEventListener('click', () => this.loadFromSlot(2));
+        this.elements.saveSlot3Btn.addEventListener('click', () => this.saveToSlot(3));
+        this.elements.loadSlot3Btn.addEventListener('click', () => this.loadFromSlot(3));
         this.elements.resetSettingsBtn.addEventListener('click', () => this.resetSettings());
 
         // Subscribe to rotation changes from interaction
@@ -1410,6 +1568,16 @@ class ControlsManager {
         const input = this.elements[inputKey];
 
         input.addEventListener('input', (e) => {
+            const value = e.target.value;
+            this.state.set(stateKey, value);
+            if (callback) callback(value);
+        });
+    }
+
+    setupDropdown(dropdownKey, stateKey, callback) {
+        const dropdown = this.elements[dropdownKey];
+
+        dropdown.addEventListener('change', (e) => {
             const value = e.target.value;
             this.state.set(stateKey, value);
             if (callback) callback(value);
@@ -1483,6 +1651,12 @@ class ControlsManager {
             if (colorElement && colorElement.type === 'color') {
                 colorElement.value = state[key];
             }
+
+            // Update dropdown/select elements
+            const selectElement = this.elements[key];
+            if (selectElement && selectElement.tagName === 'SELECT') {
+                selectElement.value = state[key];
+            }
         });
 
         // Sync theme buttons
@@ -1512,24 +1686,56 @@ class ControlsManager {
         }
     }
 
-    saveSettings() {
+    saveToSlot(slotNumber) {
         const state = this.state.getAll();
         try {
-            localStorage.setItem('radialPianoSettings', JSON.stringify(state));
-            console.log('✅ Settings saved!');
+            localStorage.setItem(`radialPianoSlot${slotNumber}`, JSON.stringify(state));
+            console.log(`✅ Settings saved to Slot ${slotNumber}!`);
 
             // Visual feedback
-            const btn = this.elements.saveSettingsBtn;
+            const btn = this.elements[`saveSlot${slotNumber}Btn`];
             const originalText = btn.textContent;
             btn.textContent = '✓ Saved!';
             btn.style.background = '#28a745';
             setTimeout(() => {
                 btn.textContent = originalText;
                 btn.style.background = '#007acc';
-            }, 2000);
+            }, 1500);
         } catch (error) {
             console.error('Failed to save settings:', error);
             alert('Failed to save settings. Please check browser storage permissions.');
+        }
+    }
+
+    loadFromSlot(slotNumber) {
+        try {
+            const savedSettings = localStorage.getItem(`radialPianoSlot${slotNumber}`);
+            if (savedSettings) {
+                const settings = JSON.parse(savedSettings);
+                Object.keys(settings).forEach(key => {
+                    if (INITIAL_STATE.hasOwnProperty(key)) {
+                        this.state.set(key, settings[key]);
+                    }
+                });
+                this.syncUIWithState();
+                this.renderer.render();
+                console.log(`✅ Loaded settings from Slot ${slotNumber}`);
+
+                // Visual feedback
+                const btn = this.elements[`loadSlot${slotNumber}Btn`];
+                const originalText = btn.textContent;
+                btn.textContent = '✓ Loaded!';
+                btn.style.background = '#28a745';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '#5a5a5a';
+                }, 1500);
+            } else {
+                alert(`Slot ${slotNumber} is empty!`);
+            }
+        } catch (error) {
+            console.error('Failed to load settings:', error);
+            alert('Failed to load settings. The save data might be corrupted.');
         }
     }
 
@@ -1588,27 +1794,8 @@ class Application {
         this.controlsManager = null;
     }
 
-    loadSavedSettings() {
-        try {
-            const savedSettings = localStorage.getItem('radialPianoSettings');
-            if (savedSettings) {
-                const settings = JSON.parse(savedSettings);
-                // Apply saved settings to state
-                Object.keys(settings).forEach(key => {
-                    if (INITIAL_STATE.hasOwnProperty(key)) {
-                        this.stateManager.set(key, settings[key]);
-                    }
-                });
-                console.log('✅ Loaded saved settings');
-            }
-        } catch (error) {
-            console.error('Failed to load saved settings:', error);
-        }
-    }
-
     init() {
-        // Load saved settings from localStorage
-        this.loadSavedSettings();
+        // Note: Auto-load removed - users now manually load from slots
 
         // Prevent context menu on iOS and other touch devices
         this.svgElement.addEventListener('contextmenu', (e) => e.preventDefault());
