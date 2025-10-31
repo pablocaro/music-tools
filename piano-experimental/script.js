@@ -27,8 +27,7 @@ const INITIAL_STATE = {
     pressShrink: 2,
     pressBrightness: 30,
     theme: 'dark',
-    // Gradient Experiment
-    gradientExperimentEnabled: false,
+    // Gradient Settings
     defaultGradientAngle: 0,
     defaultGradientStartGray: 0,
     defaultGradientEndGray: 0,
@@ -437,11 +436,8 @@ class RenderEngine {
         // Calculate base angle for this slice
         const baseAngle = ((index + 0.5) * anglePerSlice);
 
-        // Apply gradient angle offset if gradient experiment is enabled
-        const angleOffset = this.state.get('gradientExperimentEnabled')
-            ? this.state.get('defaultGradientAngle')
-            : 0;
-
+        // Apply gradient angle offset
+        const angleOffset = this.state.get('defaultGradientAngle');
         const gradientAngle = (baseAngle + angleOffset) * Math.PI / 180;
         const r = Math.max(radii.rx, radii.ry);
 
@@ -457,12 +453,8 @@ class RenderEngine {
         gradient.setAttribute('gradientUnits', 'userSpaceOnUse');
 
         // Get gray levels from state
-        const startGray = this.state.get('gradientExperimentEnabled')
-            ? this.state.get('defaultGradientStartGray')
-            : 0;
-        const endGray = this.state.get('gradientExperimentEnabled')
-            ? this.state.get('defaultGradientEndGray')
-            : 0;
+        const startGray = this.state.get('defaultGradientStartGray');
+        const endGray = this.state.get('defaultGradientEndGray');
 
         const startColor = this.getGrayColor(startGray);
         const endColor = this.getGrayColor(endGray);
@@ -676,12 +668,8 @@ class RenderEngine {
     }
 
     getPressColor() {
-        if (this.state.get('gradientExperimentEnabled')) {
-            const endGray = this.state.get('pressedGradientEndGray');
-            return this.getGrayColor(endGray);
-        }
-        const brightness = this.state.get('pressBrightness');
-        return this.getGrayColor(brightness);
+        const endGray = this.state.get('pressedGradientEndGray');
+        return this.getGrayColor(endGray);
     }
 
     getPressNarrowFactor() {
@@ -690,30 +678,21 @@ class RenderEngine {
 
     pressSlice(index) {
         // Update gradient colors when pressed
-        if (this.state.get('gradientExperimentEnabled')) {
-            const gradient = document.querySelector(`#gradient${index}`);
-            if (gradient) {
-                const stop1 = gradient.querySelector('stop:first-child');
-                const stop2 = gradient.querySelector('stop:last-child');
+        const gradient = document.querySelector(`#gradient${index}`);
+        if (gradient) {
+            const stop1 = gradient.querySelector('stop:first-child');
+            const stop2 = gradient.querySelector('stop:last-child');
 
-                const pressedStartGray = this.state.get('pressedGradientStartGray');
-                const pressedEndGray = this.state.get('pressedGradientEndGray');
+            const pressedStartGray = this.state.get('pressedGradientStartGray');
+            const pressedEndGray = this.state.get('pressedGradientEndGray');
 
-                if (stop1) {
-                    stop1.style.transition = 'stop-color 120ms cubic-bezier(0.4, 0.0, 0.2, 1)';
-                    stop1.setAttribute('stop-color', this.getGrayColor(pressedStartGray));
-                }
-                if (stop2) {
-                    stop2.style.transition = 'stop-color 120ms cubic-bezier(0.4, 0.0, 0.2, 1)';
-                    stop2.setAttribute('stop-color', this.getGrayColor(pressedEndGray));
-                }
+            if (stop1) {
+                stop1.style.transition = 'stop-color 120ms cubic-bezier(0.4, 0.0, 0.2, 1)';
+                stop1.setAttribute('stop-color', this.getGrayColor(pressedStartGray));
             }
-        } else {
-            // Original behavior: only update stop2
-            const stop2 = document.querySelector(`.stop2-${index}`);
             if (stop2) {
                 stop2.style.transition = 'stop-color 120ms cubic-bezier(0.4, 0.0, 0.2, 1)';
-                stop2.setAttribute('stop-color', this.getPressColor());
+                stop2.setAttribute('stop-color', this.getGrayColor(pressedEndGray));
             }
         }
 
@@ -731,31 +710,22 @@ class RenderEngine {
             return;
         }
 
-        // Reset gradient colors
-        if (this.state.get('gradientExperimentEnabled')) {
-            const gradient = document.querySelector(`#gradient${index}`);
-            if (gradient) {
-                const stop1 = gradient.querySelector('stop:first-child');
-                const stop2 = gradient.querySelector('stop:last-child');
+        // Reset gradient colors to default
+        const gradient = document.querySelector(`#gradient${index}`);
+        if (gradient) {
+            const stop1 = gradient.querySelector('stop:first-child');
+            const stop2 = gradient.querySelector('stop:last-child');
 
-                const defaultStartGray = this.state.get('defaultGradientStartGray');
-                const defaultEndGray = this.state.get('defaultGradientEndGray');
+            const defaultStartGray = this.state.get('defaultGradientStartGray');
+            const defaultEndGray = this.state.get('defaultGradientEndGray');
 
-                if (stop1) {
-                    stop1.style.transition = 'stop-color 300ms ease-out';
-                    stop1.setAttribute('stop-color', this.getGrayColor(defaultStartGray));
-                }
-                if (stop2) {
-                    stop2.style.transition = 'stop-color 300ms ease-out';
-                    stop2.setAttribute('stop-color', this.getGrayColor(defaultEndGray));
-                }
+            if (stop1) {
+                stop1.style.transition = 'stop-color 300ms ease-out';
+                stop1.setAttribute('stop-color', this.getGrayColor(defaultStartGray));
             }
-        } else {
-            // Original behavior: only update stop2
-            const stop2 = document.querySelector(`.stop2-${index}`);
             if (stop2) {
                 stop2.style.transition = 'stop-color 300ms ease-out';
-                stop2.setAttribute('stop-color', '#000');
+                stop2.setAttribute('stop-color', this.getGrayColor(defaultEndGray));
             }
         }
 
@@ -1343,10 +1313,7 @@ class ControlsManager {
             notchBrightnessBoostValue: document.getElementById('notchBrightnessBoostValue'),
             ringThicknessBoostSlider: document.getElementById('ringThicknessBoostSlider'),
             ringThicknessBoostValue: document.getElementById('ringThicknessBoostValue'),
-            // Gradient experiment controls
-            gradientExpOffBtn: document.getElementById('gradientExpOffBtn'),
-            gradientExpOnBtn: document.getElementById('gradientExpOnBtn'),
-            gradientExperimentControls: document.getElementById('gradientExperimentControls'),
+            // Gradient controls
             defaultGradientAngleSlider: document.getElementById('defaultGradientAngleSlider'),
             defaultGradientAngleValue: document.getElementById('defaultGradientAngleValue'),
             defaultGradientStartGraySlider: document.getElementById('defaultGradientStartGraySlider'),
@@ -1358,7 +1325,10 @@ class ControlsManager {
             pressedGradientStartGraySlider: document.getElementById('pressedGradientStartGraySlider'),
             pressedGradientStartGrayValue: document.getElementById('pressedGradientStartGrayValue'),
             pressedGradientEndGraySlider: document.getElementById('pressedGradientEndGraySlider'),
-            pressedGradientEndGrayValue: document.getElementById('pressedGradientEndGrayValue')
+            pressedGradientEndGrayValue: document.getElementById('pressedGradientEndGrayValue'),
+            // Save and reset buttons
+            saveSettingsBtn: document.getElementById('saveSettingsBtn'),
+            resetSettingsBtn: document.getElementById('resetSettingsBtn')
         };
     }
 
@@ -1405,16 +1375,17 @@ class ControlsManager {
         this.setupSlider('notchBrightnessBoostSlider', 'notchBrightnessBoost', 'notchBrightnessBoostValue', 'x');
         this.setupSlider('ringThicknessBoostSlider', 'ringThicknessBoost', 'ringThicknessBoostValue', 'x');
 
-        // Gradient experiment controls
-        this.elements.gradientExpOffBtn.addEventListener('click', () => this.toggleGradientExperiment(false));
-        this.elements.gradientExpOnBtn.addEventListener('click', () => this.toggleGradientExperiment(true));
-
+        // Gradient controls
         this.setupSlider('defaultGradientAngleSlider', 'defaultGradientAngle', 'defaultGradientAngleValue', '°', () => this.renderer.render());
         this.setupSlider('defaultGradientStartGraySlider', 'defaultGradientStartGray', 'defaultGradientStartGrayValue', '%', () => this.renderer.render());
         this.setupSlider('defaultGradientEndGraySlider', 'defaultGradientEndGray', 'defaultGradientEndGrayValue', '%', () => this.renderer.render());
         this.setupSlider('pressedGradientAngleSlider', 'pressedGradientAngle', 'pressedGradientAngleValue', '°');
         this.setupSlider('pressedGradientStartGraySlider', 'pressedGradientStartGray', 'pressedGradientStartGrayValue', '%');
         this.setupSlider('pressedGradientEndGraySlider', 'pressedGradientEndGray', 'pressedGradientEndGrayValue', '%');
+
+        // Save and reset controls
+        this.elements.saveSettingsBtn.addEventListener('click', () => this.saveSettings());
+        this.elements.resetSettingsBtn.addEventListener('click', () => this.resetSettings());
 
         // Subscribe to rotation changes from interaction
         this.state.subscribe('rotation', (value) => {
@@ -1497,21 +1468,16 @@ class ControlsManager {
             if (sliderElement) {
                 sliderElement.value = state[key];
             }
+
+            // Update value displays
+            const valueElement = this.elements[key + 'Value'];
+            if (valueElement) {
+                valueElement.textContent = state[key];
+            }
         });
 
         // Sync theme buttons
         this.updateThemeButtons(state.theme);
-
-        // Sync gradient experiment buttons
-        if (state.gradientExperimentEnabled) {
-            this.elements.gradientExpOnBtn.classList.add('active');
-            this.elements.gradientExpOffBtn.classList.remove('active');
-            this.elements.gradientExperimentControls.style.display = 'block';
-        } else {
-            this.elements.gradientExpOffBtn.classList.add('active');
-            this.elements.gradientExpOnBtn.classList.remove('active');
-            this.elements.gradientExperimentControls.style.display = 'none';
-        }
     }
 
     setTheme(theme) {
@@ -1537,22 +1503,50 @@ class ControlsManager {
         }
     }
 
-    toggleGradientExperiment(enabled) {
-        this.state.set('gradientExperimentEnabled', enabled);
+    saveSettings() {
+        const state = this.state.getAll();
+        try {
+            localStorage.setItem('radialPianoSettings', JSON.stringify(state));
+            console.log('✅ Settings saved!');
 
-        // Update button states
-        if (enabled) {
-            this.elements.gradientExpOnBtn.classList.add('active');
-            this.elements.gradientExpOffBtn.classList.remove('active');
-            this.elements.gradientExperimentControls.style.display = 'block';
-        } else {
-            this.elements.gradientExpOffBtn.classList.add('active');
-            this.elements.gradientExpOnBtn.classList.remove('active');
-            this.elements.gradientExperimentControls.style.display = 'none';
+            // Visual feedback
+            const btn = this.elements.saveSettingsBtn;
+            const originalText = btn.textContent;
+            btn.textContent = '✓ Saved!';
+            btn.style.background = '#28a745';
+            setTimeout(() => {
+                btn.textContent = originalText;
+                btn.style.background = '#007acc';
+            }, 2000);
+        } catch (error) {
+            console.error('Failed to save settings:', error);
+            alert('Failed to save settings. Please check browser storage permissions.');
         }
+    }
 
-        // Re-render to apply gradient changes
-        this.renderer.render();
+    resetSettings() {
+        if (confirm('Reset all settings to factory defaults?')) {
+            // Reset state to initial values
+            Object.keys(INITIAL_STATE).forEach(key => {
+                this.state.set(key, INITIAL_STATE[key]);
+            });
+
+            // Update all UI elements
+            this.syncUIWithState();
+
+            // Re-render
+            this.renderer.render();
+
+            console.log('↺ Settings reset to defaults');
+
+            // Visual feedback
+            const btn = this.elements.resetSettingsBtn;
+            const originalText = btn.textContent;
+            btn.textContent = '✓ Reset!';
+            setTimeout(() => {
+                btn.textContent = originalText;
+            }, 2000);
+        }
     }
 
     updateSliceColors(theme) {
@@ -1585,7 +1579,28 @@ class Application {
         this.controlsManager = null;
     }
 
+    loadSavedSettings() {
+        try {
+            const savedSettings = localStorage.getItem('radialPianoSettings');
+            if (savedSettings) {
+                const settings = JSON.parse(savedSettings);
+                // Apply saved settings to state
+                Object.keys(settings).forEach(key => {
+                    if (INITIAL_STATE.hasOwnProperty(key)) {
+                        this.stateManager.set(key, settings[key]);
+                    }
+                });
+                console.log('✅ Loaded saved settings');
+            }
+        } catch (error) {
+            console.error('Failed to load saved settings:', error);
+        }
+    }
+
     init() {
+        // Load saved settings from localStorage
+        this.loadSavedSettings();
+
         // Prevent context menu on iOS and other touch devices
         this.svgElement.addEventListener('contextmenu', (e) => e.preventDefault());
         document.addEventListener('contextmenu', (e) => {

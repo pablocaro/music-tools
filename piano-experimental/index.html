@@ -17,58 +17,44 @@
 
             <div class="control-group">
                 <div class="theme-switch-container">
-                    <label>Gradient Experiment:</label>
-                    <div class="theme-switch">
-                        <button class="theme-option" id="gradientExpOffBtn" aria-label="Gradient experiment off">Off</button>
-                        <button class="theme-option" id="gradientExpOnBtn" aria-label="Gradient experiment on">On</button>
-                    </div>
-                </div>
-            </div>
-
-            <div id="gradientExperimentControls" style="display: none;">
-                <h4 style="margin-top: 20px; margin-bottom: 16px; color: var(--modal-text); font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Default Gradient</h4>
-
-                <div class="control-group">
-                    <label for="defaultGradientAngleSlider">Angle Offset: <span class="range-value" id="defaultGradientAngleValue">0</span>°</label>
-                    <input type="range" id="defaultGradientAngleSlider" min="-180" max="180" value="0" aria-label="Default gradient angle">
-                </div>
-
-                <div class="control-group">
-                    <label for="defaultGradientStartGraySlider">Start Gray: <span class="range-value" id="defaultGradientStartGrayValue">0</span>%</label>
-                    <input type="range" id="defaultGradientStartGraySlider" min="0" max="100" step="1" value="0" aria-label="Default gradient start gray">
-                </div>
-
-                <div class="control-group">
-                    <label for="defaultGradientEndGraySlider">End Gray: <span class="range-value" id="defaultGradientEndGrayValue">0</span>%</label>
-                    <input type="range" id="defaultGradientEndGraySlider" min="0" max="100" step="1" value="0" aria-label="Default gradient end gray">
-                </div>
-
-                <h4 style="margin-top: 20px; margin-bottom: 16px; color: var(--modal-text); font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Pressed Gradient</h4>
-
-                <div class="control-group">
-                    <label for="pressedGradientAngleSlider">Angle Offset: <span class="range-value" id="pressedGradientAngleValue">0</span>°</label>
-                    <input type="range" id="pressedGradientAngleSlider" min="-180" max="180" value="0" aria-label="Pressed gradient angle">
-                </div>
-
-                <div class="control-group">
-                    <label for="pressedGradientStartGraySlider">Start Gray: <span class="range-value" id="pressedGradientStartGrayValue">0</span>%</label>
-                    <input type="range" id="pressedGradientStartGraySlider" min="0" max="100" step="1" value="0" aria-label="Pressed gradient start gray">
-                </div>
-
-                <div class="control-group">
-                    <label for="pressedGradientEndGraySlider">End Gray: <span class="range-value" id="pressedGradientEndGrayValue">30</span>%</label>
-                    <input type="range" id="pressedGradientEndGraySlider" min="0" max="100" step="1" value="30" aria-label="Pressed gradient end gray">
-                </div>
-            </div>
-
-            <div class="control-group">
-                <div class="theme-switch-container">
                     <label>Theme:</label>
                     <div class="theme-switch">
                         <button class="theme-option" id="darkThemeBtn" aria-label="Dark theme">Dark</button>
                         <button class="theme-option" id="lightThemeBtn" aria-label="Light theme">Light</button>
                     </div>
                 </div>
+            </div>
+
+            <h4 style="margin-top: 20px; margin-bottom: 16px; color: var(--modal-text); font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Gradient Settings</h4>
+
+            <div class="control-group">
+                <label for="defaultGradientAngleSlider">Default Angle: <span class="range-value" id="defaultGradientAngleValue">0</span>°</label>
+                <input type="range" id="defaultGradientAngleSlider" min="-180" max="180" value="0" aria-label="Default gradient angle">
+            </div>
+
+            <div class="control-group">
+                <label for="defaultGradientStartGraySlider">Default Start Gray: <span class="range-value" id="defaultGradientStartGrayValue">0</span>%</label>
+                <input type="range" id="defaultGradientStartGraySlider" min="0" max="100" step="1" value="0" aria-label="Default gradient start gray">
+            </div>
+
+            <div class="control-group">
+                <label for="defaultGradientEndGraySlider">Default End Gray: <span class="range-value" id="defaultGradientEndGrayValue">0</span>%</label>
+                <input type="range" id="defaultGradientEndGraySlider" min="0" max="100" step="1" value="0" aria-label="Default gradient end gray">
+            </div>
+
+            <div class="control-group">
+                <label for="pressedGradientAngleSlider">Pressed Angle: <span class="range-value" id="pressedGradientAngleValue">0</span>°</label>
+                <input type="range" id="pressedGradientAngleSlider" min="-180" max="180" value="0" aria-label="Pressed gradient angle">
+            </div>
+
+            <div class="control-group">
+                <label for="pressedGradientStartGraySlider">Pressed Start Gray: <span class="range-value" id="pressedGradientStartGrayValue">0</span>%</label>
+                <input type="range" id="pressedGradientStartGraySlider" min="0" max="100" step="1" value="0" aria-label="Pressed gradient start gray">
+            </div>
+
+            <div class="control-group">
+                <label for="pressedGradientEndGraySlider">Pressed End Gray: <span class="range-value" id="pressedGradientEndGrayValue">30</span>%</label>
+                <input type="range" id="pressedGradientEndGraySlider" min="0" max="100" step="1" value="30" aria-label="Pressed gradient end gray">
             </div>
 
             <div class="control-group">
@@ -143,6 +129,11 @@
             <div class="control-group">
                 <label for="pressBrightnessSlider">Press Brightness: <span class="range-value" id="pressBrightnessValue">30</span>%</label>
                 <input type="range" id="pressBrightnessSlider" min="0" max="100" step="5" value="30" aria-label="Press brightness">
+            </div>
+
+            <div style="margin-top: 32px; padding-top: 24px; border-top: 2px solid #e0e0e0; display: flex; gap: 12px;">
+                <button id="saveSettingsBtn" style="flex: 1; padding: 12px; background: #007acc; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: background 0.2s;">💾 Save Settings</button>
+                <button id="resetSettingsBtn" style="flex: 1; padding: 12px; background: #666; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: background 0.2s;">↺ Reset to Defaults</button>
             </div>
 
             <h3 style="margin-top: 32px; padding-top: 24px; border-top: 2px solid #e0e0e0;">Experimental Settings</h3>
