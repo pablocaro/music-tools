@@ -29,11 +29,11 @@ const INITIAL_STATE = {
     theme: 'dark',
     // Gradient Settings
     defaultGradientAngle: 0,
-    defaultGradientStartGray: 0,
-    defaultGradientEndGray: 0,
+    defaultGradientStartColor: '#000000',
+    defaultGradientEndColor: '#000000',
     pressedGradientAngle: 0,
-    pressedGradientStartGray: 0,
-    pressedGradientEndGray: 30,
+    pressedGradientStartColor: '#000000',
+    pressedGradientEndColor: '#4d4d4d',
     // Experimental: Drone lock timing
     droneLockTime: 3000,
     // Experimental: Gripper animations
@@ -452,12 +452,9 @@ class RenderEngine {
         gradient.setAttribute('y2', y2);
         gradient.setAttribute('gradientUnits', 'userSpaceOnUse');
 
-        // Get gray levels from state
-        const startGray = this.state.get('defaultGradientStartGray');
-        const endGray = this.state.get('defaultGradientEndGray');
-
-        const startColor = this.getGrayColor(startGray);
-        const endColor = this.getGrayColor(endGray);
+        // Get colors from state
+        const startColor = this.state.get('defaultGradientStartColor');
+        const endColor = this.state.get('defaultGradientEndColor');
 
         const stop1 = document.createElementNS(SVG_NS, 'stop');
         stop1.setAttribute('offset', '0%');
@@ -683,16 +680,16 @@ class RenderEngine {
             const stop1 = gradient.querySelector('stop:first-child');
             const stop2 = gradient.querySelector('stop:last-child');
 
-            const pressedStartGray = this.state.get('pressedGradientStartGray');
-            const pressedEndGray = this.state.get('pressedGradientEndGray');
+            const pressedStartColor = this.state.get('pressedGradientStartColor');
+            const pressedEndColor = this.state.get('pressedGradientEndColor');
 
             if (stop1) {
                 stop1.style.transition = 'stop-color 120ms cubic-bezier(0.4, 0.0, 0.2, 1)';
-                stop1.setAttribute('stop-color', this.getGrayColor(pressedStartGray));
+                stop1.setAttribute('stop-color', pressedStartColor);
             }
             if (stop2) {
                 stop2.style.transition = 'stop-color 120ms cubic-bezier(0.4, 0.0, 0.2, 1)';
-                stop2.setAttribute('stop-color', this.getGrayColor(pressedEndGray));
+                stop2.setAttribute('stop-color', pressedEndColor);
             }
         }
 
@@ -716,16 +713,16 @@ class RenderEngine {
             const stop1 = gradient.querySelector('stop:first-child');
             const stop2 = gradient.querySelector('stop:last-child');
 
-            const defaultStartGray = this.state.get('defaultGradientStartGray');
-            const defaultEndGray = this.state.get('defaultGradientEndGray');
+            const defaultStartColor = this.state.get('defaultGradientStartColor');
+            const defaultEndColor = this.state.get('defaultGradientEndColor');
 
             if (stop1) {
                 stop1.style.transition = 'stop-color 300ms ease-out';
-                stop1.setAttribute('stop-color', this.getGrayColor(defaultStartGray));
+                stop1.setAttribute('stop-color', defaultStartColor);
             }
             if (stop2) {
                 stop2.style.transition = 'stop-color 300ms ease-out';
-                stop2.setAttribute('stop-color', this.getGrayColor(defaultEndGray));
+                stop2.setAttribute('stop-color', defaultEndColor);
             }
         }
 
@@ -1316,16 +1313,12 @@ class ControlsManager {
             // Gradient controls
             defaultGradientAngleSlider: document.getElementById('defaultGradientAngleSlider'),
             defaultGradientAngleValue: document.getElementById('defaultGradientAngleValue'),
-            defaultGradientStartGraySlider: document.getElementById('defaultGradientStartGraySlider'),
-            defaultGradientStartGrayValue: document.getElementById('defaultGradientStartGrayValue'),
-            defaultGradientEndGraySlider: document.getElementById('defaultGradientEndGraySlider'),
-            defaultGradientEndGrayValue: document.getElementById('defaultGradientEndGrayValue'),
+            defaultGradientStartColor: document.getElementById('defaultGradientStartColor'),
+            defaultGradientEndColor: document.getElementById('defaultGradientEndColor'),
             pressedGradientAngleSlider: document.getElementById('pressedGradientAngleSlider'),
             pressedGradientAngleValue: document.getElementById('pressedGradientAngleValue'),
-            pressedGradientStartGraySlider: document.getElementById('pressedGradientStartGraySlider'),
-            pressedGradientStartGrayValue: document.getElementById('pressedGradientStartGrayValue'),
-            pressedGradientEndGraySlider: document.getElementById('pressedGradientEndGraySlider'),
-            pressedGradientEndGrayValue: document.getElementById('pressedGradientEndGrayValue'),
+            pressedGradientStartColor: document.getElementById('pressedGradientStartColor'),
+            pressedGradientEndColor: document.getElementById('pressedGradientEndColor'),
             // Save and reset buttons
             saveSettingsBtn: document.getElementById('saveSettingsBtn'),
             resetSettingsBtn: document.getElementById('resetSettingsBtn')
@@ -1377,11 +1370,11 @@ class ControlsManager {
 
         // Gradient controls
         this.setupSlider('defaultGradientAngleSlider', 'defaultGradientAngle', 'defaultGradientAngleValue', '°', () => this.renderer.render());
-        this.setupSlider('defaultGradientStartGraySlider', 'defaultGradientStartGray', 'defaultGradientStartGrayValue', '%', () => this.renderer.render());
-        this.setupSlider('defaultGradientEndGraySlider', 'defaultGradientEndGray', 'defaultGradientEndGrayValue', '%', () => this.renderer.render());
+        this.setupColorInput('defaultGradientStartColor', 'defaultGradientStartColor', () => this.renderer.render());
+        this.setupColorInput('defaultGradientEndColor', 'defaultGradientEndColor', () => this.renderer.render());
         this.setupSlider('pressedGradientAngleSlider', 'pressedGradientAngle', 'pressedGradientAngleValue', '°');
-        this.setupSlider('pressedGradientStartGraySlider', 'pressedGradientStartGray', 'pressedGradientStartGrayValue', '%');
-        this.setupSlider('pressedGradientEndGraySlider', 'pressedGradientEndGray', 'pressedGradientEndGrayValue', '%');
+        this.setupColorInput('pressedGradientStartColor', 'pressedGradientStartColor');
+        this.setupColorInput('pressedGradientEndColor', 'pressedGradientEndColor');
 
         // Save and reset controls
         this.elements.saveSettingsBtn.addEventListener('click', () => this.saveSettings());
@@ -1409,6 +1402,16 @@ class ControlsManager {
             this.state.set(stateKey, value);
             const displayValue = value % 1 !== 0 ? value.toFixed(1) : value;
             valueDisplay.textContent = displayValue + suffix;
+            if (callback) callback(value);
+        });
+    }
+
+    setupColorInput(inputKey, stateKey, callback) {
+        const input = this.elements[inputKey];
+
+        input.addEventListener('input', (e) => {
+            const value = e.target.value;
+            this.state.set(stateKey, value);
             if (callback) callback(value);
         });
     }
@@ -1473,6 +1476,12 @@ class ControlsManager {
             const valueElement = this.elements[key + 'Value'];
             if (valueElement) {
                 valueElement.textContent = state[key];
+            }
+
+            // Update color inputs (direct element match)
+            const colorElement = this.elements[key];
+            if (colorElement && colorElement.type === 'color') {
+                colorElement.value = state[key];
             }
         });
 
