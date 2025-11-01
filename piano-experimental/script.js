@@ -36,8 +36,6 @@ const INITIAL_STATE = {
     pressedGradientEndColor: '#4d4d4d',
     // Grip Ring Appearance
     gripRingColor: '#ffffff',
-    gripRingGrainIntensity: 0,
-    gripRingGrainBlendMode: 'overlay',
     // Note Markers
     noteMarkerSize: 4,
     noteMarkerColor: '#999999',
@@ -419,91 +417,6 @@ class RenderEngine {
         return defs;
     }
 
-    createGrainFilter(filterId, intensity, blendMode, useSourceGraphic = false) {
-        if (intensity === 0) return;
-
-        const defs = this.createDefs();
-
-        // Remove existing filter with this ID
-        const existing = document.getElementById(filterId);
-        if (existing) existing.remove();
-
-        const filter = document.createElementNS(SVG_NS, 'filter');
-        filter.setAttribute('id', filterId);
-        filter.setAttribute('x', '-50%');
-        filter.setAttribute('y', '-50%');
-        filter.setAttribute('width', '200%');
-        filter.setAttribute('height', '200%');
-
-        // Turbulence for noise
-        const turbulence = document.createElementNS(SVG_NS, 'feTurbulence');
-        turbulence.setAttribute('type', 'fractalNoise');
-        turbulence.setAttribute('baseFrequency', '0.9');
-        turbulence.setAttribute('numOctaves', '4');
-        turbulence.setAttribute('result', 'noise');
-
-        // Make it grayscale
-        const colorMatrix = document.createElementNS(SVG_NS, 'feColorMatrix');
-        colorMatrix.setAttribute('in', 'noise');
-        colorMatrix.setAttribute('type', 'saturate');
-        colorMatrix.setAttribute('values', '0');
-        colorMatrix.setAttribute('result', 'grayNoise');
-
-        filter.appendChild(turbulence);
-        filter.appendChild(colorMatrix);
-
-        if (useSourceGraphic) {
-            // For grip ring: blend noise with the source graphic
-            const componentTransfer = document.createElementNS(SVG_NS, 'feComponentTransfer');
-            componentTransfer.setAttribute('in', 'grayNoise');
-            componentTransfer.setAttribute('result', 'scaledNoise');
-
-            const funcA = document.createElementNS(SVG_NS, 'feFuncA');
-            funcA.setAttribute('type', 'linear');
-            funcA.setAttribute('slope', intensity / 100);
-            componentTransfer.appendChild(funcA);
-
-            const blend = document.createElementNS(SVG_NS, 'feBlend');
-            blend.setAttribute('mode', blendMode);
-            blend.setAttribute('in', 'SourceGraphic');
-            blend.setAttribute('in2', 'scaledNoise');
-
-            filter.appendChild(componentTransfer);
-            filter.appendChild(blend);
-        } else {
-            // For global overlay: just output white noise with controlled opacity
-            const componentTransfer = document.createElementNS(SVG_NS, 'feComponentTransfer');
-            componentTransfer.setAttribute('in', 'grayNoise');
-            componentTransfer.setAttribute('result', 'opacityNoise');
-
-            const funcR = document.createElementNS(SVG_NS, 'feFuncR');
-            funcR.setAttribute('type', 'discrete');
-            funcR.setAttribute('tableValues', '1');
-
-            const funcG = document.createElementNS(SVG_NS, 'feFuncG');
-            funcG.setAttribute('type', 'discrete');
-            funcG.setAttribute('tableValues', '1');
-
-            const funcB = document.createElementNS(SVG_NS, 'feFuncB');
-            funcB.setAttribute('type', 'discrete');
-            funcB.setAttribute('tableValues', '1');
-
-            const funcA = document.createElementNS(SVG_NS, 'feFuncA');
-            funcA.setAttribute('type', 'linear');
-            funcA.setAttribute('slope', intensity / 100);
-            funcA.setAttribute('intercept', '0');
-
-            componentTransfer.appendChild(funcR);
-            componentTransfer.appendChild(funcG);
-            componentTransfer.appendChild(funcB);
-            componentTransfer.appendChild(funcA);
-
-            filter.appendChild(componentTransfer);
-        }
-
-        defs.appendChild(filter);
-    }
-
     renderBackground() {
         const size = this.geometry.getViewportSize();
         const bgRect = document.createElementNS(SVG_NS, 'rect');
@@ -640,25 +553,28 @@ class RenderEngine {
         const gripRingRadius = innerRadius * DRAGGABLE_RING_RATIO;
         const gripRingOpacity = this.state.get('gripRingOpacity');
         const gripRingColor = this.state.get('gripRingColor');
-        const gripRingGrainIntensity = this.state.get('gripRingGrainIntensity');
-        const gripRingGrainBlendMode = this.state.get('gripRingGrainBlendMode');
 
-        const gripRing = document.createElementNS(SVG_NS, 'circle');
+        const outerRadius = innerRadius;
+        const innerRingRadius = gripRingRadius;
+
+        // Create donut-shaped path
+        // Draw outer circle clockwise, then inner circle counter-clockwise
+        const pathData = [
+            `M ${center.x},${center.y - outerRadius}`,  // Move to top of outer circle
+            `A ${outerRadius},${outerRadius} 0 1,1 ${center.x},${center.y + outerRadius}`,  // Outer arc (half circle)
+            `A ${outerRadius},${outerRadius} 0 1,1 ${center.x},${center.y - outerRadius}`,  // Complete outer circle
+            `M ${center.x},${center.y - innerRingRadius}`,  // Move to top of inner circle
+            `A ${innerRingRadius},${innerRingRadius} 0 1,0 ${center.x},${center.y + innerRingRadius}`,  // Inner arc (half circle, counter-clockwise)
+            `A ${innerRingRadius},${innerRingRadius} 0 1,0 ${center.x},${center.y - innerRingRadius}`,  // Complete inner circle (counter-clockwise)
+        ].join(' ');
+
+        const gripRing = document.createElementNS(SVG_NS, 'path');
         gripRing.setAttribute('class', 'grip-ring');
-        gripRing.setAttribute('cx', center.x);
-        gripRing.setAttribute('cy', center.y);
-        gripRing.setAttribute('r', (gripRingRadius + innerRadius) / 2);
-        gripRing.setAttribute('fill', 'none');
-        gripRing.setAttribute('stroke', gripRingColor);
-        gripRing.setAttribute('stroke-width', innerRadius - gripRingRadius);
+        gripRing.setAttribute('d', pathData);
+        gripRing.setAttribute('fill', gripRingColor);
+        gripRing.setAttribute('fill-rule', 'evenodd');  // Creates the donut hole
         gripRing.setAttribute('opacity', gripRingOpacity / 100);
         gripRing.style.pointerEvents = 'none';
-
-        // Apply grain filter if intensity > 0
-        if (gripRingGrainIntensity > 0) {
-            this.createGrainFilter('gripRingGrainFilter', gripRingGrainIntensity, gripRingGrainBlendMode, true);
-            gripRing.setAttribute('filter', 'url(#gripRingGrainFilter)');
-        }
 
         this.sliceGroup.appendChild(gripRing);
         return gripRingRadius;
@@ -947,14 +863,15 @@ class RenderEngine {
             const notchBrightnessBoost = this.state.get('notchBrightnessBoost');
             const notchGrowthFactor = this.state.get('notchGrowthFactor');
 
-            // Thicken the grip ring
+            // Scale up the grip ring (filled path)
             const gripRing = this.sliceGroup.querySelector('.grip-ring');
             if (gripRing) {
-                const currentWidth = parseFloat(gripRing.getAttribute('stroke-width'));
-                gripRing.setAttribute('stroke-width', currentWidth * ringThicknessBoost);
-
                 const currentOpacity = parseFloat(gripRing.getAttribute('opacity'));
                 gripRing.setAttribute('opacity', Math.min(1, currentOpacity * 2));
+
+                // Use CSS transform to scale the ring (simulates thickening)
+                gripRing.style.transform = `scale(${ringThicknessBoost})`;
+                gripRing.style.transformOrigin = 'center';
             }
 
             // Brighten and scale the grip ticks using CSS transforms
@@ -973,14 +890,12 @@ class RenderEngine {
         if (this.sliceGroup) {
             this.sliceGroup.classList.remove('gripper-active');
 
-            // Reset the grip ring to original width and opacity
-            const innerCircleData = this.getInnerCircleData();
-            const gripRingRadius = innerCircleData.innerRadius * DRAGGABLE_RING_RATIO;
+            // Reset the grip ring to original opacity and scale
             const gripRingOpacity = this.state.get('gripRingOpacity');
             const gripRing = this.sliceGroup.querySelector('.grip-ring');
             if (gripRing) {
-                gripRing.setAttribute('stroke-width', innerCircleData.innerRadius - gripRingRadius);
                 gripRing.setAttribute('opacity', gripRingOpacity / 100);
+                gripRing.style.transform = 'scale(1)';  // Reset scale
             }
 
             // Reset grip ticks to original scale and opacity
@@ -1437,9 +1352,6 @@ class ControlsManager {
             pressedGradientEndColor: document.getElementById('pressedGradientEndColor'),
             // Grip Ring Appearance controls
             gripRingColor: document.getElementById('gripRingColor'),
-            gripRingGrainIntensitySlider: document.getElementById('gripRingGrainIntensitySlider'),
-            gripRingGrainIntensityValue: document.getElementById('gripRingGrainIntensityValue'),
-            gripRingGrainBlendMode: document.getElementById('gripRingGrainBlendMode'),
             // Note Marker controls
             noteMarkerSizeSlider: document.getElementById('noteMarkerSizeSlider'),
             noteMarkerSizeValue: document.getElementById('noteMarkerSizeValue'),
@@ -1510,8 +1422,6 @@ class ControlsManager {
 
         // Grip Ring Appearance controls
         this.setupColorInput('gripRingColor', 'gripRingColor', () => this.renderer.render());
-        this.setupSlider('gripRingGrainIntensitySlider', 'gripRingGrainIntensity', 'gripRingGrainIntensityValue', '%', () => this.renderer.render());
-        this.setupDropdown('gripRingGrainBlendMode', 'gripRingGrainBlendMode', () => this.renderer.render());
 
         // Note Marker controls
         this.setupSlider('noteMarkerSizeSlider', 'noteMarkerSize', 'noteMarkerSizeValue', 'px', () => this.renderer.render());
