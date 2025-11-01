@@ -13,7 +13,7 @@ const CORNER_COORDS = { 'bottom-right': { x: 100, y: 100 } };
 
 const INITIAL_STATE = {
     sliceCount: 32,
-    bgGray: 18,
+    bgGray: 0,
     offsetX: 0,
     offsetY: 0,
     radius: 100,
@@ -22,7 +22,7 @@ const INITIAL_STATE = {
     gripThickness: 2,
     gripOpacity: 10,
     ticksPerEdge: 4,
-    gripRingOpacity: 0,
+    gripRingOpacity: 50,
     gripInset: 5,
     pressShrink: 2,
     pressBrightness: 30,
@@ -548,6 +548,19 @@ class RenderEngine {
         return innerRadius;
     }
 
+    createGripRingPath(center, outerRadius, innerRingRadius) {
+        // Create donut-shaped path
+        // Draw outer circle clockwise, then inner circle counter-clockwise
+        return [
+            `M ${center.x},${center.y - outerRadius}`,  // Move to top of outer circle
+            `A ${outerRadius},${outerRadius} 0 1,1 ${center.x},${center.y + outerRadius}`,  // Outer arc (half circle)
+            `A ${outerRadius},${outerRadius} 0 1,1 ${center.x},${center.y - outerRadius}`,  // Complete outer circle
+            `M ${center.x},${center.y - innerRingRadius}`,  // Move to top of inner circle
+            `A ${innerRingRadius},${innerRingRadius} 0 1,0 ${center.x},${center.y + innerRingRadius}`,  // Inner arc (half circle, counter-clockwise)
+            `A ${innerRingRadius},${innerRingRadius} 0 1,0 ${center.x},${center.y - innerRingRadius}`,  // Complete inner circle (counter-clockwise)
+        ].join(' ');
+    }
+
     renderGripRing(innerRadius) {
         const center = this.geometry.calculateCenter();
         const gripRingRadius = innerRadius * DRAGGABLE_RING_RATIO;
@@ -557,16 +570,10 @@ class RenderEngine {
         const outerRadius = innerRadius;
         const innerRingRadius = gripRingRadius;
 
-        // Create donut-shaped path
-        // Draw outer circle clockwise, then inner circle counter-clockwise
-        const pathData = [
-            `M ${center.x},${center.y - outerRadius}`,  // Move to top of outer circle
-            `A ${outerRadius},${outerRadius} 0 1,1 ${center.x},${center.y + outerRadius}`,  // Outer arc (half circle)
-            `A ${outerRadius},${outerRadius} 0 1,1 ${center.x},${center.y - outerRadius}`,  // Complete outer circle
-            `M ${center.x},${center.y - innerRingRadius}`,  // Move to top of inner circle
-            `A ${innerRingRadius},${innerRingRadius} 0 1,0 ${center.x},${center.y + innerRingRadius}`,  // Inner arc (half circle, counter-clockwise)
-            `A ${innerRingRadius},${innerRingRadius} 0 1,0 ${center.x},${center.y - innerRingRadius}`,  // Complete inner circle (counter-clockwise)
-        ].join(' ');
+        // Store base radii for animation
+        this.gripRingBaseRadii = { outerRadius, innerRingRadius };
+
+        const pathData = this.createGripRingPath(center, outerRadius, innerRingRadius);
 
         const gripRing = document.createElementNS(SVG_NS, 'path');
         gripRing.setAttribute('class', 'grip-ring');
@@ -575,6 +582,7 @@ class RenderEngine {
         gripRing.setAttribute('fill-rule', 'evenodd');  // Creates the donut hole
         gripRing.setAttribute('opacity', gripRingOpacity / 100);
         gripRing.style.pointerEvents = 'none';
+        gripRing.style.transition = 'd 200ms cubic-bezier(0.4, 0.0, 0.2, 1)';
 
         this.sliceGroup.appendChild(gripRing);
         return gripRingRadius;
@@ -855,7 +863,7 @@ class RenderEngine {
     }
 
     activateGripper() {
-        if (this.sliceGroup) {
+        if (this.sliceGroup && this.gripRingBaseRadii) {
             this.sliceGroup.classList.add('gripper-active');
 
             // Get state values for animation
@@ -863,19 +871,23 @@ class RenderEngine {
             const notchBrightnessBoost = this.state.get('notchBrightnessBoost');
             const notchGrowthFactor = this.state.get('notchGrowthFactor');
 
-            // Get center coordinates for proper transform origin
             const center = this.geometry.calculateCenter();
 
-            // Scale up the grip ring (filled path)
+            // Thicken the grip ring by expanding outer radius and contracting inner radius
             const gripRing = this.sliceGroup.querySelector('.grip-ring');
             if (gripRing) {
                 const currentOpacity = parseFloat(gripRing.getAttribute('opacity'));
                 gripRing.setAttribute('opacity', Math.min(1, currentOpacity * 2));
 
-                // Use CSS transform to scale the ring (simulates thickening)
-                // Set transform-origin to SVG center coordinates
-                gripRing.style.transformOrigin = `${center.x}px ${center.y}px`;
-                gripRing.style.transform = `scale(${ringThicknessBoost})`;
+                // Calculate thickened radii
+                // Outer edge grows outward
+                const thickenedOuterRadius = this.gripRingBaseRadii.outerRadius * ringThicknessBoost;
+                // Inner edge shrinks inward (inverse relationship for true thickening)
+                const thickenedInnerRadius = this.gripRingBaseRadii.innerRingRadius / ringThicknessBoost;
+
+                // Regenerate path with thickened radii
+                const thickenedPath = this.createGripRingPath(center, thickenedOuterRadius, thickenedInnerRadius);
+                gripRing.setAttribute('d', thickenedPath);
             }
 
             // Brighten and scale the grip ticks using CSS transforms
@@ -891,15 +903,23 @@ class RenderEngine {
     }
 
     deactivateGripper() {
-        if (this.sliceGroup) {
+        if (this.sliceGroup && this.gripRingBaseRadii) {
             this.sliceGroup.classList.remove('gripper-active');
 
-            // Reset the grip ring to original opacity and scale
+            // Reset the grip ring to original opacity and radii
             const gripRingOpacity = this.state.get('gripRingOpacity');
             const gripRing = this.sliceGroup.querySelector('.grip-ring');
             if (gripRing) {
                 gripRing.setAttribute('opacity', gripRingOpacity / 100);
-                gripRing.style.transform = 'scale(1)';  // Reset scale
+
+                // Regenerate path with base radii (resets to original thickness)
+                const center = this.geometry.calculateCenter();
+                const basePath = this.createGripRingPath(
+                    center,
+                    this.gripRingBaseRadii.outerRadius,
+                    this.gripRingBaseRadii.innerRingRadius
+                );
+                gripRing.setAttribute('d', basePath);
             }
 
             // Reset grip ticks to original scale and opacity
