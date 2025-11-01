@@ -34,9 +34,6 @@ const INITIAL_STATE = {
     pressedGradientAngle: 0,
     pressedGradientStartColor: '#000000',
     pressedGradientEndColor: '#4d4d4d',
-    // Global Grain
-    globalGrainIntensity: 0,
-    globalGrainBlendMode: 'overlay',
     // Grip Ring Appearance
     gripRingColor: '#ffffff',
     gripRingGrainIntensity: 0,
@@ -755,36 +752,6 @@ class RenderEngine {
         this.sliceGroup.appendChild(fragment);
     }
 
-    renderGlobalGrain() {
-        const grainIntensity = this.state.get('globalGrainIntensity');
-        const grainBlendMode = this.state.get('globalGrainBlendMode');
-
-        // Remove existing grain overlay
-        const existing = this.svg.querySelector('#globalGrainOverlay');
-        if (existing) existing.remove();
-
-        if (grainIntensity === 0) return;
-
-        // Create grain filter (just generates noise, no blending in filter)
-        this.createGrainFilter('globalGrainFilter', grainIntensity, grainBlendMode);
-
-        // Create full-screen rect with grain
-        const size = this.geometry.getViewportSize();
-        const rect = document.createElementNS(SVG_NS, 'rect');
-        rect.setAttribute('id', 'globalGrainOverlay');
-        rect.setAttribute('x', '0');
-        rect.setAttribute('y', '0');
-        rect.setAttribute('width', size.width);
-        rect.setAttribute('height', size.height);
-        rect.setAttribute('fill', 'black');
-        rect.setAttribute('filter', 'url(#globalGrainFilter)');
-        rect.setAttribute('pointer-events', 'none');
-        rect.style.mixBlendMode = grainBlendMode;
-
-        // Append as last element (on top)
-        this.svg.appendChild(rect);
-    }
-
     render() {
         // Clear locked slices when re-rendering (slice indices change)
         this.lockedSlices.clear();
@@ -797,7 +764,6 @@ class RenderEngine {
         const gripRingRadius = this.renderGripRing(innerRadius);
         this.renderGripTicks(innerRadius, gripRingRadius);
         this.renderNoteMarkers(innerRadius);
-        this.renderGlobalGrain();
     }
 
     updateRotation() {
@@ -1469,10 +1435,6 @@ class ControlsManager {
             pressedGradientAngleValue: document.getElementById('pressedGradientAngleValue'),
             pressedGradientStartColor: document.getElementById('pressedGradientStartColor'),
             pressedGradientEndColor: document.getElementById('pressedGradientEndColor'),
-            // Global Grain controls
-            globalGrainIntensitySlider: document.getElementById('globalGrainIntensitySlider'),
-            globalGrainIntensityValue: document.getElementById('globalGrainIntensityValue'),
-            globalGrainBlendMode: document.getElementById('globalGrainBlendMode'),
             // Grip Ring Appearance controls
             gripRingColor: document.getElementById('gripRingColor'),
             gripRingGrainIntensitySlider: document.getElementById('gripRingGrainIntensitySlider'),
@@ -1545,10 +1507,6 @@ class ControlsManager {
         this.setupSlider('pressedGradientAngleSlider', 'pressedGradientAngle', 'pressedGradientAngleValue', '°');
         this.setupColorInput('pressedGradientStartColor', 'pressedGradientStartColor');
         this.setupColorInput('pressedGradientEndColor', 'pressedGradientEndColor');
-
-        // Global Grain controls
-        this.setupSlider('globalGrainIntensitySlider', 'globalGrainIntensity', 'globalGrainIntensityValue', '%', () => this.renderer.render());
-        this.setupDropdown('globalGrainBlendMode', 'globalGrainBlendMode', () => this.renderer.render());
 
         // Grip Ring Appearance controls
         this.setupColorInput('gripRingColor', 'gripRingColor', () => this.renderer.render());
