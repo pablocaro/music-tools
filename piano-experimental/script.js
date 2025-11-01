@@ -36,6 +36,11 @@ const INITIAL_STATE = {
     pressedGradientEndColor: '#4d4d4d',
     // Grip Ring Appearance
     gripRingColor: '#000000',
+    gripRingNoiseFrequency: 0.8,
+    gripRingNoiseOctaves: 3,
+    gripRingNoiseType: 'fractalNoise',
+    gripRingNoiseOpacity: 50,
+    gripRingNoiseBlend: 'normal',
     // Note Markers
     noteMarkerSize: 4,
     noteMarkerColor: '#999999',
@@ -561,6 +566,69 @@ class RenderEngine {
         ].join(' ');
     }
 
+    createGripRingNoiseFilter(defs) {
+        // Remove old filter if it exists
+        const oldFilter = defs.querySelector('#gripRingNoiseFilter');
+        if (oldFilter) oldFilter.remove();
+
+        const filter = document.createElementNS(SVG_NS, 'filter');
+        filter.setAttribute('id', 'gripRingNoiseFilter');
+        filter.setAttribute('x', '-50%');
+        filter.setAttribute('y', '-50%');
+        filter.setAttribute('width', '200%');
+        filter.setAttribute('height', '200%');
+
+        // Get noise settings from state
+        const frequency = this.state.get('gripRingNoiseFrequency');
+        const octaves = this.state.get('gripRingNoiseOctaves');
+        const type = this.state.get('gripRingNoiseType');
+        const noiseOpacity = this.state.get('gripRingNoiseOpacity') / 100;
+        const blendMode = this.state.get('gripRingNoiseBlend');
+
+        // Create turbulence/noise
+        const turbulence = document.createElementNS(SVG_NS, 'feTurbulence');
+        turbulence.setAttribute('type', type);
+        turbulence.setAttribute('baseFrequency', frequency);
+        turbulence.setAttribute('numOctaves', octaves);
+        turbulence.setAttribute('result', 'turbulence');
+
+        // Convert noise to alpha channel
+        const colorMatrix = document.createElementNS(SVG_NS, 'feColorMatrix');
+        colorMatrix.setAttribute('in', 'turbulence');
+        colorMatrix.setAttribute('type', 'luminanceToAlpha');
+        colorMatrix.setAttribute('result', 'noise');
+
+        // Composite the noise with the source graphic
+        const composite = document.createElementNS(SVG_NS, 'feComposite');
+        composite.setAttribute('in', 'noise');
+        composite.setAttribute('in2', 'SourceGraphic');
+        composite.setAttribute('operator', 'in');
+        composite.setAttribute('result', 'noiseTexture');
+
+        // Apply opacity to noise
+        const opacityMatrix = document.createElementNS(SVG_NS, 'feComponentTransfer');
+        opacityMatrix.setAttribute('in', 'noiseTexture');
+        opacityMatrix.setAttribute('result', 'fadedNoise');
+        const alphaFunc = document.createElementNS(SVG_NS, 'feFuncA');
+        alphaFunc.setAttribute('type', 'linear');
+        alphaFunc.setAttribute('slope', noiseOpacity);
+        opacityMatrix.appendChild(alphaFunc);
+
+        // Blend with source
+        const blend = document.createElementNS(SVG_NS, 'feBlend');
+        blend.setAttribute('in', 'fadedNoise');
+        blend.setAttribute('in2', 'SourceGraphic');
+        blend.setAttribute('mode', blendMode);
+
+        filter.appendChild(turbulence);
+        filter.appendChild(colorMatrix);
+        filter.appendChild(composite);
+        filter.appendChild(opacityMatrix);
+        filter.appendChild(blend);
+
+        defs.appendChild(filter);
+    }
+
     renderGripRing(innerRadius) {
         const center = this.geometry.calculateCenter();
         const gripRingRadius = innerRadius * DRAGGABLE_RING_RATIO;
@@ -575,12 +643,17 @@ class RenderEngine {
 
         const pathData = this.createGripRingPath(center, outerRadius, innerRingRadius);
 
+        // Create noise filter
+        const defs = this.sliceGroup.querySelector('defs');
+        this.createGripRingNoiseFilter(defs);
+
         const gripRing = document.createElementNS(SVG_NS, 'path');
         gripRing.setAttribute('class', 'grip-ring');
         gripRing.setAttribute('d', pathData);
         gripRing.setAttribute('fill', gripRingColor);
         gripRing.setAttribute('fill-rule', 'evenodd');  // Creates the donut hole
         gripRing.setAttribute('opacity', gripRingOpacity / 100);
+        gripRing.setAttribute('filter', 'url(#gripRingNoiseFilter)');
         gripRing.style.pointerEvents = 'none';
 
         this.sliceGroup.appendChild(gripRing);
@@ -1406,6 +1479,14 @@ class ControlsManager {
             pressedGradientEndColor: document.getElementById('pressedGradientEndColor'),
             // Grip Ring Appearance controls
             gripRingColor: document.getElementById('gripRingColor'),
+            gripRingNoiseFrequencySlider: document.getElementById('gripRingNoiseFrequencySlider'),
+            gripRingNoiseFrequencyValue: document.getElementById('gripRingNoiseFrequencyValue'),
+            gripRingNoiseOctavesSlider: document.getElementById('gripRingNoiseOctavesSlider'),
+            gripRingNoiseOctavesValue: document.getElementById('gripRingNoiseOctavesValue'),
+            gripRingNoiseTypeSelect: document.getElementById('gripRingNoiseTypeSelect'),
+            gripRingNoiseOpacitySlider: document.getElementById('gripRingNoiseOpacitySlider'),
+            gripRingNoiseOpacityValue: document.getElementById('gripRingNoiseOpacityValue'),
+            gripRingNoiseBlendSelect: document.getElementById('gripRingNoiseBlendSelect'),
             // Note Marker controls
             noteMarkerSizeSlider: document.getElementById('noteMarkerSizeSlider'),
             noteMarkerSizeValue: document.getElementById('noteMarkerSizeValue'),
@@ -1476,6 +1557,11 @@ class ControlsManager {
 
         // Grip Ring Appearance controls
         this.setupColorInput('gripRingColor', 'gripRingColor', () => this.renderer.render());
+        this.setupSlider('gripRingNoiseFrequencySlider', 'gripRingNoiseFrequency', 'gripRingNoiseFrequencyValue', '', () => this.renderer.render());
+        this.setupSlider('gripRingNoiseOctavesSlider', 'gripRingNoiseOctaves', 'gripRingNoiseOctavesValue', '', () => this.renderer.render());
+        this.setupDropdown('gripRingNoiseTypeSelect', 'gripRingNoiseType', () => this.renderer.render());
+        this.setupSlider('gripRingNoiseOpacitySlider', 'gripRingNoiseOpacity', 'gripRingNoiseOpacityValue', '%', () => this.renderer.render());
+        this.setupDropdown('gripRingNoiseBlendSelect', 'gripRingNoiseBlend', () => this.renderer.render());
 
         // Note Marker controls
         this.setupSlider('noteMarkerSizeSlider', 'noteMarkerSize', 'noteMarkerSizeValue', 'px', () => this.renderer.render());
