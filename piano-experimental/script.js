@@ -582,7 +582,6 @@ class RenderEngine {
         gripRing.setAttribute('fill-rule', 'evenodd');  // Creates the donut hole
         gripRing.setAttribute('opacity', gripRingOpacity / 100);
         gripRing.style.pointerEvents = 'none';
-        gripRing.style.transition = 'd 200ms cubic-bezier(0.4, 0.0, 0.2, 1)';
 
         this.sliceGroup.appendChild(gripRing);
         return gripRingRadius;
@@ -877,7 +876,7 @@ class RenderEngine {
             const gripRing = this.sliceGroup.querySelector('.grip-ring');
             if (gripRing) {
                 const currentOpacity = parseFloat(gripRing.getAttribute('opacity'));
-                gripRing.setAttribute('opacity', Math.min(1, currentOpacity * 2));
+                const targetOpacity = Math.min(1, currentOpacity * 2);
 
                 // Calculate thickened radii
                 // Outer edge grows outward
@@ -885,9 +884,24 @@ class RenderEngine {
                 // Inner edge shrinks inward (inverse relationship for true thickening)
                 const thickenedInnerRadius = this.gripRingBaseRadii.innerRingRadius / ringThicknessBoost;
 
-                // Regenerate path with thickened radii
+                // Get current and target paths
+                const currentPath = gripRing.getAttribute('d');
                 const thickenedPath = this.createGripRingPath(center, thickenedOuterRadius, thickenedInnerRadius);
+
+                // Animate using Web Animations API
+                const animationSpeed = this.state.get('notchActivationSpeed');
+                gripRing.animate([
+                    { d: currentPath, opacity: currentOpacity },
+                    { d: thickenedPath, opacity: targetOpacity }
+                ], {
+                    duration: animationSpeed,
+                    easing: 'cubic-bezier(0.4, 0.0, 0.2, 1)',
+                    fill: 'forwards'
+                });
+
+                // Update final state
                 gripRing.setAttribute('d', thickenedPath);
+                gripRing.setAttribute('opacity', targetOpacity);
             }
 
             // Brighten and scale the grip ticks using CSS transforms
@@ -910,16 +924,32 @@ class RenderEngine {
             const gripRingOpacity = this.state.get('gripRingOpacity');
             const gripRing = this.sliceGroup.querySelector('.grip-ring');
             if (gripRing) {
-                gripRing.setAttribute('opacity', gripRingOpacity / 100);
+                const currentOpacity = parseFloat(gripRing.getAttribute('opacity'));
+                const targetOpacity = gripRingOpacity / 100;
 
-                // Regenerate path with base radii (resets to original thickness)
+                // Get current and base paths
+                const currentPath = gripRing.getAttribute('d');
                 const center = this.geometry.calculateCenter();
                 const basePath = this.createGripRingPath(
                     center,
                     this.gripRingBaseRadii.outerRadius,
                     this.gripRingBaseRadii.innerRingRadius
                 );
+
+                // Animate using Web Animations API
+                const animationSpeed = this.state.get('notchDeactivationSpeed');
+                gripRing.animate([
+                    { d: currentPath, opacity: currentOpacity },
+                    { d: basePath, opacity: targetOpacity }
+                ], {
+                    duration: animationSpeed,
+                    easing: 'ease-out',
+                    fill: 'forwards'
+                });
+
+                // Update final state
                 gripRing.setAttribute('d', basePath);
+                gripRing.setAttribute('opacity', targetOpacity);
             }
 
             // Reset grip ticks to original scale and opacity
