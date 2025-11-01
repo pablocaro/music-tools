@@ -863,6 +863,9 @@ class RenderEngine {
             const notchBrightnessBoost = this.state.get('notchBrightnessBoost');
             const notchGrowthFactor = this.state.get('notchGrowthFactor');
 
+            // Get center coordinates for proper transform origin
+            const center = this.geometry.calculateCenter();
+
             // Scale up the grip ring (filled path)
             const gripRing = this.sliceGroup.querySelector('.grip-ring');
             if (gripRing) {
@@ -870,8 +873,9 @@ class RenderEngine {
                 gripRing.setAttribute('opacity', Math.min(1, currentOpacity * 2));
 
                 // Use CSS transform to scale the ring (simulates thickening)
+                // Set transform-origin to SVG center coordinates
+                gripRing.style.transformOrigin = `${center.x}px ${center.y}px`;
                 gripRing.style.transform = `scale(${ringThicknessBoost})`;
-                gripRing.style.transformOrigin = 'center';
             }
 
             // Brighten and scale the grip ticks using CSS transforms
