@@ -21,9 +21,9 @@ const INITIAL_STATE = {
     gapSize: 0,
     gripThickness: 2,
     gripOpacity: 10,
-    ticksPerEdge: 4,
-    gripRingOpacity: 50,
-    gripInset: 5,
+    ticksPerEdge: 3,
+    gripRingOpacity: 15,
+    gripInset: 10,
     pressShrink: 2,
     pressBrightness: 30,
     theme: 'dark',
@@ -43,11 +43,11 @@ const INITIAL_STATE = {
     // Experimental: Drone lock timing
     droneLockTime: 3000,
     // Experimental: Gripper animations
-    notchGrowthFactor: 1.3,
+    notchGrowthFactor: 1.2,
     notchActivationSpeed: 200,
     notchDeactivationSpeed: 300,
     notchBrightnessBoost: 1.5,
-    ringThicknessBoost: 1.3
+    ringThicknessBoost: 1.02
 };
 
 // ============================================
