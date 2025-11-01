@@ -35,7 +35,7 @@ const INITIAL_STATE = {
     pressedGradientStartColor: '#000000',
     pressedGradientEndColor: '#4d4d4d',
     // Grip Ring Appearance
-    gripRingColor: '#ffffff',
+    gripRingColor: '#000000',
     // Note Markers
     noteMarkerSize: 4,
     noteMarkerColor: '#999999',
