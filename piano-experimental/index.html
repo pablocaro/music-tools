@@ -48,8 +48,8 @@
             </div>
 
             <div class="control-group">
-                <label for="rotationSlider">Rotation: <span class="range-value" id="rotationValue">58</span>°</label>
-                <input type="range" id="rotationSlider" min="0" max="359" value="58" aria-label="Circle rotation">
+                <label for="rotationSlider">Rotation: <span class="range-value" id="rotationValue">290</span>°</label>
+                <input type="range" id="rotationSlider" min="0" max="359" value="290" aria-label="Circle rotation">
             </div>
 
             <div class="control-group">
@@ -68,8 +68,8 @@
             </div>
 
             <div class="control-group">
-                <label for="bgGraySlider">Background Gray: <span class="range-value" id="bgGrayValue">18</span>%</label>
-                <input type="range" id="bgGraySlider" min="0" max="100" value="18" aria-label="Background gray">
+                <label for="bgGraySlider">Background Gray: <span class="range-value" id="bgGrayValue">25</span>%</label>
+                <input type="range" id="bgGraySlider" min="0" max="100" value="25" aria-label="Background gray">
             </div>
 
             <!-- ============================================
@@ -78,18 +78,18 @@
             <h4 style="margin-top: 20px; margin-bottom: 16px; color: var(--modal-text); font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Slice Appearance</h4>
 
             <div class="control-group">
-                <label for="defaultGradientAngleSlider">Gradient Angle: <span class="range-value" id="defaultGradientAngleValue">58</span>°</label>
-                <input type="range" id="defaultGradientAngleSlider" min="-180" max="180" value="58" aria-label="Default gradient angle">
+                <label for="defaultGradientAngleSlider">Gradient Angle: <span class="range-value" id="defaultGradientAngleValue">53</span>°</label>
+                <input type="range" id="defaultGradientAngleSlider" min="-180" max="180" value="53" aria-label="Default gradient angle">
             </div>
 
             <div class="control-group">
                 <label for="defaultGradientStartColor">Gradient Start Color:</label>
-                <input type="color" id="defaultGradientStartColor" value="#383838" aria-label="Default gradient start color">
+                <input type="color" id="defaultGradientStartColor" value="#000000" aria-label="Default gradient start color">
             </div>
 
             <div class="control-group">
                 <label for="defaultGradientEndColor">Gradient End Color:</label>
-                <input type="color" id="defaultGradientEndColor" value="#bfbfbf" aria-label="Default gradient end color">
+                <input type="color" id="defaultGradientEndColor" value="#cfc9c9" aria-label="Default gradient end color">
             </div>
 
             <div class="control-group">
@@ -124,12 +124,12 @@
 
             <div class="control-group">
                 <label for="gripRingColor">Ring Color:</label>
-                <input type="color" id="gripRingColor" value="#000000" aria-label="Grip ring color">
+                <input type="color" id="gripRingColor" value="#ffffff" aria-label="Grip ring color">
             </div>
 
             <div class="control-group">
-                <label for="gripRingOpacitySlider">Ring Opacity: <span class="range-value" id="gripRingOpacityValue">15</span>%</label>
-                <input type="range" id="gripRingOpacitySlider" min="0" max="100" step="5" value="15" aria-label="Grip ring opacity">
+                <label for="gripRingOpacitySlider">Ring Opacity: <span class="range-value" id="gripRingOpacityValue">0</span>%</label>
+                <input type="range" id="gripRingOpacitySlider" min="0" max="100" step="5" value="0" aria-label="Grip ring opacity">
             </div>
 
             <div class="control-group">
@@ -138,7 +138,7 @@
                     <option value="normal">Normal</option>
                     <option value="multiply">Multiply</option>
                     <option value="screen">Screen</option>
-                    <option value="overlay">Overlay</option>
+                    <option value="overlay" selected>Overlay</option>
                     <option value="darken">Darken</option>
                     <option value="lighten">Lighten</option>
                     <option value="color-dodge">Color Dodge</option>
@@ -147,8 +147,8 @@
             </div>
 
             <div class="control-group">
-                <label for="gripRingNoiseFrequencySlider">Noise Grain Size: <span class="range-value" id="gripRingNoiseFrequencyValue">0.8</span></label>
-                <input type="range" id="gripRingNoiseFrequencySlider" min="0" max="10" step="0.1" value="0.8" aria-label="Noise frequency">
+                <label for="gripRingNoiseFrequencySlider">Noise Grain Size: <span class="range-value" id="gripRingNoiseFrequencyValue">0.2</span></label>
+                <input type="range" id="gripRingNoiseFrequencySlider" min="0" max="10" step="0.1" value="0.2" aria-label="Noise frequency">
             </div>
 
             <div class="control-group">
@@ -170,8 +170,8 @@
             </div>
 
             <div class="control-group">
-                <label for="gripRingNoiseIntensitySlider">Noise Intensity: <span class="range-value" id="gripRingNoiseIntensityValue">50</span>%</label>
-                <input type="range" id="gripRingNoiseIntensitySlider" min="0" max="100" step="5" value="50" aria-label="Noise intensity">
+                <label for="gripRingNoiseIntensitySlider">Noise Intensity: <span class="range-value" id="gripRingNoiseIntensityValue">100</span>%</label>
+                <input type="range" id="gripRingNoiseIntensitySlider" min="0" max="100" step="5" value="100" aria-label="Noise intensity">
             </div>
 
             <div class="control-group">
@@ -180,20 +180,20 @@
                     <option value="normal">Normal</option>
                     <option value="multiply">Multiply</option>
                     <option value="screen">Screen</option>
-                    <option value="overlay">Overlay</option>
+                    <option value="overlay" selected>Overlay</option>
                     <option value="darken">Darken</option>
                     <option value="lighten">Lighten</option>
                 </select>
             </div>
 
             <div class="control-group">
-                <label for="gripThicknessSlider">Tick Thickness: <span class="range-value" id="gripThicknessValue">2</span>px</label>
-                <input type="range" id="gripThicknessSlider" min="0.5" max="4" step="0.5" value="2" aria-label="Grip thickness">
+                <label for="gripThicknessSlider">Tick Thickness: <span class="range-value" id="gripThicknessValue">1</span>px</label>
+                <input type="range" id="gripThicknessSlider" min="0.5" max="4" step="0.5" value="1" aria-label="Grip thickness">
             </div>
 
             <div class="control-group">
-                <label for="gripOpacitySlider">Tick Opacity: <span class="range-value" id="gripOpacityValue">10</span>%</label>
-                <input type="range" id="gripOpacitySlider" min="0" max="100" step="5" value="10" aria-label="Grip opacity">
+                <label for="gripOpacitySlider">Tick Opacity: <span class="range-value" id="gripOpacityValue">5</span>%</label>
+                <input type="range" id="gripOpacitySlider" min="0" max="100" step="5" value="5" aria-label="Grip opacity">
             </div>
 
             <div class="control-group">
@@ -202,8 +202,8 @@
             </div>
 
             <div class="control-group">
-                <label for="gripInsetSlider">Tick Inset: <span class="range-value" id="gripInsetValue">10</span>%</label>
-                <input type="range" id="gripInsetSlider" min="0" max="50" step="5" value="10" aria-label="Grip inset">
+                <label for="gripInsetSlider">Tick Inset: <span class="range-value" id="gripInsetValue">20</span>%</label>
+                <input type="range" id="gripInsetSlider" min="0" max="50" step="5" value="20" aria-label="Grip inset">
             </div>
 
             <!-- ============================================
@@ -212,18 +212,18 @@
             <h4 style="margin-top: 20px; margin-bottom: 16px; color: var(--modal-text); font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Note Markers</h4>
 
             <div class="control-group">
-                <label for="noteMarkerSizeSlider">Marker Size: <span class="range-value" id="noteMarkerSizeValue">4</span>px</label>
-                <input type="range" id="noteMarkerSizeSlider" min="2" max="20" value="4" aria-label="Note marker size">
+                <label for="noteMarkerSizeSlider">Marker Size: <span class="range-value" id="noteMarkerSizeValue">6</span>px</label>
+                <input type="range" id="noteMarkerSizeSlider" min="2" max="20" value="6" aria-label="Note marker size">
             </div>
 
             <div class="control-group">
                 <label for="noteMarkerColor">Marker Color:</label>
-                <input type="color" id="noteMarkerColor" value="#999999" aria-label="Note marker color">
+                <input type="color" id="noteMarkerColor" value="#61979e" aria-label="Note marker color">
             </div>
 
             <div class="control-group">
-                <label for="noteMarkerPositionSlider">Marker Position: <span class="range-value" id="noteMarkerPositionValue">108</span>%</label>
-                <input type="range" id="noteMarkerPositionSlider" min="100" max="130" value="108" aria-label="Note marker position">
+                <label for="noteMarkerPositionSlider">Marker Position: <span class="range-value" id="noteMarkerPositionValue">112</span>%</label>
+                <input type="range" id="noteMarkerPositionSlider" min="100" max="130" value="112" aria-label="Note marker position">
             </div>
 
             <!-- ============================================
