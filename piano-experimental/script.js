@@ -1600,10 +1600,15 @@ class ControlsManager {
             // Save slot buttons
             saveSlot1Btn: document.getElementById('saveSlot1Btn'),
             loadSlot1Btn: document.getElementById('loadSlot1Btn'),
+            exportSlot1Btn: document.getElementById('exportSlot1Btn'),
             saveSlot2Btn: document.getElementById('saveSlot2Btn'),
             loadSlot2Btn: document.getElementById('loadSlot2Btn'),
+            exportSlot2Btn: document.getElementById('exportSlot2Btn'),
             saveSlot3Btn: document.getElementById('saveSlot3Btn'),
             loadSlot3Btn: document.getElementById('loadSlot3Btn'),
+            exportSlot3Btn: document.getElementById('exportSlot3Btn'),
+            importFileInput: document.getElementById('importFileInput'),
+            importSlotSelect: document.getElementById('importSlotSelect'),
             resetSettingsBtn: document.getElementById('resetSettingsBtn')
         };
     }
@@ -1677,10 +1682,14 @@ class ControlsManager {
         // Save slot controls
         this.elements.saveSlot1Btn.addEventListener('click', () => this.saveToSlot(1));
         this.elements.loadSlot1Btn.addEventListener('click', () => this.loadFromSlot(1));
+        this.elements.exportSlot1Btn.addEventListener('click', () => this.exportSlot(1));
         this.elements.saveSlot2Btn.addEventListener('click', () => this.saveToSlot(2));
         this.elements.loadSlot2Btn.addEventListener('click', () => this.loadFromSlot(2));
+        this.elements.exportSlot2Btn.addEventListener('click', () => this.exportSlot(2));
         this.elements.saveSlot3Btn.addEventListener('click', () => this.saveToSlot(3));
         this.elements.loadSlot3Btn.addEventListener('click', () => this.loadFromSlot(3));
+        this.elements.exportSlot3Btn.addEventListener('click', () => this.exportSlot(3));
+        this.elements.importFileInput.addEventListener('change', (e) => this.importSlot(e));
         this.elements.resetSettingsBtn.addEventListener('click', () => this.resetSettings());
 
         // Subscribe to rotation changes from interaction
@@ -1882,6 +1891,89 @@ class ControlsManager {
             console.error('Failed to load settings:', error);
             alert('Failed to load settings. The save data might be corrupted.');
         }
+    }
+
+    exportSlot(slotNumber) {
+        try {
+            const savedSettings = localStorage.getItem(`radialPianoSlot${slotNumber}`);
+            if (savedSettings) {
+                // Create a blob with the JSON data
+                const blob = new Blob([savedSettings], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+
+                // Create a temporary download link
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `radial-piano-preset-slot${slotNumber}.json`;
+                document.body.appendChild(a);
+                a.click();
+
+                // Cleanup
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                console.log(`✅ Exported Slot ${slotNumber} settings`);
+
+                // Visual feedback
+                const btn = this.elements[`exportSlot${slotNumber}Btn`];
+                const originalText = btn.textContent;
+                btn.textContent = '✓ Exported!';
+                btn.style.background = '#218838';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '#28a745';
+                }, 1500);
+            } else {
+                alert(`Slot ${slotNumber} is empty! Save settings to this slot first.`);
+            }
+        } catch (error) {
+            console.error('Failed to export settings:', error);
+            alert('Failed to export settings.');
+        }
+    }
+
+    importSlot(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const slotNumber = parseInt(this.elements.importSlotSelect.value);
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+            try {
+                const jsonContent = e.target.result;
+                // Validate JSON
+                const settings = JSON.parse(jsonContent);
+
+                // Validate that it contains expected properties
+                if (typeof settings !== 'object' || settings === null) {
+                    throw new Error('Invalid preset file format');
+                }
+
+                // Save to localStorage
+                localStorage.setItem(`radialPianoSlot${slotNumber}`, jsonContent);
+                console.log(`✅ Imported preset to Slot ${slotNumber}`);
+
+                // Ask if user wants to load it immediately
+                if (confirm(`Preset imported to Slot ${slotNumber}. Load it now?`)) {
+                    this.loadFromSlot(slotNumber);
+                }
+
+                // Reset file input
+                event.target.value = '';
+            } catch (error) {
+                console.error('Failed to import settings:', error);
+                alert('Failed to import preset. The file might be corrupted or invalid.');
+                event.target.value = '';
+            }
+        };
+
+        reader.onerror = () => {
+            alert('Failed to read file.');
+            event.target.value = '';
+        };
+
+        reader.readAsText(file);
     }
 
     resetSettings() {
