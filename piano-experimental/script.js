@@ -583,7 +583,7 @@ class RenderEngine {
         }
 
         // Create canvas for noise generation
-        const size = 512; // Texture resolution
+        const size = 1024; // Texture resolution - higher = sharper
         const canvas = document.createElement('canvas');
         canvas.width = size;
         canvas.height = size;
