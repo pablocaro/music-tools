@@ -280,7 +280,8 @@ body {
 /* ============================================
    GRIPPER ANIMATION
    ============================================ */
-.gripper-active .grip-ring {
+.gripper-active .grip-ring-base,
+.gripper-active .grip-ring-noise {
     transition: stroke-width var(--notch-activation-speed, 200ms) ease-in-out,
                opacity var(--notch-activation-speed, 200ms) ease-in-out;
 }
@@ -290,7 +291,8 @@ body {
                transform var(--notch-activation-speed, 200ms) ease-in-out;
 }
 
-.grip-ring {
+.grip-ring-base,
+.grip-ring-noise {
     transition: stroke-width var(--notch-deactivation-speed, 300ms) ease-in-out,
                opacity var(--notch-deactivation-speed, 300ms) ease-in-out;
 }

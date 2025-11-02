@@ -399,6 +399,8 @@ class RenderEngine {
         this.lockedSlices = new Set(); // Track locked drone slices
         this.sliceGroup = null;
         this.innerCircle = null;
+        this.noiseTextureDataURL = null; // Cache for pre-rendered noise
+        this.lastNoiseSettings = null; // Track settings to avoid unnecessary regeneration
     }
 
     updateViewBox() {
@@ -567,83 +569,87 @@ class RenderEngine {
         ].join(' ');
     }
 
-    createGripRingNoiseFilter(defs) {
-        // Remove old filter if it exists
-        const oldFilter = defs.querySelector('#gripRingNoiseFilter');
-        if (oldFilter) oldFilter.remove();
-
-        const filter = document.createElementNS(SVG_NS, 'filter');
-        filter.setAttribute('id', 'gripRingNoiseFilter');
-        filter.setAttribute('x', '-50%');
-        filter.setAttribute('y', '-50%');
-        filter.setAttribute('width', '200%');
-        filter.setAttribute('height', '200%');
-
-        // Get noise settings from state
+    // Simple Perlin-like noise generator
+    generateNoiseTexture() {
         const frequency = this.state.get('gripRingNoiseFrequency');
         const octaves = this.state.get('gripRingNoiseOctaves');
         const type = this.state.get('gripRingNoiseType');
         const noiseColor = this.state.get('gripRingNoiseColor');
-        const noiseIntensity = this.state.get('gripRingNoiseIntensity') / 100;
-        const blendMode = this.state.get('gripRingNoiseBlend');
 
-        // 1. Create turbulence/noise pattern
-        const turbulence = document.createElementNS(SVG_NS, 'feTurbulence');
-        turbulence.setAttribute('type', type);
-        turbulence.setAttribute('baseFrequency', frequency);
-        turbulence.setAttribute('numOctaves', octaves);
-        turbulence.setAttribute('result', 'turbulence');
+        // Check if we need to regenerate
+        const currentSettings = `${frequency}-${octaves}-${type}-${noiseColor}`;
+        if (this.lastNoiseSettings === currentSettings && this.noiseTextureDataURL) {
+            return this.noiseTextureDataURL; // Use cached version
+        }
 
-        // 2. Convert noise to grayscale
-        const toGrayscale = document.createElementNS(SVG_NS, 'feColorMatrix');
-        toGrayscale.setAttribute('in', 'turbulence');
-        toGrayscale.setAttribute('type', 'luminanceToAlpha');
-        toGrayscale.setAttribute('result', 'noiseAlpha');
+        // Create canvas for noise generation
+        const size = 512; // Texture resolution
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.createImageData(size, size);
+        const data = imageData.data;
 
-        // 3. Create a flood of the noise color
-        const flood = document.createElementNS(SVG_NS, 'feFlood');
-        flood.setAttribute('flood-color', noiseColor);
-        flood.setAttribute('flood-opacity', '1');
-        flood.setAttribute('result', 'noiseColor');
+        // Parse noise color
+        const hexColor = noiseColor.replace('#', '');
+        const r = parseInt(hexColor.substr(0, 2), 16);
+        const g = parseInt(hexColor.substr(2, 2), 16);
+        const b = parseInt(hexColor.substr(4, 2), 16);
 
-        // 4. Use the noise alpha as a mask for the color
-        const composite1 = document.createElementNS(SVG_NS, 'feComposite');
-        composite1.setAttribute('in', 'noiseColor');
-        composite1.setAttribute('in2', 'noiseAlpha');
-        composite1.setAttribute('operator', 'in');
-        composite1.setAttribute('result', 'coloredNoise');
+        // Generate noise
+        const scale = frequency * 10; // Scale frequency to useful range
 
-        // 5. Composite with source graphic to clip to shape
-        const composite2 = document.createElementNS(SVG_NS, 'feComposite');
-        composite2.setAttribute('in', 'coloredNoise');
-        composite2.setAttribute('in2', 'SourceGraphic');
-        composite2.setAttribute('operator', 'in');
-        composite2.setAttribute('result', 'clippedNoise');
+        for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+                const idx = (y * size + x) * 4;
 
-        // 6. Apply intensity control
-        const intensityTransfer = document.createElementNS(SVG_NS, 'feComponentTransfer');
-        intensityTransfer.setAttribute('in', 'clippedNoise');
-        intensityTransfer.setAttribute('result', 'fadedNoise');
-        const alphaFunc = document.createElementNS(SVG_NS, 'feFuncA');
-        alphaFunc.setAttribute('type', 'linear');
-        alphaFunc.setAttribute('slope', noiseIntensity);
-        intensityTransfer.appendChild(alphaFunc);
+                let value = 0;
+                let amplitude = 1;
+                let maxAmplitude = 0;
 
-        // 7. Blend with source graphic
-        const blend = document.createElementNS(SVG_NS, 'feBlend');
-        blend.setAttribute('in', 'fadedNoise');
-        blend.setAttribute('in2', 'SourceGraphic');
-        blend.setAttribute('mode', blendMode);
+                // Multi-octave noise
+                for (let octave = 0; octave < octaves; octave++) {
+                    const freq = scale * Math.pow(2, octave);
+                    const nx = x / size * freq;
+                    const ny = y / size * freq;
 
-        filter.appendChild(turbulence);
-        filter.appendChild(toGrayscale);
-        filter.appendChild(flood);
-        filter.appendChild(composite1);
-        filter.appendChild(composite2);
-        filter.appendChild(intensityTransfer);
-        filter.appendChild(blend);
+                    // Simple noise based on type
+                    let noise;
+                    if (type === 'turbulence') {
+                        // More chaotic
+                        noise = Math.abs(Math.sin(nx * 12.9898 + ny * 78.233) * 43758.5453);
+                        noise = (noise - Math.floor(noise)) * 2 - 1;
+                        noise = Math.abs(noise);
+                    } else {
+                        // Smoother fractal
+                        noise = Math.sin(nx * 12.9898 + ny * 78.233) * 43758.5453;
+                        noise = noise - Math.floor(noise);
+                    }
 
-        defs.appendChild(filter);
+                    value += noise * amplitude;
+                    maxAmplitude += amplitude;
+                    amplitude *= 0.5; // Each octave contributes less
+                }
+
+                // Normalize
+                value = value / maxAmplitude;
+
+                // Apply noise color
+                data[idx] = r;
+                data[idx + 1] = g;
+                data[idx + 2] = b;
+                data[idx + 3] = Math.floor(value * 255); // Use as alpha
+            }
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+
+        // Convert to data URL
+        this.noiseTextureDataURL = canvas.toDataURL('image/png');
+        this.lastNoiseSettings = currentSettings;
+
+        return this.noiseTextureDataURL;
     }
 
     renderGripRing(innerRadius) {
@@ -651,6 +657,7 @@ class RenderEngine {
         const gripRingRadius = innerRadius * DRAGGABLE_RING_RATIO;
         const gripRingOpacity = this.state.get('gripRingOpacity');
         const gripRingColor = this.state.get('gripRingColor');
+        const noiseIntensity = this.state.get('gripRingNoiseIntensity');
 
         const outerRadius = innerRadius;
         const innerRingRadius = gripRingRadius;
@@ -660,20 +667,59 @@ class RenderEngine {
 
         const pathData = this.createGripRingPath(center, outerRadius, innerRingRadius);
 
-        // Create noise filter
-        const defs = this.sliceGroup.querySelector('defs');
-        this.createGripRingNoiseFilter(defs);
+        // LAYER 1: Base colored ring (solid fill)
+        const baseRing = document.createElementNS(SVG_NS, 'path');
+        baseRing.setAttribute('class', 'grip-ring-base');
+        baseRing.setAttribute('d', pathData);
+        baseRing.setAttribute('fill', gripRingColor);
+        baseRing.setAttribute('fill-rule', 'evenodd');
+        baseRing.setAttribute('opacity', gripRingOpacity / 100);
+        baseRing.style.pointerEvents = 'none';
 
-        const gripRing = document.createElementNS(SVG_NS, 'path');
-        gripRing.setAttribute('class', 'grip-ring');
-        gripRing.setAttribute('d', pathData);
-        gripRing.setAttribute('fill', gripRingColor);
-        gripRing.setAttribute('fill-rule', 'evenodd');  // Creates the donut hole
-        gripRing.setAttribute('opacity', gripRingOpacity / 100);
-        gripRing.setAttribute('filter', 'url(#gripRingNoiseFilter)');
-        gripRing.style.pointerEvents = 'none';
+        this.sliceGroup.appendChild(baseRing);
 
-        this.sliceGroup.appendChild(gripRing);
+        // LAYER 2: Noise texture overlay (if intensity > 0)
+        if (noiseIntensity > 0) {
+            // Generate or retrieve cached noise texture
+            const noiseDataURL = this.generateNoiseTexture();
+
+            // Create pattern for noise texture
+            const defs = this.sliceGroup.querySelector('defs');
+
+            // Remove old pattern if exists
+            const oldPattern = defs.querySelector('#gripRingNoisePattern');
+            if (oldPattern) oldPattern.remove();
+
+            const pattern = document.createElementNS(SVG_NS, 'pattern');
+            pattern.setAttribute('id', 'gripRingNoisePattern');
+            pattern.setAttribute('patternUnits', 'userSpaceOnUse');
+            pattern.setAttribute('width', outerRadius * 2);
+            pattern.setAttribute('height', outerRadius * 2);
+            pattern.setAttribute('x', center.x - outerRadius);
+            pattern.setAttribute('y', center.y - outerRadius);
+
+            const patternImage = document.createElementNS(SVG_NS, 'image');
+            patternImage.setAttributeNS('http://www.w3.org/1999/xlink', 'href', noiseDataURL);
+            patternImage.setAttribute('width', outerRadius * 2);
+            patternImage.setAttribute('height', outerRadius * 2);
+            patternImage.setAttribute('preserveAspectRatio', 'none');
+
+            pattern.appendChild(patternImage);
+            defs.appendChild(pattern);
+
+            // Create noise overlay ring
+            const noiseRing = document.createElementNS(SVG_NS, 'path');
+            noiseRing.setAttribute('class', 'grip-ring-noise');
+            noiseRing.setAttribute('d', pathData);
+            noiseRing.setAttribute('fill', 'url(#gripRingNoisePattern)');
+            noiseRing.setAttribute('fill-rule', 'evenodd');
+            noiseRing.setAttribute('opacity', noiseIntensity / 100);
+            noiseRing.style.pointerEvents = 'none';
+            noiseRing.style.mixBlendMode = this.state.get('gripRingNoiseBlend');
+
+            this.sliceGroup.appendChild(noiseRing);
+        }
+
         return gripRingRadius;
     }
 
@@ -963,9 +1009,11 @@ class RenderEngine {
             const center = this.geometry.calculateCenter();
 
             // Thicken the grip ring by expanding outer radius and contracting inner radius
-            const gripRing = this.sliceGroup.querySelector('.grip-ring');
-            if (gripRing) {
-                const currentOpacity = parseFloat(gripRing.getAttribute('opacity'));
+            const gripRingBase = this.sliceGroup.querySelector('.grip-ring-base');
+            const gripRingNoise = this.sliceGroup.querySelector('.grip-ring-noise');
+
+            if (gripRingBase) {
+                const currentOpacity = parseFloat(gripRingBase.getAttribute('opacity'));
                 const targetOpacity = Math.min(1, currentOpacity * 2);
 
                 // Calculate thickened radii
@@ -975,12 +1023,14 @@ class RenderEngine {
                 const thickenedInnerRadius = this.gripRingBaseRadii.innerRingRadius / ringThicknessBoost;
 
                 // Get current and target paths
-                const currentPath = gripRing.getAttribute('d');
+                const currentPath = gripRingBase.getAttribute('d');
                 const thickenedPath = this.createGripRingPath(center, thickenedOuterRadius, thickenedInnerRadius);
 
-                // Animate using Web Animations API
+                // Animate both layers using Web Animations API
                 const animationSpeed = this.state.get('notchActivationSpeed');
-                gripRing.animate([
+
+                // Animate base ring
+                gripRingBase.animate([
                     { d: currentPath, opacity: currentOpacity },
                     { d: thickenedPath, opacity: targetOpacity }
                 ], {
@@ -988,10 +1038,25 @@ class RenderEngine {
                     easing: 'cubic-bezier(0.4, 0.0, 0.2, 1)',
                     fill: 'forwards'
                 });
+                gripRingBase.setAttribute('d', thickenedPath);
+                gripRingBase.setAttribute('opacity', targetOpacity);
 
-                // Update final state
-                gripRing.setAttribute('d', thickenedPath);
-                gripRing.setAttribute('opacity', targetOpacity);
+                // Animate noise ring if it exists
+                if (gripRingNoise) {
+                    const noiseCurrentOpacity = parseFloat(gripRingNoise.getAttribute('opacity'));
+                    const noiseTargetOpacity = Math.min(1, noiseCurrentOpacity * 1.5);
+
+                    gripRingNoise.animate([
+                        { d: currentPath, opacity: noiseCurrentOpacity },
+                        { d: thickenedPath, opacity: noiseTargetOpacity }
+                    ], {
+                        duration: animationSpeed,
+                        easing: 'cubic-bezier(0.4, 0.0, 0.2, 1)',
+                        fill: 'forwards'
+                    });
+                    gripRingNoise.setAttribute('d', thickenedPath);
+                    gripRingNoise.setAttribute('opacity', noiseTargetOpacity);
+                }
             }
 
             // Brighten and scale the grip ticks using CSS transforms
@@ -1012,13 +1077,16 @@ class RenderEngine {
 
             // Reset the grip ring to original opacity and radii
             const gripRingOpacity = this.state.get('gripRingOpacity');
-            const gripRing = this.sliceGroup.querySelector('.grip-ring');
-            if (gripRing) {
-                const currentOpacity = parseFloat(gripRing.getAttribute('opacity'));
+            const noiseIntensity = this.state.get('gripRingNoiseIntensity');
+            const gripRingBase = this.sliceGroup.querySelector('.grip-ring-base');
+            const gripRingNoise = this.sliceGroup.querySelector('.grip-ring-noise');
+
+            if (gripRingBase) {
+                const currentOpacity = parseFloat(gripRingBase.getAttribute('opacity'));
                 const targetOpacity = gripRingOpacity / 100;
 
                 // Get current and base paths
-                const currentPath = gripRing.getAttribute('d');
+                const currentPath = gripRingBase.getAttribute('d');
                 const center = this.geometry.calculateCenter();
                 const basePath = this.createGripRingPath(
                     center,
@@ -1026,9 +1094,9 @@ class RenderEngine {
                     this.gripRingBaseRadii.innerRingRadius
                 );
 
-                // Animate using Web Animations API
+                // Animate base ring using Web Animations API
                 const animationSpeed = this.state.get('notchDeactivationSpeed');
-                gripRing.animate([
+                gripRingBase.animate([
                     { d: currentPath, opacity: currentOpacity },
                     { d: basePath, opacity: targetOpacity }
                 ], {
@@ -1036,10 +1104,25 @@ class RenderEngine {
                     easing: 'ease-out',
                     fill: 'forwards'
                 });
+                gripRingBase.setAttribute('d', basePath);
+                gripRingBase.setAttribute('opacity', targetOpacity);
 
-                // Update final state
-                gripRing.setAttribute('d', basePath);
-                gripRing.setAttribute('opacity', targetOpacity);
+                // Animate noise ring if it exists
+                if (gripRingNoise) {
+                    const noiseCurrentOpacity = parseFloat(gripRingNoise.getAttribute('opacity'));
+                    const noiseTargetOpacity = noiseIntensity / 100;
+
+                    gripRingNoise.animate([
+                        { d: currentPath, opacity: noiseCurrentOpacity },
+                        { d: basePath, opacity: noiseTargetOpacity }
+                    ], {
+                        duration: animationSpeed,
+                        easing: 'ease-out',
+                        fill: 'forwards'
+                    });
+                    gripRingNoise.setAttribute('d', basePath);
+                    gripRingNoise.setAttribute('opacity', noiseTargetOpacity);
+                }
             }
 
             // Reset grip ticks to original scale and opacity
