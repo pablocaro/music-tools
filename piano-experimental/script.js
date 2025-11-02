@@ -36,6 +36,7 @@ const INITIAL_STATE = {
     pressedGradientEndColor: '#4d4d4d',
     // Grip Ring Appearance
     gripRingColor: '#000000',
+    gripRingBlend: 'normal',
     gripRingNoiseFrequency: 0.8,
     gripRingNoiseOctaves: 3,
     gripRingNoiseType: 'fractalNoise',
@@ -675,6 +676,7 @@ class RenderEngine {
         baseRing.setAttribute('fill-rule', 'evenodd');
         baseRing.setAttribute('opacity', gripRingOpacity / 100);
         baseRing.style.pointerEvents = 'none';
+        baseRing.style.mixBlendMode = this.state.get('gripRingBlend');
 
         this.sliceGroup.appendChild(baseRing);
 
@@ -1579,6 +1581,7 @@ class ControlsManager {
             pressedGradientEndColor: document.getElementById('pressedGradientEndColor'),
             // Grip Ring Appearance controls
             gripRingColor: document.getElementById('gripRingColor'),
+            gripRingBlendSelect: document.getElementById('gripRingBlendSelect'),
             gripRingNoiseFrequencySlider: document.getElementById('gripRingNoiseFrequencySlider'),
             gripRingNoiseFrequencyValue: document.getElementById('gripRingNoiseFrequencyValue'),
             gripRingNoiseOctavesSlider: document.getElementById('gripRingNoiseOctavesSlider'),
@@ -1658,6 +1661,7 @@ class ControlsManager {
 
         // Grip Ring Appearance controls
         this.setupColorInput('gripRingColor', 'gripRingColor', () => this.renderer.render());
+        this.setupDropdown('gripRingBlendSelect', 'gripRingBlend', () => this.renderer.render());
         this.setupSlider('gripRingNoiseFrequencySlider', 'gripRingNoiseFrequency', 'gripRingNoiseFrequencyValue', '', () => this.renderer.render());
         this.setupSlider('gripRingNoiseOctavesSlider', 'gripRingNoiseOctaves', 'gripRingNoiseOctavesValue', '', () => this.renderer.render());
         this.setupDropdown('gripRingNoiseTypeSelect', 'gripRingNoiseType', () => this.renderer.render());

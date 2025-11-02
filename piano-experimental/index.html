@@ -133,6 +133,20 @@
             </div>
 
             <div class="control-group">
+                <label for="gripRingBlendSelect">Ring Blend Mode:</label>
+                <select id="gripRingBlendSelect" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;" aria-label="Ring blend mode">
+                    <option value="normal">Normal</option>
+                    <option value="multiply">Multiply</option>
+                    <option value="screen">Screen</option>
+                    <option value="overlay">Overlay</option>
+                    <option value="darken">Darken</option>
+                    <option value="lighten">Lighten</option>
+                    <option value="color-dodge">Color Dodge</option>
+                    <option value="color-burn">Color Burn</option>
+                </select>
+            </div>
+
+            <div class="control-group">
                 <label for="gripRingNoiseFrequencySlider">Noise Grain Size: <span class="range-value" id="gripRingNoiseFrequencyValue">0.8</span></label>
                 <input type="range" id="gripRingNoiseFrequencySlider" min="0" max="10" step="0.1" value="0.8" aria-label="Noise frequency">
             </div>
