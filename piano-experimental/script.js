@@ -8,8 +8,13 @@ const RESIZE_DEBOUNCE_MS = 100;
 const INNER_CIRCLE_RADIUS_RATIO = 0.25;
 const DRAGGABLE_RING_RATIO = 0.6;
 const VIEWPORT_SAFETY_BUFFER = 1.2;
-const C_MAJOR_SCALE = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 const CORNER_COORDS = { 'bottom-right': { x: 100, y: 100 } };
+
+// Animation timings
+const SLICE_PRESS_TRANSITION_MS = 120;
+const SLICE_RELEASE_TRANSITION_MS = 300;
+const PRESS_EASING = 'cubic-bezier(0.4, 0.0, 0.2, 1)';
+const RELEASE_EASING = 'ease-out';
 
 const INITIAL_STATE = {
     sliceCount: 32,
@@ -229,161 +234,6 @@ class GeometryEngine {
         angle = (angle - rotation + 360) % 360;
         const anglePerSlice = 360 / sliceCount;
         return Math.floor(angle / anglePerSlice);
-    }
-}
-
-// ============================================
-// AUDIO ENGINE
-// ============================================
-class AudioEngine {
-    constructor(stateManager) {
-        this.state = stateManager;
-        this.synth = null;
-        this.activeNotes = new Map(); // Maps index -> note
-        this.lockedDrones = new Map(); // Maps index -> note (for locked drones)
-        this.lockTimeouts = new Map(); // Maps index -> timeout ID for auto-lock
-    }
-
-    async init() {
-        if (!this.synth) {
-            this.synth = new Tone.PolySynth(Tone.Synth, {
-                oscillator: { type: 'sine' },
-                envelope: {
-                    attack: 0.05,
-                    decay: 0.1,
-                    sustain: 0.9,
-                    release: 1
-                }
-            }).toDestination();
-            this.synth.volume.value = -10;
-        }
-
-        // Resume audio context for mobile browsers
-        if (Tone.context.state !== 'running') {
-            await Tone.context.resume();
-            console.log('🔊 Audio context resumed');
-        }
-    }
-
-    getNote(index) {
-        const noteInScale = index % 7;
-        const octave = 3 + Math.floor(index / 7);
-        return C_MAJOR_SCALE[noteInScale] + octave;
-    }
-
-    async playNote(index, onAutoLock) {
-        await this.init();
-        const note = this.getNote(index);
-
-        // Don't play if already locked (wait for toggle-off)
-        if (this.lockedDrones.has(index)) {
-            console.log(`🔒 Note ${note} is locked, skipping (index ${index})`);
-            return;
-        }
-
-        if (!this.activeNotes.has(index)) {
-            console.log(`🎵 Playing note ${note} (index ${index}) - Context state: ${Tone.context.state}`);
-            this.synth.triggerAttack(note);
-            this.activeNotes.set(index, note);
-
-            // Set auto-lock timeout (Option C: auto-lock at threshold time)
-            const lockTime = this.state.get('droneLockTime');
-            const timeoutId = setTimeout(() => {
-                console.log(`🔒 Auto-locking drone ${note} after ${lockTime}ms (index ${index})`);
-                this.lockDrone(index);
-                if (onAutoLock) onAutoLock(index);
-            }, lockTime);
-            this.lockTimeouts.set(index, timeoutId);
-        } else {
-            console.log(`⏭️ Note ${note} already playing (index ${index})`);
-        }
-    }
-
-    stopNote(index, force = false) {
-        // Don't stop if locked (unless forced)
-        if (this.lockedDrones.has(index) && !force) {
-            console.log(`🔒 Note at index ${index} is locked, not stopping`);
-            return;
-        }
-
-        if (this.activeNotes.has(index)) {
-            const note = this.activeNotes.get(index);
-            console.log(`🛑 Stopping note ${note} (index ${index})`);
-            if (this.synth) {
-                this.synth.triggerRelease(note);
-            }
-            this.activeNotes.delete(index);
-
-            // Clear the auto-lock timeout (user released before lock time)
-            if (this.lockTimeouts.has(index)) {
-                clearTimeout(this.lockTimeouts.get(index));
-                this.lockTimeouts.delete(index);
-            }
-        } else {
-            console.log(`⚠️ Tried to stop note at index ${index} but it wasn't active`);
-        }
-    }
-
-    lockDrone(index) {
-        if (this.activeNotes.has(index)) {
-            const note = this.activeNotes.get(index);
-            console.log(`🔒 Locking drone ${note} (index ${index})`);
-            this.lockedDrones.set(index, note);
-
-            // Clear auto-lock timeout since it's now locked
-            if (this.lockTimeouts.has(index)) {
-                clearTimeout(this.lockTimeouts.get(index));
-                this.lockTimeouts.delete(index);
-            }
-        }
-    }
-
-    unlockDrone(index) {
-        if (this.lockedDrones.has(index)) {
-            const note = this.lockedDrones.get(index);
-            console.log(`🔓 Unlocking and stopping drone ${note} (index ${index})`);
-            this.lockedDrones.delete(index);
-
-            // Force stop the note
-            if (this.synth) {
-                this.synth.triggerRelease(note);
-            }
-            this.activeNotes.delete(index);
-        }
-    }
-
-    isLocked(index) {
-        return this.lockedDrones.has(index);
-    }
-
-    stopAllNotes() {
-        console.log(`🔇 Stopping ALL notes. Active: ${this.activeNotes.size}, Locked: ${this.lockedDrones.size}`);
-
-        // Stop all active notes
-        if (this.synth && this.activeNotes.size > 0) {
-            this.activeNotes.forEach((note, index) => {
-                console.log(`  - Releasing ${note} (index ${index})`);
-                this.synth.triggerRelease(note);
-            });
-        }
-        this.activeNotes.clear();
-
-        // Stop all locked drones
-        if (this.synth && this.lockedDrones.size > 0) {
-            this.lockedDrones.forEach((note, index) => {
-                console.log(`  - Releasing locked drone ${note} (index ${index})`);
-                this.synth.triggerRelease(note);
-            });
-        }
-        this.lockedDrones.clear();
-
-        // Clear all auto-lock timeouts
-        this.lockTimeouts.forEach((timeoutId) => {
-            clearTimeout(timeoutId);
-        });
-        this.lockTimeouts.clear();
-
-        console.log(`✅ All notes cleared`);
     }
 }
 
@@ -846,17 +696,6 @@ class RenderEngine {
         }
     }
 
-    getGrayColor(grayPercent) {
-        const value = Math.round((grayPercent / 100) * 255);
-        const hex = value.toString(16).padStart(2, '0');
-        return `#${hex}${hex}${hex}`;
-    }
-
-    getPressColor() {
-        const endGray = this.state.get('pressedGradientEndGray');
-        return this.getGrayColor(endGray);
-    }
-
     getPressNarrowFactor() {
         return 1 - (this.state.get('pressShrink') / 100);
     }
@@ -872,11 +711,11 @@ class RenderEngine {
             const pressedEndColor = this.state.get('pressedGradientEndColor');
 
             if (stop1) {
-                stop1.style.transition = 'stop-color 120ms cubic-bezier(0.4, 0.0, 0.2, 1)';
+                stop1.style.transition = `stop-color ${SLICE_PRESS_TRANSITION_MS}ms ${PRESS_EASING}`;
                 stop1.setAttribute('stop-color', pressedStartColor);
             }
             if (stop2) {
-                stop2.style.transition = 'stop-color 120ms cubic-bezier(0.4, 0.0, 0.2, 1)';
+                stop2.style.transition = `stop-color ${SLICE_PRESS_TRANSITION_MS}ms ${PRESS_EASING}`;
                 stop2.setAttribute('stop-color', pressedEndColor);
             }
         }
@@ -884,7 +723,7 @@ class RenderEngine {
         const slice = this.sliceElements.get(index);
         const pathGen = this.pathGenerators.get(index);
         if (slice && pathGen) {
-            slice.style.transition = 'd 120ms cubic-bezier(0.4, 0.0, 0.2, 1)';
+            slice.style.transition = `d ${SLICE_PRESS_TRANSITION_MS}ms ${PRESS_EASING}`;
             slice.setAttribute('d', pathGen(this.getPressNarrowFactor()));
         }
     }
@@ -905,11 +744,11 @@ class RenderEngine {
             const defaultEndColor = this.state.get('defaultGradientEndColor');
 
             if (stop1) {
-                stop1.style.transition = 'stop-color 300ms ease-out';
+                stop1.style.transition = `stop-color ${SLICE_RELEASE_TRANSITION_MS}ms ${RELEASE_EASING}`;
                 stop1.setAttribute('stop-color', defaultStartColor);
             }
             if (stop2) {
-                stop2.style.transition = 'stop-color 300ms ease-out';
+                stop2.style.transition = `stop-color ${SLICE_RELEASE_TRANSITION_MS}ms ${RELEASE_EASING}`;
                 stop2.setAttribute('stop-color', defaultEndColor);
             }
         }
@@ -917,7 +756,7 @@ class RenderEngine {
         const slice = this.sliceElements.get(index);
         const pathGen = this.pathGenerators.get(index);
         if (slice && pathGen) {
-            slice.style.transition = 'd 300ms ease-out';
+            slice.style.transition = `d ${SLICE_RELEASE_TRANSITION_MS}ms ${RELEASE_EASING}`;
             slice.setAttribute('d', pathGen(1));
         }
     }
@@ -1858,9 +1697,6 @@ class ControlsManager {
 
         // Update button states
         this.updateThemeButtons(theme);
-
-        // Update slice colors
-        this.updateSliceColors(theme);
     }
 
     updateThemeButtons(theme) {
@@ -2031,21 +1867,6 @@ class ControlsManager {
             setTimeout(() => {
                 btn.textContent = originalText;
             }, 2000);
-        }
-    }
-
-    updateSliceColors(theme) {
-        const sliceColor = theme === 'dark' ? '#000' : '#fff';
-        const sliceCount = this.state.get('sliceCount');
-
-        // Update all gradient stop colors
-        for (let i = 0; i < sliceCount; i++) {
-            const stop1 = document.querySelector(`#gradient${i} stop:first-child`);
-            const stop2 = document.querySelector(`#gradient${i} stop:last-child`);
-            if (stop1) stop1.setAttribute('stop-color', sliceColor);
-            if (stop2 && !stop2.style.transition) {
-                stop2.setAttribute('stop-color', sliceColor);
-            }
         }
     }
 }

@@ -267,23 +267,23 @@
                  ============================================ -->
             <h4 style="margin-top: 32px; margin-bottom: 16px; color: var(--modal-text); font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Presets</h4>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
-                <button id="saveSlot1Btn" style="padding: 10px; background: #007acc; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: background 0.2s;">💾 Save 1</button>
-                <button id="loadSlot1Btn" style="padding: 10px; background: #5a5a5a; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: background 0.2s;">📂 Load 1</button>
-                <button id="exportSlot1Btn" style="padding: 10px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: background 0.2s;">📤 Export 1</button>
-                <button id="saveSlot2Btn" style="padding: 10px; background: #007acc; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: background 0.2s;">💾 Save 2</button>
-                <button id="loadSlot2Btn" style="padding: 10px; background: #5a5a5a; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: background 0.2s;">📂 Load 2</button>
-                <button id="exportSlot2Btn" style="padding: 10px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: background 0.2s;">📤 Export 2</button>
-                <button id="saveSlot3Btn" style="padding: 10px; background: #007acc; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: background 0.2s;">💾 Save 3</button>
-                <button id="loadSlot3Btn" style="padding: 10px; background: #5a5a5a; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: background 0.2s;">📂 Load 3</button>
-                <button id="exportSlot3Btn" style="padding: 10px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: background 0.2s;">📤 Export 3</button>
+            <div class="preset-grid">
+                <button id="saveSlot1Btn" class="preset-btn preset-btn-save">💾 Save 1</button>
+                <button id="loadSlot1Btn" class="preset-btn preset-btn-load">📂 Load 1</button>
+                <button id="exportSlot1Btn" class="preset-btn preset-btn-export">📤 Export 1</button>
+                <button id="saveSlot2Btn" class="preset-btn preset-btn-save">💾 Save 2</button>
+                <button id="loadSlot2Btn" class="preset-btn preset-btn-load">📂 Load 2</button>
+                <button id="exportSlot2Btn" class="preset-btn preset-btn-export">📤 Export 2</button>
+                <button id="saveSlot3Btn" class="preset-btn preset-btn-save">💾 Save 3</button>
+                <button id="loadSlot3Btn" class="preset-btn preset-btn-load">📂 Load 3</button>
+                <button id="exportSlot3Btn" class="preset-btn preset-btn-export">📤 Export 3</button>
             </div>
 
-            <div style="margin-top: 16px; padding: 16px; background: #f5f5f5; border-radius: 8px;">
-                <label style="display: block; margin-bottom: 8px; font-weight: bold; font-size: 13px; color: #333;">Import Preset:</label>
-                <div style="display: flex; gap: 8px; align-items: stretch;">
-                    <input type="file" id="importFileInput" accept=".json" style="flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; background: white;" aria-label="Select preset file">
-                    <select id="importSlotSelect" style="padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; background: white;" aria-label="Select import slot">
+            <div class="import-section">
+                <label>Import Preset:</label>
+                <div class="import-controls">
+                    <input type="file" id="importFileInput" accept=".json" aria-label="Select preset file">
+                    <select id="importSlotSelect" aria-label="Select import slot">
                         <option value="1">To Slot 1</option>
                         <option value="2">To Slot 2</option>
                         <option value="3">To Slot 3</option>
@@ -291,9 +291,7 @@
                 </div>
             </div>
 
-            <div style="margin-top: 16px;">
-                <button id="resetSettingsBtn" style="width: 100%; padding: 12px; background: #666; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: background 0.2s;">↺ Reset to Factory Defaults</button>
-            </div>
+            <button id="resetSettingsBtn" class="reset-btn">↺ Reset to Factory Defaults</button>
         </div>
     </div>
 
@@ -302,6 +300,7 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="audio.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
