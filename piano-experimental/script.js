@@ -1481,43 +1481,54 @@ class InteractionManager {
     }
 
     handleEnd() {
-        if (this.dragState.isDragging || this.dragState.isRotating || this.dragState.isPinching) {
-            // Release all pressed slices (unless they're already locked by auto-lock)
-            this.dragState.pressedSlices.forEach(slice => {
-                const index = parseInt(slice.getAttribute('data-slice'));
-                // Only release if not already locked
-                if (!this.audio.isLocked(index)) {
-                    this.renderer.releaseSlice(index);
-                    this.audio.stopNote(index);
-                }
-            });
+        // DEFENSIVE CLEANUP: Always clean up, even if drag state seems wrong
+        // This prevents stuck notes if touch events fire out of order on iOS
 
-            if (this.dragState.lastRotationSlice !== null) {
-                if (!this.audio.isLocked(this.dragState.lastRotationSlice)) {
-                    this.renderer.releaseSlice(this.dragState.lastRotationSlice);
-                    this.audio.stopNote(this.dragState.lastRotationSlice);
-                }
+        // Release all pressed slices (unless they're already locked by auto-lock)
+        this.dragState.pressedSlices.forEach(slice => {
+            const index = parseInt(slice.getAttribute('data-slice'));
+            // Only release if not already locked
+            if (!this.audio.isLocked(index)) {
+                this.renderer.releaseSlice(index);
+                this.audio.stopNote(index);
             }
+        });
 
-            // Deactivate gripper animation if rotating
-            if (this.dragState.isRotating) {
-                this.renderer.deactivateGripper();
+        // Release last rotation slice if any
+        if (this.dragState.lastRotationSlice !== null) {
+            if (!this.audio.isLocked(this.dragState.lastRotationSlice)) {
+                this.renderer.releaseSlice(this.dragState.lastRotationSlice);
+                this.audio.stopNote(this.dragState.lastRotationSlice);
             }
-
-            // Reset drag state
-            this.dragState.isDragging = false;
-            this.dragState.isRotating = false;
-            this.dragState.isPinching = false;
-            this.dragState.wasInGripperZone = false;
-            this.dragState.startedFromSlice = false;
-            this.dragState.lastRotationSlice = null;
-            this.dragState.lastTouchedSlice = null;
-            this.dragState.lastPinchDistance = 0;
-            this.dragState.pressedSlices.clear();
-
-            const innerCircle = document.getElementById('innerRotationPlate');
-            if (innerCircle) innerCircle.style.cursor = 'grab';
         }
+
+        // Release last touched slice if any
+        if (this.dragState.lastTouchedSlice) {
+            const index = parseInt(this.dragState.lastTouchedSlice.getAttribute('data-slice'));
+            if (!this.audio.isLocked(index)) {
+                this.renderer.releaseSlice(index);
+                this.audio.stopNote(index);
+            }
+        }
+
+        // Deactivate gripper animation if rotating
+        if (this.dragState.isRotating) {
+            this.renderer.deactivateGripper();
+        }
+
+        // ALWAYS reset drag state to prevent stuck interactions
+        this.dragState.isDragging = false;
+        this.dragState.isRotating = false;
+        this.dragState.isPinching = false;
+        this.dragState.wasInGripperZone = false;
+        this.dragState.startedFromSlice = false;
+        this.dragState.lastRotationSlice = null;
+        this.dragState.lastTouchedSlice = null;
+        this.dragState.lastPinchDistance = 0;
+        this.dragState.pressedSlices.clear();
+
+        const innerCircle = document.getElementById('innerRotationPlate');
+        if (innerCircle) innerCircle.style.cursor = 'grab';
     }
 
     handleKeyboard(e) {
