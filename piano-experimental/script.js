@@ -1952,29 +1952,6 @@ class Application {
     }
 
     async handleStartupAnimation() {
-        const overlay = document.getElementById('startupOverlay');
-
-        // Initialize audio on first user interaction with overlay (iOS requirement)
-        // This provides the required user gesture for audio context
-        let audioInitialized = false;
-        const initAudioOnClick = async (e) => {
-            if (!audioInitialized) {
-                audioInitialized = true;
-                console.log('🎵 Initializing audio from user gesture...');
-                try {
-                    await this.audioEngine.init();
-                    console.log('✅ Audio initialized successfully');
-                } catch (err) {
-                    console.warn('Audio init failed (will retry on note play):', err);
-                }
-            }
-        };
-
-        if (overlay) {
-            overlay.addEventListener('click', initAudioOnClick);
-            overlay.addEventListener('touchstart', initAudioOnClick, { once: true, passive: true });
-        }
-
         // Calculate animation duration
         // Last slice starts at: sliceCount * 20ms
         // Animation duration: 600ms
@@ -1990,6 +1967,7 @@ class Application {
         await new Promise(resolve => setTimeout(resolve, totalDuration));
 
         // Remove overlay
+        const overlay = document.getElementById('startupOverlay');
         if (overlay) {
             overlay.classList.add('fade-out');
             // Wait for fade-out transition
@@ -2001,7 +1979,7 @@ class Application {
         // Clean up animation classes
         this.renderEngine.completeStartupAnimation();
 
-        console.log('🎹 Piano ready!');
+        console.log('🎹 Piano ready! Audio will initialize on first tap.');
     }
 }
 
