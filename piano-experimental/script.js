@@ -13,41 +13,48 @@ const CORNER_COORDS = { 'bottom-right': { x: 100, y: 100 } };
 
 const INITIAL_STATE = {
     sliceCount: 32,
-    bgGray: 0,
+    bgGray: 25,
     offsetX: 0,
     offsetY: 0,
     radius: 100,
-    rotation: 58,
+    rotation: 289.78135195690106,
     gapSize: 0,
-    gripThickness: 2,
-    gripOpacity: 10,
-    ticksPerEdge: 4,
-    gripRingOpacity: 50,
-    gripInset: 5,
+    gripThickness: 1,
+    gripOpacity: 5,
+    ticksPerEdge: 3,
+    gripRingOpacity: 0,
+    gripInset: 20,
     pressShrink: 2,
     pressBrightness: 30,
     theme: 'dark',
     // Gradient Settings
-    defaultGradientAngle: 58,
-    defaultGradientStartColor: '#383838',
-    defaultGradientEndColor: '#bfbfbf',
+    defaultGradientAngle: 53,
+    defaultGradientStartColor: '#000000',
+    defaultGradientEndColor: '#cfc9c9',
     pressedGradientAngle: 0,
     pressedGradientStartColor: '#000000',
     pressedGradientEndColor: '#4d4d4d',
     // Grip Ring Appearance
     gripRingColor: '#ffffff',
+    gripRingBlend: 'overlay',
+    gripRingNoiseFrequency: 0.2,
+    gripRingNoiseOctaves: 3,
+    gripRingNoiseType: 'fractalNoise',
+    gripRingNoiseColor: '#ffffff',
+    gripRingNoiseIntensity: 100,
+    gripRingNoiseBlend: 'overlay',
     // Note Markers
-    noteMarkerSize: 4,
-    noteMarkerColor: '#999999',
-    noteMarkerPosition: 108,
+    noteMarkerSize: 6,
+    noteMarkerColor: '#61979e',
+    noteMarkerPosition: 112,
     // Experimental: Drone lock timing
     droneLockTime: 3000,
     // Experimental: Gripper animations
-    notchGrowthFactor: 1.3,
+    notchGrowthFactor: 1.2,
     notchActivationSpeed: 200,
     notchDeactivationSpeed: 300,
     notchBrightnessBoost: 1.5,
-    ringThicknessBoost: 1.3
+    ringThicknessBoost: 1.02
 };
 
 // ============================================
@@ -393,6 +400,9 @@ class RenderEngine {
         this.lockedSlices = new Set(); // Track locked drone slices
         this.sliceGroup = null;
         this.innerCircle = null;
+        this.noiseTextureDataURL = null; // Cache for pre-rendered noise
+        this.lastNoiseSettings = null; // Track settings to avoid unnecessary regeneration
+        this.isFirstRender = true; // Track if this is the initial startup render
     }
 
     updateViewBox() {
@@ -497,12 +507,22 @@ class RenderEngine {
 
         const slice = document.createElementNS(SVG_NS, 'path');
         slice.setAttribute('d', pathGenerator(1));
-        slice.setAttribute('class', 'slice');
         slice.setAttribute('fill', `url(#gradient${index})`);
         slice.setAttribute('data-slice', index);
         slice.setAttribute('tabindex', '0');
         slice.setAttribute('role', 'button');
         slice.setAttribute('aria-label', `Slice ${index + 1} of ${sliceCount}`);
+
+        // Add startup animation on first render
+        if (this.isFirstRender) {
+            slice.setAttribute('class', 'slice startup-animation');
+            // Stagger delay: 20ms per slice (with webkit prefix for iOS)
+            const delay = `${index * 20}ms`;
+            slice.style.webkitAnimationDelay = delay;
+            slice.style.animationDelay = delay;
+        } else {
+            slice.setAttribute('class', 'slice');
+        }
 
         this.sliceElements.set(index, slice);
         return slice;
@@ -561,11 +581,95 @@ class RenderEngine {
         ].join(' ');
     }
 
+    // Simple Perlin-like noise generator
+    generateNoiseTexture() {
+        const frequency = this.state.get('gripRingNoiseFrequency');
+        const octaves = this.state.get('gripRingNoiseOctaves');
+        const type = this.state.get('gripRingNoiseType');
+        const noiseColor = this.state.get('gripRingNoiseColor');
+
+        // Check if we need to regenerate
+        const currentSettings = `${frequency}-${octaves}-${type}-${noiseColor}`;
+        if (this.lastNoiseSettings === currentSettings && this.noiseTextureDataURL) {
+            return this.noiseTextureDataURL; // Use cached version
+        }
+
+        // Create canvas for noise generation
+        const size = 1024; // Texture resolution - higher = sharper
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.createImageData(size, size);
+        const data = imageData.data;
+
+        // Parse noise color
+        const hexColor = noiseColor.replace('#', '');
+        const r = parseInt(hexColor.substr(0, 2), 16);
+        const g = parseInt(hexColor.substr(2, 2), 16);
+        const b = parseInt(hexColor.substr(4, 2), 16);
+
+        // Generate noise
+        const scale = frequency * 10; // Scale frequency to useful range
+
+        for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+                const idx = (y * size + x) * 4;
+
+                let value = 0;
+                let amplitude = 1;
+                let maxAmplitude = 0;
+
+                // Multi-octave noise
+                for (let octave = 0; octave < octaves; octave++) {
+                    const freq = scale * Math.pow(2, octave);
+                    const nx = x / size * freq;
+                    const ny = y / size * freq;
+
+                    // Simple noise based on type
+                    let noise;
+                    if (type === 'turbulence') {
+                        // More chaotic
+                        noise = Math.abs(Math.sin(nx * 12.9898 + ny * 78.233) * 43758.5453);
+                        noise = (noise - Math.floor(noise)) * 2 - 1;
+                        noise = Math.abs(noise);
+                    } else {
+                        // Smoother fractal
+                        noise = Math.sin(nx * 12.9898 + ny * 78.233) * 43758.5453;
+                        noise = noise - Math.floor(noise);
+                    }
+
+                    value += noise * amplitude;
+                    maxAmplitude += amplitude;
+                    amplitude *= 0.5; // Each octave contributes less
+                }
+
+                // Normalize
+                value = value / maxAmplitude;
+
+                // Apply noise color
+                data[idx] = r;
+                data[idx + 1] = g;
+                data[idx + 2] = b;
+                data[idx + 3] = Math.floor(value * 255); // Use as alpha
+            }
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+
+        // Convert to data URL
+        this.noiseTextureDataURL = canvas.toDataURL('image/png');
+        this.lastNoiseSettings = currentSettings;
+
+        return this.noiseTextureDataURL;
+    }
+
     renderGripRing(innerRadius) {
         const center = this.geometry.calculateCenter();
         const gripRingRadius = innerRadius * DRAGGABLE_RING_RATIO;
         const gripRingOpacity = this.state.get('gripRingOpacity');
         const gripRingColor = this.state.get('gripRingColor');
+        const noiseIntensity = this.state.get('gripRingNoiseIntensity');
 
         const outerRadius = innerRadius;
         const innerRingRadius = gripRingRadius;
@@ -575,15 +679,60 @@ class RenderEngine {
 
         const pathData = this.createGripRingPath(center, outerRadius, innerRingRadius);
 
-        const gripRing = document.createElementNS(SVG_NS, 'path');
-        gripRing.setAttribute('class', 'grip-ring');
-        gripRing.setAttribute('d', pathData);
-        gripRing.setAttribute('fill', gripRingColor);
-        gripRing.setAttribute('fill-rule', 'evenodd');  // Creates the donut hole
-        gripRing.setAttribute('opacity', gripRingOpacity / 100);
-        gripRing.style.pointerEvents = 'none';
+        // LAYER 1: Base colored ring (solid fill)
+        const baseRing = document.createElementNS(SVG_NS, 'path');
+        baseRing.setAttribute('class', 'grip-ring-base');
+        baseRing.setAttribute('d', pathData);
+        baseRing.setAttribute('fill', gripRingColor);
+        baseRing.setAttribute('fill-rule', 'evenodd');
+        baseRing.setAttribute('opacity', gripRingOpacity / 100);
+        baseRing.style.pointerEvents = 'none';
+        baseRing.style.mixBlendMode = this.state.get('gripRingBlend');
 
-        this.sliceGroup.appendChild(gripRing);
+        this.sliceGroup.appendChild(baseRing);
+
+        // LAYER 2: Noise texture overlay (if intensity > 0)
+        if (noiseIntensity > 0) {
+            // Generate or retrieve cached noise texture
+            const noiseDataURL = this.generateNoiseTexture();
+
+            // Create pattern for noise texture
+            const defs = this.sliceGroup.querySelector('defs');
+
+            // Remove old pattern if exists
+            const oldPattern = defs.querySelector('#gripRingNoisePattern');
+            if (oldPattern) oldPattern.remove();
+
+            const pattern = document.createElementNS(SVG_NS, 'pattern');
+            pattern.setAttribute('id', 'gripRingNoisePattern');
+            pattern.setAttribute('patternUnits', 'userSpaceOnUse');
+            pattern.setAttribute('width', outerRadius * 2);
+            pattern.setAttribute('height', outerRadius * 2);
+            pattern.setAttribute('x', center.x - outerRadius);
+            pattern.setAttribute('y', center.y - outerRadius);
+
+            const patternImage = document.createElementNS(SVG_NS, 'image');
+            patternImage.setAttributeNS('http://www.w3.org/1999/xlink', 'href', noiseDataURL);
+            patternImage.setAttribute('width', outerRadius * 2);
+            patternImage.setAttribute('height', outerRadius * 2);
+            patternImage.setAttribute('preserveAspectRatio', 'none');
+
+            pattern.appendChild(patternImage);
+            defs.appendChild(pattern);
+
+            // Create noise overlay ring
+            const noiseRing = document.createElementNS(SVG_NS, 'path');
+            noiseRing.setAttribute('class', 'grip-ring-noise');
+            noiseRing.setAttribute('d', pathData);
+            noiseRing.setAttribute('fill', 'url(#gripRingNoisePattern)');
+            noiseRing.setAttribute('fill-rule', 'evenodd');
+            noiseRing.setAttribute('opacity', noiseIntensity / 100);
+            noiseRing.style.pointerEvents = 'none';
+            noiseRing.style.mixBlendMode = this.state.get('gripRingNoiseBlend');
+
+            this.sliceGroup.appendChild(noiseRing);
+        }
+
         return gripRingRadius;
     }
 
@@ -861,6 +1010,17 @@ class RenderEngine {
         return { center, innerRadius };
     }
 
+    completeStartupAnimation() {
+        // Remove animation classes from all slices
+        this.sliceElements.forEach((slice) => {
+            slice.classList.remove('startup-animation');
+            slice.style.webkitAnimationDelay = '';
+            slice.style.animationDelay = '';
+        });
+        this.isFirstRender = false;
+        console.log('✨ Startup animation complete');
+    }
+
     activateGripper() {
         if (this.sliceGroup && this.gripRingBaseRadii) {
             this.sliceGroup.classList.add('gripper-active');
@@ -873,9 +1033,11 @@ class RenderEngine {
             const center = this.geometry.calculateCenter();
 
             // Thicken the grip ring by expanding outer radius and contracting inner radius
-            const gripRing = this.sliceGroup.querySelector('.grip-ring');
-            if (gripRing) {
-                const currentOpacity = parseFloat(gripRing.getAttribute('opacity'));
+            const gripRingBase = this.sliceGroup.querySelector('.grip-ring-base');
+            const gripRingNoise = this.sliceGroup.querySelector('.grip-ring-noise');
+
+            if (gripRingBase) {
+                const currentOpacity = parseFloat(gripRingBase.getAttribute('opacity'));
                 const targetOpacity = Math.min(1, currentOpacity * 2);
 
                 // Calculate thickened radii
@@ -885,12 +1047,14 @@ class RenderEngine {
                 const thickenedInnerRadius = this.gripRingBaseRadii.innerRingRadius / ringThicknessBoost;
 
                 // Get current and target paths
-                const currentPath = gripRing.getAttribute('d');
+                const currentPath = gripRingBase.getAttribute('d');
                 const thickenedPath = this.createGripRingPath(center, thickenedOuterRadius, thickenedInnerRadius);
 
-                // Animate using Web Animations API
+                // Animate both layers using Web Animations API
                 const animationSpeed = this.state.get('notchActivationSpeed');
-                gripRing.animate([
+
+                // Animate base ring
+                gripRingBase.animate([
                     { d: currentPath, opacity: currentOpacity },
                     { d: thickenedPath, opacity: targetOpacity }
                 ], {
@@ -898,10 +1062,25 @@ class RenderEngine {
                     easing: 'cubic-bezier(0.4, 0.0, 0.2, 1)',
                     fill: 'forwards'
                 });
+                gripRingBase.setAttribute('d', thickenedPath);
+                gripRingBase.setAttribute('opacity', targetOpacity);
 
-                // Update final state
-                gripRing.setAttribute('d', thickenedPath);
-                gripRing.setAttribute('opacity', targetOpacity);
+                // Animate noise ring if it exists
+                if (gripRingNoise) {
+                    const noiseCurrentOpacity = parseFloat(gripRingNoise.getAttribute('opacity'));
+                    const noiseTargetOpacity = Math.min(1, noiseCurrentOpacity * 1.5);
+
+                    gripRingNoise.animate([
+                        { d: currentPath, opacity: noiseCurrentOpacity },
+                        { d: thickenedPath, opacity: noiseTargetOpacity }
+                    ], {
+                        duration: animationSpeed,
+                        easing: 'cubic-bezier(0.4, 0.0, 0.2, 1)',
+                        fill: 'forwards'
+                    });
+                    gripRingNoise.setAttribute('d', thickenedPath);
+                    gripRingNoise.setAttribute('opacity', noiseTargetOpacity);
+                }
             }
 
             // Brighten and scale the grip ticks using CSS transforms
@@ -922,13 +1101,16 @@ class RenderEngine {
 
             // Reset the grip ring to original opacity and radii
             const gripRingOpacity = this.state.get('gripRingOpacity');
-            const gripRing = this.sliceGroup.querySelector('.grip-ring');
-            if (gripRing) {
-                const currentOpacity = parseFloat(gripRing.getAttribute('opacity'));
+            const noiseIntensity = this.state.get('gripRingNoiseIntensity');
+            const gripRingBase = this.sliceGroup.querySelector('.grip-ring-base');
+            const gripRingNoise = this.sliceGroup.querySelector('.grip-ring-noise');
+
+            if (gripRingBase) {
+                const currentOpacity = parseFloat(gripRingBase.getAttribute('opacity'));
                 const targetOpacity = gripRingOpacity / 100;
 
                 // Get current and base paths
-                const currentPath = gripRing.getAttribute('d');
+                const currentPath = gripRingBase.getAttribute('d');
                 const center = this.geometry.calculateCenter();
                 const basePath = this.createGripRingPath(
                     center,
@@ -936,9 +1118,9 @@ class RenderEngine {
                     this.gripRingBaseRadii.innerRingRadius
                 );
 
-                // Animate using Web Animations API
+                // Animate base ring using Web Animations API
                 const animationSpeed = this.state.get('notchDeactivationSpeed');
-                gripRing.animate([
+                gripRingBase.animate([
                     { d: currentPath, opacity: currentOpacity },
                     { d: basePath, opacity: targetOpacity }
                 ], {
@@ -946,10 +1128,25 @@ class RenderEngine {
                     easing: 'ease-out',
                     fill: 'forwards'
                 });
+                gripRingBase.setAttribute('d', basePath);
+                gripRingBase.setAttribute('opacity', targetOpacity);
 
-                // Update final state
-                gripRing.setAttribute('d', basePath);
-                gripRing.setAttribute('opacity', targetOpacity);
+                // Animate noise ring if it exists
+                if (gripRingNoise) {
+                    const noiseCurrentOpacity = parseFloat(gripRingNoise.getAttribute('opacity'));
+                    const noiseTargetOpacity = noiseIntensity / 100;
+
+                    gripRingNoise.animate([
+                        { d: currentPath, opacity: noiseCurrentOpacity },
+                        { d: basePath, opacity: noiseTargetOpacity }
+                    ], {
+                        duration: animationSpeed,
+                        easing: 'ease-out',
+                        fill: 'forwards'
+                    });
+                    gripRingNoise.setAttribute('d', basePath);
+                    gripRingNoise.setAttribute('opacity', noiseTargetOpacity);
+                }
             }
 
             // Reset grip ticks to original scale and opacity
@@ -1284,43 +1481,54 @@ class InteractionManager {
     }
 
     handleEnd() {
-        if (this.dragState.isDragging || this.dragState.isRotating || this.dragState.isPinching) {
-            // Release all pressed slices (unless they're already locked by auto-lock)
-            this.dragState.pressedSlices.forEach(slice => {
-                const index = parseInt(slice.getAttribute('data-slice'));
-                // Only release if not already locked
-                if (!this.audio.isLocked(index)) {
-                    this.renderer.releaseSlice(index);
-                    this.audio.stopNote(index);
-                }
-            });
+        // DEFENSIVE CLEANUP: Always clean up, even if drag state seems wrong
+        // This prevents stuck notes if touch events fire out of order on iOS
 
-            if (this.dragState.lastRotationSlice !== null) {
-                if (!this.audio.isLocked(this.dragState.lastRotationSlice)) {
-                    this.renderer.releaseSlice(this.dragState.lastRotationSlice);
-                    this.audio.stopNote(this.dragState.lastRotationSlice);
-                }
+        // Release all pressed slices (unless they're already locked by auto-lock)
+        this.dragState.pressedSlices.forEach(slice => {
+            const index = parseInt(slice.getAttribute('data-slice'));
+            // Only release if not already locked
+            if (!this.audio.isLocked(index)) {
+                this.renderer.releaseSlice(index);
+                this.audio.stopNote(index);
             }
+        });
 
-            // Deactivate gripper animation if rotating
-            if (this.dragState.isRotating) {
-                this.renderer.deactivateGripper();
+        // Release last rotation slice if any
+        if (this.dragState.lastRotationSlice !== null) {
+            if (!this.audio.isLocked(this.dragState.lastRotationSlice)) {
+                this.renderer.releaseSlice(this.dragState.lastRotationSlice);
+                this.audio.stopNote(this.dragState.lastRotationSlice);
             }
-
-            // Reset drag state
-            this.dragState.isDragging = false;
-            this.dragState.isRotating = false;
-            this.dragState.isPinching = false;
-            this.dragState.wasInGripperZone = false;
-            this.dragState.startedFromSlice = false;
-            this.dragState.lastRotationSlice = null;
-            this.dragState.lastTouchedSlice = null;
-            this.dragState.lastPinchDistance = 0;
-            this.dragState.pressedSlices.clear();
-
-            const innerCircle = document.getElementById('innerRotationPlate');
-            if (innerCircle) innerCircle.style.cursor = 'grab';
         }
+
+        // Release last touched slice if any
+        if (this.dragState.lastTouchedSlice) {
+            const index = parseInt(this.dragState.lastTouchedSlice.getAttribute('data-slice'));
+            if (!this.audio.isLocked(index)) {
+                this.renderer.releaseSlice(index);
+                this.audio.stopNote(index);
+            }
+        }
+
+        // Deactivate gripper animation if rotating
+        if (this.dragState.isRotating) {
+            this.renderer.deactivateGripper();
+        }
+
+        // ALWAYS reset drag state to prevent stuck interactions
+        this.dragState.isDragging = false;
+        this.dragState.isRotating = false;
+        this.dragState.isPinching = false;
+        this.dragState.wasInGripperZone = false;
+        this.dragState.startedFromSlice = false;
+        this.dragState.lastRotationSlice = null;
+        this.dragState.lastTouchedSlice = null;
+        this.dragState.lastPinchDistance = 0;
+        this.dragState.pressedSlices.clear();
+
+        const innerCircle = document.getElementById('innerRotationPlate');
+        if (innerCircle) innerCircle.style.cursor = 'grab';
     }
 
     handleKeyboard(e) {
@@ -1406,6 +1614,16 @@ class ControlsManager {
             pressedGradientEndColor: document.getElementById('pressedGradientEndColor'),
             // Grip Ring Appearance controls
             gripRingColor: document.getElementById('gripRingColor'),
+            gripRingBlendSelect: document.getElementById('gripRingBlendSelect'),
+            gripRingNoiseFrequencySlider: document.getElementById('gripRingNoiseFrequencySlider'),
+            gripRingNoiseFrequencyValue: document.getElementById('gripRingNoiseFrequencyValue'),
+            gripRingNoiseOctavesSlider: document.getElementById('gripRingNoiseOctavesSlider'),
+            gripRingNoiseOctavesValue: document.getElementById('gripRingNoiseOctavesValue'),
+            gripRingNoiseTypeSelect: document.getElementById('gripRingNoiseTypeSelect'),
+            gripRingNoiseColor: document.getElementById('gripRingNoiseColor'),
+            gripRingNoiseIntensitySlider: document.getElementById('gripRingNoiseIntensitySlider'),
+            gripRingNoiseIntensityValue: document.getElementById('gripRingNoiseIntensityValue'),
+            gripRingNoiseBlendSelect: document.getElementById('gripRingNoiseBlendSelect'),
             // Note Marker controls
             noteMarkerSizeSlider: document.getElementById('noteMarkerSizeSlider'),
             noteMarkerSizeValue: document.getElementById('noteMarkerSizeValue'),
@@ -1415,10 +1633,15 @@ class ControlsManager {
             // Save slot buttons
             saveSlot1Btn: document.getElementById('saveSlot1Btn'),
             loadSlot1Btn: document.getElementById('loadSlot1Btn'),
+            exportSlot1Btn: document.getElementById('exportSlot1Btn'),
             saveSlot2Btn: document.getElementById('saveSlot2Btn'),
             loadSlot2Btn: document.getElementById('loadSlot2Btn'),
+            exportSlot2Btn: document.getElementById('exportSlot2Btn'),
             saveSlot3Btn: document.getElementById('saveSlot3Btn'),
             loadSlot3Btn: document.getElementById('loadSlot3Btn'),
+            exportSlot3Btn: document.getElementById('exportSlot3Btn'),
+            importFileInput: document.getElementById('importFileInput'),
+            importSlotSelect: document.getElementById('importSlotSelect'),
             resetSettingsBtn: document.getElementById('resetSettingsBtn')
         };
     }
@@ -1476,6 +1699,13 @@ class ControlsManager {
 
         // Grip Ring Appearance controls
         this.setupColorInput('gripRingColor', 'gripRingColor', () => this.renderer.render());
+        this.setupDropdown('gripRingBlendSelect', 'gripRingBlend', () => this.renderer.render());
+        this.setupSlider('gripRingNoiseFrequencySlider', 'gripRingNoiseFrequency', 'gripRingNoiseFrequencyValue', '', () => this.renderer.render());
+        this.setupSlider('gripRingNoiseOctavesSlider', 'gripRingNoiseOctaves', 'gripRingNoiseOctavesValue', '', () => this.renderer.render());
+        this.setupDropdown('gripRingNoiseTypeSelect', 'gripRingNoiseType', () => this.renderer.render());
+        this.setupColorInput('gripRingNoiseColor', 'gripRingNoiseColor', () => this.renderer.render());
+        this.setupSlider('gripRingNoiseIntensitySlider', 'gripRingNoiseIntensity', 'gripRingNoiseIntensityValue', '%', () => this.renderer.render());
+        this.setupDropdown('gripRingNoiseBlendSelect', 'gripRingNoiseBlend', () => this.renderer.render());
 
         // Note Marker controls
         this.setupSlider('noteMarkerSizeSlider', 'noteMarkerSize', 'noteMarkerSizeValue', 'px', () => this.renderer.render());
@@ -1485,10 +1715,14 @@ class ControlsManager {
         // Save slot controls
         this.elements.saveSlot1Btn.addEventListener('click', () => this.saveToSlot(1));
         this.elements.loadSlot1Btn.addEventListener('click', () => this.loadFromSlot(1));
+        this.elements.exportSlot1Btn.addEventListener('click', () => this.exportSlot(1));
         this.elements.saveSlot2Btn.addEventListener('click', () => this.saveToSlot(2));
         this.elements.loadSlot2Btn.addEventListener('click', () => this.loadFromSlot(2));
+        this.elements.exportSlot2Btn.addEventListener('click', () => this.exportSlot(2));
         this.elements.saveSlot3Btn.addEventListener('click', () => this.saveToSlot(3));
         this.elements.loadSlot3Btn.addEventListener('click', () => this.loadFromSlot(3));
+        this.elements.exportSlot3Btn.addEventListener('click', () => this.exportSlot(3));
+        this.elements.importFileInput.addEventListener('change', (e) => this.importSlot(e));
         this.elements.resetSettingsBtn.addEventListener('click', () => this.resetSettings());
 
         // Subscribe to rotation changes from interaction
@@ -1692,6 +1926,89 @@ class ControlsManager {
         }
     }
 
+    exportSlot(slotNumber) {
+        try {
+            const savedSettings = localStorage.getItem(`radialPianoSlot${slotNumber}`);
+            if (savedSettings) {
+                // Create a blob with the JSON data
+                const blob = new Blob([savedSettings], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+
+                // Create a temporary download link
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `radial-piano-preset-slot${slotNumber}.json`;
+                document.body.appendChild(a);
+                a.click();
+
+                // Cleanup
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                console.log(`✅ Exported Slot ${slotNumber} settings`);
+
+                // Visual feedback
+                const btn = this.elements[`exportSlot${slotNumber}Btn`];
+                const originalText = btn.textContent;
+                btn.textContent = '✓ Exported!';
+                btn.style.background = '#218838';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '#28a745';
+                }, 1500);
+            } else {
+                alert(`Slot ${slotNumber} is empty! Save settings to this slot first.`);
+            }
+        } catch (error) {
+            console.error('Failed to export settings:', error);
+            alert('Failed to export settings.');
+        }
+    }
+
+    importSlot(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const slotNumber = parseInt(this.elements.importSlotSelect.value);
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+            try {
+                const jsonContent = e.target.result;
+                // Validate JSON
+                const settings = JSON.parse(jsonContent);
+
+                // Validate that it contains expected properties
+                if (typeof settings !== 'object' || settings === null) {
+                    throw new Error('Invalid preset file format');
+                }
+
+                // Save to localStorage
+                localStorage.setItem(`radialPianoSlot${slotNumber}`, jsonContent);
+                console.log(`✅ Imported preset to Slot ${slotNumber}`);
+
+                // Ask if user wants to load it immediately
+                if (confirm(`Preset imported to Slot ${slotNumber}. Load it now?`)) {
+                    this.loadFromSlot(slotNumber);
+                }
+
+                // Reset file input
+                event.target.value = '';
+            } catch (error) {
+                console.error('Failed to import settings:', error);
+                alert('Failed to import preset. The file might be corrupted or invalid.');
+                event.target.value = '';
+            }
+        };
+
+        reader.onerror = () => {
+            alert('Failed to read file.');
+            event.target.value = '';
+        };
+
+        reader.readAsText(file);
+    }
+
     resetSettings() {
         if (confirm('Reset all settings to factory defaults?')) {
             // Reset state to initial values
@@ -1747,7 +2064,7 @@ class Application {
         this.controlsManager = null;
     }
 
-    init() {
+    async init() {
         // Note: Auto-load removed - users now manually load from slots
 
         // Prevent context menu on iOS and other touch devices
@@ -1767,7 +2084,7 @@ class Application {
         const hexValue = grayValue.toString(16).padStart(2, '0');
         document.documentElement.style.setProperty('--bg-primary', `#${hexValue}${hexValue}${hexValue}`);
 
-        // Initial render
+        // Initial render (with startup animation)
         this.renderEngine.render();
 
         // Initialize managers
@@ -1808,6 +2125,46 @@ class Application {
                 this.audioEngine.stopAllNotes();
             }
         });
+
+        // Handle startup animation
+        await this.handleStartupAnimation();
+    }
+
+    async handleStartupAnimation() {
+        // Pre-initialize audio in the background
+        console.log('🎵 Pre-initializing audio...');
+        this.audioEngine.init().catch(err => {
+            console.warn('Audio pre-init failed (will retry on first interaction):', err);
+        });
+
+        // Calculate animation duration
+        // Last slice starts at: sliceCount * 20ms
+        // Animation duration: 600ms
+        // Total: (sliceCount * 20) + 600
+        const sliceCount = this.stateManager.get('sliceCount');
+        const staggerDelay = 20; // ms per slice
+        const animationDuration = 600; // ms
+        const totalDuration = (sliceCount * staggerDelay) + animationDuration;
+
+        console.log(`✨ Startup animation: ${totalDuration}ms (${sliceCount} slices)`);
+
+        // Wait for animation to complete
+        await new Promise(resolve => setTimeout(resolve, totalDuration));
+
+        // Remove overlay
+        const overlay = document.getElementById('startupOverlay');
+        if (overlay) {
+            overlay.classList.add('fade-out');
+            // Wait for fade-out transition
+            setTimeout(() => {
+                overlay.remove();
+            }, 300);
+        }
+
+        // Clean up animation classes
+        this.renderEngine.completeStartupAnimation();
+
+        console.log('🎹 Piano ready!');
     }
 }
 

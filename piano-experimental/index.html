@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <div class="startup-overlay" id="startupOverlay"></div>
     <button class="toggle-controls" id="toggleBtn" aria-label="Open controls">⚙</button>
 
     <div class="modal-backdrop" id="modalBackdrop">
@@ -15,6 +16,9 @@
 
             <h3>Radial Piano Controls</h3>
 
+            <!-- ============================================
+                 THEME
+                 ============================================ -->
             <div class="control-group">
                 <div class="theme-switch-container">
                     <label>Theme:</label>
@@ -25,25 +29,77 @@
                 </div>
             </div>
 
-            <h4 style="margin-top: 20px; margin-bottom: 16px; color: var(--modal-text); font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Gradient Settings</h4>
+            <!-- ============================================
+                 LAYOUT & GEOMETRY
+                 ============================================ -->
+            <h4 style="margin-top: 20px; margin-bottom: 16px; color: var(--modal-text); font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Layout & Geometry</h4>
 
             <div class="control-group">
-                <label for="defaultGradientAngleSlider">Default Angle: <span class="range-value" id="defaultGradientAngleValue">58</span>°</label>
-                <input type="range" id="defaultGradientAngleSlider" min="-180" max="180" value="58" aria-label="Default gradient angle">
+                <label for="sliceCount">Number of Slices:</label>
+                <div class="number-input">
+                    <button class="stepper-btn" id="sliceDecBtn" aria-label="Decrease slices">−</button>
+                    <input type="number" id="sliceCount" value="32" min="6" max="72" aria-label="Number of slices">
+                    <button class="stepper-btn" id="sliceIncBtn" aria-label="Increase slices">+</button>
+                </div>
             </div>
 
             <div class="control-group">
-                <label for="defaultGradientStartColor">Default Start Color:</label>
-                <input type="color" id="defaultGradientStartColor" value="#383838" aria-label="Default gradient start color">
+                <label for="radiusSlider">Radius: <span class="range-value" id="radiusValue">100</span>%</label>
+                <input type="range" id="radiusSlider" min="20" max="200" value="100" aria-label="Circle radius">
             </div>
 
             <div class="control-group">
-                <label for="defaultGradientEndColor">Default End Color:</label>
-                <input type="color" id="defaultGradientEndColor" value="#bfbfbf" aria-label="Default gradient end color">
+                <label for="rotationSlider">Rotation: <span class="range-value" id="rotationValue">290</span>°</label>
+                <input type="range" id="rotationSlider" min="0" max="359" value="290" aria-label="Circle rotation">
             </div>
 
             <div class="control-group">
-                <label for="pressedGradientAngleSlider">Pressed Angle: <span class="range-value" id="pressedGradientAngleValue">0</span>°</label>
+                <label for="offsetXSlider">Offset X: <span class="range-value" id="offsetXValue">0</span>%</label>
+                <input type="range" id="offsetXSlider" min="-100" max="100" value="0" aria-label="Horizontal offset">
+            </div>
+
+            <div class="control-group">
+                <label for="offsetYSlider">Offset Y: <span class="range-value" id="offsetYValue">0</span>%</label>
+                <input type="range" id="offsetYSlider" min="-100" max="100" value="0" aria-label="Vertical offset">
+            </div>
+
+            <div class="control-group">
+                <label for="gapSizeSlider">Gap Between Slices: <span class="range-value" id="gapSizeValue">0</span>°</label>
+                <input type="range" id="gapSizeSlider" min="0" max="3" step="0.1" value="0" aria-label="Gap size">
+            </div>
+
+            <div class="control-group">
+                <label for="bgGraySlider">Background Gray: <span class="range-value" id="bgGrayValue">25</span>%</label>
+                <input type="range" id="bgGraySlider" min="0" max="100" value="25" aria-label="Background gray">
+            </div>
+
+            <!-- ============================================
+                 SLICE APPEARANCE
+                 ============================================ -->
+            <h4 style="margin-top: 20px; margin-bottom: 16px; color: var(--modal-text); font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Slice Appearance</h4>
+
+            <div class="control-group">
+                <label for="defaultGradientAngleSlider">Gradient Angle: <span class="range-value" id="defaultGradientAngleValue">53</span>°</label>
+                <input type="range" id="defaultGradientAngleSlider" min="-180" max="180" value="53" aria-label="Default gradient angle">
+            </div>
+
+            <div class="control-group">
+                <label for="defaultGradientStartColor">Gradient Start Color:</label>
+                <input type="color" id="defaultGradientStartColor" value="#000000" aria-label="Default gradient start color">
+            </div>
+
+            <div class="control-group">
+                <label for="defaultGradientEndColor">Gradient End Color:</label>
+                <input type="color" id="defaultGradientEndColor" value="#cfc9c9" aria-label="Default gradient end color">
+            </div>
+
+            <div class="control-group">
+                <label for="pressShrinkSlider">Press Shrink: <span class="range-value" id="pressShrinkValue">2</span>%</label>
+                <input type="range" id="pressShrinkSlider" min="0" max="20" step="1" value="2" aria-label="Press shrink">
+            </div>
+
+            <div class="control-group">
+                <label for="pressedGradientAngleSlider">Pressed Gradient Angle: <span class="range-value" id="pressedGradientAngleValue">0</span>°</label>
                 <input type="range" id="pressedGradientAngleSlider" min="-180" max="180" value="0" aria-label="Pressed gradient angle">
             </div>
 
@@ -58,119 +114,123 @@
             </div>
 
             <div class="control-group">
-                <label for="sliceCount">Number of Slices:</label>
-                <div class="number-input">
-                    <button class="stepper-btn" id="sliceDecBtn" aria-label="Decrease slices">−</button>
-                    <input type="number" id="sliceCount" value="32" min="6" max="72" aria-label="Number of slices">
-                    <button class="stepper-btn" id="sliceIncBtn" aria-label="Increase slices">+</button>
-                </div>
+                <label for="pressBrightnessSlider">Press Brightness: <span class="range-value" id="pressBrightnessValue">30</span>%</label>
+                <input type="range" id="pressBrightnessSlider" min="0" max="100" step="5" value="30" aria-label="Press brightness">
             </div>
 
-            <div class="control-group">
-                <label for="bgGraySlider">Background Gray: <span class="range-value" id="bgGrayValue">18</span>%</label>
-                <input type="range" id="bgGraySlider" min="0" max="100" value="18" aria-label="Background gray">
-            </div>
-
-            <div class="control-group">
-                <label for="offsetXSlider">Offset X: <span class="range-value" id="offsetXValue">0</span>%</label>
-                <input type="range" id="offsetXSlider" min="-100" max="100" value="0" aria-label="Horizontal offset">
-            </div>
-
-            <div class="control-group">
-                <label for="offsetYSlider">Offset Y: <span class="range-value" id="offsetYValue">0</span>%</label>
-                <input type="range" id="offsetYSlider" min="-100" max="100" value="0" aria-label="Vertical offset">
-            </div>
-
-            <div class="control-group">
-                <label for="radiusSlider">Radius: <span class="range-value" id="radiusValue">100</span>%</label>
-                <input type="range" id="radiusSlider" min="20" max="200" value="100" aria-label="Circle radius">
-            </div>
-
-            <div class="control-group">
-                <label for="rotationSlider">Rotation: <span class="range-value" id="rotationValue">58</span>°</label>
-                <input type="range" id="rotationSlider" min="0" max="359" value="58" aria-label="Circle rotation">
-            </div>
-
-            <div class="control-group">
-                <label for="gapSizeSlider">Gap Size: <span class="range-value" id="gapSizeValue">0</span>°</label>
-                <input type="range" id="gapSizeSlider" min="0" max="3" step="0.1" value="0" aria-label="Gap size">
-            </div>
-
-            <div class="control-group">
-                <label for="gripThicknessSlider">Grip Thickness: <span class="range-value" id="gripThicknessValue">2</span>px</label>
-                <input type="range" id="gripThicknessSlider" min="0.5" max="4" step="0.5" value="2" aria-label="Grip thickness">
-            </div>
-
-            <div class="control-group">
-                <label for="ticksPerEdgeSlider">Ticks Per Edge: <span class="range-value" id="ticksPerEdgeValue">4</span></label>
-                <input type="range" id="ticksPerEdgeSlider" min="0" max="20" step="1" value="4" aria-label="Ticks per edge">
-            </div>
-
-            <div class="control-group">
-                <label for="gripOpacitySlider">Grip Opacity: <span class="range-value" id="gripOpacityValue">10</span>%</label>
-                <input type="range" id="gripOpacitySlider" min="0" max="100" step="5" value="10" aria-label="Grip opacity">
-            </div>
-
-            <div class="control-group">
-                <label for="gripRingOpacitySlider">Grip Ring Opacity: <span class="range-value" id="gripRingOpacityValue">0</span>%</label>
-                <input type="range" id="gripRingOpacitySlider" min="0" max="100" step="5" value="0" aria-label="Grip ring opacity">
-            </div>
-
-            <div class="control-group">
-                <label for="gripInsetSlider">Grip Inset: <span class="range-value" id="gripInsetValue">5</span>%</label>
-                <input type="range" id="gripInsetSlider" min="0" max="50" step="5" value="5" aria-label="Grip inset">
-            </div>
-
-            <h4 style="margin-top: 20px; margin-bottom: 16px; color: var(--modal-text); font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Grip Ring Appearance</h4>
+            <!-- ============================================
+                 ROTATION RING
+                 ============================================ -->
+            <h4 style="margin-top: 20px; margin-bottom: 16px; color: var(--modal-text); font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Rotation Ring</h4>
 
             <div class="control-group">
                 <label for="gripRingColor">Ring Color:</label>
                 <input type="color" id="gripRingColor" value="#ffffff" aria-label="Grip ring color">
             </div>
 
+            <div class="control-group">
+                <label for="gripRingOpacitySlider">Ring Opacity: <span class="range-value" id="gripRingOpacityValue">0</span>%</label>
+                <input type="range" id="gripRingOpacitySlider" min="0" max="100" step="5" value="0" aria-label="Grip ring opacity">
+            </div>
+
+            <div class="control-group">
+                <label for="gripRingBlendSelect">Ring Blend Mode:</label>
+                <select id="gripRingBlendSelect" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;" aria-label="Ring blend mode">
+                    <option value="normal">Normal</option>
+                    <option value="multiply">Multiply</option>
+                    <option value="screen">Screen</option>
+                    <option value="overlay" selected>Overlay</option>
+                    <option value="darken">Darken</option>
+                    <option value="lighten">Lighten</option>
+                    <option value="color-dodge">Color Dodge</option>
+                    <option value="color-burn">Color Burn</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="gripRingNoiseFrequencySlider">Noise Grain Size: <span class="range-value" id="gripRingNoiseFrequencyValue">0.2</span></label>
+                <input type="range" id="gripRingNoiseFrequencySlider" min="0" max="10" step="0.1" value="0.2" aria-label="Noise frequency">
+            </div>
+
+            <div class="control-group">
+                <label for="gripRingNoiseOctavesSlider">Noise Detail: <span class="range-value" id="gripRingNoiseOctavesValue">3</span></label>
+                <input type="range" id="gripRingNoiseOctavesSlider" min="1" max="8" step="1" value="3" aria-label="Noise octaves">
+            </div>
+
+            <div class="control-group">
+                <label for="gripRingNoiseTypeSelect">Noise Type:</label>
+                <select id="gripRingNoiseTypeSelect" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;" aria-label="Noise type">
+                    <option value="fractalNoise">Fractal (Soft)</option>
+                    <option value="turbulence">Turbulence (Sharp)</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="gripRingNoiseColor">Noise Color:</label>
+                <input type="color" id="gripRingNoiseColor" value="#ffffff" aria-label="Noise color">
+            </div>
+
+            <div class="control-group">
+                <label for="gripRingNoiseIntensitySlider">Noise Intensity: <span class="range-value" id="gripRingNoiseIntensityValue">100</span>%</label>
+                <input type="range" id="gripRingNoiseIntensitySlider" min="0" max="100" step="5" value="100" aria-label="Noise intensity">
+            </div>
+
+            <div class="control-group">
+                <label for="gripRingNoiseBlendSelect">Noise Blend Mode:</label>
+                <select id="gripRingNoiseBlendSelect" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;" aria-label="Noise blend mode">
+                    <option value="normal">Normal</option>
+                    <option value="multiply">Multiply</option>
+                    <option value="screen">Screen</option>
+                    <option value="overlay" selected>Overlay</option>
+                    <option value="darken">Darken</option>
+                    <option value="lighten">Lighten</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="gripThicknessSlider">Tick Thickness: <span class="range-value" id="gripThicknessValue">1</span>px</label>
+                <input type="range" id="gripThicknessSlider" min="0.5" max="4" step="0.5" value="1" aria-label="Grip thickness">
+            </div>
+
+            <div class="control-group">
+                <label for="gripOpacitySlider">Tick Opacity: <span class="range-value" id="gripOpacityValue">5</span>%</label>
+                <input type="range" id="gripOpacitySlider" min="0" max="100" step="5" value="5" aria-label="Grip opacity">
+            </div>
+
+            <div class="control-group">
+                <label for="ticksPerEdgeSlider">Ticks Per Slice: <span class="range-value" id="ticksPerEdgeValue">3</span></label>
+                <input type="range" id="ticksPerEdgeSlider" min="0" max="20" step="1" value="3" aria-label="Ticks per edge">
+            </div>
+
+            <div class="control-group">
+                <label for="gripInsetSlider">Tick Inset: <span class="range-value" id="gripInsetValue">20</span>%</label>
+                <input type="range" id="gripInsetSlider" min="0" max="50" step="5" value="20" aria-label="Grip inset">
+            </div>
+
+            <!-- ============================================
+                 NOTE MARKERS
+                 ============================================ -->
             <h4 style="margin-top: 20px; margin-bottom: 16px; color: var(--modal-text); font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Note Markers</h4>
 
             <div class="control-group">
-                <label for="noteMarkerSizeSlider">Marker Size: <span class="range-value" id="noteMarkerSizeValue">4</span>px</label>
-                <input type="range" id="noteMarkerSizeSlider" min="2" max="20" value="4" aria-label="Note marker size">
+                <label for="noteMarkerSizeSlider">Marker Size: <span class="range-value" id="noteMarkerSizeValue">6</span>px</label>
+                <input type="range" id="noteMarkerSizeSlider" min="2" max="20" value="6" aria-label="Note marker size">
             </div>
 
             <div class="control-group">
                 <label for="noteMarkerColor">Marker Color:</label>
-                <input type="color" id="noteMarkerColor" value="#999999" aria-label="Note marker color">
+                <input type="color" id="noteMarkerColor" value="#61979e" aria-label="Note marker color">
             </div>
 
             <div class="control-group">
-                <label for="noteMarkerPositionSlider">Marker Position: <span class="range-value" id="noteMarkerPositionValue">108</span>%</label>
-                <input type="range" id="noteMarkerPositionSlider" min="100" max="130" value="108" aria-label="Note marker position">
+                <label for="noteMarkerPositionSlider">Marker Position: <span class="range-value" id="noteMarkerPositionValue">112</span>%</label>
+                <input type="range" id="noteMarkerPositionSlider" min="100" max="130" value="112" aria-label="Note marker position">
             </div>
 
-            <div class="control-group">
-                <label for="pressShrinkSlider">Press Shrink: <span class="range-value" id="pressShrinkValue">2</span>%</label>
-                <input type="range" id="pressShrinkSlider" min="0" max="20" step="1" value="2" aria-label="Press shrink">
-            </div>
-
-            <div class="control-group">
-                <label for="pressBrightnessSlider">Press Brightness: <span class="range-value" id="pressBrightnessValue">30</span>%</label>
-                <input type="range" id="pressBrightnessSlider" min="0" max="100" step="5" value="30" aria-label="Press brightness">
-            </div>
-
-            <h4 style="margin-top: 32px; margin-bottom: 16px; color: var(--modal-text); font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Quick Save Slots</h4>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
-                <button id="saveSlot1Btn" style="padding: 10px; background: #007acc; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; transition: background 0.2s;">💾 Save Slot 1</button>
-                <button id="loadSlot1Btn" style="padding: 10px; background: #5a5a5a; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; transition: background 0.2s;">📂 Load Slot 1</button>
-                <button id="saveSlot2Btn" style="padding: 10px; background: #007acc; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; transition: background 0.2s;">💾 Save Slot 2</button>
-                <button id="loadSlot2Btn" style="padding: 10px; background: #5a5a5a; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; transition: background 0.2s;">📂 Load Slot 2</button>
-                <button id="saveSlot3Btn" style="padding: 10px; background: #007acc; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; transition: background 0.2s;">💾 Save Slot 3</button>
-                <button id="loadSlot3Btn" style="padding: 10px; background: #5a5a5a; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; transition: background 0.2s;">📂 Load Slot 3</button>
-            </div>
-
-            <div style="margin-top: 16px;">
-                <button id="resetSettingsBtn" style="width: 100%; padding: 12px; background: #666; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: background 0.2s;">↺ Reset to Factory Defaults</button>
-            </div>
-
-            <h3 style="margin-top: 32px; padding-top: 24px; border-top: 2px solid #e0e0e0;">Experimental Settings</h3>
+            <!-- ============================================
+                 ANIMATION & INTERACTION
+                 ============================================ -->
+            <h4 style="margin-top: 20px; margin-bottom: 16px; color: var(--modal-text); font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Animation & Interaction</h4>
 
             <div class="control-group">
                 <label for="droneLockTimeSlider">Drone Lock Time: <span class="range-value" id="droneLockTimeValue">3000</span>ms</label>
@@ -178,28 +238,61 @@
             </div>
 
             <div class="control-group">
-                <label for="notchGrowthFactorSlider">Notch Growth Factor: <span class="range-value" id="notchGrowthFactorValue">1.3</span>x</label>
-                <input type="range" id="notchGrowthFactorSlider" min="1.0" max="2.0" step="0.1" value="1.3" aria-label="Notch growth factor">
+                <label for="ringThicknessBoostSlider">Ring Thickness on Grab: <span class="range-value" id="ringThicknessBoostValue">1.02</span>x</label>
+                <input type="range" id="ringThicknessBoostSlider" min="1.0" max="2.0" step="0.01" value="1.02" aria-label="Ring thickness boost">
             </div>
 
             <div class="control-group">
-                <label for="notchActivationSpeedSlider">Notch Activation Speed: <span class="range-value" id="notchActivationSpeedValue">200</span>ms</label>
-                <input type="range" id="notchActivationSpeedSlider" min="50" max="1000" step="50" value="200" aria-label="Notch activation speed">
+                <label for="notchGrowthFactorSlider">Tick Scale on Grab: <span class="range-value" id="notchGrowthFactorValue">1.2</span>x</label>
+                <input type="range" id="notchGrowthFactorSlider" min="1.0" max="2.0" step="0.1" value="1.2" aria-label="Notch growth factor">
             </div>
 
             <div class="control-group">
-                <label for="notchDeactivationSpeedSlider">Notch Deactivation Speed: <span class="range-value" id="notchDeactivationSpeedValue">300</span>ms</label>
-                <input type="range" id="notchDeactivationSpeedSlider" min="50" max="1000" step="50" value="300" aria-label="Notch deactivation speed">
-            </div>
-
-            <div class="control-group">
-                <label for="notchBrightnessBoostSlider">Notch Brightness Boost: <span class="range-value" id="notchBrightnessBoostValue">1.5</span>x</label>
+                <label for="notchBrightnessBoostSlider">Tick Brightness on Grab: <span class="range-value" id="notchBrightnessBoostValue">1.5</span>x</label>
                 <input type="range" id="notchBrightnessBoostSlider" min="1.0" max="3.0" step="0.1" value="1.5" aria-label="Notch brightness boost">
             </div>
 
             <div class="control-group">
-                <label for="ringThicknessBoostSlider">Ring Thickness Boost: <span class="range-value" id="ringThicknessBoostValue">1.3</span>x</label>
-                <input type="range" id="ringThicknessBoostSlider" min="1.0" max="2.0" step="0.1" value="1.3" aria-label="Ring thickness boost">
+                <label for="notchActivationSpeedSlider">Grab Animation Speed: <span class="range-value" id="notchActivationSpeedValue">200</span>ms</label>
+                <input type="range" id="notchActivationSpeedSlider" min="50" max="1000" step="50" value="200" aria-label="Notch activation speed">
+            </div>
+
+            <div class="control-group">
+                <label for="notchDeactivationSpeedSlider">Release Animation Speed: <span class="range-value" id="notchDeactivationSpeedValue">300</span>ms</label>
+                <input type="range" id="notchDeactivationSpeedSlider" min="50" max="1000" step="50" value="300" aria-label="Notch deactivation speed">
+            </div>
+
+            <!-- ============================================
+                 PRESETS
+                 ============================================ -->
+            <h4 style="margin-top: 32px; margin-bottom: 16px; color: var(--modal-text); font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Presets</h4>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                <button id="saveSlot1Btn" style="padding: 10px; background: #007acc; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: background 0.2s;">💾 Save 1</button>
+                <button id="loadSlot1Btn" style="padding: 10px; background: #5a5a5a; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: background 0.2s;">📂 Load 1</button>
+                <button id="exportSlot1Btn" style="padding: 10px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: background 0.2s;">📤 Export 1</button>
+                <button id="saveSlot2Btn" style="padding: 10px; background: #007acc; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: background 0.2s;">💾 Save 2</button>
+                <button id="loadSlot2Btn" style="padding: 10px; background: #5a5a5a; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: background 0.2s;">📂 Load 2</button>
+                <button id="exportSlot2Btn" style="padding: 10px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: background 0.2s;">📤 Export 2</button>
+                <button id="saveSlot3Btn" style="padding: 10px; background: #007acc; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: background 0.2s;">💾 Save 3</button>
+                <button id="loadSlot3Btn" style="padding: 10px; background: #5a5a5a; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: background 0.2s;">📂 Load 3</button>
+                <button id="exportSlot3Btn" style="padding: 10px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: background 0.2s;">📤 Export 3</button>
+            </div>
+
+            <div style="margin-top: 16px; padding: 16px; background: #f5f5f5; border-radius: 8px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: bold; font-size: 13px; color: #333;">Import Preset:</label>
+                <div style="display: flex; gap: 8px; align-items: stretch;">
+                    <input type="file" id="importFileInput" accept=".json" style="flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; background: white;" aria-label="Select preset file">
+                    <select id="importSlotSelect" style="padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; background: white;" aria-label="Select import slot">
+                        <option value="1">To Slot 1</option>
+                        <option value="2">To Slot 2</option>
+                        <option value="3">To Slot 3</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="margin-top: 16px;">
+                <button id="resetSettingsBtn" style="width: 100%; padding: 12px; background: #666; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: background 0.2s;">↺ Reset to Factory Defaults</button>
             </div>
         </div>
     </div>
