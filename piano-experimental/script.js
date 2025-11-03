@@ -516,8 +516,10 @@ class RenderEngine {
         // Add startup animation on first render
         if (this.isFirstRender) {
             slice.setAttribute('class', 'slice startup-animation');
-            // Stagger delay: 20ms per slice
-            slice.style.animationDelay = `${index * 20}ms`;
+            // Stagger delay: 20ms per slice (with webkit prefix for iOS)
+            const delay = `${index * 20}ms`;
+            slice.style.webkitAnimationDelay = delay;
+            slice.style.animationDelay = delay;
         } else {
             slice.setAttribute('class', 'slice');
         }
@@ -1012,6 +1014,7 @@ class RenderEngine {
         // Remove animation classes from all slices
         this.sliceElements.forEach((slice) => {
             slice.classList.remove('startup-animation');
+            slice.style.webkitAnimationDelay = '';
             slice.style.animationDelay = '';
         });
         this.isFirstRender = false;

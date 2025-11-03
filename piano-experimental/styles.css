@@ -48,6 +48,15 @@ html, body {
 /* ============================================
    STARTUP ANIMATION
    ============================================ */
+@-webkit-keyframes fadeInSlice {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
 @keyframes fadeInSlice {
     from {
         opacity: 0;
@@ -58,8 +67,12 @@ html, body {
 }
 
 .slice.startup-animation {
+    -webkit-animation: fadeInSlice 0.6s ease-out forwards;
     animation: fadeInSlice 0.6s ease-out forwards;
     opacity: 0;
+    will-change: opacity;
+    -webkit-transform: translateZ(0); /* Force hardware acceleration on iOS */
+    transform: translateZ(0);
 }
 
 .startup-overlay {
