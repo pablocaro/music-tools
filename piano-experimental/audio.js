@@ -12,12 +12,25 @@ class AudioEngine {
     constructor(stateManager) {
         this.state = stateManager;
         this.synth = null;
+        this.initPromise = null; // Cache initialization promise to prevent parallel inits
+        this.pendingNotes = new Map(); // Maps index -> { shouldCancel: boolean, note: string }
         this.activeNotes = new Map(); // Maps index -> note
         this.lockedDrones = new Map(); // Maps index -> note (for locked drones)
         this.lockTimeouts = new Map(); // Maps index -> timeout ID for auto-lock
     }
 
     async init() {
+        // Return cached promise if already initializing or initialized
+        if (this.initPromise) {
+            return this.initPromise;
+        }
+
+        // Cache the initialization promise
+        this.initPromise = this._doInit();
+        return this.initPromise;
+    }
+
+    async _doInit() {
         if (!this.synth) {
             this.synth = new Tone.PolySynth(Tone.Synth, {
                 oscillator: { type: 'sine' },
@@ -45,7 +58,6 @@ class AudioEngine {
     }
 
     async playNote(index, onAutoLock) {
-        await this.init();
         const note = this.getNote(index);
 
         // Don't play if already locked (wait for toggle-off)
@@ -54,22 +66,44 @@ class AudioEngine {
             return;
         }
 
-        if (!this.activeNotes.has(index)) {
-            console.log(`🎵 Playing note ${note} (index ${index}) - Context state: ${Tone.context.state}`);
-            this.synth.triggerAttack(note);
-            this.activeNotes.set(index, note);
-
-            // Set auto-lock timeout (Option C: auto-lock at threshold time)
-            const lockTime = this.state.get('droneLockTime');
-            const timeoutId = setTimeout(() => {
-                console.log(`🔒 Auto-locking drone ${note} after ${lockTime}ms (index ${index})`);
-                this.lockDrone(index);
-                if (onAutoLock) onAutoLock(index);
-            }, lockTime);
-            this.lockTimeouts.set(index, timeoutId);
-        } else {
+        // Don't play if already active
+        if (this.activeNotes.has(index)) {
             console.log(`⏭️ Note ${note} already playing (index ${index})`);
+            return;
         }
+
+        // IMMEDIATELY mark as pending (synchronous - happens before any async work)
+        // This allows stopNote() to cancel us even if we haven't started playing yet
+        this.pendingNotes.set(index, { shouldCancel: false, note });
+        console.log(`⏳ Pending note ${note} (index ${index})`);
+
+        // Now do the async initialization
+        await this.init();
+
+        // Check if we were cancelled while initializing
+        const pendingState = this.pendingNotes.get(index);
+        if (!pendingState || pendingState.shouldCancel) {
+            console.log(`❌ Cancelled note ${note} before playing (index ${index})`);
+            this.pendingNotes.delete(index);
+            return;
+        }
+
+        // Not cancelled - proceed with playing
+        console.log(`🎵 Playing note ${note} (index ${index}) - Context state: ${Tone.context.state}`);
+        this.synth.triggerAttack(note);
+
+        // Move from pending to active
+        this.pendingNotes.delete(index);
+        this.activeNotes.set(index, note);
+
+        // Set auto-lock timeout
+        const lockTime = this.state.get('droneLockTime');
+        const timeoutId = setTimeout(() => {
+            console.log(`🔒 Auto-locking drone ${note} after ${lockTime}ms (index ${index})`);
+            this.lockDrone(index);
+            if (onAutoLock) onAutoLock(index);
+        }, lockTime);
+        this.lockTimeouts.set(index, timeoutId);
     }
 
     stopNote(index, force = false) {
@@ -79,6 +113,7 @@ class AudioEngine {
             return;
         }
 
+        // Check if note is actively playing
         if (this.activeNotes.has(index)) {
             const note = this.activeNotes.get(index);
             console.log(`🛑 Stopping note ${note} (index ${index})`);
@@ -92,8 +127,16 @@ class AudioEngine {
                 clearTimeout(this.lockTimeouts.get(index));
                 this.lockTimeouts.delete(index);
             }
-        } else {
-            console.log(`⚠️ Tried to stop note at index ${index} but it wasn't active`);
+        }
+        // Check if note is still pending (initializing)
+        else if (this.pendingNotes.has(index)) {
+            const pendingState = this.pendingNotes.get(index);
+            console.log(`🚫 Cancelling pending note ${pendingState.note} (index ${index})`);
+            // Mark for cancellation - playNote will check this before attack
+            pendingState.shouldCancel = true;
+        }
+        else {
+            console.log(`⚠️ Tried to stop note at index ${index} but it wasn't active or pending`);
         }
     }
 
@@ -130,7 +173,14 @@ class AudioEngine {
     }
 
     stopAllNotes() {
-        console.log(`🔇 Stopping ALL notes. Active: ${this.activeNotes.size}, Locked: ${this.lockedDrones.size}`);
+        console.log(`🔇 Stopping ALL notes. Pending: ${this.pendingNotes.size}, Active: ${this.activeNotes.size}, Locked: ${this.lockedDrones.size}`);
+
+        // Cancel all pending notes (mark them so they won't play)
+        this.pendingNotes.forEach((pendingState, index) => {
+            console.log(`  - Cancelling pending ${pendingState.note} (index ${index})`);
+            pendingState.shouldCancel = true;
+        });
+        this.pendingNotes.clear();
 
         // Stop all active notes
         if (this.synth && this.activeNotes.size > 0) {
