@@ -4,32 +4,105 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Music Tools</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet">
   <style>
+    /* ============================================
+       CSS Variables - Design System Tokens
+       ============================================ */
+    :root {
+      /* Palette */
+      --bg: #f6efe5;      /* warm cream paper */
+      --text: #17130e;    /* inky near-black */
+      --muted: #6f6257;   /* secondary text */
+      --rule: #b7a896;    /* dividers/borders */
+
+      /* Typography */
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco,
+                   "IBM Plex Mono", "Roboto Mono", Consolas, "Liberation Mono", monospace;
+      --font-serif: 'Fraunces', serif;
+
+      --fz-xs: 13px;
+      --fz-sm: 15px;
+      --fz-md: 17px;      /* base */
+      --fz-lg: 22px;
+      --fz-xl: 38px;
+      --lh: 1.7;          /* comfortable reading */
+
+      /* Layout */
+      --container: 1120px;
+      --pad-x: 6vw;
+
+      /* Radii & rules */
+      --radius-none: 0px;
+      --border-1: 1px solid var(--rule);
+
+      /* Shadow */
+      --shadow-0: none;
+
+      /* Spacing scale */
+      --space-1: 4px;
+      --space-2: 8px;
+      --space-3: 12px;
+      --space-4: 16px;
+      --space-6: 24px;
+      --space-8: 32px;
+      --space-10: 40px;
+      --space-12: 48px;
+      --space-16: 64px;
+    }
+
+    /* ============================================
+       Base Styles
+       ============================================ */
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+    }
+
     body {
-      font-family: -apple-system, system-ui, sans-serif;
-      background: #f4f4f4;
       margin: 0;
-      padding: 2rem;
-      line-height: 1.6;
+      background: var(--bg);
+      color: var(--text);
+      font: 400 var(--fz-md)/var(--lh) var(--font-mono);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
 
+    /* ============================================
+       Layout
+       ============================================ */
     .container {
-      max-width: 700px;
-      margin: 0 auto;
+      max-width: var(--container);
+      margin-inline: auto;
+      padding: var(--space-12) var(--pad-x) var(--space-16);
     }
 
+    /* ============================================
+       Typography
+       ============================================ */
     h1 {
-      font-size: 2.5rem;
-      margin-bottom: 0.5rem;
-      color: #222;
+      font-family: var(--font-serif);
+      font-size: clamp(32px, 4vw, var(--fz-xl));
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      margin: 0 0 var(--space-6);
+      color: var(--text);
     }
 
     .subtitle {
-      color: #666;
-      margin-bottom: 3rem;
-      font-size: 1.1rem;
+      color: var(--muted);
+      font-size: var(--fz-md);
+      margin-bottom: var(--space-10);
     }
 
+    /* ============================================
+       Tools List
+       ============================================ */
     .tools-list {
       list-style: none;
       padding: 0;
@@ -37,17 +110,17 @@
     }
 
     .tool-item {
-      background: white;
-      border-radius: 8px;
-      margin-bottom: 1rem;
-      padding: 1.5rem;
-      transition: box-shadow 0.2s, transform 0.2s;
-      border: 1px solid #e0e0e0;
+      background: var(--bg);
+      border: var(--border-1);
+      border-radius: var(--radius-none);
+      margin-bottom: var(--space-4);
+      padding: var(--space-8);
+      box-shadow: var(--shadow-0);
+      transition: background 0.2s ease;
     }
 
     .tool-item:hover {
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      transform: translateY(-2px);
+      background: rgba(23, 19, 14, 0.02);
     }
 
     .tool-link {
@@ -57,99 +130,103 @@
     }
 
     .tool-title {
-      font-size: 1.3rem;
+      font-family: var(--font-serif);
+      font-size: var(--fz-lg);
       font-weight: 600;
-      color: #007acc;
-      margin-bottom: 0.5rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
+      letter-spacing: 0.02em;
+      color: var(--text);
+      margin: 0 0 var(--space-2);
     }
 
     .tool-description {
-      color: #555;
+      color: var(--muted);
       margin: 0;
-      font-size: 1rem;
+      font-size: var(--fz-md);
+      line-height: var(--lh);
+    }
+
+    /* ============================================
+       Footer
+       ============================================ */
+    .rule,
+    hr.rule {
+      border: 0;
+      height: 2px;
+      background: linear-gradient(to right, var(--rule), var(--rule));
+      margin: var(--space-12) 0;
     }
 
     footer {
-      margin-top: 4rem;
       text-align: center;
-      font-size: 0.9rem;
-      color: #888;
+      font-size: var(--fz-sm);
+      color: var(--muted);
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>🎵 Music Tools</h1>
+    <h1>Music Tools</h1>
     <p class="subtitle">A collection of interactive music experiments and prototypes</p>
 
     <ul class="tools-list">
       <li class="tool-item">
         <a href="piano.html" class="tool-link">
-          <div class="tool-title">🎹 Piano Prototype</div>
+          <div class="tool-title">Piano Prototype</div>
           <p class="tool-description">Original radial piano prototype with circular layout and touch support</p>
         </a>
       </li>
 
       <li class="tool-item">
         <a href="piano2.html" class="tool-link">
-          <div class="tool-title">🎹 Piano 2</div>
+          <div class="tool-title">Piano 2</div>
           <p class="tool-description">Second iteration of the radial piano with improved dark theme</p>
         </a>
       </li>
 
       <li class="tool-item">
         <a href="piano-refactored.html" class="tool-link">
-          <div class="tool-title">🎹 Piano Refactored</div>
+          <div class="tool-title">Piano Refactored</div>
           <p class="tool-description">Refactored version with cleaner code structure and enhanced features including pinch-to-zoom and octave markers</p>
         </a>
       </li>
 
       <li class="tool-item">
         <a href="piano-experimental.html" class="tool-link">
-          <div class="tool-title">🎹 Piano Experimental</div>
+          <div class="tool-title">Piano Experimental</div>
           <p class="tool-description">Experimental branch for testing new features and interactions</p>
         </a>
       </li>
 
       <li class="tool-item">
         <a href="piano-experimental/" class="tool-link">
-          <div class="tool-title">🎹 Piano Experimental (Refactored)</div>
+          <div class="tool-title">Piano Experimental (Refactored)</div>
           <p class="tool-description">Modular version with separated HTML, CSS, and JavaScript for better maintainability</p>
         </a>
       </li>
 
       <li class="tool-item">
         <a href="sound-test.html" class="tool-link">
-          <div class="tool-title">🔬 Sound Testing Lab</div>
+          <div class="tool-title">Sound Testing Lab</div>
           <p class="tool-description">Comprehensive Tone.js testing environment for experimenting with synthesizers, envelopes, and filters to find the perfect sound</p>
         </a>
       </li>
 
       <li class="tool-item">
         <a href="piano-visual-only.html" class="tool-link">
-          <div class="tool-title">🎹 Piano Visual Only</div>
+          <div class="tool-title">Piano Visual Only</div>
           <p class="tool-description">Visual-only version of the radial piano interface without audio</p>
         </a>
       </li>
 
       <li class="tool-item">
-        <a href="sound-test.html" class="tool-link">
-          <div class="tool-title">🔬 Sound Testing Lab</div>
-          <p class="tool-description">Comprehensive Tone.js testing tool for experimenting with synthesizers, envelopes, filters, and finding perfect sounds</p>
-        </a>
-      </li>
-
-      <li class="tool-item">
         <a href="tonejs-learning-lab.html" class="tool-link">
-          <div class="tool-title">📚 Tone.js Learning Lab</div>
+          <div class="tool-title">Tone.js Learning Lab</div>
           <p class="tool-description">Interactive learning platform teaching Tone.js from first principles with hands-on lessons and experiments</p>
         </a>
       </li>
     </ul>
 
+    <hr class="rule">
     <footer>Built with GitHub Pages + Codespaces</footer>
   </div>
   <script src="script.js"></script>
