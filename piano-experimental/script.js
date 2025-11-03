@@ -1061,6 +1061,14 @@ class InteractionManager {
     }
 
     handleStart(e) {
+        // CRITICAL: Resume audio context SYNCHRONOUSLY in the user gesture
+        // iOS requires this to be called in the same call stack as the user event
+        if (typeof Tone !== 'undefined' && Tone.context.state === 'suspended') {
+            console.log('🔊 Resuming audio context from user gesture...');
+            Tone.context.resume();
+            // Note: We don't await - this must be synchronous!
+        }
+
         // Check if tapping a locked slice to unlock it
         if (e.target.classList.contains('slice')) {
             const index = parseInt(e.target.getAttribute('data-slice'));
