@@ -402,6 +402,7 @@ class RenderEngine {
         this.innerCircle = null;
         this.noiseTextureDataURL = null; // Cache for pre-rendered noise
         this.lastNoiseSettings = null; // Track settings to avoid unnecessary regeneration
+        this.isFirstRender = true; // Track if this is the initial startup render
     }
 
     updateViewBox() {
@@ -506,12 +507,20 @@ class RenderEngine {
 
         const slice = document.createElementNS(SVG_NS, 'path');
         slice.setAttribute('d', pathGenerator(1));
-        slice.setAttribute('class', 'slice');
         slice.setAttribute('fill', `url(#gradient${index})`);
         slice.setAttribute('data-slice', index);
         slice.setAttribute('tabindex', '0');
         slice.setAttribute('role', 'button');
         slice.setAttribute('aria-label', `Slice ${index + 1} of ${sliceCount}`);
+
+        // Add startup animation on first render
+        if (this.isFirstRender) {
+            slice.setAttribute('class', 'slice startup-animation');
+            // Stagger delay: 20ms per slice
+            slice.style.animationDelay = `${index * 20}ms`;
+        } else {
+            slice.setAttribute('class', 'slice');
+        }
 
         this.sliceElements.set(index, slice);
         return slice;
@@ -997,6 +1006,16 @@ class RenderEngine {
         const avgRadius = (radii.rx + radii.ry) / 2;
         const innerRadius = avgRadius * INNER_CIRCLE_RADIUS_RATIO;
         return { center, innerRadius };
+    }
+
+    completeStartupAnimation() {
+        // Remove animation classes from all slices
+        this.sliceElements.forEach((slice) => {
+            slice.classList.remove('startup-animation');
+            slice.style.animationDelay = '';
+        });
+        this.isFirstRender = false;
+        console.log('✨ Startup animation complete');
     }
 
     activateGripper() {
@@ -2031,7 +2050,7 @@ class Application {
         this.controlsManager = null;
     }
 
-    init() {
+    async init() {
         // Note: Auto-load removed - users now manually load from slots
 
         // Prevent context menu on iOS and other touch devices
@@ -2051,7 +2070,7 @@ class Application {
         const hexValue = grayValue.toString(16).padStart(2, '0');
         document.documentElement.style.setProperty('--bg-primary', `#${hexValue}${hexValue}${hexValue}`);
 
-        // Initial render
+        // Initial render (with startup animation)
         this.renderEngine.render();
 
         // Initialize managers
@@ -2092,6 +2111,46 @@ class Application {
                 this.audioEngine.stopAllNotes();
             }
         });
+
+        // Handle startup animation
+        await this.handleStartupAnimation();
+    }
+
+    async handleStartupAnimation() {
+        // Pre-initialize audio in the background
+        console.log('🎵 Pre-initializing audio...');
+        this.audioEngine.init().catch(err => {
+            console.warn('Audio pre-init failed (will retry on first interaction):', err);
+        });
+
+        // Calculate animation duration
+        // Last slice starts at: sliceCount * 20ms
+        // Animation duration: 600ms
+        // Total: (sliceCount * 20) + 600
+        const sliceCount = this.stateManager.get('sliceCount');
+        const staggerDelay = 20; // ms per slice
+        const animationDuration = 600; // ms
+        const totalDuration = (sliceCount * staggerDelay) + animationDuration;
+
+        console.log(`✨ Startup animation: ${totalDuration}ms (${sliceCount} slices)`);
+
+        // Wait for animation to complete
+        await new Promise(resolve => setTimeout(resolve, totalDuration));
+
+        // Remove overlay
+        const overlay = document.getElementById('startupOverlay');
+        if (overlay) {
+            overlay.classList.add('fade-out');
+            // Wait for fade-out transition
+            setTimeout(() => {
+                overlay.remove();
+            }, 300);
+        }
+
+        // Clean up animation classes
+        this.renderEngine.completeStartupAnimation();
+
+        console.log('🎹 Piano ready!');
     }
 }
 
