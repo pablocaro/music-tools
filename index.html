@@ -4,75 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Music Tools</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
   <style>
-    /* ============================================
-       CSS Variables - Design System Tokens
-       ============================================ */
-    :root {
-      /* Palette */
-      --bg: #f6efe5;      /* warm cream paper */
-      --text: #17130e;    /* inky near-black */
-      --muted: #6f6257;   /* secondary text */
-      --rule: #b7a896;    /* dividers/borders */
-
-      /* Typography */
-      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco,
-                   "IBM Plex Mono", "Roboto Mono", Consolas, "Liberation Mono", monospace;
-      --font-serif: 'Fraunces', serif;
-
-      --fz-xs: 13px;
-      --fz-sm: 15px;
-      --fz-md: 17px;      /* base */
-      --fz-lg: 22px;
-      --fz-xl: 38px;
-      --lh: 1.7;          /* comfortable reading */
-
-      /* Layout */
-      --container: 1120px;
-      --pad-x: 6vw;
-
-      /* Radii & rules */
-      --radius-none: 0px;
-      --border-1: 1px solid var(--rule);
-
-      /* Shadow */
-      --shadow-0: none;
-
-      /* Spacing scale */
-      --space-1: 4px;
-      --space-2: 8px;
-      --space-3: 12px;
-      --space-4: 16px;
-      --space-6: 24px;
-      --space-8: 32px;
-      --space-10: 40px;
-      --space-12: 48px;
-      --space-16: 64px;
-    }
-
-    /* ============================================
-       Base Styles
-       ============================================ */
-    * {
-      box-sizing: border-box;
-    }
-
-    html, body {
-      height: 100%;
-    }
-
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--text);
-      font: 400 var(--fz-md)/var(--lh) var(--font-mono);
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-    }
-
     /* ============================================
        Layout
        ============================================ */

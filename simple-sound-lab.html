@@ -4,25 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simple Sound Lab</title>
+    <link rel="stylesheet" href="styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
         :root {
-            --cream: #f6efe5;
-            --ink: #17130e;
-            --ink-medium: #4a4540;
             --circle-size: 200px;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: var(--cream);
-            color: var(--ink);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -36,44 +25,61 @@
         }
 
         h1 {
-            font-size: 2rem;
-            margin-bottom: 1rem;
+            font-family: var(--font-serif);
+            font-size: clamp(32px, 4vw, var(--fz-xl));
             font-weight: 600;
+            letter-spacing: 0.03em;
+            margin: 0 0 var(--space-6);
+            color: var(--text);
         }
 
         .subtitle {
-            color: var(--ink-medium);
-            margin-bottom: 3rem;
-            font-size: 1rem;
+            color: var(--muted);
+            font-size: var(--fz-md);
+            margin-bottom: var(--space-10);
         }
 
         .circle-container {
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 2rem 0;
+            margin: var(--space-8) 0;
         }
 
         .circle {
             width: var(--circle-size);
             height: var(--circle-size);
             border-radius: 50%;
-            background-color: var(--ink);
+            background-color: var(--rule);
             cursor: pointer;
             transition: all 0.3s ease;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: var(--cream);
-            font-size: 3rem;
-            font-weight: 700;
+            color: var(--bg);
+            font-family: var(--font-serif);
+            font-size: 5rem;
+            font-weight: 600;
             user-select: none;
-            box-shadow: 0 4px 16px rgba(23, 19, 14, 0.15);
+            box-shadow: 0 4px 16px rgba(23, 19, 14, 0.1);
+            border: 2px solid var(--rule);
+        }
+
+        .circle.off {
+            background-color: transparent;
+            color: var(--muted);
+            border: 2px solid var(--rule);
+        }
+
+        .circle.on {
+            background-color: var(--text);
+            color: var(--bg);
+            border: 2px solid var(--text);
         }
 
         .circle:hover {
             transform: scale(1.05);
-            box-shadow: 0 8px 24px rgba(23, 19, 14, 0.25);
+            box-shadow: 0 8px 24px rgba(23, 19, 14, 0.2);
         }
 
         .circle:active {
@@ -82,7 +88,6 @@
 
         .circle.playing {
             animation: pulse 0.3s ease;
-            background-color: #2d2722;
         }
 
         @keyframes pulse {
@@ -95,26 +100,27 @@
         }
 
         .instructions {
-            color: var(--ink-medium);
-            margin-top: 2rem;
-            font-size: 0.9rem;
+            color: var(--muted);
+            margin-top: var(--space-8);
+            font-size: var(--fz-md);
         }
 
         .back-link {
             position: fixed;
-            top: 20px;
-            left: 20px;
-            color: var(--ink);
+            top: var(--space-6);
+            left: var(--space-6);
+            color: var(--text);
             text-decoration: none;
-            padding: 0.5rem 1rem;
-            border: 1px solid var(--ink);
-            border-radius: 4px;
+            padding: var(--space-3) var(--space-4);
+            border: var(--border-1);
+            border-radius: var(--radius-none);
             transition: all 0.2s ease;
+            font-size: var(--fz-md);
         }
 
         .back-link:hover {
-            background-color: var(--ink);
-            color: var(--cream);
+            background-color: var(--text);
+            color: var(--bg);
         }
 
         @media (max-width: 600px) {
@@ -123,11 +129,11 @@
             }
 
             h1 {
-                font-size: 1.5rem;
+                font-size: clamp(24px, 6vw, 32px);
             }
 
             .circle {
-                font-size: 2rem;
+                font-size: 3.5rem;
             }
         }
     </style>
@@ -140,7 +146,7 @@
         <p class="subtitle">Click the circle to play a note</p>
 
         <div class="circle-container">
-            <div class="circle" id="noteCircle">C</div>
+            <div class="circle off" id="noteCircle">C</div>
         </div>
 
         <p class="instructions">Tap or click to play C4</p>
@@ -151,11 +157,21 @@
         let synth = null;
         let audioInitialized = false;
 
+        // Circle element
+        const circle = document.getElementById('noteCircle');
+
         async function initAudio() {
             if (audioInitialized) return;
 
+            console.log('Initializing audio...');
             await Tone.start();
-            console.log('Audio context started');
+
+            // Wait for context to be running
+            while (Tone.context.state !== 'running') {
+                await new Promise(resolve => setTimeout(resolve, 10));
+            }
+
+            console.log('Audio context started, state:', Tone.context.state);
 
             // Create a simple synth
             synth = new Tone.Synth({
@@ -170,17 +186,22 @@
                 }
             }).toDestination();
 
-            audioInitialized = true;
-        }
+            // Give synth time to connect
+            await new Promise(resolve => setTimeout(resolve, 100));
 
-        // Circle element
-        const circle = document.getElementById('noteCircle');
+            audioInitialized = true;
+
+            // Update visual state
+            circle.classList.remove('off');
+            circle.classList.add('on');
+
+            console.log('Audio initialized and ready');
+        }
 
         // Play note function
         async function playNote() {
-            // Initialize audio on first interaction
             if (!audioInitialized) {
-                await initAudio();
+                return;
             }
 
             // Add visual feedback
@@ -193,12 +214,22 @@
             synth.triggerAttackRelease('C4', '8n');
         }
 
-        // Event listeners
-        circle.addEventListener('click', playNote);
-        circle.addEventListener('touchstart', (e) => {
+        // Handle interaction
+        async function handleInteraction(e) {
             e.preventDefault();
-            playNote();
-        });
+
+            // First tap: initialize
+            if (!audioInitialized) {
+                await initAudio();
+            } else {
+                // Subsequent taps: play
+                await playNote();
+            }
+        }
+
+        // Event listeners
+        circle.addEventListener('click', handleInteraction);
+        circle.addEventListener('touchstart', handleInteraction);
 
         // Prevent double-tap zoom on mobile
         let lastTap = 0;
