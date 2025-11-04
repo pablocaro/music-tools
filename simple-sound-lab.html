@@ -156,80 +156,101 @@
         // Audio setup
         let synth = null;
         let audioInitialized = false;
+        let isInitializing = false;
 
         // Circle element
         const circle = document.getElementById('noteCircle');
 
         async function initAudio() {
-            if (audioInitialized) return;
+            // Prevent multiple simultaneous initialization attempts
+            if (audioInitialized || isInitializing) return;
 
-            console.log('Initializing audio...');
-            await Tone.start();
+            isInitializing = true;
 
-            // Wait for context to be running
-            while (Tone.context.state !== 'running') {
-                await new Promise(resolve => setTimeout(resolve, 10));
+            try {
+                console.log('Initializing audio...');
+
+                // Start Tone.js audio context
+                await Tone.start();
+                console.log('Tone.start() completed, context state:', Tone.context.state);
+
+                // Create a simple synth
+                synth = new Tone.Synth({
+                    oscillator: {
+                        type: 'sine'
+                    },
+                    envelope: {
+                        attack: 0.05,
+                        decay: 0.1,
+                        sustain: 0.3,
+                        release: 1
+                    }
+                }).toDestination();
+
+                console.log('Synth created');
+
+                // Mark as initialized BEFORE visual update
+                audioInitialized = true;
+
+                // Update visual state
+                circle.classList.remove('off');
+                circle.classList.add('on');
+
+                console.log('Audio initialized and ready');
+            } catch (error) {
+                console.error('Error initializing audio:', error);
+                audioInitialized = false;
+            } finally {
+                isInitializing = false;
             }
-
-            console.log('Audio context started, state:', Tone.context.state);
-
-            // Create a simple synth
-            synth = new Tone.Synth({
-                oscillator: {
-                    type: 'sine'
-                },
-                envelope: {
-                    attack: 0.05,
-                    decay: 0.1,
-                    sustain: 0.3,
-                    release: 1
-                }
-            }).toDestination();
-
-            // Give synth time to connect
-            await new Promise(resolve => setTimeout(resolve, 100));
-
-            audioInitialized = true;
-
-            // Update visual state
-            circle.classList.remove('off');
-            circle.classList.add('on');
-
-            console.log('Audio initialized and ready');
         }
 
         // Play note function
         async function playNote() {
-            if (!audioInitialized) {
+            if (!audioInitialized || !synth) {
+                console.log('Cannot play: not initialized');
                 return;
             }
 
-            // Add visual feedback
-            circle.classList.add('playing');
-            setTimeout(() => {
-                circle.classList.remove('playing');
-            }, 300);
+            try {
+                // Add visual feedback
+                circle.classList.add('playing');
+                setTimeout(() => {
+                    circle.classList.remove('playing');
+                }, 300);
 
-            // Play C4 note
-            synth.triggerAttackRelease('C4', '8n');
+                // Play C4 note
+                console.log('Playing C4');
+                synth.triggerAttackRelease('C4', '8n');
+            } catch (error) {
+                console.error('Error playing note:', error);
+            }
         }
 
         // Handle interaction
         async function handleInteraction(e) {
-            e.preventDefault();
-
             // First tap: initialize
-            if (!audioInitialized) {
+            if (!audioInitialized && !isInitializing) {
+                console.log('Tap: initializing');
                 await initAudio();
-            } else {
+            } else if (audioInitialized) {
                 // Subsequent taps: play
+                console.log('Tap: playing');
                 await playNote();
+            } else {
+                console.log('Tap: already initializing, ignoring');
             }
         }
 
-        // Event listeners
-        circle.addEventListener('click', handleInteraction);
-        circle.addEventListener('touchstart', handleInteraction);
+        // Event listeners - only use touchstart OR click, not both
+        if ('ontouchstart' in window) {
+            circle.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                handleInteraction(e);
+            });
+        } else {
+            circle.addEventListener('click', handleInteraction);
+        }
 
         // Prevent double-tap zoom on mobile
         let lastTap = 0;
