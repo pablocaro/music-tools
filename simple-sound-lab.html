@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Sound Lab</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        :root {
+            --cream: #f6efe5;
+            --ink: #17130e;
+            --ink-medium: #4a4540;
+            --circle-size: 200px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--cream);
+            color: var(--ink);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .subtitle {
+            color: var(--ink-medium);
+            margin-bottom: 3rem;
+            font-size: 1rem;
+        }
+
+        .circle-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 2rem 0;
+        }
+
+        .circle {
+            width: var(--circle-size);
+            height: var(--circle-size);
+            border-radius: 50%;
+            background-color: var(--ink);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--cream);
+            font-size: 3rem;
+            font-weight: 700;
+            user-select: none;
+            box-shadow: 0 4px 16px rgba(23, 19, 14, 0.15);
+        }
+
+        .circle:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 24px rgba(23, 19, 14, 0.25);
+        }
+
+        .circle:active {
+            transform: scale(0.95);
+        }
+
+        .circle.playing {
+            animation: pulse 0.3s ease;
+            background-color: #2d2722;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+        }
+
+        .instructions {
+            color: var(--ink-medium);
+            margin-top: 2rem;
+            font-size: 0.9rem;
+        }
+
+        .back-link {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: var(--ink);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--ink);
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .back-link:hover {
+            background-color: var(--ink);
+            color: var(--cream);
+        }
+
+        @media (max-width: 600px) {
+            :root {
+                --circle-size: 150px;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .circle {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="back-link">← Back</a>
+
+    <div class="container">
+        <h1>Simple Sound Lab</h1>
+        <p class="subtitle">Click the circle to play a note</p>
+
+        <div class="circle-container">
+            <div class="circle" id="noteCircle">C</div>
+        </div>
+
+        <p class="instructions">Tap or click to play C4</p>
+    </div>
+
+    <script>
+        // Audio setup
+        let synth = null;
+        let audioInitialized = false;
+
+        async function initAudio() {
+            if (audioInitialized) return;
+
+            await Tone.start();
+            console.log('Audio context started');
+
+            // Create a simple synth
+            synth = new Tone.Synth({
+                oscillator: {
+                    type: 'sine'
+                },
+                envelope: {
+                    attack: 0.05,
+                    decay: 0.1,
+                    sustain: 0.3,
+                    release: 1
+                }
+            }).toDestination();
+
+            audioInitialized = true;
+        }
+
+        // Circle element
+        const circle = document.getElementById('noteCircle');
+
+        // Play note function
+        async function playNote() {
+            // Initialize audio on first interaction
+            if (!audioInitialized) {
+                await initAudio();
+            }
+
+            // Add visual feedback
+            circle.classList.add('playing');
+            setTimeout(() => {
+                circle.classList.remove('playing');
+            }, 300);
+
+            // Play C4 note
+            synth.triggerAttackRelease('C4', '8n');
+        }
+
+        // Event listeners
+        circle.addEventListener('click', playNote);
+        circle.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            playNote();
+        });
+
+        // Prevent double-tap zoom on mobile
+        let lastTap = 0;
+        circle.addEventListener('touchend', (e) => {
+            const currentTime = new Date().getTime();
+            const tapLength = currentTime - lastTap;
+            if (tapLength < 500 && tapLength > 0) {
+                e.preventDefault();
+            }
+            lastTap = currentTime;
+        });
+    </script>
+</body>
+</html>
