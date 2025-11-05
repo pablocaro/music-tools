@@ -458,9 +458,6 @@
                 this.droneNote = 'C3';       // default selected drone
                 this.droneVoices = [];       // optional layered drones (synths) beyond the main droneSynth
 
-                this.droneNote = null;
-                this.isDroneActive = false;
-
                 this.init();
             }
 
@@ -641,9 +638,6 @@
                 const finalNote = `${base}${this.tapOctave}`;      // e.g., "C5"
                 console.log(`🎵 Playing ${finalNote}`);
                 this.tapSynth.triggerAttack(finalNote);
-                const note = e.target.dataset.note;
-                console.log(`🎵 Playing ${note}`);
-                this.tapSynth.triggerAttack(note);
             }
 
             handleNoteRelease(e) {
@@ -672,21 +666,6 @@
                     if (btn) btn.textContent = `Drone: On (${note})`;
 
                     console.log(`🎶 Drone on: ${note}`);
-                    // Turn off drone
-                    this.droneSynth.triggerRelease();
-                    this.isDroneActive = false;
-                    this.droneNote = null;
-                    btn.classList.remove('active');
-                    btn.textContent = 'Drone: Off';
-                    console.log('🛑 Drone off');
-                } else {
-                    // Turn on drone (C3)
-                    this.droneNote = 'C3';
-                    this.droneSynth.triggerAttack(this.droneNote);
-                    this.isDroneActive = true;
-                    btn.classList.add('active');
-                    btn.textContent = `Drone: On (${this.droneNote})`;
-                    console.log(`🎶 Drone on: ${this.droneNote}`);
                 }
             }
 
