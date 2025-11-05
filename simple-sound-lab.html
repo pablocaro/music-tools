@@ -157,22 +157,39 @@
         let synth = null;
         let audioInitialized = false;
         let isInitializing = false;
+        let tapCount = 0;
 
         // Circle element
         const circle = document.getElementById('noteCircle');
+
+        // Visual debugging helper
+        function updateVisual(text, className) {
+            circle.textContent = text;
+            circle.className = 'circle ' + className;
+        }
 
         async function initAudio() {
             // Prevent multiple simultaneous initialization attempts
             if (audioInitialized || isInitializing) return;
 
             isInitializing = true;
+            updateVisual('...', 'off'); // Show we're trying
 
             try {
-                console.log('Initializing audio...');
+                console.log('Step 1: Starting Tone.js...');
+
+                // Check if Tone is loaded
+                if (typeof Tone === 'undefined') {
+                    throw new Error('Tone.js not loaded');
+                }
+
+                updateVisual('1', 'off'); // Step 1 complete
 
                 // Start Tone.js audio context
                 await Tone.start();
-                console.log('Tone.start() completed, context state:', Tone.context.state);
+                console.log('Step 2: Tone.start() completed, context state:', Tone.context.state);
+
+                updateVisual('2', 'off'); // Step 2 complete
 
                 // Create a simple synth
                 synth = new Tone.Synth({
@@ -187,18 +204,19 @@
                     }
                 }).toDestination();
 
-                console.log('Synth created');
+                console.log('Step 3: Synth created');
+                updateVisual('3', 'off'); // Step 3 complete
 
                 // Mark as initialized BEFORE visual update
                 audioInitialized = true;
 
-                // Update visual state
-                circle.classList.remove('off');
-                circle.classList.add('on');
+                // Update visual state to ON
+                updateVisual('C', 'on');
 
-                console.log('Audio initialized and ready');
+                console.log('SUCCESS: Audio initialized and ready');
             } catch (error) {
-                console.error('Error initializing audio:', error);
+                console.error('ERROR initializing audio:', error);
+                updateVisual('X', 'off'); // Show error
                 audioInitialized = false;
             } finally {
                 isInitializing = false;
@@ -209,6 +227,7 @@
         async function playNote() {
             if (!audioInitialized || !synth) {
                 console.log('Cannot play: not initialized');
+                updateVisual('?', 'on');
                 return;
             }
 
@@ -224,31 +243,38 @@
                 synth.triggerAttackRelease('C4', '8n');
             } catch (error) {
                 console.error('Error playing note:', error);
+                updateVisual('!', 'on'); // Show play error
             }
         }
 
         // Handle interaction
         async function handleInteraction(e) {
+            tapCount++;
+            console.log('=== TAP #' + tapCount + ' ===');
+
             // First tap: initialize
             if (!audioInitialized && !isInitializing) {
-                console.log('Tap: initializing');
+                console.log('Action: INITIALIZE');
                 await initAudio();
             } else if (audioInitialized) {
                 // Subsequent taps: play
-                console.log('Tap: playing');
+                console.log('Action: PLAY');
                 await playNote();
             } else {
-                console.log('Tap: already initializing, ignoring');
+                console.log('Action: IGNORED (already initializing)');
+                updateVisual('...', 'off');
             }
         }
 
         // Event listeners - only use touchstart OR click, not both
         if ('ontouchstart' in window) {
+            console.log('Device: TOUCH (using touchstart)');
             circle.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 handleInteraction(e);
             });
         } else {
+            console.log('Device: DESKTOP (using click)');
             circle.addEventListener('click', handleInteraction);
         }
 
@@ -262,6 +288,8 @@
             }
             lastTap = currentTime;
         });
+
+        console.log('Script loaded successfully');
     </script>
 </body>
 </html>
