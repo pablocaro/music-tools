@@ -168,15 +168,18 @@
             circle.className = 'circle ' + className;
         }
 
-        async function initAudio() {
+        function initAudio() {
             // Prevent multiple simultaneous initialization attempts
-            if (audioInitialized || isInitializing) return;
+            if (audioInitialized || isInitializing) {
+                console.log('Already initialized or initializing, skipping');
+                return;
+            }
 
             isInitializing = true;
             updateVisual('...', 'off'); // Show we're trying
 
             try {
-                console.log('Step 1: Starting Tone.js...');
+                console.log('Step 1: Checking Tone.js...');
 
                 // Check if Tone is loaded
                 if (typeof Tone === 'undefined') {
@@ -184,47 +187,66 @@
                 }
 
                 updateVisual('1', 'off'); // Step 1 complete
+                console.log('Step 2: Calling Tone.start() synchronously...');
 
-                // Start Tone.js audio context
-                await Tone.start();
-                console.log('Step 2: Tone.start() completed, context state:', Tone.context.state);
+                // Call Tone.start() WITHOUT await - keep it synchronous in user gesture
+                // This is critical for iOS - the audio context activation must happen
+                // in the same tick as the user interaction
+                const startPromise = Tone.start();
 
-                updateVisual('2', 'off'); // Step 2 complete
+                // Add timeout in case it hangs
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Timeout waiting for Tone.start()')), 3000)
+                );
 
-                // Create a simple synth
-                synth = new Tone.Synth({
-                    oscillator: {
-                        type: 'sine'
-                    },
-                    envelope: {
-                        attack: 0.05,
-                        decay: 0.1,
-                        sustain: 0.3,
-                        release: 1
-                    }
-                }).toDestination();
+                // Race between start and timeout
+                Promise.race([startPromise, timeoutPromise])
+                    .then(() => {
+                        console.log('Step 2: Tone.start() completed, context state:', Tone.context.state);
+                        updateVisual('2', 'off'); // Step 2 complete
 
-                console.log('Step 3: Synth created');
-                updateVisual('3', 'off'); // Step 3 complete
+                        // Create synth
+                        console.log('Step 3: Creating synth...');
+                        synth = new Tone.Synth({
+                            oscillator: {
+                                type: 'sine'
+                            },
+                            envelope: {
+                                attack: 0.05,
+                                decay: 0.1,
+                                sustain: 0.3,
+                                release: 1
+                            }
+                        }).toDestination();
 
-                // Mark as initialized BEFORE visual update
-                audioInitialized = true;
+                        updateVisual('3', 'off'); // Step 3 complete
+                        console.log('Step 3: Synth created');
 
-                // Update visual state to ON
-                updateVisual('C', 'on');
+                        // Mark as initialized
+                        audioInitialized = true;
+                        isInitializing = false;
 
-                console.log('SUCCESS: Audio initialized and ready');
+                        // Update visual state to ON
+                        updateVisual('C', 'on');
+                        console.log('SUCCESS: Audio initialized and ready');
+                    })
+                    .catch((error) => {
+                        console.error('ERROR initializing audio:', error);
+                        updateVisual('X', 'off'); // Show error
+                        audioInitialized = false;
+                        isInitializing = false;
+                    });
+
             } catch (error) {
-                console.error('ERROR initializing audio:', error);
+                console.error('ERROR in sync part:', error);
                 updateVisual('X', 'off'); // Show error
                 audioInitialized = false;
-            } finally {
                 isInitializing = false;
             }
         }
 
         // Play note function
-        async function playNote() {
+        function playNote() {
             if (!audioInitialized || !synth) {
                 console.log('Cannot play: not initialized');
                 updateVisual('?', 'on');
@@ -248,21 +270,21 @@
         }
 
         // Handle interaction
-        async function handleInteraction(e) {
+        function handleInteraction(e) {
             tapCount++;
             console.log('=== TAP #' + tapCount + ' ===');
 
             // First tap: initialize
             if (!audioInitialized && !isInitializing) {
                 console.log('Action: INITIALIZE');
-                await initAudio();
+                initAudio();
             } else if (audioInitialized) {
                 // Subsequent taps: play
                 console.log('Action: PLAY');
-                await playNote();
+                playNote();
             } else {
                 console.log('Action: IGNORED (already initializing)');
-                updateVisual('...', 'off');
+                // Don't update visual - let the initialization process show progress
             }
         }
 
