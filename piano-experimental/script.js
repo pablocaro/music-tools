@@ -279,6 +279,12 @@ class AudioEngine {
     async playNote(index, onAutoLock) {
         const note = this.getNote(index);
 
+        // Don't play if audio not started yet
+        if (!this.audioStarted) {
+            console.log(`🔇 Audio not started, click the audio button first`);
+            return;
+        }
+
         // Don't play if already locked (wait for toggle-off)
         if (this.lockedDrones.has(index)) {
             console.log(`🔒 Note ${note} is locked, skipping (index ${index})`);
@@ -291,28 +297,16 @@ class AudioEngine {
             return;
         }
 
-        // CRITICAL: Add to activeNotes BEFORE await init()
-        // This prevents race condition where stopNote is called during init
-        this.activeNotes.set(index, note);
-        console.log(`🎵 Queuing note ${note} (index ${index})`);
-
-        await this.init();
-
-        // Check if note was stopped during init (race condition guard)
-        if (!this.activeNotes.has(index)) {
-            console.log(`⚠️ Note ${note} was stopped during init, skipping trigger`);
-            return;
-        }
-
         console.log(`🎵 Playing note ${note} (index ${index}) - Context state: ${Tone.context.state}`);
 
         // Defensive check: ensure synth is initialized
         if (!this.synth) {
             console.error('❌ Synth not initialized, cannot play note');
-            this.activeNotes.delete(index); // Clean up
             return;
         }
 
+        // Add to active notes BEFORE triggering attack
+        this.activeNotes.set(index, note);
         this.synth.triggerAttack(note);
 
         // Set auto-lock timeout (Option C: auto-lock at threshold time)
@@ -2156,17 +2150,44 @@ class Application {
             }
         });
 
+        // Setup audio start button
+        this.setupAudioButton();
+
         // Handle startup animation
         await this.handleStartupAnimation();
     }
 
-    async handleStartupAnimation() {
-        // Pre-initialize audio in the background
-        console.log('🎵 Pre-initializing audio...');
-        this.audioEngine.init().catch(err => {
-            console.warn('Audio pre-init failed (will retry on first interaction):', err);
-        });
+    setupAudioButton() {
+        const audioBtn = document.getElementById('audioStartBtn');
+        if (!audioBtn) return;
 
+        audioBtn.addEventListener('click', async () => {
+            // Prevent multiple clicks
+            if (audioBtn.classList.contains('active')) return;
+
+            console.log('🔊 User starting audio...');
+            audioBtn.textContent = '...';
+            audioBtn.style.cursor = 'wait';
+
+            try {
+                await this.audioEngine.init();
+                audioBtn.textContent = '🔊';
+                audioBtn.classList.add('active');
+                audioBtn.style.cursor = 'default';
+                console.log('✅ Audio ready!');
+            } catch (err) {
+                console.error('❌ Audio initialization failed:', err);
+                audioBtn.textContent = '❌';
+                audioBtn.style.cursor = 'pointer';
+                // Allow retry
+                setTimeout(() => {
+                    audioBtn.textContent = '🔇';
+                }, 2000);
+            }
+        });
+    }
+
+    async handleStartupAnimation() {
         // Calculate animation duration
         // Last slice starts at: sliceCount * 20ms
         // Animation duration: 600ms

@@ -222,6 +222,36 @@ body {
     background: var(--accent-color);
 }
 
+.audio-start-btn {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    width: 56px;
+    height: 56px;
+    background: var(--control-bg);
+    color: var(--control-text);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    z-index: 50;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.audio-start-btn:hover {
+    background: #555;
+    transform: scale(1.1);
+}
+
+.audio-start-btn.active {
+    background: #28a745;
+    color: white;
+}
+
 .control-group {
     margin-bottom: 20px;
 }
