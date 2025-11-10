@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Sound Lab</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        :root {
+            --circle-size: 200px;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            text-align: center;
+        }
+
+        h1 {
+            font-family: var(--font-serif);
+            font-size: clamp(32px, 4vw, var(--fz-xl));
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            margin: 0 0 var(--space-6);
+            color: var(--text);
+        }
+
+        .subtitle {
+            color: var(--muted);
+            font-size: var(--fz-md);
+            margin-bottom: var(--space-10);
+        }
+
+        .circle-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: var(--space-8) 0;
+        }
+
+        .circle {
+            width: var(--circle-size);
+            height: var(--circle-size);
+            border-radius: 50%;
+            background-color: var(--rule);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--bg);
+            font-family: var(--font-serif);
+            font-size: 5rem;
+            font-weight: 600;
+            user-select: none;
+            box-shadow: 0 4px 16px rgba(23, 19, 14, 0.1);
+            border: 2px solid var(--rule);
+        }
+
+        .circle.off {
+            background-color: transparent;
+            color: var(--muted);
+            border: 2px solid var(--rule);
+        }
+
+        .circle.on {
+            background-color: var(--text);
+            color: var(--bg);
+            border: 2px solid var(--text);
+        }
+
+        .circle:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 24px rgba(23, 19, 14, 0.2);
+        }
+
+        .circle:active {
+            transform: scale(0.95);
+        }
+
+        .circle.playing {
+            animation: pulse 0.3s ease;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+        }
+
+        .instructions {
+            color: var(--muted);
+            margin-top: var(--space-8);
+            font-size: var(--fz-md);
+        }
+
+        .back-link {
+            position: fixed;
+            top: var(--space-6);
+            left: var(--space-6);
+            color: var(--text);
+            text-decoration: none;
+            padding: var(--space-3) var(--space-4);
+            border: var(--border-1);
+            border-radius: var(--radius-none);
+            transition: all 0.2s ease;
+            font-size: var(--fz-md);
+        }
+
+        .back-link:hover {
+            background-color: var(--text);
+            color: var(--bg);
+        }
+
+        @media (max-width: 600px) {
+            :root {
+                --circle-size: 150px;
+            }
+
+            h1 {
+                font-size: clamp(24px, 6vw, 32px);
+            }
+
+            .circle {
+                font-size: 3.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="back-link">← Back</a>
+
+    <div class="container">
+        <h1>Simple Sound Lab</h1>
+        <p class="subtitle">Click the circle to play a note</p>
+
+        <div class="circle-container">
+            <div class="circle off" id="noteCircle">C</div>
+        </div>
+
+        <p class="instructions">Tap or click to play C4</p>
+    </div>
+
+    <script>
+        // Audio setup
+        let synth = null;
+        let audioInitialized = false;
+        let isInitializing = false;
+        let tapCount = 0;
+
+        // Circle element
+        const circle = document.getElementById('noteCircle');
+
+        // Visual debugging helper
+        function updateVisual(text, className) {
+            circle.textContent = text;
+            circle.className = 'circle ' + className;
+        }
+
+        function initAudio() {
+            // Prevent multiple simultaneous initialization attempts
+            if (audioInitialized || isInitializing) {
+                console.log('Already initialized or initializing, skipping');
+                return;
+            }
+
+            isInitializing = true;
+            updateVisual('...', 'off'); // Show we're trying
+
+            try {
+                console.log('Step 1: Checking Tone.js...');
+
+                // Check if Tone is loaded
+                if (typeof Tone === 'undefined') {
+                    throw new Error('Tone.js not loaded');
+                }
+
+                updateVisual('1', 'off'); // Step 1 complete
+                console.log('Step 2: Calling Tone.start() synchronously...');
+
+                // Call Tone.start() WITHOUT await - keep it synchronous in user gesture
+                // This is critical for iOS - the audio context activation must happen
+                // in the same tick as the user interaction
+                const startPromise = Tone.start();
+
+                // Add timeout in case it hangs
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Timeout waiting for Tone.start()')), 3000)
+                );
+
+                // Race between start and timeout
+                Promise.race([startPromise, timeoutPromise])
+                    .then(() => {
+                        console.log('Step 2: Tone.start() completed, context state:', Tone.context.state);
+                        updateVisual('2', 'off'); // Step 2 complete
+
+                        // Create synth
+                        console.log('Step 3: Creating synth...');
+                        synth = new Tone.Synth({
+                            oscillator: {
+                                type: 'sine'
+                            },
+                            envelope: {
+                                attack: 0.05,
+                                decay: 0.1,
+                                sustain: 0.3,
+                                release: 1
+                            }
+                        }).toDestination();
+
+                        updateVisual('3', 'off'); // Step 3 complete
+                        console.log('Step 3: Synth created');
+
+                        // Mark as initialized
+                        audioInitialized = true;
+                        isInitializing = false;
+
+                        // Update visual state to ON
+                        updateVisual('C', 'on');
+                        console.log('SUCCESS: Audio initialized and ready');
+                    })
+                    .catch((error) => {
+                        console.error('ERROR initializing audio:', error);
+                        updateVisual('X', 'off'); // Show error
+                        audioInitialized = false;
+                        isInitializing = false;
+                    });
+
+            } catch (error) {
+                console.error('ERROR in sync part:', error);
+                updateVisual('X', 'off'); // Show error
+                audioInitialized = false;
+                isInitializing = false;
+            }
+        }
+
+        // Play note function
+        function playNote() {
+            if (!audioInitialized || !synth) {
+                console.log('Cannot play: not initialized');
+                updateVisual('?', 'on');
+                return;
+            }
+
+            try {
+                // Add visual feedback
+                circle.classList.add('playing');
+                setTimeout(() => {
+                    circle.classList.remove('playing');
+                }, 300);
+
+                // Play C4 note
+                console.log('Playing C4');
+                synth.triggerAttackRelease('C4', '8n');
+            } catch (error) {
+                console.error('Error playing note:', error);
+                updateVisual('!', 'on'); // Show play error
+            }
+        }
+
+        // Handle interaction
+        function handleInteraction(e) {
+            tapCount++;
+            console.log('=== TAP #' + tapCount + ' ===');
+
+            // First tap: initialize
+            if (!audioInitialized && !isInitializing) {
+                console.log('Action: INITIALIZE');
+                initAudio();
+            } else if (audioInitialized) {
+                // Subsequent taps: play
+                console.log('Action: PLAY');
+                playNote();
+            } else {
+                console.log('Action: IGNORED (already initializing)');
+                // Don't update visual - let the initialization process show progress
+            }
+        }
+
+        // Event listeners - only use touchstart OR click, not both
+        if ('ontouchstart' in window) {
+            console.log('Device: TOUCH (using touchstart)');
+            circle.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                handleInteraction(e);
+            });
+        } else {
+            console.log('Device: DESKTOP (using click)');
+            circle.addEventListener('click', handleInteraction);
+        }
+
+        // Prevent double-tap zoom on mobile
+        let lastTap = 0;
+        circle.addEventListener('touchend', (e) => {
+            const currentTime = new Date().getTime();
+            const tapLength = currentTime - lastTap;
+            if (tapLength < 500 && tapLength > 0) {
+                e.preventDefault();
+            }
+            lastTap = currentTime;
+        });
+
+        console.log('Script loaded successfully');
+    </script>
+</body>
+</html>
