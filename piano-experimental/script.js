@@ -248,10 +248,10 @@ class AudioEngine {
     async init() {
         // Only initialize audio once (iOS requirement - from official Tone.js guide)
         if (this.audioStarted) return;
-        this.audioStarted = true;
 
         console.log('🎵 Initializing audio context...');
         await Tone.start();
+        this.audioStarted = true; // Set AFTER Tone.start() succeeds
         console.log('🔊 Audio context started');
 
         // Create synth after Tone.start() completes
