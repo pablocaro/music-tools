@@ -258,10 +258,10 @@ class AudioEngine {
             this.synth.volume.value = -10;
         }
 
-        // Resume audio context for mobile browsers
+        // Initialize audio context for mobile browsers (iOS requirement)
         if (Tone.context.state !== 'running') {
-            await Tone.context.resume();
-            console.log('🔊 Audio context resumed');
+            await Tone.start();
+            console.log('🔊 Audio context started');
         }
     }
 
@@ -283,6 +283,13 @@ class AudioEngine {
 
         if (!this.activeNotes.has(index)) {
             console.log(`🎵 Playing note ${note} (index ${index}) - Context state: ${Tone.context.state}`);
+
+            // Defensive check: ensure synth is initialized
+            if (!this.synth) {
+                console.error('❌ Synth not initialized, cannot play note');
+                return;
+            }
+
             this.synth.triggerAttack(note);
             this.activeNotes.set(index, note);
 
@@ -1222,6 +1229,9 @@ class InteractionManager {
     }
 
     handleStart(e) {
+        // Prevent default touch behavior (iOS requirement)
+        e.preventDefault();
+
         // Check if tapping a locked slice to unlock it
         if (e.target.classList.contains('slice')) {
             const index = parseInt(e.target.getAttribute('data-slice'));
