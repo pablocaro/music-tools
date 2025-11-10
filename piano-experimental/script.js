@@ -277,7 +277,6 @@ class AudioEngine {
     }
 
     async playNote(index, onAutoLock) {
-        await this.init();
         const note = this.getNote(index);
 
         // Don't play if already locked (wait for toggle-off)
@@ -286,29 +285,44 @@ class AudioEngine {
             return;
         }
 
-        if (!this.activeNotes.has(index)) {
-            console.log(`🎵 Playing note ${note} (index ${index}) - Context state: ${Tone.context.state}`);
-
-            // Defensive check: ensure synth is initialized
-            if (!this.synth) {
-                console.error('❌ Synth not initialized, cannot play note');
-                return;
-            }
-
-            this.synth.triggerAttack(note);
-            this.activeNotes.set(index, note);
-
-            // Set auto-lock timeout (Option C: auto-lock at threshold time)
-            const lockTime = this.state.get('droneLockTime');
-            const timeoutId = setTimeout(() => {
-                console.log(`🔒 Auto-locking drone ${note} after ${lockTime}ms (index ${index})`);
-                this.lockDrone(index);
-                if (onAutoLock) onAutoLock(index);
-            }, lockTime);
-            this.lockTimeouts.set(index, timeoutId);
-        } else {
+        // Don't play if already active
+        if (this.activeNotes.has(index)) {
             console.log(`⏭️ Note ${note} already playing (index ${index})`);
+            return;
         }
+
+        // CRITICAL: Add to activeNotes BEFORE await init()
+        // This prevents race condition where stopNote is called during init
+        this.activeNotes.set(index, note);
+        console.log(`🎵 Queuing note ${note} (index ${index})`);
+
+        await this.init();
+
+        // Check if note was stopped during init (race condition guard)
+        if (!this.activeNotes.has(index)) {
+            console.log(`⚠️ Note ${note} was stopped during init, skipping trigger`);
+            return;
+        }
+
+        console.log(`🎵 Playing note ${note} (index ${index}) - Context state: ${Tone.context.state}`);
+
+        // Defensive check: ensure synth is initialized
+        if (!this.synth) {
+            console.error('❌ Synth not initialized, cannot play note');
+            this.activeNotes.delete(index); // Clean up
+            return;
+        }
+
+        this.synth.triggerAttack(note);
+
+        // Set auto-lock timeout (Option C: auto-lock at threshold time)
+        const lockTime = this.state.get('droneLockTime');
+        const timeoutId = setTimeout(() => {
+            console.log(`🔒 Auto-locking drone ${note} after ${lockTime}ms (index ${index})`);
+            this.lockDrone(index);
+            if (onAutoLock) onAutoLock(index);
+        }, lockTime);
+        this.lockTimeouts.set(index, timeoutId);
     }
 
     stopNote(index, force = false) {
