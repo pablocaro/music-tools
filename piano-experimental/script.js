@@ -249,10 +249,8 @@ class AudioEngine {
         // Only initialize audio once (iOS requirement - from official Tone.js guide)
         if (this.audioStarted) return;
 
-        console.log('🎵 Initializing audio context...');
         await Tone.start();
         this.audioStarted = true; // Set AFTER Tone.start() succeeds
-        console.log('🔊 Audio context started');
 
         // Create synth after Tone.start() completes
         if (!this.synth) {
@@ -266,7 +264,6 @@ class AudioEngine {
                 }
             }).toDestination();
             this.synth.volume.value = -10;
-            console.log('🎹 Synth created');
         }
     }
 
@@ -280,28 +277,17 @@ class AudioEngine {
         const note = this.getNote(index);
 
         // Don't play if audio not started yet
-        if (!this.audioStarted) {
-            console.log(`🔇 Audio not started, click the audio button first`);
-            return;
-        }
+        if (!this.audioStarted) return;
 
         // Don't play if already locked (wait for toggle-off)
-        if (this.lockedDrones.has(index)) {
-            console.log(`🔒 Note ${note} is locked, skipping (index ${index})`);
-            return;
-        }
+        if (this.lockedDrones.has(index)) return;
 
         // Don't play if already active
-        if (this.activeNotes.has(index)) {
-            console.log(`⏭️ Note ${note} already playing (index ${index})`);
-            return;
-        }
-
-        console.log(`🎵 Playing note ${note} (index ${index}) - Context state: ${Tone.context.state}`);
+        if (this.activeNotes.has(index)) return;
 
         // Defensive check: ensure synth is initialized
         if (!this.synth) {
-            console.error('❌ Synth not initialized, cannot play note');
+            console.error('Synth not initialized');
             return;
         }
 
@@ -309,10 +295,9 @@ class AudioEngine {
         this.activeNotes.set(index, note);
         this.synth.triggerAttack(note);
 
-        // Set auto-lock timeout (Option C: auto-lock at threshold time)
+        // Set auto-lock timeout
         const lockTime = this.state.get('droneLockTime');
         const timeoutId = setTimeout(() => {
-            console.log(`🔒 Auto-locking drone ${note} after ${lockTime}ms (index ${index})`);
             this.lockDrone(index);
             if (onAutoLock) onAutoLock(index);
         }, lockTime);
@@ -321,14 +306,10 @@ class AudioEngine {
 
     stopNote(index, force = false) {
         // Don't stop if locked (unless forced)
-        if (this.lockedDrones.has(index) && !force) {
-            console.log(`🔒 Note at index ${index} is locked, not stopping`);
-            return;
-        }
+        if (this.lockedDrones.has(index) && !force) return;
 
         if (this.activeNotes.has(index)) {
             const note = this.activeNotes.get(index);
-            console.log(`🛑 Stopping note ${note} (index ${index})`);
             if (this.synth) {
                 this.synth.triggerRelease(note);
             }
@@ -339,15 +320,12 @@ class AudioEngine {
                 clearTimeout(this.lockTimeouts.get(index));
                 this.lockTimeouts.delete(index);
             }
-        } else {
-            console.log(`⚠️ Tried to stop note at index ${index} but it wasn't active`);
         }
     }
 
     lockDrone(index) {
         if (this.activeNotes.has(index)) {
             const note = this.activeNotes.get(index);
-            console.log(`🔒 Locking drone ${note} (index ${index})`);
             this.lockedDrones.set(index, note);
 
             // Clear auto-lock timeout since it's now locked
@@ -361,7 +339,6 @@ class AudioEngine {
     unlockDrone(index) {
         if (this.lockedDrones.has(index)) {
             const note = this.lockedDrones.get(index);
-            console.log(`🔓 Unlocking and stopping drone ${note} (index ${index})`);
             this.lockedDrones.delete(index);
 
             // Force stop the note
@@ -377,12 +354,9 @@ class AudioEngine {
     }
 
     stopAllNotes() {
-        console.log(`🔇 Stopping ALL notes. Active: ${this.activeNotes.size}, Locked: ${this.lockedDrones.size}`);
-
         // Stop all active notes
         if (this.synth && this.activeNotes.size > 0) {
-            this.activeNotes.forEach((note, index) => {
-                console.log(`  - Releasing ${note} (index ${index})`);
+            this.activeNotes.forEach((note) => {
                 this.synth.triggerRelease(note);
             });
         }
@@ -390,8 +364,7 @@ class AudioEngine {
 
         // Stop all locked drones
         if (this.synth && this.lockedDrones.size > 0) {
-            this.lockedDrones.forEach((note, index) => {
-                console.log(`  - Releasing locked drone ${note} (index ${index})`);
+            this.lockedDrones.forEach((note) => {
                 this.synth.triggerRelease(note);
             });
         }
@@ -402,8 +375,6 @@ class AudioEngine {
             clearTimeout(timeoutId);
         });
         this.lockTimeouts.clear();
-
-        console.log(`✅ All notes cleared`);
     }
 }
 
@@ -944,7 +915,6 @@ class RenderEngine {
 
     lockSlice(index) {
         this.lockedSlices.add(index);
-        console.log(`🎨 Visually locking slice ${index}`);
         // Slice stays in pressed state
 
         // Add visual feedback pulse
@@ -1001,7 +971,6 @@ class RenderEngine {
 
     unlockSlice(index) {
         this.lockedSlices.delete(index);
-        console.log(`🎨 Visually unlocking slice ${index}`);
         // Now release the visual
         this.releaseSlice(index);
     }
@@ -1011,7 +980,6 @@ class RenderEngine {
     }
 
     clearAllLockedSlices() {
-        console.log(`🎨 Clearing all ${this.lockedSlices.size} locked slices`);
         this.lockedSlices.forEach(index => {
             this.releaseSlice(index);
         });
@@ -1038,7 +1006,6 @@ class RenderEngine {
             slice.style.animationDelay = '';
         });
         this.isFirstRender = false;
-        console.log('✨ Startup animation complete');
     }
 
     activateGripper() {
@@ -1249,7 +1216,6 @@ class InteractionManager {
         if (e.target.classList.contains('slice')) {
             const index = parseInt(e.target.getAttribute('data-slice'));
             if (this.audio.isLocked(index)) {
-                console.log(`👆 Tapping locked slice ${index} to unlock`);
                 this.audio.unlockDrone(index);
                 this.renderer.unlockSlice(index);
                 e.preventDefault();
@@ -1294,7 +1260,6 @@ class InteractionManager {
     startPinch(touch1, touch2) {
         this.dragState.isPinching = true;
         this.dragState.lastPinchDistance = this.getTouchDistance(touch1, touch2);
-        console.log('🤏 Pinch started, distance:', this.dragState.lastPinchDistance);
     }
 
     startRotation(x, y, innerCircleData) {
@@ -1328,7 +1293,6 @@ class InteractionManager {
         // If we were pinching but now have less than 2 touches, reset pinch state
         // and transition to appropriate single-touch interaction
         if (this.dragState.isPinching && e.touches && e.touches.length < 2) {
-            console.log('🤏 → ☝️ Transition from pinch to single touch');
             this.dragState.isPinching = false;
             this.dragState.lastPinchDistance = 0;
 
@@ -1411,7 +1375,6 @@ class InteractionManager {
             const newSliceCount = Math.max(6, Math.min(72, currentSliceCount - sliceChange));
 
             if (newSliceCount !== currentSliceCount) {
-                console.log(`🤏 Pinch: ${currentSliceCount} → ${newSliceCount} slices`);
                 this.state.set('sliceCount', newSliceCount);
                 this.renderer.render();
                 this.dragState.lastPinchDistance = currentDistance;
@@ -1487,7 +1450,6 @@ class InteractionManager {
         // Pass callback to handle auto-lock visual update
         // IMPORTANT: Await playNote to prevent race conditions on iOS
         await this.audio.playNote(index, (lockedIndex) => {
-            console.log(`🎨 Auto-lock callback: visually locking slice ${lockedIndex}`);
             this.renderer.lockSlice(lockedIndex);
         });
 
@@ -2165,7 +2127,6 @@ class Application {
             // Prevent multiple clicks
             if (audioBtn.classList.contains('active')) return;
 
-            console.log('🔊 User starting audio...');
             audioBtn.textContent = '...';
             audioBtn.style.cursor = 'wait';
 
@@ -2174,9 +2135,8 @@ class Application {
                 audioBtn.textContent = '🔊';
                 audioBtn.classList.add('active');
                 audioBtn.style.cursor = 'default';
-                console.log('✅ Audio ready!');
             } catch (err) {
-                console.error('❌ Audio initialization failed:', err);
+                console.error('Audio initialization failed:', err);
                 audioBtn.textContent = '❌';
                 audioBtn.style.cursor = 'pointer';
                 // Allow retry
@@ -2197,8 +2157,6 @@ class Application {
         const animationDuration = 600; // ms
         const totalDuration = (sliceCount * staggerDelay) + animationDuration;
 
-        console.log(`✨ Startup animation: ${totalDuration}ms (${sliceCount} slices)`);
-
         // Wait for animation to complete
         await new Promise(resolve => setTimeout(resolve, totalDuration));
 
@@ -2214,8 +2172,6 @@ class Application {
 
         // Clean up animation classes
         this.renderEngine.completeStartupAnimation();
-
-        console.log('🎹 Piano ready!');
     }
 }
 
