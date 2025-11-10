@@ -239,12 +239,22 @@ class AudioEngine {
     constructor(stateManager) {
         this.state = stateManager;
         this.synth = null;
+        this.audioStarted = false; // Flag to ensure Tone.start() only runs once
         this.activeNotes = new Map(); // Maps index -> note
         this.lockedDrones = new Map(); // Maps index -> note (for locked drones)
         this.lockTimeouts = new Map(); // Maps index -> timeout ID for auto-lock
     }
 
     async init() {
+        // Only initialize audio once (iOS requirement - from official Tone.js guide)
+        if (this.audioStarted) return;
+        this.audioStarted = true;
+
+        console.log('🎵 Initializing audio context...');
+        await Tone.start();
+        console.log('🔊 Audio context started');
+
+        // Create synth after Tone.start() completes
         if (!this.synth) {
             this.synth = new Tone.PolySynth(Tone.Synth, {
                 oscillator: { type: 'sine' },
@@ -256,12 +266,7 @@ class AudioEngine {
                 }
             }).toDestination();
             this.synth.volume.value = -10;
-        }
-
-        // Initialize audio context for mobile browsers (iOS requirement)
-        if (Tone.context.state !== 'running') {
-            await Tone.start();
-            console.log('🔊 Audio context started');
+            console.log('🎹 Synth created');
         }
     }
 
@@ -1459,7 +1464,7 @@ class InteractionManager {
         }
     }
 
-    activateSlice(index) {
+    async activateSlice(index) {
         // Skip if this slice is locked
         if (this.audio.isLocked(index)) {
             return;
@@ -1472,7 +1477,8 @@ class InteractionManager {
         }
 
         // Pass callback to handle auto-lock visual update
-        this.audio.playNote(index, (lockedIndex) => {
+        // IMPORTANT: Await playNote to prevent race conditions on iOS
+        await this.audio.playNote(index, (lockedIndex) => {
             console.log(`🎨 Auto-lock callback: visually locking slice ${lockedIndex}`);
             this.renderer.lockSlice(lockedIndex);
         });
