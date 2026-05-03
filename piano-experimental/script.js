@@ -2048,6 +2048,7 @@ class Application {
         this.renderEngine = new RenderEngine(this.svgElement, this.stateManager, this.geometryEngine);
         this.interactionManager = null;
         this.controlsManager = null;
+        this.isPowerOn = false; // Track power state
     }
 
     async init() {
@@ -2070,8 +2071,8 @@ class Application {
         const hexValue = grayValue.toString(16).padStart(2, '0');
         document.documentElement.style.setProperty('--bg-primary', `#${hexValue}${hexValue}${hexValue}`);
 
-        // Initial render (with startup animation)
-        this.renderEngine.render();
+        // DON'T render initially - piano starts in OFF state
+        // User must press power button to turn on and see animation
 
         // Initialize managers
         this.interactionManager = new InteractionManager(
@@ -2112,39 +2113,69 @@ class Application {
             }
         });
 
-        // Setup audio start button
-        this.setupAudioButton();
+        // Setup power button
+        this.setupPowerButton();
 
-        // Handle startup animation
-        await this.handleStartupAnimation();
+        // Piano starts OFF - user needs to press power button
+        console.log('🎹 Piano initialized. Press power button to start.');
     }
 
-    setupAudioButton() {
-        const audioBtn = document.getElementById('audioStartBtn');
-        if (!audioBtn) return;
+    setupPowerButton() {
+        const powerBtn = document.getElementById('powerBtn');
+        if (!powerBtn) return;
 
-        audioBtn.addEventListener('click', async () => {
-            // Prevent multiple clicks
-            if (audioBtn.classList.contains('active')) return;
-
-            audioBtn.textContent = '...';
-            audioBtn.style.cursor = 'wait';
-
-            try {
-                await this.audioEngine.init();
-                audioBtn.textContent = '🔊';
-                audioBtn.classList.add('active');
-                audioBtn.style.cursor = 'default';
-            } catch (err) {
-                console.error('Audio initialization failed:', err);
-                audioBtn.textContent = '❌';
-                audioBtn.style.cursor = 'pointer';
-                // Allow retry
-                setTimeout(() => {
-                    audioBtn.textContent = '🔇';
-                }, 2000);
+        powerBtn.addEventListener('click', async () => {
+            if (this.isPowerOn) {
+                // Turn OFF
+                await this.powerOff();
+            } else {
+                // Turn ON
+                await this.powerOn();
             }
         });
+    }
+
+    async powerOn() {
+        const powerBtn = document.getElementById('powerBtn');
+        if (!powerBtn) return;
+
+        console.log('⚡ Powering on...');
+        powerBtn.textContent = '⏳';
+        powerBtn.style.cursor = 'wait';
+
+        // Play startup animation
+        await this.playStartupAnimation();
+
+        // Initialize audio
+        try {
+            await this.audioEngine.init();
+        } catch (err) {
+            console.warn('Audio init failed, will retry on first note:', err);
+        }
+
+        this.isPowerOn = true;
+        powerBtn.textContent = '⭘';
+        powerBtn.classList.add('power-on');
+        powerBtn.style.cursor = 'pointer';
+        console.log('✅ Piano powered on!');
+    }
+
+    async powerOff() {
+        const powerBtn = document.getElementById('powerBtn');
+        if (!powerBtn) return;
+
+        console.log('🔌 Powering off...');
+
+        // Stop all playing notes
+        this.audioEngine.stopAllNotes();
+
+        // Fade out all slices
+        await this.playPowerOffAnimation();
+
+        this.isPowerOn = false;
+        powerBtn.textContent = '⭘';
+        powerBtn.classList.remove('power-on');
+        console.log('⚫ Piano powered off');
     }
 
     async handleStartupAnimation() {
@@ -2172,6 +2203,43 @@ class Application {
 
         // Clean up animation classes
         this.renderEngine.completeStartupAnimation();
+    }
+
+    async playStartupAnimation() {
+        // Reset first render flag to trigger animation
+        this.renderEngine.isFirstRender = true;
+
+        // Re-render with animation
+        this.renderEngine.render();
+
+        // Calculate animation duration
+        const sliceCount = this.stateManager.get('sliceCount');
+        const staggerDelay = 20; // ms per slice
+        const animationDuration = 600; // ms
+        const totalDuration = (sliceCount * staggerDelay) + animationDuration;
+
+        console.log(`✨ Playing startup animation: ${totalDuration}ms`);
+
+        // Wait for animation to complete
+        await new Promise(resolve => setTimeout(resolve, totalDuration));
+
+        // Clean up animation classes
+        this.renderEngine.completeStartupAnimation();
+    }
+
+    async playPowerOffAnimation() {
+        // Add fade-out animation to all slices
+        this.renderEngine.sliceElements.forEach((slice) => {
+            slice.style.transition = 'opacity 0.6s ease-out';
+            slice.style.opacity = '0';
+        });
+
+        // Wait for animation
+        await new Promise(resolve => setTimeout(resolve, 600));
+
+        // Clear the piano
+        this.renderEngine.clear();
+        console.log('⚫ Piano cleared');
     }
 }
 
