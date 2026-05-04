@@ -2507,34 +2507,52 @@ class Application {
 
         const HOLD_DURATION = 1000;
 
-        // Helper to get toggle from event
         const getToggle = (e) => {
             const target = e.target || (e.touches && e.touches[0] && document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY));
             return target && target.closest('.audio-toggle');
         };
 
-        // Mouse/touch start — begin hold timer
-        const onStart = (e) => {
-            const toggle = getToggle(e);
-            if (!toggle) return;
+        // touchstart: start hold timer (passive — don't preventDefault so click fires on iOS)
+        this.svgElement.addEventListener('touchstart', (e) => {
+            if (!getToggle(e)) return;
             this._holdTriggered = false;
-
             if (this.audioEnabled) {
-                // Start hold-to-off timer
                 this._holdTimer = setTimeout(() => {
                     this._holdTriggered = true;
                     this.turnOffAudio();
                 }, HOLD_DURATION);
             }
-        };
+        }, { passive: true });
 
-        // Mouse/touch end — if not held, treat as tap
-        const onEnd = async (e) => {
+        // touchend: clear hold timer (passive)
+        this.svgElement.addEventListener('touchend', (e) => {
+            if (!getToggle(e)) return;
             clearTimeout(this._holdTimer);
-            if (this._holdTriggered) return; // Hold already handled
+        }, { passive: true });
 
-            const toggle = getToggle(e);
-            if (!toggle) return;
+        // mousedown: hold timer for desktop
+        this.svgElement.addEventListener('mousedown', (e) => {
+            if (!getToggle(e)) return;
+            this._holdTriggered = false;
+            if (this.audioEnabled) {
+                this._holdTimer = setTimeout(() => {
+                    this._holdTriggered = true;
+                    this.turnOffAudio();
+                }, HOLD_DURATION);
+            }
+        });
+
+        // mouseup: clear hold timer for desktop
+        this.svgElement.addEventListener('mouseup', (e) => {
+            if (!getToggle(e)) return;
+            clearTimeout(this._holdTimer);
+        });
+
+        // click: handle the tap action — fires on both desktop mouse and iOS touch
+        // Safari recognises 'click' as a user gesture through async/await chains
+        this.svgElement.addEventListener('click', async (e) => {
+            if (!getToggle(e)) return;
+            if (this._holdTriggered) return;
 
             const target = e.target;
 
@@ -2548,10 +2566,7 @@ class Application {
                 return;
             }
 
-
-
             if (!this.audioInitialized) {
-                // First tap: initialize audio
                 try {
                     await this.audioEngine.init();
                     this.audioInitialized = true;
@@ -2559,28 +2574,19 @@ class Application {
                     this.audioEngine.enabled = true;
                     this.renderEngine.setAudioToggleActive(true);
                 } catch (err) {
-                    console.error('Audio initialization failed:', err);
+                    console.error('Audio init failed:', err);
                 }
             } else if (!this.audioEnabled) {
-                // Tap to turn on
-                await Tone.getContext().rawContext.resume();
                 this.audioEngine.enabled = true;
                 this.audioEnabled = true;
                 this.renderEngine.setAudioToggleActive(true);
             } else {
-                // Tap hub body: open picker if closed, close it if open
                 this.keyPickerOpen = !this.keyPickerOpen;
                 this.renderEngine.setKeyPickerOpen(this.keyPickerOpen);
             }
-        };
+        });
 
-        // Event delegation on SVG
-        this.svgElement.addEventListener('mousedown', (e) => { if (getToggle(e)) onStart(e); });
-        this.svgElement.addEventListener('mouseup', (e) => { if (getToggle(e)) onEnd(e); });
-        this.svgElement.addEventListener('touchstart', (e) => { if (getToggle(e)) { e.preventDefault(); onStart(e); } }, { passive: false });
-        this.svgElement.addEventListener('touchend', (e) => { if (getToggle(e)) { e.preventDefault(); onEnd(e); } }, { passive: false });
-
-        // Close picker when clicking outside (not on the hub, not inside the side panel)
+        // Close picker when clicking outside
         document.addEventListener('mousedown', (e) => {
             if (this.keyPickerOpen
                 && !e.target.closest('.audio-toggle')
@@ -2591,11 +2597,10 @@ class Application {
         });
     }
 
-    async turnOffAudio() {
+    turnOffAudio() {
         this.audioEngine.stopAllNotes();
         this.renderEngine.clearAllLockedSlices();
         this.audioEngine.enabled = false;
-        await Tone.getContext().rawContext.suspend();
         this.audioEnabled = false;
         this.keyPickerOpen = false;
         this.renderEngine.setAudioToggleActive(false);
