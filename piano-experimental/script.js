@@ -5,53 +5,128 @@
 // ============================================
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const RESIZE_DEBOUNCE_MS = 100;
-const INNER_CIRCLE_RADIUS_RATIO = 0.25;
-const DRAGGABLE_RING_RATIO = 0.6;
+const INNER_CIRCLE_RADIUS_RATIO = 0.25; // fallback only
+const DRAGGABLE_RING_RATIO = 0.6; // fallback only
 const VIEWPORT_SAFETY_BUFFER = 1.2;
+const REFERENCE_RADIUS = 800; // pt reference for responsive scaling: all pt values are "at avgRadius=800"
 const C_MAJOR_SCALE = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
-const CORNER_COORDS = { 'bottom-right': { x: 100, y: 100 } };
+const NOTE_LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+const CHROMATIC_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const CHROMATIC_FLATS = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+// Maps letter + accidental mode to chromatic index
+const NOTE_TO_CHROMATIC = {
+    'C': { natural: 0, sharp: 1, flat: 11 },
+    'D': { natural: 2, sharp: 3, flat: 1 },
+    'E': { natural: 4, sharp: 5, flat: 3 },
+    'F': { natural: 5, sharp: 6, flat: 4 },
+    'G': { natural: 7, sharp: 8, flat: 6 },
+    'A': { natural: 9, sharp: 10, flat: 8 },
+    'B': { natural: 11, sharp: 0, flat: 10 }
+};
+// Major scale intervals (semitones from root)
+const MAJOR_SCALE_INTERVALS = [0, 2, 4, 5, 7, 9, 11];
+const ANCHOR_POSITIONS = {
+    'top-left': { x: 0, y: 0 },
+    'top-center': { x: 50, y: 0 },
+    'top-right': { x: 100, y: 0 },
+    'center-left': { x: 0, y: 50 },
+    'center': { x: 50, y: 50 },
+    'center-right': { x: 100, y: 50 },
+    'bottom-left': { x: 0, y: 100 },
+    'bottom-center': { x: 50, y: 100 },
+    'bottom-right': { x: 100, y: 100 }
+};
+
+// Angle (degrees) at which the visible arc begins for each anchor.
+// computeDefaultRotation() places slice 0's trailing edge here so the
+// root note sits at the natural entry corner of the visible arc.
+const ANCHOR_ENTRY_ANGLES = {
+    'top-left':      0,
+    'top-center':    315,
+    'top-right':     90,
+    'center-left':   270,
+    'center':        270,
+    'center-right':  90,
+    'bottom-left':   0,
+    'bottom-center': 225,
+    'bottom-right':  270,
+};
+
+function computeDefaultRotation(anchor, sliceCount) {
+    const entryAngle = ANCHOR_ENTRY_ANGLES[anchor] ?? 270;
+    const anglePerSlice = 360 / sliceCount;
+    return (entryAngle - anglePerSlice + 360) % 360;
+}
 
 const INITIAL_STATE = {
     sliceCount: 32,
-    bgGray: 25,
-    offsetX: 0,
-    offsetY: 0,
-    radius: 100,
-    rotation: 289.78135195690106,
-    gapSize: 0,
-    gripThickness: 1,
-    gripOpacity: 5,
-    ticksPerEdge: 3,
+    bgGray: 20,
+    anchor: 'bottom-right',
+    innerCircleSize: 170,
+    grabberWidth: 500,
+    uiScale: 1.0,
+    uiScaleMax: 1.5,
+    // Key & Audio
+    audioToggleColor: '#919191',
+    audioToggleOpacity: 100,
+    audioToggleSize: 100,
+    rootNote: 0,
+    accidentalMode: 'natural',
+    keyFontFamily: 'system-ui, -apple-system, sans-serif',
+    keyFontWeight: '600',
+    keyLabelFontSize: 40,
+    keyLabelColor: '#ffffff',
+    keyLabelOpacity: 100,
+    keyPickerSize: 14,
+    keyPickerSpread: 145,
+    // Key picker appearance
+    keyPickerFontSize: 17,
+    keyPickerCircleColor: '#929292',
+    keyPickerCircleOpacity: 100,
+    keyPickerLabelColor: '#ffffff',
+    keyPickerLabelOpacity: 100,
+    keyPickerActiveCircleColor: '#ffffff',
+    keyPickerActiveCircleOpacity: 100,
+    keyPickerActiveLabelColor: '#444444',
+    keyPickerActiveLabelOpacity: 100,
+    radius: 155,
+    // rotation is not stored in presets; computed via computeDefaultRotation()
+    rotation: 258.75, // = computeDefaultRotation('bottom-right', 32)
+    gapSize: 2,
+    gripThickness: 2,
+    gripOpacity: 10,
+    ticksPerEdge: 4,
     gripRingOpacity: 0,
-    gripInset: 20,
-    pressShrink: 2,
+    gripInset: 10,
+    pressShrink: 3,
     pressBrightness: 30,
     theme: 'dark',
     // Gradient Settings
-    defaultGradientAngle: 53,
+    defaultGradientAngle: 28,
     defaultGradientStartColor: '#000000',
-    defaultGradientEndColor: '#cfc9c9',
+    defaultGradientEndColor: '#606060',
     pressedGradientAngle: 0,
     pressedGradientStartColor: '#000000',
     pressedGradientEndColor: '#4d4d4d',
     // Grip Ring Appearance
     gripRingColor: '#ffffff',
     gripRingBlend: 'overlay',
-    gripRingNoiseFrequency: 0.2,
+    gripRingNoiseEnabled: false,
+    gripRingNoiseFrequency: 0,
     gripRingNoiseOctaves: 3,
     gripRingNoiseType: 'fractalNoise',
     gripRingNoiseColor: '#ffffff',
-    gripRingNoiseIntensity: 100,
+    gripRingNoiseIntensity: 0,
     gripRingNoiseBlend: 'overlay',
     // Note Markers
     noteMarkerSize: 6,
-    noteMarkerColor: '#61979e',
-    noteMarkerPosition: 112,
+    noteMarkerColor: '#7a7a7a',
+    noteMarkerPosition: 195,
     // Experimental: Drone lock timing
     droneLockTime: 3000,
     // Experimental: Gripper animations
     notchGrowthFactor: 1.2,
-    notchActivationSpeed: 200,
+    notchActivationSpeed: 50,
     notchDeactivationSpeed: 300,
     notchBrightnessBoost: 1.5,
     ringThicknessBoost: 1.02
@@ -127,6 +202,11 @@ class GeometryEngine {
     }
 
     getViewportSize() {
+        const svg = document.getElementById('pianoSvg');
+        if (svg) {
+            const rect = svg.getBoundingClientRect();
+            return { width: rect.width, height: rect.height };
+        }
         return {
             width: window.innerWidth,
             height: window.innerHeight
@@ -136,15 +216,10 @@ class GeometryEngine {
     calculateCenter() {
         return this.state.getComputed('center', (state) => {
             const size = this.getViewportSize();
-            const base = CORNER_COORDS['bottom-right'];
-            const baseX = (base.x / 100) * size.width;
-            const baseY = (base.y / 100) * size.height;
-            const offsetXPixels = (state.offsetX / 100) * size.width;
-            const offsetYPixels = (state.offsetY / 100) * size.width;
-
+            const pos = ANCHOR_POSITIONS[state.anchor] || ANCHOR_POSITIONS['bottom-right'];
             return {
-                x: baseX + offsetXPixels,
-                y: baseY + offsetYPixels
+                x: (pos.x / 100) * size.width,
+                y: (pos.y / 100) * size.height
             };
         });
     }
@@ -179,32 +254,62 @@ class GeometryEngine {
         return (rx * ry) / Math.sqrt((ry * cosA) ** 2 + (rx * sinA) ** 2);
     }
 
-    createPathGenerator(center, radii, startAngle, endAngle) {
+    createPathGenerator(center, radii, startAngle, endAngle, gapPx = 0) {
         const { rx, ry } = radii;
-        const r1 = this.getRadiusAtAngle(startAngle, rx, ry);
-        const r2 = this.getRadiusAtAngle(endAngle, rx, ry);
-        const avgRadius = (r1 + r2) / 2;
+        const r = (rx + ry) / 2; // circles only
+        const midAngle = (startAngle + endAngle) / 2;
+        const halfAngle = (endAngle - startAngle) / 2;
+        const halfRad = (halfAngle * Math.PI) / 180;
+        const midRad = (midAngle * Math.PI) / 180;
 
-        const startRad = (startAngle * Math.PI) / 180;
-        const endRad = (endAngle * Math.PI) / 180;
+        // Clamp gap so slices don't collapse
+        const maxGap = Math.max(0, 2 * r * Math.sin(halfRad) * 0.95);
+        const N = Math.max(0, Math.min(gapPx, maxGap));
+        const halfN = N / 2;
 
-        const originalPoints = {
-            x1: center.x + r1 * Math.cos(startRad),
-            y1: center.y + r1 * Math.sin(startRad),
-            x2: center.x + r2 * Math.cos(endRad),
-            y2: center.y + r2 * Math.sin(endRad)
+        // Apex point: where the two parallel edges intersect (offset from true center)
+        const apexDist = halfN > 0 ? halfN / Math.sin(halfRad) : 0;
+        const apex = {
+            x: center.x + apexDist * Math.cos(midRad),
+            y: center.y + apexDist * Math.sin(midRad)
         };
 
+        // Outer points: where parallel edges meet circle of radius r
+        const t = Math.sqrt(Math.max(0, r * r - halfN * halfN));
+        const u = t * Math.cos(halfRad) + halfN * Math.sin(halfRad);
+        const v = t * Math.sin(halfRad) - halfN * Math.cos(halfRad);
+
+        const cosM = Math.cos(midRad);
+        const sinM = Math.sin(midRad);
+
+        // Local-to-world rotation: world = center + (u*cosM - v*sinM, u*sinM + v*cosM)
+        // Right edge: local v = -(t*sin(h) - halfN*cos(h))
+        // Left edge:  local v = +(t*sin(h) - halfN*cos(h))
+        const rightOuter = {
+            x: center.x + u * cosM - (-v) * sinM,
+            y: center.y + u * sinM + (-v) * cosM
+        };
+        const leftOuter = {
+            x: center.x + u * cosM - (v) * sinM,
+            y: center.y + u * sinM + (v) * cosM
+        };
+
+        // Effective radius of the arc connecting outer points
+        const effR = Math.sqrt(u * u + v * v);
+
         return (narrowFactor = 1) => {
-            const midAngle = (startAngle + endAngle) / 2;
-            const midRad = (midAngle * Math.PI) / 180;
+            const midOuterX = center.x + effR * cosM;
+            const midOuterY = center.y + effR * sinM;
 
-            const x1 = originalPoints.x1 + (center.x + avgRadius * Math.cos(midRad) - originalPoints.x1) * (1 - narrowFactor);
-            const y1 = originalPoints.y1 + (center.y + avgRadius * Math.sin(midRad) - originalPoints.y1) * (1 - narrowFactor);
-            const x2 = originalPoints.x2 + (center.x + avgRadius * Math.cos(midRad) - originalPoints.x2) * (1 - narrowFactor);
-            const y2 = originalPoints.y2 + (center.y + avgRadius * Math.sin(midRad) - originalPoints.y2) * (1 - narrowFactor);
+            const lerp = (p, q) => p + (q - p) * (1 - narrowFactor);
+            const ax = lerp(apex.x, midOuterX);
+            const ay = lerp(apex.y, midOuterY);
+            const r1x = lerp(rightOuter.x, midOuterX);
+            const r1y = lerp(rightOuter.y, midOuterY);
+            const r2x = lerp(leftOuter.x, midOuterX);
+            const r2y = lerp(leftOuter.y, midOuterY);
 
-            return `M ${center.x} ${center.y} L ${x1} ${y1} A ${avgRadius} ${avgRadius} 0 0 1 ${x2} ${y2} Z`;
+            return `M ${ax} ${ay} L ${r1x} ${r1y} A ${effR} ${effR} 0 0 1 ${r2x} ${r2y} Z`;
         };
     }
 
@@ -214,12 +319,11 @@ class GeometryEngine {
         return Math.atan2(dy, dx) * 180 / Math.PI;
     }
 
-    isInDraggableRing(x, y, center, innerRadius) {
-        const draggableRingStart = innerRadius * DRAGGABLE_RING_RATIO;
+    isInDraggableRing(x, y, center, innerRadius, gripRingRadius) {
         const dx = x - center.x;
         const dy = y - center.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
-        return distance >= draggableRingStart && distance <= innerRadius;
+        return distance >= gripRingRadius && distance <= innerRadius;
     }
 
     getSliceIndexAtPoint(x, y, center, sliceCount) {
@@ -240,6 +344,7 @@ class AudioEngine {
         this.state = stateManager;
         this.synth = null;
         this.audioStarted = false; // Flag to ensure Tone.start() only runs once
+        this.enabled = false; // Whether audio is currently active (not suspended)
         this.activeNotes = new Map(); // Maps index -> note
         this.lockedDrones = new Map(); // Maps index -> note (for locked drones)
         this.lockTimeouts = new Map(); // Maps index -> timeout ID for auto-lock
@@ -251,6 +356,7 @@ class AudioEngine {
 
         await Tone.start();
         this.audioStarted = true; // Set AFTER Tone.start() succeeds
+        this.enabled = true;
 
         // Create synth after Tone.start() completes
         if (!this.synth) {
@@ -268,16 +374,20 @@ class AudioEngine {
     }
 
     getNote(index) {
+        const rootNote = this.state.get('rootNote');
         const noteInScale = index % 7;
-        const octave = 3 + Math.floor(index / 7);
-        return C_MAJOR_SCALE[noteInScale] + octave;
+        const baseOctave = 3 + Math.floor(index / 7);
+        // Apply root transposition; notes that wrap past 12 are one octave higher
+        const chromaticIndex = (rootNote + MAJOR_SCALE_INTERVALS[noteInScale]) % 12;
+        const octave = baseOctave + (chromaticIndex < rootNote ? 1 : 0);
+        return CHROMATIC_NOTES[chromaticIndex] + octave;
     }
 
     async playNote(index, onAutoLock) {
         const note = this.getNote(index);
 
-        // Don't play if audio not started yet
-        if (!this.audioStarted) return;
+        // Don't play if audio not started or currently disabled
+        if (!this.audioStarted || !this.enabled) return;
 
         // Don't play if already locked (wait for toggle-off)
         if (this.lockedDrones.has(index)) return;
@@ -394,6 +504,10 @@ class RenderEngine {
         this.noiseTextureDataURL = null; // Cache for pre-rendered noise
         this.lastNoiseSettings = null; // Track settings to avoid unnecessary regeneration
         this.isFirstRender = true; // Track if this is the initial startup render
+        this.audioToggle = null;
+        this.audioActive = false;
+        this.keyPickerOpen = false;
+        this._hubRAnimId = null;
     }
 
     updateViewBox() {
@@ -449,21 +563,54 @@ class RenderEngine {
     }
 
     createGradient(defs, index, center, radii, anglePerSlice) {
-        // Calculate base angle for this slice
-        const baseAngle = ((index + 0.5) * anglePerSlice);
-
-        // Apply gradient angle offset
-        const angleOffset = this.state.get('defaultGradientAngle');
-        const gradientAngle = (baseAngle + angleOffset) * Math.PI / 180;
         const r = Math.max(radii.rx, radii.ry);
+        const startAngleDeg = index * anglePerSlice;
+        const endAngleDeg = (index + 1) * anglePerSlice;
+        const baseAngleDeg = (startAngleDeg + endAngleDeg) / 2;
 
-        const x2 = center.x + r * Math.cos(gradientAngle);
-        const y2 = center.y + r * Math.sin(gradientAngle);
+        // Gradient direction
+        const angleOffset = this.state.get('defaultGradientAngle');
+        const gradientDirDeg = baseAngleDeg + angleOffset;
+        const gradientDirRad = gradientDirDeg * Math.PI / 180;
+        const dirX = Math.cos(gradientDirRad);
+        const dirY = Math.sin(gradientDirRad);
+
+        // Find extrema of slice along gradient direction so full range is visible
+        let minDot = 0; // center point contributes 0
+        let maxDot = 0;
+
+        const checkPoint = (px, py) => {
+            const dot = px * dirX + py * dirY;
+            if (dot < minDot) minDot = dot;
+            if (dot > maxDot) maxDot = dot;
+        };
+
+        // Outer arc corners
+        const startRad = startAngleDeg * Math.PI / 180;
+        const endRad = endAngleDeg * Math.PI / 180;
+        checkPoint(r * Math.cos(startRad), r * Math.sin(startRad));
+        checkPoint(r * Math.cos(endRad), r * Math.sin(endRad));
+
+        // If the gradient direction (or its opposite) lies within the slice arc, the extreme point is on the arc at that angle
+        const normalizeAngle = (a) => ((a % 360) + 360) % 360;
+        const inArcRange = (a) => {
+            const aN = normalizeAngle(a);
+            const sN = normalizeAngle(startAngleDeg);
+            const eN = normalizeAngle(endAngleDeg);
+            return sN <= eN ? (aN >= sN && aN <= eN) : (aN >= sN || aN <= eN);
+        };
+        if (inArcRange(gradientDirDeg)) maxDot = Math.max(maxDot, r);
+        if (inArcRange(gradientDirDeg + 180)) minDot = Math.min(minDot, -r);
+
+        const x1 = center.x + minDot * dirX;
+        const y1 = center.y + minDot * dirY;
+        const x2 = center.x + maxDot * dirX;
+        const y2 = center.y + maxDot * dirY;
 
         const gradient = document.createElementNS(SVG_NS, 'linearGradient');
         gradient.setAttribute('id', `gradient${index}`);
-        gradient.setAttribute('x1', center.x);
-        gradient.setAttribute('y1', center.y);
+        gradient.setAttribute('x1', x1);
+        gradient.setAttribute('y1', y1);
         gradient.setAttribute('x2', x2);
         gradient.setAttribute('y2', y2);
         gradient.setAttribute('gradientUnits', 'userSpaceOnUse');
@@ -490,10 +637,10 @@ class RenderEngine {
         const gapSize = this.state.get('gapSize');
         const sliceCount = this.state.get('sliceCount');
 
-        const startAngle = (index * anglePerSlice) + (gapSize / 2);
-        const endAngle = ((index + 1) * anglePerSlice) - (gapSize / 2);
+        const startAngle = index * anglePerSlice;
+        const endAngle = (index + 1) * anglePerSlice;
 
-        const pathGenerator = this.geometry.createPathGenerator(center, radii, startAngle, endAngle);
+        const pathGenerator = this.geometry.createPathGenerator(center, radii, startAngle, endAngle, gapSize);
         this.pathGenerators.set(index, pathGenerator);
 
         const slice = document.createElementNS(SVG_NS, 'path');
@@ -504,15 +651,11 @@ class RenderEngine {
         slice.setAttribute('role', 'button');
         slice.setAttribute('aria-label', `Slice ${index + 1} of ${sliceCount}`);
 
-        // Add startup animation on first render
-        if (this.isFirstRender) {
-            slice.setAttribute('class', 'slice startup-animation');
-            // Stagger delay: 20ms per slice (with webkit prefix for iOS)
-            const delay = `${index * 20}ms`;
-            slice.style.webkitAnimationDelay = delay;
-            slice.style.animationDelay = delay;
-        } else {
+        // Set initial slice state
+        if (this.audioActive) {
             slice.setAttribute('class', 'slice');
+        } else {
+            slice.setAttribute('class', 'slice skeleton');
         }
 
         this.sliceElements.set(index, slice);
@@ -540,9 +683,7 @@ class RenderEngine {
 
     renderInnerCircle() {
         const center = this.geometry.calculateCenter();
-        const radii = this.geometry.calculateRadii();
-        const avgRadius = (radii.rx + radii.ry) / 2;
-        const innerRadius = avgRadius * INNER_CIRCLE_RADIUS_RATIO;
+        const innerRadius = this.state.get('innerCircleSize') * this.getUIScale();
 
         this.innerCircle = document.createElementNS(SVG_NS, 'circle');
         this.innerCircle.setAttribute('cx', center.x);
@@ -657,7 +798,7 @@ class RenderEngine {
 
     renderGripRing(innerRadius) {
         const center = this.geometry.calculateCenter();
-        const gripRingRadius = innerRadius * DRAGGABLE_RING_RATIO;
+        const gripRingRadius = Math.max(0, innerRadius - this.state.get('grabberWidth') * this.getUIScale());
         const gripRingOpacity = this.state.get('gripRingOpacity');
         const gripRingColor = this.state.get('gripRingColor');
         const noiseIntensity = this.state.get('gripRingNoiseIntensity');
@@ -682,8 +823,9 @@ class RenderEngine {
 
         this.sliceGroup.appendChild(baseRing);
 
-        // LAYER 2: Noise texture overlay (if intensity > 0)
-        if (noiseIntensity > 0) {
+        // LAYER 2: Noise texture overlay (if enabled and intensity > 0)
+        const noiseEnabled = this.state.get('gripRingNoiseEnabled');
+        if (noiseEnabled && noiseIntensity > 0) {
             // Generate or retrieve cached noise texture
             const noiseDataURL = this.generateNoiseTexture();
 
@@ -796,7 +938,7 @@ class RenderEngine {
         for (let i = 0; i < sliceCount; i++) {
             if (i % 7 === 0) {
                 const midAngle = ((i + 0.5) * anglePerSlice) * Math.PI / 180;
-                const markerRadius = innerRadius * (markerPosition / 100);
+                const markerRadius = markerPosition * this.getUIScale();
 
                 const markerX = center.x + markerRadius * Math.cos(midAngle);
                 const markerY = center.y + markerRadius * Math.sin(midAngle);
@@ -815,7 +957,280 @@ class RenderEngine {
         this.sliceGroup.appendChild(fragment);
     }
 
+    getKeyDisplayName() {
+        const rootNote = this.state.get('rootNote');
+        const mode = this.state.get('accidentalMode');
+        if (mode === 'flat') return CHROMATIC_FLATS[rootNote];
+        return CHROMATIC_NOTES[rootNote];
+    }
+
+    getDialFanParams() {
+        const anchor = this.state.get('anchor');
+        const fanMap = {
+            'top-left':      { center: 45,  arc: 78 },
+            'top-center':    { center: 90,  arc: 160 },
+            'top-right':     { center: 135, arc: 78 },
+            'center-left':   { center: 0,   arc: 160 },
+            'center':        { center: 0,   arc: 360 },
+            'center-right':  { center: 180, arc: 160 },
+            'bottom-left':   { center: 315, arc: 78 },
+            'bottom-center': { center: 270, arc: 160 },
+            'bottom-right':  { center: 225, arc: 78 },
+        };
+        return fanMap[anchor] || { center: 225, arc: 90 };
+    }
+
+    getKeyLabelOffset(btnRadius) {
+        // Position label in the visible quarter based on anchor
+        const anchor = this.state.get('anchor');
+        const offset = btnRadius * 0.35;
+        const positions = {
+            'top-left': { dx: offset, dy: offset },
+            'top-center': { dx: 0, dy: offset },
+            'top-right': { dx: -offset, dy: offset },
+            'center-left': { dx: offset, dy: 0 },
+            'center': { dx: 0, dy: 0 },
+            'center-right': { dx: -offset, dy: 0 },
+            'bottom-left': { dx: offset, dy: -offset },
+            'bottom-center': { dx: 0, dy: -offset },
+            'bottom-right': { dx: -offset, dy: -offset }
+        };
+        return positions[anchor] || { dx: 0, dy: 0 };
+    }
+
+    renderAudioToggle() {
+        const center = this.geometry.calculateCenter();
+        const btnRadius = this._getHubBaseRadius();
+        const color = this.state.get('audioToggleColor');
+        const opacity = this.state.get('audioToggleOpacity') / 100;
+        const bgGray = this.state.get('bgGray');
+        const bgHex = Math.round((bgGray / 100) * 255).toString(16).padStart(2, '0');
+        const bgColor = `#${bgHex}${bgHex}${bgHex}`;
+
+        const labelColor = this.state.get('keyLabelColor');
+        const labelOpacity = this.state.get('keyLabelOpacity') / 100;
+        const fontFamily = this.state.get('keyFontFamily');
+        const fontWeight = this.state.get('keyFontWeight');
+
+        const group = document.createElementNS(SVG_NS, 'g');
+        group.setAttribute('class', 'audio-toggle');
+        group.style.cursor = 'pointer';
+
+        const circle = document.createElementNS(SVG_NS, 'circle');
+        circle.setAttribute('cx', center.x);
+        circle.setAttribute('cy', center.y);
+        const pickerOpen = this.keyPickerOpen && this.audioActive;
+        circle.setAttribute('r', pickerOpen ? this._getExpandedHubRadius() : btnRadius);
+        circle.setAttribute('fill', color);
+        circle.setAttribute('opacity', pickerOpen ? 1 : opacity);
+        circle.setAttribute('class', this.audioActive ? 'audio-toggle-circle active' : 'audio-toggle-circle');
+        group.appendChild(circle);
+
+        // Key label (only shown when audio is active)
+        if (this.audioActive) {
+            const labelOffset = this.getKeyLabelOffset(btnRadius);
+            const fontSize = this.state.get('keyLabelFontSize');
+
+            const label = document.createElementNS(SVG_NS, 'text');
+            label.setAttribute('x', center.x + labelOffset.dx);
+            label.setAttribute('y', center.y + labelOffset.dy);
+            label.setAttribute('text-anchor', 'middle');
+            label.setAttribute('dominant-baseline', 'central');
+            label.setAttribute('font-size', fontSize);
+            label.setAttribute('font-weight', fontWeight);
+            label.setAttribute('font-family', fontFamily);
+            label.setAttribute('fill', labelColor);
+            label.setAttribute('opacity', labelOpacity);
+            label.setAttribute('class', 'key-label');
+            label.style.pointerEvents = 'none';
+            label.style.userSelect = 'none';
+            label.textContent = this.getKeyDisplayName();
+            group.appendChild(label);
+        }
+
+        // Key picker (shown when picker is open)
+        if (this.keyPickerOpen && this.audioActive) {
+            const scale = this.getUIScale();
+            const pickerCircleRadius = this.state.get('keyPickerSize') * scale;
+            const spreadDistance     = this.state.get('keyPickerSpread') * scale;
+            const rootNote = this.state.get('rootNote');
+            const accMode = this.state.get('accidentalMode');
+
+            // Picker appearance state
+            const pickerFontSize          = this.state.get('keyPickerFontSize') * scale;
+            const inactiveCircleColor     = this.state.get('keyPickerCircleColor');
+            const inactiveCircleOpacity   = this.state.get('keyPickerCircleOpacity') / 100;
+            const inactiveLabelColor      = this.state.get('keyPickerLabelColor');
+            const inactiveLabelOpacity    = this.state.get('keyPickerLabelOpacity') / 100;
+            const activeCircleColor       = this.state.get('keyPickerActiveCircleColor');
+            const activeCircleOpacity     = this.state.get('keyPickerActiveCircleOpacity') / 100;
+            const activeLabelColor        = this.state.get('keyPickerActiveLabelColor');
+            const activeLabelOpacity      = this.state.get('keyPickerActiveLabelOpacity') / 100;
+
+            const { center: fanDeg, arc: arcDeg } = this.getDialFanParams();
+            const fanCenter = (fanDeg * Math.PI) / 180;
+            const fanArc   = (arcDeg * Math.PI) / 180;
+
+            // 7 note letters fanned into the visible screen area
+            for (let i = 0; i < NOTE_LETTERS.length; i++) {
+                const letter = NOTE_LETTERS[i];
+                const chromaticIndex = NOTE_TO_CHROMATIC[letter][accMode];
+                let angle;
+                if (arcDeg === 360) {
+                    angle = (i / NOTE_LETTERS.length) * Math.PI * 2;
+                } else {
+                    const step = fanArc / (NOTE_LETTERS.length - 1);
+                    angle = fanCenter - fanArc / 2 + i * step;
+                }
+                const nx = center.x + spreadDistance * Math.cos(angle);
+                const ny = center.y + spreadDistance * Math.sin(angle);
+
+                const noteGroup = document.createElementNS(SVG_NS, 'g');
+                noteGroup.setAttribute('class', 'key-picker-note');
+                noteGroup.dataset.note = chromaticIndex;
+                noteGroup.style.cursor = 'pointer';
+
+                const isSelected = chromaticIndex === rootNote;
+
+                const noteCircle = document.createElementNS(SVG_NS, 'circle');
+                noteCircle.setAttribute('cx', nx);
+                noteCircle.setAttribute('cy', ny);
+                noteCircle.setAttribute('r', pickerCircleRadius);
+                noteCircle.setAttribute('fill', isSelected ? activeCircleColor : inactiveCircleColor);
+                noteCircle.setAttribute('opacity', isSelected ? activeCircleOpacity : inactiveCircleOpacity);
+                noteCircle.setAttribute('class', isSelected ? 'picker-circle selected' : 'picker-circle');
+                noteGroup.appendChild(noteCircle);
+
+                const noteLabel = document.createElementNS(SVG_NS, 'text');
+                noteLabel.setAttribute('x', nx);
+                noteLabel.setAttribute('y', ny);
+                noteLabel.setAttribute('text-anchor', 'middle');
+                noteLabel.setAttribute('dominant-baseline', 'central');
+                noteLabel.setAttribute('font-size', pickerFontSize);
+                noteLabel.setAttribute('font-weight', fontWeight);
+                noteLabel.setAttribute('font-family', fontFamily);
+                noteLabel.setAttribute('fill', isSelected ? activeLabelColor : inactiveLabelColor);
+                noteLabel.setAttribute('opacity', isSelected ? activeLabelOpacity : inactiveLabelOpacity);
+                noteLabel.style.pointerEvents = 'none';
+                noteLabel.style.userSelect = 'none';
+                noteLabel.textContent = letter;
+                noteGroup.appendChild(noteLabel);
+
+                group.appendChild(noteGroup);
+            }
+
+        }
+
+        // Append directly to SVG (not sliceGroup) so it doesn't rotate
+        this.svg.appendChild(group);
+        this.audioToggle = group;
+    }
+
+    setAudioToggleActive(active) {
+        const wasActive = this.audioActive;
+        this.audioActive = active;
+
+        if (active && !wasActive) {
+            // Awaken: animate slices from skeleton to full
+            this.awakenSlices();
+        } else if (!active && wasActive) {
+            // Sleep: fade slices back to skeleton
+            this.sleepSlices();
+        }
+
+        // Re-render to show/hide key label and update toggle
+        this.render();
+    }
+
+    awakenSlices() {
+        this.sliceElements.forEach((slice, index) => {
+            slice.classList.remove('skeleton', 'asleep');
+            slice.classList.add('skeleton', 'awaken');
+            const delay = `${index * 20}ms`;
+            slice.style.webkitAnimationDelay = delay;
+            slice.style.animationDelay = delay;
+        });
+        // Clean up after animation
+        const sliceCount = this.state.get('sliceCount');
+        const totalDuration = (sliceCount * 20) + 600;
+        setTimeout(() => {
+            this.sliceElements.forEach(slice => {
+                slice.classList.remove('skeleton', 'awaken');
+                slice.style.webkitAnimationDelay = '';
+                slice.style.animationDelay = '';
+            });
+        }, totalDuration);
+    }
+
+    sleepSlices() {
+        this.sliceElements.forEach(slice => {
+            slice.classList.remove('awaken');
+            slice.classList.add('skeleton', 'asleep');
+        });
+    }
+
+    getUIScale() {
+        const radii = this.geometry.calculateRadii();
+        const avgRadius = (radii.rx + radii.ry) / 2;
+        const raw = (avgRadius / REFERENCE_RADIUS) * this.state.get('uiScale');
+        return Math.min(raw, this.state.get('uiScaleMax'));
+    }
+
+    _getHubBaseRadius() {
+        return Math.max(8, this.state.get('audioToggleSize') * this.getUIScale());
+    }
+
+    _getExpandedHubRadius() {
+        return this.state.get('innerCircleSize') * this.getUIScale();
+    }
+
+    setKeyPickerOpen(open) {
+        this.keyPickerOpen = open;
+
+        const btnR    = this._getHubBaseRadius();
+        const expandR = this._getExpandedHubRadius();
+
+        this.render(); // renders at expandR if open, btnR if closed
+
+        if (!this.audioActive || !this.audioToggle) return;
+        const circle = this.audioToggle.querySelector('.audio-toggle-circle');
+        if (!circle) return;
+
+        // Snap to fromR synchronously (before browser paints) then animate to toR
+        if (open) {
+            circle.setAttribute('r', btnR);   // snap small, paint will show this
+            this._animateHubR(circle, btnR, expandR, 280, 'easeOut');
+        } else {
+            circle.setAttribute('r', expandR);
+            this._animateHubR(circle, expandR, btnR, 220, 'easeOut');
+        }
+    }
+
+    _animateHubR(circle, fromR, toR, duration) {
+        if (this._hubRAnimId) cancelAnimationFrame(this._hubRAnimId);
+
+        const start = performance.now();
+
+        const easeFn = t => 1 - Math.pow(1 - t, 3); // easeOutCubic
+
+        const tick = (now) => {
+            const t = Math.min((now - start) / duration, 1);
+            const r = fromR + (toR - fromR) * easeFn(t);
+            circle.setAttribute('r', r);
+            if (t < 1) {
+                this._hubRAnimId = requestAnimationFrame(tick);
+            } else {
+                this._hubRAnimId = null;
+            }
+        };
+        this._hubRAnimId = requestAnimationFrame(tick);
+    }
+
     render() {
+        if (this._hubRAnimId) {
+            cancelAnimationFrame(this._hubRAnimId);
+            this._hubRAnimId = null;
+        }
         // Clear locked slices when re-rendering (slice indices change)
         this.lockedSlices.clear();
 
@@ -827,6 +1242,7 @@ class RenderEngine {
         const gripRingRadius = this.renderGripRing(innerRadius);
         this.renderGripTicks(innerRadius, gripRingRadius);
         this.renderNoteMarkers(innerRadius);
+        this.renderAudioToggle();
     }
 
     updateRotation() {
@@ -862,12 +1278,13 @@ class RenderEngine {
             const pressedStartColor = this.state.get('pressedGradientStartColor');
             const pressedEndColor = this.state.get('pressedGradientEndColor');
 
+            const activationSpeed = this.state.get('notchActivationSpeed');
             if (stop1) {
-                stop1.style.transition = 'stop-color 120ms cubic-bezier(0.4, 0.0, 0.2, 1)';
+                stop1.style.transition = `stop-color ${activationSpeed}ms cubic-bezier(0.4, 0.0, 0.2, 1)`;
                 stop1.setAttribute('stop-color', pressedStartColor);
             }
             if (stop2) {
-                stop2.style.transition = 'stop-color 120ms cubic-bezier(0.4, 0.0, 0.2, 1)';
+                stop2.style.transition = `stop-color ${activationSpeed}ms cubic-bezier(0.4, 0.0, 0.2, 1)`;
                 stop2.setAttribute('stop-color', pressedEndColor);
             }
         }
@@ -875,7 +1292,8 @@ class RenderEngine {
         const slice = this.sliceElements.get(index);
         const pathGen = this.pathGenerators.get(index);
         if (slice && pathGen) {
-            slice.style.transition = 'd 120ms cubic-bezier(0.4, 0.0, 0.2, 1)';
+            const activationSpeed = this.state.get('notchActivationSpeed');
+            slice.style.transition = `d ${activationSpeed}ms cubic-bezier(0.4, 0.0, 0.2, 1)`;
             slice.setAttribute('d', pathGen(this.getPressNarrowFactor()));
         }
     }
@@ -895,12 +1313,13 @@ class RenderEngine {
             const defaultStartColor = this.state.get('defaultGradientStartColor');
             const defaultEndColor = this.state.get('defaultGradientEndColor');
 
+            const deactivationSpeed = this.state.get('notchDeactivationSpeed');
             if (stop1) {
-                stop1.style.transition = 'stop-color 300ms ease-out';
+                stop1.style.transition = `stop-color ${deactivationSpeed}ms ease-out`;
                 stop1.setAttribute('stop-color', defaultStartColor);
             }
             if (stop2) {
-                stop2.style.transition = 'stop-color 300ms ease-out';
+                stop2.style.transition = `stop-color ${deactivationSpeed}ms ease-out`;
                 stop2.setAttribute('stop-color', defaultEndColor);
             }
         }
@@ -908,7 +1327,8 @@ class RenderEngine {
         const slice = this.sliceElements.get(index);
         const pathGen = this.pathGenerators.get(index);
         if (slice && pathGen) {
-            slice.style.transition = 'd 300ms ease-out';
+            const deactivationSpeed = this.state.get('notchDeactivationSpeed');
+            slice.style.transition = `d ${deactivationSpeed}ms ease-out`;
             slice.setAttribute('d', pathGen(1));
         }
     }
@@ -992,10 +1412,10 @@ class RenderEngine {
 
     getInnerCircleData() {
         const center = this.geometry.calculateCenter();
-        const radii = this.geometry.calculateRadii();
-        const avgRadius = (radii.rx + radii.ry) / 2;
-        const innerRadius = avgRadius * INNER_CIRCLE_RADIUS_RATIO;
-        return { center, innerRadius };
+        const scale = this.getUIScale();
+        const innerRadius = this.state.get('innerCircleSize') * scale;
+        const gripRingRadius = Math.max(0, innerRadius - this.state.get('grabberWidth') * scale);
+        return { center, innerRadius, gripRingRadius };
     }
 
     completeStartupAnimation() {
@@ -1024,47 +1444,24 @@ class RenderEngine {
             const gripRingNoise = this.sliceGroup.querySelector('.grip-ring-noise');
 
             if (gripRingBase) {
-                const currentOpacity = parseFloat(gripRingBase.getAttribute('opacity'));
-                const targetOpacity = Math.min(1, currentOpacity * 2);
+                const targetOpacity = Math.min(1, parseFloat(gripRingBase.getAttribute('opacity')) * 2);
 
                 // Calculate thickened radii
-                // Outer edge grows outward
                 const thickenedOuterRadius = this.gripRingBaseRadii.outerRadius * ringThicknessBoost;
-                // Inner edge shrinks inward (inverse relationship for true thickening)
                 const thickenedInnerRadius = this.gripRingBaseRadii.innerRingRadius / ringThicknessBoost;
-
-                // Get current and target paths
-                const currentPath = gripRingBase.getAttribute('d');
                 const thickenedPath = this.createGripRingPath(center, thickenedOuterRadius, thickenedInnerRadius);
 
-                // Animate both layers using Web Animations API
+                // Use CSS transitions for reliable d + opacity animation
                 const animationSpeed = this.state.get('notchActivationSpeed');
-
-                // Animate base ring
-                gripRingBase.animate([
-                    { d: currentPath, opacity: currentOpacity },
-                    { d: thickenedPath, opacity: targetOpacity }
-                ], {
-                    duration: animationSpeed,
-                    easing: 'cubic-bezier(0.4, 0.0, 0.2, 1)',
-                    fill: 'forwards'
-                });
+                const easing = 'cubic-bezier(0.4, 0.0, 0.2, 1)';
+                gripRingBase.style.transition = `d ${animationSpeed}ms ${easing}, opacity ${animationSpeed}ms ${easing}`;
                 gripRingBase.setAttribute('d', thickenedPath);
                 gripRingBase.setAttribute('opacity', targetOpacity);
 
                 // Animate noise ring if it exists
                 if (gripRingNoise) {
-                    const noiseCurrentOpacity = parseFloat(gripRingNoise.getAttribute('opacity'));
-                    const noiseTargetOpacity = Math.min(1, noiseCurrentOpacity * 1.5);
-
-                    gripRingNoise.animate([
-                        { d: currentPath, opacity: noiseCurrentOpacity },
-                        { d: thickenedPath, opacity: noiseTargetOpacity }
-                    ], {
-                        duration: animationSpeed,
-                        easing: 'cubic-bezier(0.4, 0.0, 0.2, 1)',
-                        fill: 'forwards'
-                    });
+                    const noiseTargetOpacity = Math.min(1, parseFloat(gripRingNoise.getAttribute('opacity')) * 1.5);
+                    gripRingNoise.style.transition = `d ${animationSpeed}ms ${easing}, opacity ${animationSpeed}ms ${easing}`;
                     gripRingNoise.setAttribute('d', thickenedPath);
                     gripRingNoise.setAttribute('opacity', noiseTargetOpacity);
                 }
@@ -1093,11 +1490,7 @@ class RenderEngine {
             const gripRingNoise = this.sliceGroup.querySelector('.grip-ring-noise');
 
             if (gripRingBase) {
-                const currentOpacity = parseFloat(gripRingBase.getAttribute('opacity'));
                 const targetOpacity = gripRingOpacity / 100;
-
-                // Get current and base paths
-                const currentPath = gripRingBase.getAttribute('d');
                 const center = this.geometry.calculateCenter();
                 const basePath = this.createGripRingPath(
                     center,
@@ -1105,32 +1498,16 @@ class RenderEngine {
                     this.gripRingBaseRadii.innerRingRadius
                 );
 
-                // Animate base ring using Web Animations API
+                // Use CSS transitions for reliable d + opacity animation
                 const animationSpeed = this.state.get('notchDeactivationSpeed');
-                gripRingBase.animate([
-                    { d: currentPath, opacity: currentOpacity },
-                    { d: basePath, opacity: targetOpacity }
-                ], {
-                    duration: animationSpeed,
-                    easing: 'ease-out',
-                    fill: 'forwards'
-                });
+                gripRingBase.style.transition = `d ${animationSpeed}ms ease-out, opacity ${animationSpeed}ms ease-out`;
                 gripRingBase.setAttribute('d', basePath);
                 gripRingBase.setAttribute('opacity', targetOpacity);
 
                 // Animate noise ring if it exists
                 if (gripRingNoise) {
-                    const noiseCurrentOpacity = parseFloat(gripRingNoise.getAttribute('opacity'));
                     const noiseTargetOpacity = noiseIntensity / 100;
-
-                    gripRingNoise.animate([
-                        { d: currentPath, opacity: noiseCurrentOpacity },
-                        { d: basePath, opacity: noiseTargetOpacity }
-                    ], {
-                        duration: animationSpeed,
-                        easing: 'ease-out',
-                        fill: 'forwards'
-                    });
+                    gripRingNoise.style.transition = `d ${animationSpeed}ms ease-out, opacity ${animationSpeed}ms ease-out`;
                     gripRingNoise.setAttribute('d', basePath);
                     gripRingNoise.setAttribute('opacity', noiseTargetOpacity);
                 }
@@ -1209,6 +1586,9 @@ class InteractionManager {
     }
 
     handleStart(e) {
+        // Don't intercept clicks on the audio toggle
+        if (e.target.closest('.audio-toggle')) return;
+
         // Prevent default touch behavior (iOS requirement)
         e.preventDefault();
 
@@ -1230,8 +1610,8 @@ class InteractionManager {
             const touch2Coords = this.getSVGCoordinates(e.touches[1].clientX, e.touches[1].clientY);
             const innerCircleData = this.renderer.getInnerCircleData();
 
-            const touch1InGripper = this.geometry.isInDraggableRing(touch1Coords.x, touch1Coords.y, innerCircleData.center, innerCircleData.innerRadius);
-            const touch2InGripper = this.geometry.isInDraggableRing(touch2Coords.x, touch2Coords.y, innerCircleData.center, innerCircleData.innerRadius);
+            const touch1InGripper = this.geometry.isInDraggableRing(touch1Coords.x, touch1Coords.y, innerCircleData.center, innerCircleData.innerRadius, innerCircleData.gripRingRadius);
+            const touch2InGripper = this.geometry.isInDraggableRing(touch2Coords.x, touch2Coords.y, innerCircleData.center, innerCircleData.innerRadius, innerCircleData.gripRingRadius);
 
             if (touch1InGripper && touch2InGripper) {
                 this.startPinch(e.touches[0], e.touches[1]);
@@ -1247,7 +1627,7 @@ class InteractionManager {
 
         const innerCircleData = this.renderer.getInnerCircleData();
         const isInnerCircle = e.target.id === 'innerRotationPlate';
-        const inDraggableRing = this.geometry.isInDraggableRing(x, y, innerCircleData.center, innerCircleData.innerRadius);
+        const inDraggableRing = this.geometry.isInDraggableRing(x, y, innerCircleData.center, innerCircleData.innerRadius, innerCircleData.gripRingRadius);
 
         if (isInnerCircle && inDraggableRing) {
             this.startRotation(x, y, innerCircleData);
@@ -1301,7 +1681,7 @@ class InteractionManager {
             const clientY = e.touches[0].clientY;
             const { x, y } = this.getSVGCoordinates(clientX, clientY);
             const innerCircleData = this.renderer.getInnerCircleData();
-            const inGripperZone = this.geometry.isInDraggableRing(x, y, innerCircleData.center, innerCircleData.innerRadius);
+            const inGripperZone = this.geometry.isInDraggableRing(x, y, innerCircleData.center, innerCircleData.innerRadius, innerCircleData.gripRingRadius);
 
             if (inGripperZone) {
                 // Start rotation from gripper
@@ -1333,7 +1713,7 @@ class InteractionManager {
         const { x, y } = this.getSVGCoordinates(clientX, clientY);
 
         const innerCircleData = this.renderer.getInnerCircleData();
-        const inGripperZone = this.geometry.isInDraggableRing(x, y, innerCircleData.center, innerCircleData.innerRadius);
+        const inGripperZone = this.geometry.isInDraggableRing(x, y, innerCircleData.center, innerCircleData.innerRadius, innerCircleData.gripRingRadius);
 
         // Transition to rotation mode if entering gripper zone
         if (inGripperZone && !this.dragState.wasInGripperZone) {
@@ -1552,16 +1932,52 @@ class ControlsManager {
             sliceIncBtn: document.getElementById('sliceIncBtn'),
             bgGraySlider: document.getElementById('bgGraySlider'),
             bgGrayValue: document.getElementById('bgGrayValue'),
-            offsetXSlider: document.getElementById('offsetXSlider'),
-            offsetXValue: document.getElementById('offsetXValue'),
-            offsetYSlider: document.getElementById('offsetYSlider'),
-            offsetYValue: document.getElementById('offsetYValue'),
+            anchorBtns: document.querySelectorAll('.anchor-btn'),
             radiusSlider: document.getElementById('radiusSlider'),
             radiusValue: document.getElementById('radiusValue'),
             rotationSlider: document.getElementById('rotationSlider'),
             rotationValue: document.getElementById('rotationValue'),
             gapSizeSlider: document.getElementById('gapSizeSlider'),
             gapSizeValue: document.getElementById('gapSizeValue'),
+            innerCircleSizeSlider: document.getElementById('innerCircleSizeSlider'),
+            innerCircleSizeValue: document.getElementById('innerCircleSizeValue'),
+            grabberWidthSlider: document.getElementById('grabberWidthSlider'),
+            grabberWidthValue: document.getElementById('grabberWidthValue'),
+            uiScaleSlider: document.getElementById('uiScaleSlider'),
+            uiScaleValue: document.getElementById('uiScaleValue'),
+            uiScaleMaxSlider: document.getElementById('uiScaleMaxSlider'),
+            uiScaleMaxValue: document.getElementById('uiScaleMaxValue'),
+            audioToggleColor: document.getElementById('audioToggleColor'),
+            audioToggleOpacitySlider: document.getElementById('audioToggleOpacitySlider'),
+            audioToggleOpacityValue: document.getElementById('audioToggleOpacityValue'),
+            audioToggleSizeSlider: document.getElementById('audioToggleSizeSlider'),
+            audioToggleSizeValue: document.getElementById('audioToggleSizeValue'),
+            keyFontFamily: document.getElementById('keyFontFamily'),
+            keyFontWeight: document.getElementById('keyFontWeight'),
+            keyLabelFontSizeSlider: document.getElementById('keyLabelFontSizeSlider'),
+            keyLabelFontSizeValue: document.getElementById('keyLabelFontSizeValue'),
+            keyLabelColor: document.getElementById('keyLabelColor'),
+            keyLabelOpacitySlider: document.getElementById('keyLabelOpacitySlider'),
+            keyLabelOpacityValue: document.getElementById('keyLabelOpacityValue'),
+            keyPickerSizeSlider: document.getElementById('keyPickerSizeSlider'),
+            keyPickerSizeValue: document.getElementById('keyPickerSizeValue'),
+            keyPickerSpreadSlider: document.getElementById('keyPickerSpreadSlider'),
+            keyPickerSpreadValue: document.getElementById('keyPickerSpreadValue'),
+            keyPickerFontSizeSlider: document.getElementById('keyPickerFontSizeSlider'),
+            keyPickerFontSizeValue: document.getElementById('keyPickerFontSizeValue'),
+            keyPickerCircleColor: document.getElementById('keyPickerCircleColor'),
+            keyPickerCircleOpacitySlider: document.getElementById('keyPickerCircleOpacitySlider'),
+            keyPickerCircleOpacityValue: document.getElementById('keyPickerCircleOpacityValue'),
+            keyPickerLabelColor: document.getElementById('keyPickerLabelColor'),
+            keyPickerLabelOpacitySlider: document.getElementById('keyPickerLabelOpacitySlider'),
+            keyPickerLabelOpacityValue: document.getElementById('keyPickerLabelOpacityValue'),
+            keyPickerActiveCircleColor: document.getElementById('keyPickerActiveCircleColor'),
+            keyPickerActiveCircleOpacitySlider: document.getElementById('keyPickerActiveCircleOpacitySlider'),
+            keyPickerActiveCircleOpacityValue: document.getElementById('keyPickerActiveCircleOpacityValue'),
+            keyPickerActiveLabelColor: document.getElementById('keyPickerActiveLabelColor'),
+            keyPickerActiveLabelOpacitySlider: document.getElementById('keyPickerActiveLabelOpacitySlider'),
+            keyPickerActiveLabelOpacityValue: document.getElementById('keyPickerActiveLabelOpacityValue'),
+            sectionHeaders: document.querySelectorAll('.section-header'),
             gripThicknessSlider: document.getElementById('gripThicknessSlider'),
             gripThicknessValue: document.getElementById('gripThicknessValue'),
             ticksPerEdgeSlider: document.getElementById('ticksPerEdgeSlider'),
@@ -1601,6 +2017,8 @@ class ControlsManager {
             // Grip Ring Appearance controls
             gripRingColor: document.getElementById('gripRingColor'),
             gripRingBlendSelect: document.getElementById('gripRingBlendSelect'),
+            gripRingNoiseEnabledToggle: document.getElementById('gripRingNoiseEnabledToggle'),
+            noiseSubgroup: document.getElementById('noiseSubgroup'),
             gripRingNoiseFrequencySlider: document.getElementById('gripRingNoiseFrequencySlider'),
             gripRingNoiseFrequencyValue: document.getElementById('gripRingNoiseFrequencyValue'),
             gripRingNoiseOctavesSlider: document.getElementById('gripRingNoiseOctavesSlider'),
@@ -1617,17 +2035,10 @@ class ControlsManager {
             noteMarkerPositionSlider: document.getElementById('noteMarkerPositionSlider'),
             noteMarkerPositionValue: document.getElementById('noteMarkerPositionValue'),
             // Save slot buttons
-            saveSlot1Btn: document.getElementById('saveSlot1Btn'),
-            loadSlot1Btn: document.getElementById('loadSlot1Btn'),
-            exportSlot1Btn: document.getElementById('exportSlot1Btn'),
-            saveSlot2Btn: document.getElementById('saveSlot2Btn'),
-            loadSlot2Btn: document.getElementById('loadSlot2Btn'),
-            exportSlot2Btn: document.getElementById('exportSlot2Btn'),
-            saveSlot3Btn: document.getElementById('saveSlot3Btn'),
-            loadSlot3Btn: document.getElementById('loadSlot3Btn'),
-            exportSlot3Btn: document.getElementById('exportSlot3Btn'),
+            presetNameInput: document.getElementById('presetNameInput'),
+            savePresetBtn: document.getElementById('savePresetBtn'),
+            presetList: document.getElementById('presetList'),
             importFileInput: document.getElementById('importFileInput'),
-            importSlotSelect: document.getElementById('importSlotSelect'),
             resetSettingsBtn: document.getElementById('resetSettingsBtn')
         };
     }
@@ -1638,9 +2049,6 @@ class ControlsManager {
         this.elements.darkThemeBtn.addEventListener('click', () => this.setTheme('dark'));
         this.elements.lightThemeBtn.addEventListener('click', () => this.setTheme('light'));
         this.elements.closeBtn.addEventListener('click', () => this.closeModal());
-        this.elements.modalBackdrop.addEventListener('click', (e) => {
-            if (e.target === this.elements.modalBackdrop) this.closeModal();
-        });
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && this.elements.modalBackdrop.classList.contains('active')) {
                 this.closeModal();
@@ -1654,11 +2062,47 @@ class ControlsManager {
 
         // Slider controls
         this.setupSlider('bgGraySlider', 'bgGray', 'bgGrayValue', '%', (value) => this.updateBackgroundColor(value));
-        this.setupSlider('offsetXSlider', 'offsetX', 'offsetXValue', '%', () => this.renderer.render());
-        this.setupSlider('offsetYSlider', 'offsetY', 'offsetYValue', '%', () => this.renderer.render());
+        this.elements.anchorBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.elements.anchorBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.state.set('anchor', btn.dataset.anchor);
+                this.renderer.render();
+            });
+        });
         this.setupSlider('radiusSlider', 'radius', 'radiusValue', '%', () => this.renderer.render());
         this.setupSlider('rotationSlider', 'rotation', 'rotationValue', '°', () => this.renderer.updateRotation());
-        this.setupSlider('gapSizeSlider', 'gapSize', 'gapSizeValue', '°', () => this.renderer.render());
+        this.setupSlider('gapSizeSlider', 'gapSize', 'gapSizeValue', 'px', () => this.renderer.render());
+        this.setupSlider('innerCircleSizeSlider', 'innerCircleSize', 'innerCircleSizeValue', 'pt', () => this.renderer.render());
+        this.setupSlider('grabberWidthSlider', 'grabberWidth', 'grabberWidthValue', 'pt', () => this.renderer.render());
+        this.setupSlider('uiScaleSlider', 'uiScale', 'uiScaleValue', '×', () => this.renderer.render());
+        this.setupSlider('uiScaleMaxSlider', 'uiScaleMax', 'uiScaleMaxValue', '×', () => this.renderer.render());
+        this.setupColorInput('audioToggleColor', 'audioToggleColor', () => this.renderer.render());
+        this.setupSlider('audioToggleOpacitySlider', 'audioToggleOpacity', 'audioToggleOpacityValue', '%', () => this.renderer.render());
+        this.setupSlider('audioToggleSizeSlider', 'audioToggleSize', 'audioToggleSizeValue', 'pt', () => this.renderer.render());
+        this.setupDropdown('keyFontFamily', 'keyFontFamily', () => this.renderer.render());
+        this.setupDropdown('keyFontWeight', 'keyFontWeight', () => this.renderer.render());
+        this.setupSlider('keyLabelFontSizeSlider', 'keyLabelFontSize', 'keyLabelFontSizeValue', 'px', () => this.renderer.render());
+        this.setupColorInput('keyLabelColor', 'keyLabelColor', () => this.renderer.render());
+        this.setupSlider('keyLabelOpacitySlider', 'keyLabelOpacity', 'keyLabelOpacityValue', '%', () => this.renderer.render());
+        this.setupSlider('keyPickerSizeSlider', 'keyPickerSize', 'keyPickerSizeValue', '', () => this.renderer.render());
+        this.setupSlider('keyPickerSpreadSlider', 'keyPickerSpread', 'keyPickerSpreadValue', '', () => this.renderer.render());
+        this.setupSlider('keyPickerFontSizeSlider', 'keyPickerFontSize', 'keyPickerFontSizeValue', 'px', () => this.renderer.render());
+        this.setupColorInput('keyPickerCircleColor', 'keyPickerCircleColor', () => this.renderer.render());
+        this.setupSlider('keyPickerCircleOpacitySlider', 'keyPickerCircleOpacity', 'keyPickerCircleOpacityValue', '%', () => this.renderer.render());
+        this.setupColorInput('keyPickerLabelColor', 'keyPickerLabelColor', () => this.renderer.render());
+        this.setupSlider('keyPickerLabelOpacitySlider', 'keyPickerLabelOpacity', 'keyPickerLabelOpacityValue', '%', () => this.renderer.render());
+        this.setupColorInput('keyPickerActiveCircleColor', 'keyPickerActiveCircleColor', () => this.renderer.render());
+        this.setupSlider('keyPickerActiveCircleOpacitySlider', 'keyPickerActiveCircleOpacity', 'keyPickerActiveCircleOpacityValue', '%', () => this.renderer.render());
+        this.setupColorInput('keyPickerActiveLabelColor', 'keyPickerActiveLabelColor', () => this.renderer.render());
+        this.setupSlider('keyPickerActiveLabelOpacitySlider', 'keyPickerActiveLabelOpacity', 'keyPickerActiveLabelOpacityValue', '%', () => this.renderer.render());
+
+        // Section toggling
+        this.elements.sectionHeaders.forEach(header => {
+            header.addEventListener('click', () => {
+                header.parentElement.classList.toggle('open');
+            });
+        });
         this.setupSlider('gripThicknessSlider', 'gripThickness', 'gripThicknessValue', 'px', () => this.renderer.render());
         this.setupSlider('ticksPerEdgeSlider', 'ticksPerEdge', 'ticksPerEdgeValue', '', () => this.renderer.render());
         this.setupSlider('gripOpacitySlider', 'gripOpacity', 'gripOpacityValue', '%', () => this.renderer.render());
@@ -1686,6 +2130,11 @@ class ControlsManager {
         // Grip Ring Appearance controls
         this.setupColorInput('gripRingColor', 'gripRingColor', () => this.renderer.render());
         this.setupDropdown('gripRingBlendSelect', 'gripRingBlend', () => this.renderer.render());
+        this.elements.gripRingNoiseEnabledToggle.addEventListener('change', (e) => {
+            this.state.set('gripRingNoiseEnabled', e.target.checked);
+            this.elements.noiseSubgroup.classList.toggle('disabled', !e.target.checked);
+            this.renderer.render();
+        });
         this.setupSlider('gripRingNoiseFrequencySlider', 'gripRingNoiseFrequency', 'gripRingNoiseFrequencyValue', '', () => this.renderer.render());
         this.setupSlider('gripRingNoiseOctavesSlider', 'gripRingNoiseOctaves', 'gripRingNoiseOctavesValue', '', () => this.renderer.render());
         this.setupDropdown('gripRingNoiseTypeSelect', 'gripRingNoiseType', () => this.renderer.render());
@@ -1696,19 +2145,13 @@ class ControlsManager {
         // Note Marker controls
         this.setupSlider('noteMarkerSizeSlider', 'noteMarkerSize', 'noteMarkerSizeValue', 'px', () => this.renderer.render());
         this.setupColorInput('noteMarkerColor', 'noteMarkerColor', () => this.renderer.render());
-        this.setupSlider('noteMarkerPositionSlider', 'noteMarkerPosition', 'noteMarkerPositionValue', '%', () => this.renderer.render());
+        this.setupSlider('noteMarkerPositionSlider', 'noteMarkerPosition', 'noteMarkerPositionValue', 'pt', () => this.renderer.render());
 
         // Save slot controls
-        this.elements.saveSlot1Btn.addEventListener('click', () => this.saveToSlot(1));
-        this.elements.loadSlot1Btn.addEventListener('click', () => this.loadFromSlot(1));
-        this.elements.exportSlot1Btn.addEventListener('click', () => this.exportSlot(1));
-        this.elements.saveSlot2Btn.addEventListener('click', () => this.saveToSlot(2));
-        this.elements.loadSlot2Btn.addEventListener('click', () => this.loadFromSlot(2));
-        this.elements.exportSlot2Btn.addEventListener('click', () => this.exportSlot(2));
-        this.elements.saveSlot3Btn.addEventListener('click', () => this.saveToSlot(3));
-        this.elements.loadSlot3Btn.addEventListener('click', () => this.loadFromSlot(3));
-        this.elements.exportSlot3Btn.addEventListener('click', () => this.exportSlot(3));
-        this.elements.importFileInput.addEventListener('change', (e) => this.importSlot(e));
+        this.elements.savePresetBtn.addEventListener('click', () => this.savePreset());
+        this.elements.presetNameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') this.savePreset(); });
+        this.elements.importFileInput.addEventListener('change', (e) => this.importPreset(e));
+        this.renderPresetList();
         this.elements.resetSettingsBtn.addEventListener('click', () => this.resetSettings());
 
         // Subscribe to rotation changes from interaction
@@ -1728,10 +2171,14 @@ class ControlsManager {
         const slider = this.elements[sliderKey];
         const valueDisplay = this.elements[valueKey];
 
+        // Infer decimal places from the slider's step attribute
+        const step = slider.getAttribute('step') || '1';
+        const decimals = step.includes('.') ? step.split('.')[1].length : 0;
+
         slider.addEventListener('input', (e) => {
             const value = parseFloat(e.target.value);
             this.state.set(stateKey, value);
-            const displayValue = value % 1 !== 0 ? value.toFixed(1) : value;
+            const displayValue = decimals > 0 ? value.toFixed(decimals) : value;
             valueDisplay.textContent = displayValue + suffix;
             if (callback) callback(value);
         });
@@ -1797,12 +2244,14 @@ class ControlsManager {
         this.elements.modalBackdrop.classList.add('active');
         this.elements.toggleBtn.classList.add('active');
         this.elements.toggleBtn.setAttribute('aria-label', 'Close controls');
+        this.elements.modalBackdrop.addEventListener('transitionend', () => window.dispatchEvent(new Event('resize')), { once: true });
     }
 
     closeModal() {
         this.elements.modalBackdrop.classList.remove('active');
         this.elements.toggleBtn.classList.remove('active');
         this.elements.toggleBtn.setAttribute('aria-label', 'Open controls');
+        this.elements.modalBackdrop.addEventListener('transitionend', () => window.dispatchEvent(new Event('resize')), { once: true });
     }
 
     syncUIWithState() {
@@ -1832,6 +2281,15 @@ class ControlsManager {
             }
         });
 
+        // Sync anchor buttons
+        this.elements.anchorBtns.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.anchor === state.anchor);
+        });
+
+        // Sync noise toggle
+        this.elements.gripRingNoiseEnabledToggle.checked = state.gripRingNoiseEnabled;
+        this.elements.noiseSubgroup.classList.toggle('disabled', !state.gripRingNoiseEnabled);
+
         // Sync theme buttons
         this.updateThemeButtons(state.theme);
     }
@@ -1859,139 +2317,134 @@ class ControlsManager {
         }
     }
 
-    saveToSlot(slotNumber) {
-        const state = this.state.getAll();
+    getPresets() {
         try {
-            localStorage.setItem(`radialPianoSlot${slotNumber}`, JSON.stringify(state));
-            console.log(`✅ Settings saved to Slot ${slotNumber}!`);
-
-            // Visual feedback
-            const btn = this.elements[`saveSlot${slotNumber}Btn`];
-            const originalText = btn.textContent;
-            btn.textContent = '✓ Saved!';
-            btn.style.background = '#28a745';
-            setTimeout(() => {
-                btn.textContent = originalText;
-                btn.style.background = '#007acc';
-            }, 1500);
-        } catch (error) {
-            console.error('Failed to save settings:', error);
-            alert('Failed to save settings. Please check browser storage permissions.');
-        }
+            return JSON.parse(localStorage.getItem('radialPianoPresets') || '[]');
+        } catch { return []; }
     }
 
-    loadFromSlot(slotNumber) {
-        try {
-            const savedSettings = localStorage.getItem(`radialPianoSlot${slotNumber}`);
-            if (savedSettings) {
-                const settings = JSON.parse(savedSettings);
-                Object.keys(settings).forEach(key => {
-                    if (INITIAL_STATE.hasOwnProperty(key)) {
-                        this.state.set(key, settings[key]);
-                    }
-                });
-                this.syncUIWithState();
-                this.renderer.render();
-                console.log(`✅ Loaded settings from Slot ${slotNumber}`);
+    savePresets(presets) {
+        localStorage.setItem('radialPianoPresets', JSON.stringify(presets));
+    }
 
-                // Visual feedback
-                const btn = this.elements[`loadSlot${slotNumber}Btn`];
-                const originalText = btn.textContent;
-                btn.textContent = '✓ Loaded!';
-                btn.style.background = '#28a745';
-                setTimeout(() => {
-                    btn.textContent = originalText;
-                    btn.style.background = '#5a5a5a';
-                }, 1500);
-            } else {
-                alert(`Slot ${slotNumber} is empty!`);
+    savePreset() {
+        const name = this.elements.presetNameInput.value.trim();
+        if (!name) return;
+        const presets = this.getPresets();
+        const { rotation: _r, ...stateWithoutRotation } = this.state.getAll();
+        const existingIndex = presets.findIndex(p => p.name === name);
+        if (existingIndex !== -1) {
+            if (!confirm(`A preset named "${name}" already exists. Overwrite it?`)) return;
+            presets[existingIndex] = { name, state: stateWithoutRotation, date: Date.now() };
+        } else {
+            presets.push({ name, state: stateWithoutRotation, date: Date.now() });
+        }
+        this.savePresets(presets);
+        this.elements.presetNameInput.value = '';
+        this.renderPresetList();
+    }
+
+    updatePreset(index) {
+        const presets = this.getPresets();
+        if (!presets[index]) return;
+        if (!confirm(`Update "${presets[index].name}" with current settings?`)) return;
+        const { rotation: _r, ...stateWithoutRotation } = this.state.getAll();
+        presets[index].state = stateWithoutRotation;
+        presets[index].date = Date.now();
+        this.savePresets(presets);
+        this.renderPresetList();
+    }
+
+    loadPreset(index) {
+        const presets = this.getPresets();
+        const preset = presets[index];
+        if (!preset) return;
+        // Reset all state to defaults first, then apply preset values
+        // This ensures new properties get defaults when loading old presets
+        Object.keys(INITIAL_STATE).forEach(key => {
+            this.state.set(key, INITIAL_STATE[key]);
+        });
+        Object.keys(preset.state).forEach(key => {
+            if (key !== 'rotation' && INITIAL_STATE.hasOwnProperty(key)) {
+                this.state.set(key, preset.state[key]);
             }
-        } catch (error) {
-            console.error('Failed to load settings:', error);
-            alert('Failed to load settings. The save data might be corrupted.');
+        });
+        // Always compute rotation from anchor + sliceCount — never restore from preset
+        this.state.set('rotation', computeDefaultRotation(
+            this.state.get('anchor'),
+            this.state.get('sliceCount')
+        ));
+        this.syncUIWithState();
+        this.renderer.render();
+    }
+
+    deletePreset(index) {
+        const presets = this.getPresets();
+        presets.splice(index, 1);
+        this.savePresets(presets);
+        this.renderPresetList();
+    }
+
+    async exportPreset(index, btn) {
+        const presets = this.getPresets();
+        const preset = presets[index];
+        if (!preset) return;
+        const { rotation: _r, ...stateWithoutRotation } = preset.state;
+        await navigator.clipboard.writeText(JSON.stringify(stateWithoutRotation));
+        if (btn) {
+            const orig = btn.innerHTML;
+            btn.innerHTML = '✓';
+            setTimeout(() => { btn.innerHTML = orig; }, 1200);
         }
     }
 
-    exportSlot(slotNumber) {
-        try {
-            const savedSettings = localStorage.getItem(`radialPianoSlot${slotNumber}`);
-            if (savedSettings) {
-                // Create a blob with the JSON data
-                const blob = new Blob([savedSettings], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
+    renderPresetList() {
+        const presets = this.getPresets();
+        this.elements.presetList.innerHTML = presets.map((p, i) => `
+            <div class="preset-item">
+                <span class="preset-item-name" data-load="${i}">${p.name}</span>
+                <button class="preset-item-update" data-update="${i}" title="Update with current settings">&#8635;</button>
+                <button class="preset-item-export" data-export="${i}" title="Copy to clipboard">&#128203;</button>
+                <button class="preset-item-delete" data-delete="${i}" title="Delete">&#10005;</button>
+            </div>
+        `).join('');
 
-                // Create a temporary download link
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `radial-piano-preset-slot${slotNumber}.json`;
-                document.body.appendChild(a);
-                a.click();
-
-                // Cleanup
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-
-                console.log(`✅ Exported Slot ${slotNumber} settings`);
-
-                // Visual feedback
-                const btn = this.elements[`exportSlot${slotNumber}Btn`];
-                const originalText = btn.textContent;
-                btn.textContent = '✓ Exported!';
-                btn.style.background = '#218838';
-                setTimeout(() => {
-                    btn.textContent = originalText;
-                    btn.style.background = '#28a745';
-                }, 1500);
-            } else {
-                alert(`Slot ${slotNumber} is empty! Save settings to this slot first.`);
-            }
-        } catch (error) {
-            console.error('Failed to export settings:', error);
-            alert('Failed to export settings.');
-        }
+        this.elements.presetList.querySelectorAll('[data-load]').forEach(el => {
+            el.addEventListener('click', () => this.loadPreset(parseInt(el.dataset.load)));
+        });
+        this.elements.presetList.querySelectorAll('[data-update]').forEach(el => {
+            el.addEventListener('click', () => this.updatePreset(parseInt(el.dataset.update)));
+        });
+        this.elements.presetList.querySelectorAll('[data-export]').forEach(el => {
+            el.addEventListener('click', () => this.exportPreset(parseInt(el.dataset.export), el));
+        });
+        this.elements.presetList.querySelectorAll('[data-delete]').forEach(el => {
+            el.addEventListener('click', () => this.deletePreset(parseInt(el.dataset.delete)));
+        });
     }
 
-    importSlot(event) {
+    importPreset(event) {
         const file = event.target.files[0];
         if (!file) return;
-
-        const slotNumber = parseInt(this.elements.importSlotSelect.value);
         const reader = new FileReader();
-
         reader.onload = (e) => {
             try {
-                const jsonContent = e.target.result;
-                // Validate JSON
-                const settings = JSON.parse(jsonContent);
-
-                // Validate that it contains expected properties
-                if (typeof settings !== 'object' || settings === null) {
-                    throw new Error('Invalid preset file format');
+                const settings = JSON.parse(e.target.result);
+                if (typeof settings !== 'object' || settings === null) throw new Error('Invalid');
+                const name = file.name.replace('.json', '');
+                const presets = this.getPresets();
+                presets.push({ name, state: settings, date: Date.now() });
+                this.savePresets(presets);
+                this.renderPresetList();
+                if (confirm(`Preset "${name}" imported. Load it now?`)) {
+                    this.loadPreset(presets.length - 1);
                 }
-
-                // Save to localStorage
-                localStorage.setItem(`radialPianoSlot${slotNumber}`, jsonContent);
-                console.log(`✅ Imported preset to Slot ${slotNumber}`);
-
-                // Ask if user wants to load it immediately
-                if (confirm(`Preset imported to Slot ${slotNumber}. Load it now?`)) {
-                    this.loadFromSlot(slotNumber);
-                }
-
-                // Reset file input
                 event.target.value = '';
-            } catch (error) {
-                console.error('Failed to import settings:', error);
-                alert('Failed to import preset. The file might be corrupted or invalid.');
+            } catch {
+                alert('Failed to import preset.');
                 event.target.value = '';
             }
         };
-
-        reader.onerror = () => {
-            alert('Failed to read file.');
-            event.target.value = '';
-        };
-
         reader.readAsText(file);
     }
 
@@ -2115,36 +2568,121 @@ class Application {
         // Setup audio start button
         this.setupAudioButton();
 
-        // Handle startup animation
-        await this.handleStartupAnimation();
+        // Remove startup overlay immediately (skeleton is the new idle state)
+        const overlay = document.getElementById('startupOverlay');
+        if (overlay) {
+            overlay.classList.add('fade-out');
+            setTimeout(() => overlay.remove(), 300);
+        }
     }
 
     setupAudioButton() {
-        const audioBtn = document.getElementById('audioStartBtn');
-        if (!audioBtn) return;
+        this.audioEnabled = false;
+        this.audioInitialized = false;
+        this.keyPickerOpen = false;
+        this._holdTimer = null;
+        this._holdTriggered = false;
 
-        audioBtn.addEventListener('click', async () => {
-            // Prevent multiple clicks
-            if (audioBtn.classList.contains('active')) return;
+        const HOLD_DURATION = 1000;
 
-            audioBtn.textContent = '...';
-            audioBtn.style.cursor = 'wait';
+        const getToggle = (e) => {
+            const target = e.target || (e.touches && e.touches[0] && document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY));
+            return target && target.closest('.audio-toggle');
+        };
 
-            try {
-                await this.audioEngine.init();
-                audioBtn.textContent = '🔊';
-                audioBtn.classList.add('active');
-                audioBtn.style.cursor = 'default';
-            } catch (err) {
-                console.error('Audio initialization failed:', err);
-                audioBtn.textContent = '❌';
-                audioBtn.style.cursor = 'pointer';
-                // Allow retry
-                setTimeout(() => {
-                    audioBtn.textContent = '🔇';
-                }, 2000);
+        // touchstart: start hold timer (passive — don't preventDefault so click fires on iOS)
+        this.svgElement.addEventListener('touchstart', (e) => {
+            if (!getToggle(e)) return;
+            this._holdTriggered = false;
+            if (this.audioEnabled) {
+                this._holdTimer = setTimeout(() => {
+                    this._holdTriggered = true;
+                    this.turnOffAudio();
+                }, HOLD_DURATION);
+            }
+        }, { passive: true });
+
+        // touchend: clear hold timer (passive)
+        this.svgElement.addEventListener('touchend', (e) => {
+            if (!getToggle(e)) return;
+            clearTimeout(this._holdTimer);
+        }, { passive: true });
+
+        // mousedown: hold timer for desktop
+        this.svgElement.addEventListener('mousedown', (e) => {
+            if (!getToggle(e)) return;
+            this._holdTriggered = false;
+            if (this.audioEnabled) {
+                this._holdTimer = setTimeout(() => {
+                    this._holdTriggered = true;
+                    this.turnOffAudio();
+                }, HOLD_DURATION);
             }
         });
+
+        // mouseup: clear hold timer for desktop
+        this.svgElement.addEventListener('mouseup', (e) => {
+            if (!getToggle(e)) return;
+            clearTimeout(this._holdTimer);
+        });
+
+        // click: handle the tap action — fires on both desktop mouse and iOS touch
+        // Safari recognises 'click' as a user gesture through async/await chains
+        this.svgElement.addEventListener('click', async (e) => {
+            if (!getToggle(e)) return;
+            if (this._holdTriggered) return;
+
+            const target = e.target;
+
+            // Tapping a dial note: select key, keep picker open
+            if (target && target.closest('.key-picker-note')) {
+                const noteIndex = parseInt(target.closest('.key-picker-note').dataset.note);
+                if (!isNaN(noteIndex)) {
+                    this.stateManager.set('rootNote', noteIndex);
+                    this.renderEngine.render();
+                }
+                return;
+            }
+
+            if (!this.audioInitialized) {
+                try {
+                    await this.audioEngine.init();
+                    this.audioInitialized = true;
+                    this.audioEnabled = true;
+                    this.audioEngine.enabled = true;
+                    this.renderEngine.setAudioToggleActive(true);
+                } catch (err) {
+                    console.error('Audio init failed:', err);
+                }
+            } else if (!this.audioEnabled) {
+                this.audioEngine.enabled = true;
+                this.audioEnabled = true;
+                this.renderEngine.setAudioToggleActive(true);
+            } else {
+                this.keyPickerOpen = !this.keyPickerOpen;
+                this.renderEngine.setKeyPickerOpen(this.keyPickerOpen);
+            }
+        });
+
+        // Close picker when clicking outside
+        document.addEventListener('mousedown', (e) => {
+            if (this.keyPickerOpen
+                && !e.target.closest('.audio-toggle')
+                && !e.target.closest('.side-panel')) {
+                this.keyPickerOpen = false;
+                this.renderEngine.setKeyPickerOpen(false);
+            }
+        });
+    }
+
+    turnOffAudio() {
+        this.audioEngine.stopAllNotes();
+        this.renderEngine.clearAllLockedSlices();
+        this.audioEngine.enabled = false;
+        this.audioEnabled = false;
+        this.keyPickerOpen = false;
+        this.renderEngine.setAudioToggleActive(false);
+        this.renderEngine.setKeyPickerOpen(false);
     }
 
     async handleStartupAnimation() {
