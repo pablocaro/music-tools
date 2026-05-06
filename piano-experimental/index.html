@@ -29,6 +29,60 @@
                 </div>
             </div>
 
+            <!-- STYLE -->
+            <section class="panel-section open">
+                <button class="section-header" type="button"><span>Style</span><span class="chevron">▾</span></button>
+                <div class="section-body">
+                    <div class="color-row">
+                        <div class="color-swatch-group">
+                            <input type="color" id="defaultGradientEndColor" value="#fffafa">
+                            <label for="defaultGradientEndColor">Key</label>
+                        </div>
+                        <div class="color-swatch-group">
+                            <input type="color" id="pressedGradientEndColor" value="#4d4d4d">
+                            <label for="pressedGradientEndColor">Pressed</label>
+                        </div>
+                        <div class="color-swatch-group">
+                            <input type="color" id="audioToggleColor" value="#ffffff">
+                            <label for="audioToggleColor">Hub</label>
+                        </div>
+                        <div class="color-swatch-group">
+                            <input type="color" id="keyLabelColor" value="#000000">
+                            <label for="keyLabelColor">Text</label>
+                        </div>
+                        <div class="color-swatch-group">
+                            <input type="color" id="noteMarkerColor" value="#61979e">
+                            <label for="noteMarkerColor">Marker</label>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label for="keyFontFamily">Typeface</label>
+                        <select id="keyFontFamily">
+                            <option value="system-ui, -apple-system, sans-serif" selected>System</option>
+                            <option value="'Helvetica Neue', Helvetica, Arial, sans-serif">Helvetica</option>
+                            <option value="'SF Pro Display', -apple-system, sans-serif">SF Pro</option>
+                            <option value="Georgia, 'Times New Roman', serif">Georgia</option>
+                            <option value="'Gill Sans', 'Gill Sans MT', sans-serif">Gill Sans</option>
+                            <option value="'Futura', 'Century Gothic', sans-serif">Futura</option>
+                            <option value="'Courier New', Courier, monospace">Courier</option>
+                            <option value="'American Typewriter', 'Courier New', serif">Typewriter</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label for="keyFontWeight">Weight</label>
+                        <select id="keyFontWeight">
+                            <option value="300">Light</option>
+                            <option value="400">Regular</option>
+                            <option value="500">Medium</option>
+                            <option value="600">Semi Bold</option>
+                            <option value="700" selected>Bold</option>
+                            <option value="800">Extra Bold</option>
+                            <option value="900">Black</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
+
             <!-- LAYOUT & GEOMETRY -->
             <section class="panel-section open">
                 <button class="section-header" type="button"><span>Layout & Geometry</span><span class="chevron">▾</span></button>
@@ -37,17 +91,17 @@
                         <label for="sliceCount">Number of Slices</label>
                         <div class="number-input">
                             <button class="stepper-btn" id="sliceDecBtn" aria-label="Decrease slices">−</button>
-                            <input type="number" id="sliceCount" value="27" min="6" max="72" aria-label="Number of slices">
+                            <input type="number" id="sliceCount" value="32" min="6" max="72" aria-label="Number of slices">
                             <button class="stepper-btn" id="sliceIncBtn" aria-label="Increase slices">+</button>
                         </div>
                     </div>
                     <div class="control-group">
-                        <label for="radiusSlider">Radius <span class="range-value" id="radiusValue">104</span>%</label>
-                        <input type="range" id="radiusSlider" min="20" max="200" value="104">
+                        <label for="radiusSlider">Radius <span class="range-value" id="radiusValue">155</span>%</label>
+                        <input type="range" id="radiusSlider" min="20" max="200" value="155">
                     </div>
                     <div class="control-group">
-                        <label for="rotationSlider">Rotation <span class="range-value" id="rotationValue">33</span>°</label>
-                        <input type="range" id="rotationSlider" min="0" max="359" value="33">
+                        <label for="rotationSlider">Rotation <span class="range-value" id="rotationValue">259</span>°</label>
+                        <input type="range" id="rotationSlider" min="0" max="359" value="259">
                     </div>
                     <div class="control-group">
                         <label>Anchor Position</label>
@@ -64,12 +118,12 @@
                         </div>
                     </div>
                     <div class="control-group">
-                        <label for="gapSizeSlider">Gap Between Slices <span class="range-value" id="gapSizeValue">0</span>px</label>
-                        <input type="range" id="gapSizeSlider" min="0" max="40" step="1" value="0">
+                        <label for="gapSizeSlider">Gap Between Slices <span class="range-value" id="gapSizeValue">2</span>px</label>
+                        <input type="range" id="gapSizeSlider" min="0" max="40" step="1" value="2">
                     </div>
                     <div class="control-group">
-                        <label for="bgGraySlider">Background Gray <span class="range-value" id="bgGrayValue">25</span>%</label>
-                        <input type="range" id="bgGraySlider" min="0" max="100" value="25">
+                        <label for="bgGraySlider">Background Gray <span class="range-value" id="bgGrayValue">20</span>%</label>
+                        <input type="range" id="bgGraySlider" min="0" max="100" value="20">
                     </div>
                 </div>
             </section>
@@ -79,12 +133,20 @@
                 <button class="section-header" type="button"><span>Inner Circle</span><span class="chevron">▾</span></button>
                 <div class="section-body">
                     <div class="control-group">
-                        <label for="innerCircleSizeSlider">Inner Circle Size <span class="range-value" id="innerCircleSizeValue">31</span>%</label>
-                        <input type="range" id="innerCircleSizeSlider" min="5" max="50" step="1" value="31">
+                        <label for="innerCircleSizeSlider">Inner Circle Size <span class="range-value" id="innerCircleSizeValue">170</span>pt</label>
+                        <input type="range" id="innerCircleSizeSlider" min="20" max="500" step="5" value="170">
                     </div>
                     <div class="control-group">
-                        <label for="grabberWidthSlider">Grabber Width <span class="range-value" id="grabberWidthValue">100</span>%</label>
-                        <input type="range" id="grabberWidthSlider" min="10" max="100" step="1" value="100">
+                        <label for="grabberWidthSlider">Grabber Width <span class="range-value" id="grabberWidthValue">500</span>pt</label>
+                        <input type="range" id="grabberWidthSlider" min="0" max="500" step="5" value="500">
+                    </div>
+                    <div class="control-group">
+                        <label for="uiScaleSlider">UI Scale <span class="range-value" id="uiScaleValue">1.0</span>×</label>
+                        <input type="range" id="uiScaleSlider" min="0.5" max="2.0" step="0.05" value="1.0">
+                    </div>
+                    <div class="control-group">
+                        <label for="uiScaleMaxSlider">Max Scale <span class="range-value" id="uiScaleMaxValue">1.5</span>×</label>
+                        <input type="range" id="uiScaleMaxSlider" min="0.5" max="3.0" step="0.05" value="1.5">
                     </div>
                 </div>
             </section>
@@ -94,36 +156,70 @@
                 <button class="section-header" type="button"><span>Key & Audio</span><span class="chevron">▾</span></button>
                 <div class="section-body">
                     <div class="control-group">
-                        <label for="audioToggleColor">Button Color</label>
-                        <input type="color" id="audioToggleColor" value="#ffffff">
-                    </div>
-                    <div class="control-group">
                         <label for="audioToggleOpacitySlider">Button Opacity <span class="range-value" id="audioToggleOpacityValue">15</span>%</label>
                         <input type="range" id="audioToggleOpacitySlider" min="0" max="100" step="5" value="15">
                     </div>
                     <div class="control-group">
-                        <label for="audioToggleSizeSlider">Button Size <span class="range-value" id="audioToggleSizeValue">18</span>%</label>
-                        <input type="range" id="audioToggleSizeSlider" min="5" max="50" step="1" value="18">
+                        <label for="audioToggleSizeSlider">Button Size <span class="range-value" id="audioToggleSizeValue">100</span>pt</label>
+                        <input type="range" id="audioToggleSizeSlider" min="10" max="300" step="5" value="100">
                     </div>
                     <div class="control-group">
-                        <label for="keyLabelFontSizeSlider">Key Label Size <span class="range-value" id="keyLabelFontSizeValue">24</span>px</label>
-                        <input type="range" id="keyLabelFontSizeSlider" min="8" max="48" step="1" value="24">
-                    </div>
-                    <div class="control-group">
-                        <label for="keyLabelColor">Key Label Color</label>
-                        <input type="color" id="keyLabelColor" value="#ffffff">
+                        <label for="keyLabelFontSizeSlider">Key Label Size <span class="range-value" id="keyLabelFontSizeValue">40</span>px</label>
+                        <input type="range" id="keyLabelFontSizeSlider" min="8" max="60" step="1" value="40">
                     </div>
                     <div class="control-group">
                         <label for="keyLabelOpacitySlider">Key Label Opacity <span class="range-value" id="keyLabelOpacityValue">100</span>%</label>
                         <input type="range" id="keyLabelOpacitySlider" min="0" max="100" step="5" value="100">
                     </div>
                     <div class="control-group">
-                        <label for="keyPickerSizeSlider">Picker Circle Size <span class="range-value" id="keyPickerSizeValue">35</span>%</label>
-                        <input type="range" id="keyPickerSizeSlider" min="10" max="100" step="5" value="35">
+                        <label for="keyPickerSizeSlider">Picker Circle Radius <span class="range-value" id="keyPickerSizeValue">14</span>pt</label>
+                        <input type="range" id="keyPickerSizeSlider" min="4" max="60" step="2" value="14">
                     </div>
                     <div class="control-group">
-                        <label for="keyPickerSpreadSlider">Picker Spread <span class="range-value" id="keyPickerSpreadValue">320</span>%</label>
-                        <input type="range" id="keyPickerSpreadSlider" min="120" max="400" step="10" value="320">
+                        <label for="keyPickerSpreadSlider">Picker Spread <span class="range-value" id="keyPickerSpreadValue">145</span>pt</label>
+                        <input type="range" id="keyPickerSpreadSlider" min="20" max="250" step="5" value="145">
+                    </div>
+                    <div class="control-group">
+                        <label for="keyPickerFontSizeSlider">Picker Font Size <span class="range-value" id="keyPickerFontSizeValue">17</span>px</label>
+                        <input type="range" id="keyPickerFontSizeSlider" min="6" max="36" step="1" value="17">
+                    </div>
+                    <div class="noise-subgroup" style="margin-top:8px">
+                        <div style="font-size:11px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Inactive</div>
+                        <div class="control-group">
+                            <label for="keyPickerCircleColor">Circle Color</label>
+                            <input type="color" id="keyPickerCircleColor" value="#404040">
+                        </div>
+                        <div class="control-group">
+                            <label for="keyPickerCircleOpacitySlider">Circle Opacity <span class="range-value" id="keyPickerCircleOpacityValue">100</span>%</label>
+                            <input type="range" id="keyPickerCircleOpacitySlider" min="0" max="100" step="5" value="100">
+                        </div>
+                        <div class="control-group">
+                            <label for="keyPickerLabelColor">Label Color</label>
+                            <input type="color" id="keyPickerLabelColor" value="#ffffff">
+                        </div>
+                        <div class="control-group">
+                            <label for="keyPickerLabelOpacitySlider">Label Opacity <span class="range-value" id="keyPickerLabelOpacityValue">100</span>%</label>
+                            <input type="range" id="keyPickerLabelOpacitySlider" min="0" max="100" step="5" value="100">
+                        </div>
+                    </div>
+                    <div class="noise-subgroup" style="margin-top:8px">
+                        <div style="font-size:11px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Active / Selected</div>
+                        <div class="control-group">
+                            <label for="keyPickerActiveCircleColor">Circle Color</label>
+                            <input type="color" id="keyPickerActiveCircleColor" value="#ffffff">
+                        </div>
+                        <div class="control-group">
+                            <label for="keyPickerActiveCircleOpacitySlider">Circle Opacity <span class="range-value" id="keyPickerActiveCircleOpacityValue">100</span>%</label>
+                            <input type="range" id="keyPickerActiveCircleOpacitySlider" min="0" max="100" step="5" value="100">
+                        </div>
+                        <div class="control-group">
+                            <label for="keyPickerActiveLabelColor">Label Color</label>
+                            <input type="color" id="keyPickerActiveLabelColor" value="#000000">
+                        </div>
+                        <div class="control-group">
+                            <label for="keyPickerActiveLabelOpacitySlider">Label Opacity <span class="range-value" id="keyPickerActiveLabelOpacityValue">100</span>%</label>
+                            <input type="range" id="keyPickerActiveLabelOpacitySlider" min="0" max="100" step="5" value="100">
+                        </div>
                     </div>
                 </div>
             </section>
@@ -141,12 +237,8 @@
                         <input type="color" id="defaultGradientStartColor" value="#000000">
                     </div>
                     <div class="control-group">
-                        <label for="defaultGradientEndColor">Gradient End Color</label>
-                        <input type="color" id="defaultGradientEndColor" value="#fffafa">
-                    </div>
-                    <div class="control-group">
-                        <label for="pressShrinkSlider">Press Shrink <span class="range-value" id="pressShrinkValue">2</span>%</label>
-                        <input type="range" id="pressShrinkSlider" min="0" max="20" step="1" value="2">
+                        <label for="pressShrinkSlider">Press Shrink <span class="range-value" id="pressShrinkValue">3</span>%</label>
+                        <input type="range" id="pressShrinkSlider" min="0" max="20" step="1" value="3">
                     </div>
                     <div class="control-group">
                         <label for="pressedGradientAngleSlider">Pressed Gradient Angle <span class="range-value" id="pressedGradientAngleValue">0</span>°</label>
@@ -155,10 +247,6 @@
                     <div class="control-group">
                         <label for="pressedGradientStartColor">Pressed Start Color</label>
                         <input type="color" id="pressedGradientStartColor" value="#000000">
-                    </div>
-                    <div class="control-group">
-                        <label for="pressedGradientEndColor">Pressed End Color</label>
-                        <input type="color" id="pressedGradientEndColor" value="#4d4d4d">
                     </div>
                     <div class="control-group">
                         <label for="pressBrightnessSlider">Press Brightness <span class="range-value" id="pressBrightnessValue">30</span>%</label>
@@ -176,8 +264,8 @@
                         <input type="color" id="gripRingColor" value="#000000">
                     </div>
                     <div class="control-group">
-                        <label for="gripRingOpacitySlider">Ring Opacity <span class="range-value" id="gripRingOpacityValue">20</span>%</label>
-                        <input type="range" id="gripRingOpacitySlider" min="0" max="100" step="5" value="20">
+                        <label for="gripRingOpacitySlider">Ring Opacity <span class="range-value" id="gripRingOpacityValue">0</span>%</label>
+                        <input type="range" id="gripRingOpacitySlider" min="0" max="100" step="5" value="0">
                     </div>
                     <div class="control-group">
                         <label for="gripRingBlendSelect">Ring Blend Mode</label>
@@ -236,20 +324,20 @@
                     </div>
                     </div>
                     <div class="control-group">
-                        <label for="gripThicknessSlider">Tick Thickness <span class="range-value" id="gripThicknessValue">1</span>px</label>
-                        <input type="range" id="gripThicknessSlider" min="0.5" max="4" step="0.5" value="1">
+                        <label for="gripThicknessSlider">Tick Thickness <span class="range-value" id="gripThicknessValue">2</span>px</label>
+                        <input type="range" id="gripThicknessSlider" min="0.5" max="4" step="0.5" value="2">
                     </div>
                     <div class="control-group">
-                        <label for="gripOpacitySlider">Tick Opacity <span class="range-value" id="gripOpacityValue">0</span>%</label>
-                        <input type="range" id="gripOpacitySlider" min="0" max="100" step="5" value="0">
+                        <label for="gripOpacitySlider">Tick Opacity <span class="range-value" id="gripOpacityValue">10</span>%</label>
+                        <input type="range" id="gripOpacitySlider" min="0" max="100" step="5" value="10">
                     </div>
                     <div class="control-group">
-                        <label for="ticksPerEdgeSlider">Ticks Per Slice <span class="range-value" id="ticksPerEdgeValue">3</span></label>
-                        <input type="range" id="ticksPerEdgeSlider" min="0" max="20" step="1" value="3">
+                        <label for="ticksPerEdgeSlider">Ticks Per Slice <span class="range-value" id="ticksPerEdgeValue">4</span></label>
+                        <input type="range" id="ticksPerEdgeSlider" min="0" max="20" step="1" value="4">
                     </div>
                     <div class="control-group">
-                        <label for="gripInsetSlider">Tick Inset <span class="range-value" id="gripInsetValue">20</span>%</label>
-                        <input type="range" id="gripInsetSlider" min="0" max="50" step="5" value="20">
+                        <label for="gripInsetSlider">Tick Inset <span class="range-value" id="gripInsetValue">10</span>%</label>
+                        <input type="range" id="gripInsetSlider" min="0" max="50" step="5" value="10">
                     </div>
                 </div>
             </section>
@@ -263,12 +351,8 @@
                         <input type="range" id="noteMarkerSizeSlider" min="2" max="20" value="6">
                     </div>
                     <div class="control-group">
-                        <label for="noteMarkerColor">Marker Color</label>
-                        <input type="color" id="noteMarkerColor" value="#61979e">
-                    </div>
-                    <div class="control-group">
-                        <label for="noteMarkerPositionSlider">Marker Position <span class="range-value" id="noteMarkerPositionValue">112</span>%</label>
-                        <input type="range" id="noteMarkerPositionSlider" min="100" max="130" value="112">
+                        <label for="noteMarkerPositionSlider">Marker Position <span class="range-value" id="noteMarkerPositionValue">195</span>pt</label>
+                        <input type="range" id="noteMarkerPositionSlider" min="10" max="500" step="5" value="195">
                     </div>
                 </div>
             </section>

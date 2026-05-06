@@ -8,6 +8,7 @@ const RESIZE_DEBOUNCE_MS = 100;
 const INNER_CIRCLE_RADIUS_RATIO = 0.25; // fallback only
 const DRAGGABLE_RING_RATIO = 0.6; // fallback only
 const VIEWPORT_SAFETY_BUFFER = 1.2;
+const REFERENCE_RADIUS = 800; // pt reference for responsive scaling: all pt values are "at avgRadius=800"
 const C_MAJOR_SCALE = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 const NOTE_LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 const CHROMATIC_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -36,63 +37,99 @@ const ANCHOR_POSITIONS = {
     'bottom-right': { x: 100, y: 100 }
 };
 
+// Angle (degrees) at which the visible arc begins for each anchor.
+// computeDefaultRotation() places slice 0's trailing edge here so the
+// root note sits at the natural entry corner of the visible arc.
+const ANCHOR_ENTRY_ANGLES = {
+    'top-left':      0,
+    'top-center':    315,
+    'top-right':     90,
+    'center-left':   270,
+    'center':        270,
+    'center-right':  90,
+    'bottom-left':   0,
+    'bottom-center': 225,
+    'bottom-right':  270,
+};
+
+function computeDefaultRotation(anchor, sliceCount) {
+    const entryAngle = ANCHOR_ENTRY_ANGLES[anchor] ?? 270;
+    const anglePerSlice = 360 / sliceCount;
+    return (entryAngle - anglePerSlice + 360) % 360;
+}
+
 const INITIAL_STATE = {
-    sliceCount: 27,
-    bgGray: 25,
+    sliceCount: 32,
+    bgGray: 20,
     anchor: 'bottom-right',
-    innerCircleSize: 31,
-    grabberWidth: 100,
+    innerCircleSize: 170,
+    grabberWidth: 500,
+    uiScale: 1.0,
+    uiScaleMax: 1.5,
     // Key & Audio
-    audioToggleColor: '#ffffff',
-    audioToggleOpacity: 15,
-    audioToggleSize: 18,
-    rootNote: 4,
+    audioToggleColor: '#919191',
+    audioToggleOpacity: 100,
+    audioToggleSize: 100,
+    rootNote: 0,
     accidentalMode: 'natural',
-    keyLabelFontSize: 24,
+    keyFontFamily: 'system-ui, -apple-system, sans-serif',
+    keyFontWeight: '600',
+    keyLabelFontSize: 40,
     keyLabelColor: '#ffffff',
     keyLabelOpacity: 100,
-    keyPickerSize: 35,
-    keyPickerSpread: 320,
-    radius: 104,
-    rotation: 79.7475426541933,
-    gapSize: 0,
-    gripThickness: 1,
-    gripOpacity: 0,
-    ticksPerEdge: 3,
-    gripRingOpacity: 20,
-    gripInset: 20,
-    pressShrink: 2,
+    keyPickerSize: 14,
+    keyPickerSpread: 145,
+    // Key picker appearance
+    keyPickerFontSize: 17,
+    keyPickerCircleColor: '#929292',
+    keyPickerCircleOpacity: 100,
+    keyPickerLabelColor: '#ffffff',
+    keyPickerLabelOpacity: 100,
+    keyPickerActiveCircleColor: '#ffffff',
+    keyPickerActiveCircleOpacity: 100,
+    keyPickerActiveLabelColor: '#444444',
+    keyPickerActiveLabelOpacity: 100,
+    radius: 155,
+    // rotation is not stored in presets; computed via computeDefaultRotation()
+    rotation: 258.75, // = computeDefaultRotation('bottom-right', 32)
+    gapSize: 2,
+    gripThickness: 2,
+    gripOpacity: 10,
+    ticksPerEdge: 4,
+    gripRingOpacity: 0,
+    gripInset: 10,
+    pressShrink: 3,
     pressBrightness: 30,
     theme: 'dark',
     // Gradient Settings
-    defaultGradientAngle: 51,
+    defaultGradientAngle: 28,
     defaultGradientStartColor: '#000000',
-    defaultGradientEndColor: '#fffafa',
+    defaultGradientEndColor: '#606060',
     pressedGradientAngle: 0,
     pressedGradientStartColor: '#000000',
     pressedGradientEndColor: '#4d4d4d',
     // Grip Ring Appearance
-    gripRingColor: '#000000',
+    gripRingColor: '#ffffff',
     gripRingBlend: 'overlay',
     gripRingNoiseEnabled: false,
-    gripRingNoiseFrequency: 0.2,
-    gripRingNoiseOctaves: 8,
+    gripRingNoiseFrequency: 0,
+    gripRingNoiseOctaves: 3,
     gripRingNoiseType: 'fractalNoise',
     gripRingNoiseColor: '#ffffff',
-    gripRingNoiseIntensity: 100,
+    gripRingNoiseIntensity: 0,
     gripRingNoiseBlend: 'overlay',
     // Note Markers
     noteMarkerSize: 6,
-    noteMarkerColor: '#61979e',
-    noteMarkerPosition: 112,
+    noteMarkerColor: '#7a7a7a',
+    noteMarkerPosition: 195,
     // Experimental: Drone lock timing
     droneLockTime: 3000,
     // Experimental: Gripper animations
     notchGrowthFactor: 1.2,
-    notchActivationSpeed: 200,
+    notchActivationSpeed: 50,
     notchDeactivationSpeed: 300,
     notchBrightnessBoost: 1.5,
-    ringThicknessBoost: 0.98
+    ringThicknessBoost: 1.02
 };
 
 // ============================================
@@ -282,14 +319,11 @@ class GeometryEngine {
         return Math.atan2(dy, dx) * 180 / Math.PI;
     }
 
-    isInDraggableRing(x, y, center, innerRadius) {
-        const grabberWidth = this.state.get('grabberWidth');
-        const ringRatio = (100 - grabberWidth) / 100;
-        const draggableRingStart = innerRadius * ringRatio;
+    isInDraggableRing(x, y, center, innerRadius, gripRingRadius) {
         const dx = x - center.x;
         const dy = y - center.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
-        return distance >= draggableRingStart && distance <= innerRadius;
+        return distance >= gripRingRadius && distance <= innerRadius;
     }
 
     getSliceIndexAtPoint(x, y, center, sliceCount) {
@@ -342,9 +376,10 @@ class AudioEngine {
     getNote(index) {
         const rootNote = this.state.get('rootNote');
         const noteInScale = index % 7;
-        const octave = 3 + Math.floor(index / 7);
-        // Get the chromatic note by applying root transposition to major scale
+        const baseOctave = 3 + Math.floor(index / 7);
+        // Apply root transposition; notes that wrap past 12 are one octave higher
         const chromaticIndex = (rootNote + MAJOR_SCALE_INTERVALS[noteInScale]) % 12;
+        const octave = baseOctave + (chromaticIndex < rootNote ? 1 : 0);
         return CHROMATIC_NOTES[chromaticIndex] + octave;
     }
 
@@ -648,9 +683,7 @@ class RenderEngine {
 
     renderInnerCircle() {
         const center = this.geometry.calculateCenter();
-        const radii = this.geometry.calculateRadii();
-        const avgRadius = (radii.rx + radii.ry) / 2;
-        const innerRadius = avgRadius * (this.state.get('innerCircleSize') / 100);
+        const innerRadius = this.state.get('innerCircleSize') * this.getUIScale();
 
         this.innerCircle = document.createElementNS(SVG_NS, 'circle');
         this.innerCircle.setAttribute('cx', center.x);
@@ -765,7 +798,7 @@ class RenderEngine {
 
     renderGripRing(innerRadius) {
         const center = this.geometry.calculateCenter();
-        const gripRingRadius = innerRadius * ((100 - this.state.get('grabberWidth')) / 100);
+        const gripRingRadius = Math.max(0, innerRadius - this.state.get('grabberWidth') * this.getUIScale());
         const gripRingOpacity = this.state.get('gripRingOpacity');
         const gripRingColor = this.state.get('gripRingColor');
         const noiseIntensity = this.state.get('gripRingNoiseIntensity');
@@ -905,7 +938,7 @@ class RenderEngine {
         for (let i = 0; i < sliceCount; i++) {
             if (i % 7 === 0) {
                 const midAngle = ((i + 0.5) * anglePerSlice) * Math.PI / 180;
-                const markerRadius = innerRadius * (markerPosition / 100);
+                const markerRadius = markerPosition * this.getUIScale();
 
                 const markerX = center.x + markerRadius * Math.cos(midAngle);
                 const markerY = center.y + markerRadius * Math.sin(midAngle);
@@ -967,16 +1000,17 @@ class RenderEngine {
 
     renderAudioToggle() {
         const center = this.geometry.calculateCenter();
-        const radii = this.geometry.calculateRadii();
-        const avgRadius = (radii.rx + radii.ry) / 2;
-        const innerRadius = avgRadius * (this.state.get('innerCircleSize') / 100);
-        const sizePercent = this.state.get('audioToggleSize') / 100;
-        const btnRadius = Math.max(8, innerRadius * sizePercent);
+        const btnRadius = this._getHubBaseRadius();
         const color = this.state.get('audioToggleColor');
         const opacity = this.state.get('audioToggleOpacity') / 100;
+        const bgGray = this.state.get('bgGray');
+        const bgHex = Math.round((bgGray / 100) * 255).toString(16).padStart(2, '0');
+        const bgColor = `#${bgHex}${bgHex}${bgHex}`;
 
         const labelColor = this.state.get('keyLabelColor');
         const labelOpacity = this.state.get('keyLabelOpacity') / 100;
+        const fontFamily = this.state.get('keyFontFamily');
+        const fontWeight = this.state.get('keyFontWeight');
 
         const group = document.createElementNS(SVG_NS, 'g');
         group.setAttribute('class', 'audio-toggle');
@@ -985,11 +1019,10 @@ class RenderEngine {
         const circle = document.createElementNS(SVG_NS, 'circle');
         circle.setAttribute('cx', center.x);
         circle.setAttribute('cy', center.y);
-        circle.setAttribute('r', (this.keyPickerOpen && this.audioActive)
-            ? this._getExpandedHubRadius()
-            : btnRadius);
+        const pickerOpen = this.keyPickerOpen && this.audioActive;
+        circle.setAttribute('r', pickerOpen ? this._getExpandedHubRadius() : btnRadius);
         circle.setAttribute('fill', color);
-        circle.setAttribute('opacity', opacity);
+        circle.setAttribute('opacity', pickerOpen ? 1 : opacity);
         circle.setAttribute('class', this.audioActive ? 'audio-toggle-circle active' : 'audio-toggle-circle');
         group.appendChild(circle);
 
@@ -1004,7 +1037,8 @@ class RenderEngine {
             label.setAttribute('text-anchor', 'middle');
             label.setAttribute('dominant-baseline', 'central');
             label.setAttribute('font-size', fontSize);
-            label.setAttribute('font-weight', 'bold');
+            label.setAttribute('font-weight', fontWeight);
+            label.setAttribute('font-family', fontFamily);
             label.setAttribute('fill', labelColor);
             label.setAttribute('opacity', labelOpacity);
             label.setAttribute('class', 'key-label');
@@ -1016,12 +1050,22 @@ class RenderEngine {
 
         // Key picker (shown when picker is open)
         if (this.keyPickerOpen && this.audioActive) {
-            const pickerSizePercent = this.state.get('keyPickerSize') / 100;
-            const spreadPercent = this.state.get('keyPickerSpread') / 100;
-            const pickerCircleRadius = btnRadius * pickerSizePercent;
-            const spreadDistance = btnRadius * spreadPercent;
+            const scale = this.getUIScale();
+            const pickerCircleRadius = this.state.get('keyPickerSize') * scale;
+            const spreadDistance     = this.state.get('keyPickerSpread') * scale;
             const rootNote = this.state.get('rootNote');
             const accMode = this.state.get('accidentalMode');
+
+            // Picker appearance state
+            const pickerFontSize          = this.state.get('keyPickerFontSize') * scale;
+            const inactiveCircleColor     = this.state.get('keyPickerCircleColor');
+            const inactiveCircleOpacity   = this.state.get('keyPickerCircleOpacity') / 100;
+            const inactiveLabelColor      = this.state.get('keyPickerLabelColor');
+            const inactiveLabelOpacity    = this.state.get('keyPickerLabelOpacity') / 100;
+            const activeCircleColor       = this.state.get('keyPickerActiveCircleColor');
+            const activeCircleOpacity     = this.state.get('keyPickerActiveCircleOpacity') / 100;
+            const activeLabelColor        = this.state.get('keyPickerActiveLabelColor');
+            const activeLabelOpacity      = this.state.get('keyPickerActiveLabelOpacity') / 100;
 
             const { center: fanDeg, arc: arcDeg } = this.getDialFanParams();
             const fanCenter = (fanDeg * Math.PI) / 180;
@@ -1046,13 +1090,15 @@ class RenderEngine {
                 noteGroup.dataset.note = chromaticIndex;
                 noteGroup.style.cursor = 'pointer';
 
+                const isSelected = chromaticIndex === rootNote;
+
                 const noteCircle = document.createElementNS(SVG_NS, 'circle');
                 noteCircle.setAttribute('cx', nx);
                 noteCircle.setAttribute('cy', ny);
                 noteCircle.setAttribute('r', pickerCircleRadius);
-                noteCircle.setAttribute('fill', color);
-                noteCircle.setAttribute('opacity', chromaticIndex === rootNote ? 1 : opacity);
-                noteCircle.setAttribute('class', chromaticIndex === rootNote ? 'picker-circle selected' : 'picker-circle');
+                noteCircle.setAttribute('fill', isSelected ? activeCircleColor : inactiveCircleColor);
+                noteCircle.setAttribute('opacity', isSelected ? activeCircleOpacity : inactiveCircleOpacity);
+                noteCircle.setAttribute('class', isSelected ? 'picker-circle selected' : 'picker-circle');
                 noteGroup.appendChild(noteCircle);
 
                 const noteLabel = document.createElementNS(SVG_NS, 'text');
@@ -1060,10 +1106,11 @@ class RenderEngine {
                 noteLabel.setAttribute('y', ny);
                 noteLabel.setAttribute('text-anchor', 'middle');
                 noteLabel.setAttribute('dominant-baseline', 'central');
-                noteLabel.setAttribute('font-size', pickerCircleRadius * 1.1);
-                noteLabel.setAttribute('font-weight', 'bold');
-                noteLabel.setAttribute('fill', chromaticIndex === rootNote ? '#000' : labelColor || '#fff');
-                noteLabel.setAttribute('opacity', chromaticIndex === rootNote ? 1 : (labelOpacity || 1));
+                noteLabel.setAttribute('font-size', pickerFontSize);
+                noteLabel.setAttribute('font-weight', fontWeight);
+                noteLabel.setAttribute('font-family', fontFamily);
+                noteLabel.setAttribute('fill', isSelected ? activeLabelColor : inactiveLabelColor);
+                noteLabel.setAttribute('opacity', isSelected ? activeLabelOpacity : inactiveLabelOpacity);
                 noteLabel.style.pointerEvents = 'none';
                 noteLabel.style.userSelect = 'none';
                 noteLabel.textContent = letter;
@@ -1122,21 +1169,19 @@ class RenderEngine {
         });
     }
 
-    _getHubBaseRadius() {
+    getUIScale() {
         const radii = this.geometry.calculateRadii();
         const avgRadius = (radii.rx + radii.ry) / 2;
-        const innerRadius = avgRadius * (this.state.get('innerCircleSize') / 100);
-        const sizePercent = this.state.get('audioToggleSize') / 100;
-        return Math.max(8, innerRadius * sizePercent);
+        const raw = (avgRadius / REFERENCE_RADIUS) * this.state.get('uiScale');
+        return Math.min(raw, this.state.get('uiScaleMax'));
+    }
+
+    _getHubBaseRadius() {
+        return Math.max(8, this.state.get('audioToggleSize') * this.getUIScale());
     }
 
     _getExpandedHubRadius() {
-        const btnRadius = this._getHubBaseRadius();
-        const pickerSizePercent = this.state.get('keyPickerSize') / 100;
-        const spreadPercent = this.state.get('keyPickerSpread') / 100;
-        const pickerCircleRadius = btnRadius * pickerSizePercent;
-        const spreadDistance = btnRadius * spreadPercent;
-        return spreadDistance + pickerCircleRadius * 1.5;
+        return this.state.get('innerCircleSize') * this.getUIScale();
     }
 
     setKeyPickerOpen(open) {
@@ -1154,24 +1199,19 @@ class RenderEngine {
         // Snap to fromR synchronously (before browser paints) then animate to toR
         if (open) {
             circle.setAttribute('r', btnR);   // snap small, paint will show this
-            this._animateHubR(circle, btnR, expandR, 380, 'spring');
+            this._animateHubR(circle, btnR, expandR, 280, 'easeOut');
         } else {
-            circle.setAttribute('r', expandR); // snap big, paint will show this
-            this._animateHubR(circle, expandR, btnR, 260, 'easeOut');
+            circle.setAttribute('r', expandR);
+            this._animateHubR(circle, expandR, btnR, 220, 'easeOut');
         }
     }
 
-    _animateHubR(circle, fromR, toR, duration, easingName) {
+    _animateHubR(circle, fromR, toR, duration) {
         if (this._hubRAnimId) cancelAnimationFrame(this._hubRAnimId);
 
         const start = performance.now();
 
-        const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
-        const easeSpring   = t => {
-            if (t === 0 || t === 1) return t;
-            return Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * (2 * Math.PI / 3)) + 1;
-        };
-        const easeFn = easingName === 'spring' ? easeSpring : easeOutCubic;
+        const easeFn = t => 1 - Math.pow(1 - t, 3); // easeOutCubic
 
         const tick = (now) => {
             const t = Math.min((now - start) / duration, 1);
@@ -1372,10 +1412,10 @@ class RenderEngine {
 
     getInnerCircleData() {
         const center = this.geometry.calculateCenter();
-        const radii = this.geometry.calculateRadii();
-        const avgRadius = (radii.rx + radii.ry) / 2;
-        const innerRadius = avgRadius * (this.state.get('innerCircleSize') / 100);
-        return { center, innerRadius };
+        const scale = this.getUIScale();
+        const innerRadius = this.state.get('innerCircleSize') * scale;
+        const gripRingRadius = Math.max(0, innerRadius - this.state.get('grabberWidth') * scale);
+        return { center, innerRadius, gripRingRadius };
     }
 
     completeStartupAnimation() {
@@ -1570,8 +1610,8 @@ class InteractionManager {
             const touch2Coords = this.getSVGCoordinates(e.touches[1].clientX, e.touches[1].clientY);
             const innerCircleData = this.renderer.getInnerCircleData();
 
-            const touch1InGripper = this.geometry.isInDraggableRing(touch1Coords.x, touch1Coords.y, innerCircleData.center, innerCircleData.innerRadius);
-            const touch2InGripper = this.geometry.isInDraggableRing(touch2Coords.x, touch2Coords.y, innerCircleData.center, innerCircleData.innerRadius);
+            const touch1InGripper = this.geometry.isInDraggableRing(touch1Coords.x, touch1Coords.y, innerCircleData.center, innerCircleData.innerRadius, innerCircleData.gripRingRadius);
+            const touch2InGripper = this.geometry.isInDraggableRing(touch2Coords.x, touch2Coords.y, innerCircleData.center, innerCircleData.innerRadius, innerCircleData.gripRingRadius);
 
             if (touch1InGripper && touch2InGripper) {
                 this.startPinch(e.touches[0], e.touches[1]);
@@ -1587,7 +1627,7 @@ class InteractionManager {
 
         const innerCircleData = this.renderer.getInnerCircleData();
         const isInnerCircle = e.target.id === 'innerRotationPlate';
-        const inDraggableRing = this.geometry.isInDraggableRing(x, y, innerCircleData.center, innerCircleData.innerRadius);
+        const inDraggableRing = this.geometry.isInDraggableRing(x, y, innerCircleData.center, innerCircleData.innerRadius, innerCircleData.gripRingRadius);
 
         if (isInnerCircle && inDraggableRing) {
             this.startRotation(x, y, innerCircleData);
@@ -1641,7 +1681,7 @@ class InteractionManager {
             const clientY = e.touches[0].clientY;
             const { x, y } = this.getSVGCoordinates(clientX, clientY);
             const innerCircleData = this.renderer.getInnerCircleData();
-            const inGripperZone = this.geometry.isInDraggableRing(x, y, innerCircleData.center, innerCircleData.innerRadius);
+            const inGripperZone = this.geometry.isInDraggableRing(x, y, innerCircleData.center, innerCircleData.innerRadius, innerCircleData.gripRingRadius);
 
             if (inGripperZone) {
                 // Start rotation from gripper
@@ -1673,7 +1713,7 @@ class InteractionManager {
         const { x, y } = this.getSVGCoordinates(clientX, clientY);
 
         const innerCircleData = this.renderer.getInnerCircleData();
-        const inGripperZone = this.geometry.isInDraggableRing(x, y, innerCircleData.center, innerCircleData.innerRadius);
+        const inGripperZone = this.geometry.isInDraggableRing(x, y, innerCircleData.center, innerCircleData.innerRadius, innerCircleData.gripRingRadius);
 
         // Transition to rotation mode if entering gripper zone
         if (inGripperZone && !this.dragState.wasInGripperZone) {
@@ -1903,11 +1943,17 @@ class ControlsManager {
             innerCircleSizeValue: document.getElementById('innerCircleSizeValue'),
             grabberWidthSlider: document.getElementById('grabberWidthSlider'),
             grabberWidthValue: document.getElementById('grabberWidthValue'),
+            uiScaleSlider: document.getElementById('uiScaleSlider'),
+            uiScaleValue: document.getElementById('uiScaleValue'),
+            uiScaleMaxSlider: document.getElementById('uiScaleMaxSlider'),
+            uiScaleMaxValue: document.getElementById('uiScaleMaxValue'),
             audioToggleColor: document.getElementById('audioToggleColor'),
             audioToggleOpacitySlider: document.getElementById('audioToggleOpacitySlider'),
             audioToggleOpacityValue: document.getElementById('audioToggleOpacityValue'),
             audioToggleSizeSlider: document.getElementById('audioToggleSizeSlider'),
             audioToggleSizeValue: document.getElementById('audioToggleSizeValue'),
+            keyFontFamily: document.getElementById('keyFontFamily'),
+            keyFontWeight: document.getElementById('keyFontWeight'),
             keyLabelFontSizeSlider: document.getElementById('keyLabelFontSizeSlider'),
             keyLabelFontSizeValue: document.getElementById('keyLabelFontSizeValue'),
             keyLabelColor: document.getElementById('keyLabelColor'),
@@ -1917,6 +1963,20 @@ class ControlsManager {
             keyPickerSizeValue: document.getElementById('keyPickerSizeValue'),
             keyPickerSpreadSlider: document.getElementById('keyPickerSpreadSlider'),
             keyPickerSpreadValue: document.getElementById('keyPickerSpreadValue'),
+            keyPickerFontSizeSlider: document.getElementById('keyPickerFontSizeSlider'),
+            keyPickerFontSizeValue: document.getElementById('keyPickerFontSizeValue'),
+            keyPickerCircleColor: document.getElementById('keyPickerCircleColor'),
+            keyPickerCircleOpacitySlider: document.getElementById('keyPickerCircleOpacitySlider'),
+            keyPickerCircleOpacityValue: document.getElementById('keyPickerCircleOpacityValue'),
+            keyPickerLabelColor: document.getElementById('keyPickerLabelColor'),
+            keyPickerLabelOpacitySlider: document.getElementById('keyPickerLabelOpacitySlider'),
+            keyPickerLabelOpacityValue: document.getElementById('keyPickerLabelOpacityValue'),
+            keyPickerActiveCircleColor: document.getElementById('keyPickerActiveCircleColor'),
+            keyPickerActiveCircleOpacitySlider: document.getElementById('keyPickerActiveCircleOpacitySlider'),
+            keyPickerActiveCircleOpacityValue: document.getElementById('keyPickerActiveCircleOpacityValue'),
+            keyPickerActiveLabelColor: document.getElementById('keyPickerActiveLabelColor'),
+            keyPickerActiveLabelOpacitySlider: document.getElementById('keyPickerActiveLabelOpacitySlider'),
+            keyPickerActiveLabelOpacityValue: document.getElementById('keyPickerActiveLabelOpacityValue'),
             sectionHeaders: document.querySelectorAll('.section-header'),
             gripThicknessSlider: document.getElementById('gripThicknessSlider'),
             gripThicknessValue: document.getElementById('gripThicknessValue'),
@@ -2013,16 +2073,29 @@ class ControlsManager {
         this.setupSlider('radiusSlider', 'radius', 'radiusValue', '%', () => this.renderer.render());
         this.setupSlider('rotationSlider', 'rotation', 'rotationValue', '°', () => this.renderer.updateRotation());
         this.setupSlider('gapSizeSlider', 'gapSize', 'gapSizeValue', 'px', () => this.renderer.render());
-        this.setupSlider('innerCircleSizeSlider', 'innerCircleSize', 'innerCircleSizeValue', '%', () => this.renderer.render());
-        this.setupSlider('grabberWidthSlider', 'grabberWidth', 'grabberWidthValue', '%', () => this.renderer.render());
+        this.setupSlider('innerCircleSizeSlider', 'innerCircleSize', 'innerCircleSizeValue', 'pt', () => this.renderer.render());
+        this.setupSlider('grabberWidthSlider', 'grabberWidth', 'grabberWidthValue', 'pt', () => this.renderer.render());
+        this.setupSlider('uiScaleSlider', 'uiScale', 'uiScaleValue', '×', () => this.renderer.render());
+        this.setupSlider('uiScaleMaxSlider', 'uiScaleMax', 'uiScaleMaxValue', '×', () => this.renderer.render());
         this.setupColorInput('audioToggleColor', 'audioToggleColor', () => this.renderer.render());
         this.setupSlider('audioToggleOpacitySlider', 'audioToggleOpacity', 'audioToggleOpacityValue', '%', () => this.renderer.render());
-        this.setupSlider('audioToggleSizeSlider', 'audioToggleSize', 'audioToggleSizeValue', '%', () => this.renderer.render());
+        this.setupSlider('audioToggleSizeSlider', 'audioToggleSize', 'audioToggleSizeValue', 'pt', () => this.renderer.render());
+        this.setupDropdown('keyFontFamily', 'keyFontFamily', () => this.renderer.render());
+        this.setupDropdown('keyFontWeight', 'keyFontWeight', () => this.renderer.render());
         this.setupSlider('keyLabelFontSizeSlider', 'keyLabelFontSize', 'keyLabelFontSizeValue', 'px', () => this.renderer.render());
         this.setupColorInput('keyLabelColor', 'keyLabelColor', () => this.renderer.render());
         this.setupSlider('keyLabelOpacitySlider', 'keyLabelOpacity', 'keyLabelOpacityValue', '%', () => this.renderer.render());
-        this.setupSlider('keyPickerSizeSlider', 'keyPickerSize', 'keyPickerSizeValue', '%', () => this.renderer.render());
-        this.setupSlider('keyPickerSpreadSlider', 'keyPickerSpread', 'keyPickerSpreadValue', '%', () => this.renderer.render());
+        this.setupSlider('keyPickerSizeSlider', 'keyPickerSize', 'keyPickerSizeValue', '', () => this.renderer.render());
+        this.setupSlider('keyPickerSpreadSlider', 'keyPickerSpread', 'keyPickerSpreadValue', '', () => this.renderer.render());
+        this.setupSlider('keyPickerFontSizeSlider', 'keyPickerFontSize', 'keyPickerFontSizeValue', 'px', () => this.renderer.render());
+        this.setupColorInput('keyPickerCircleColor', 'keyPickerCircleColor', () => this.renderer.render());
+        this.setupSlider('keyPickerCircleOpacitySlider', 'keyPickerCircleOpacity', 'keyPickerCircleOpacityValue', '%', () => this.renderer.render());
+        this.setupColorInput('keyPickerLabelColor', 'keyPickerLabelColor', () => this.renderer.render());
+        this.setupSlider('keyPickerLabelOpacitySlider', 'keyPickerLabelOpacity', 'keyPickerLabelOpacityValue', '%', () => this.renderer.render());
+        this.setupColorInput('keyPickerActiveCircleColor', 'keyPickerActiveCircleColor', () => this.renderer.render());
+        this.setupSlider('keyPickerActiveCircleOpacitySlider', 'keyPickerActiveCircleOpacity', 'keyPickerActiveCircleOpacityValue', '%', () => this.renderer.render());
+        this.setupColorInput('keyPickerActiveLabelColor', 'keyPickerActiveLabelColor', () => this.renderer.render());
+        this.setupSlider('keyPickerActiveLabelOpacitySlider', 'keyPickerActiveLabelOpacity', 'keyPickerActiveLabelOpacityValue', '%', () => this.renderer.render());
 
         // Section toggling
         this.elements.sectionHeaders.forEach(header => {
@@ -2072,7 +2145,7 @@ class ControlsManager {
         // Note Marker controls
         this.setupSlider('noteMarkerSizeSlider', 'noteMarkerSize', 'noteMarkerSizeValue', 'px', () => this.renderer.render());
         this.setupColorInput('noteMarkerColor', 'noteMarkerColor', () => this.renderer.render());
-        this.setupSlider('noteMarkerPositionSlider', 'noteMarkerPosition', 'noteMarkerPositionValue', '%', () => this.renderer.render());
+        this.setupSlider('noteMarkerPositionSlider', 'noteMarkerPosition', 'noteMarkerPositionValue', 'pt', () => this.renderer.render());
 
         // Save slot controls
         this.elements.savePresetBtn.addEventListener('click', () => this.savePreset());
@@ -2258,12 +2331,13 @@ class ControlsManager {
         const name = this.elements.presetNameInput.value.trim();
         if (!name) return;
         const presets = this.getPresets();
+        const { rotation: _r, ...stateWithoutRotation } = this.state.getAll();
         const existingIndex = presets.findIndex(p => p.name === name);
         if (existingIndex !== -1) {
             if (!confirm(`A preset named "${name}" already exists. Overwrite it?`)) return;
-            presets[existingIndex] = { name, state: this.state.getAll(), date: Date.now() };
+            presets[existingIndex] = { name, state: stateWithoutRotation, date: Date.now() };
         } else {
-            presets.push({ name, state: this.state.getAll(), date: Date.now() });
+            presets.push({ name, state: stateWithoutRotation, date: Date.now() });
         }
         this.savePresets(presets);
         this.elements.presetNameInput.value = '';
@@ -2274,7 +2348,8 @@ class ControlsManager {
         const presets = this.getPresets();
         if (!presets[index]) return;
         if (!confirm(`Update "${presets[index].name}" with current settings?`)) return;
-        presets[index].state = this.state.getAll();
+        const { rotation: _r, ...stateWithoutRotation } = this.state.getAll();
+        presets[index].state = stateWithoutRotation;
         presets[index].date = Date.now();
         this.savePresets(presets);
         this.renderPresetList();
@@ -2290,10 +2365,15 @@ class ControlsManager {
             this.state.set(key, INITIAL_STATE[key]);
         });
         Object.keys(preset.state).forEach(key => {
-            if (INITIAL_STATE.hasOwnProperty(key)) {
+            if (key !== 'rotation' && INITIAL_STATE.hasOwnProperty(key)) {
                 this.state.set(key, preset.state[key]);
             }
         });
+        // Always compute rotation from anchor + sliceCount — never restore from preset
+        this.state.set('rotation', computeDefaultRotation(
+            this.state.get('anchor'),
+            this.state.get('sliceCount')
+        ));
         this.syncUIWithState();
         this.renderer.render();
     }
@@ -2305,19 +2385,17 @@ class ControlsManager {
         this.renderPresetList();
     }
 
-    exportPreset(index) {
+    async exportPreset(index, btn) {
         const presets = this.getPresets();
         const preset = presets[index];
         if (!preset) return;
-        const blob = new Blob([JSON.stringify(preset.state)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${preset.name.replace(/\s+/g, '-')}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        const { rotation: _r, ...stateWithoutRotation } = preset.state;
+        await navigator.clipboard.writeText(JSON.stringify(stateWithoutRotation));
+        if (btn) {
+            const orig = btn.innerHTML;
+            btn.innerHTML = '✓';
+            setTimeout(() => { btn.innerHTML = orig; }, 1200);
+        }
     }
 
     renderPresetList() {
@@ -2326,7 +2404,7 @@ class ControlsManager {
             <div class="preset-item">
                 <span class="preset-item-name" data-load="${i}">${p.name}</span>
                 <button class="preset-item-update" data-update="${i}" title="Update with current settings">&#8635;</button>
-                <button class="preset-item-export" data-export="${i}" title="Export">&#8595;</button>
+                <button class="preset-item-export" data-export="${i}" title="Copy to clipboard">&#128203;</button>
                 <button class="preset-item-delete" data-delete="${i}" title="Delete">&#10005;</button>
             </div>
         `).join('');
@@ -2338,7 +2416,7 @@ class ControlsManager {
             el.addEventListener('click', () => this.updatePreset(parseInt(el.dataset.update)));
         });
         this.elements.presetList.querySelectorAll('[data-export]').forEach(el => {
-            el.addEventListener('click', () => this.exportPreset(parseInt(el.dataset.export)));
+            el.addEventListener('click', () => this.exportPreset(parseInt(el.dataset.export), el));
         });
         this.elements.presetList.querySelectorAll('[data-delete]').forEach(el => {
             el.addEventListener('click', () => this.deletePreset(parseInt(el.dataset.delete)));
