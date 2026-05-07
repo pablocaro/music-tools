@@ -58,6 +58,12 @@ function computeDefaultRotation(anchor, sliceCount) {
     return (entryAngle - anglePerSlice + 360) % 360;
 }
 
+// Rotation is anchor/sliceCount-derived (see computeDefaultRotation), never persisted in presets.
+function stripRotation(state) {
+    const { rotation: _r, ...rest } = state;
+    return rest;
+}
+
 const INITIAL_STATE = {
     sliceCount: 32,
     bgGray: 20,
@@ -121,7 +127,9 @@ const INITIAL_STATE = {
     // Note Markers
     noteMarkerSize: 6,
     noteMarkerColor: '#7a7a7a',
+    noteMarkerOpacity: 100,
     noteMarkerPosition: 195,
+    sliceOpacity: 100,
     // Experimental: Drone lock timing
     droneLockTime: 3000,
     // Experimental: Gripper animations
@@ -503,7 +511,6 @@ class RenderEngine {
         this.innerCircle = null;
         this.noiseTextureDataURL = null; // Cache for pre-rendered noise
         this.lastNoiseSettings = null; // Track settings to avoid unnecessary regeneration
-        this.isFirstRender = true; // Track if this is the initial startup render
         this.audioToggle = null;
         this.audioActive = false;
         this.keyPickerOpen = false;
@@ -683,7 +690,7 @@ class RenderEngine {
 
     renderInnerCircle() {
         const center = this.geometry.calculateCenter();
-        const innerRadius = this.state.get('innerCircleSize') * this.getUIScale();
+        const innerRadius = this._getExpandedHubRadius();
 
         this.innerCircle = document.createElementNS(SVG_NS, 'circle');
         this.innerCircle.setAttribute('cx', center.x);
@@ -928,30 +935,22 @@ class RenderEngine {
         const center = this.geometry.calculateCenter();
         const sliceCount = this.state.get('sliceCount');
         const anglePerSlice = 360 / sliceCount;
-
-        // Get values from state
         const markerSize = this.state.get('noteMarkerSize');
         const markerColor = this.state.get('noteMarkerColor');
-        const markerPosition = this.state.get('noteMarkerPosition');
+        const markerOpacity = this.state.get('noteMarkerOpacity') / 100;
+        const markerRadius = this.state.get('noteMarkerPosition') * this.getUIScale();
 
         const fragment = document.createDocumentFragment();
-        for (let i = 0; i < sliceCount; i++) {
-            if (i % 7 === 0) {
-                const midAngle = ((i + 0.5) * anglePerSlice) * Math.PI / 180;
-                const markerRadius = markerPosition * this.getUIScale();
-
-                const markerX = center.x + markerRadius * Math.cos(midAngle);
-                const markerY = center.y + markerRadius * Math.sin(midAngle);
-
-                const marker = document.createElementNS(SVG_NS, 'circle');
-                marker.setAttribute('cx', markerX);
-                marker.setAttribute('cy', markerY);
-                marker.setAttribute('r', markerSize);
-                marker.setAttribute('fill', markerColor);
-                marker.style.pointerEvents = 'none';
-
-                fragment.appendChild(marker);
-            }
+        for (let i = 0; i < sliceCount; i += 7) {
+            const midAngle = ((i + 0.5) * anglePerSlice) * Math.PI / 180;
+            const marker = document.createElementNS(SVG_NS, 'circle');
+            marker.setAttribute('cx', center.x + markerRadius * Math.cos(midAngle));
+            marker.setAttribute('cy', center.y + markerRadius * Math.sin(midAngle));
+            marker.setAttribute('r', markerSize);
+            marker.setAttribute('fill', markerColor);
+            marker.setAttribute('opacity', markerOpacity);
+            marker.style.pointerEvents = 'none';
+            fragment.appendChild(marker);
         }
 
         this.sliceGroup.appendChild(fragment);
@@ -1003,9 +1002,6 @@ class RenderEngine {
         const btnRadius = this._getHubBaseRadius();
         const color = this.state.get('audioToggleColor');
         const opacity = this.state.get('audioToggleOpacity') / 100;
-        const bgGray = this.state.get('bgGray');
-        const bgHex = Math.round((bgGray / 100) * 255).toString(16).padStart(2, '0');
-        const bgColor = `#${bgHex}${bgHex}${bgHex}`;
 
         const labelColor = this.state.get('keyLabelColor');
         const labelOpacity = this.state.get('keyLabelOpacity') / 100;
@@ -1259,11 +1255,6 @@ class RenderEngine {
         return `#${hex}${hex}${hex}`;
     }
 
-    getPressColor() {
-        const endGray = this.state.get('pressedGradientEndGray');
-        return this.getGrayColor(endGray);
-    }
-
     getPressNarrowFactor() {
         return 1 - (this.state.get('pressShrink') / 100);
     }
@@ -1412,20 +1403,9 @@ class RenderEngine {
 
     getInnerCircleData() {
         const center = this.geometry.calculateCenter();
-        const scale = this.getUIScale();
-        const innerRadius = this.state.get('innerCircleSize') * scale;
-        const gripRingRadius = Math.max(0, innerRadius - this.state.get('grabberWidth') * scale);
+        const innerRadius = this._getExpandedHubRadius();
+        const gripRingRadius = Math.max(0, innerRadius - this.state.get('grabberWidth') * this.getUIScale());
         return { center, innerRadius, gripRingRadius };
-    }
-
-    completeStartupAnimation() {
-        // Remove animation classes from all slices
-        this.sliceElements.forEach((slice) => {
-            slice.classList.remove('startup-animation');
-            slice.style.webkitAnimationDelay = '';
-            slice.style.animationDelay = '';
-        });
-        this.isFirstRender = false;
     }
 
     activateGripper() {
@@ -1550,7 +1530,19 @@ class InteractionManager {
             lastPinchDistance: 0
         };
 
+        // Cached SVG bounding rect — invalidated on resize/scroll. Avoids forced layout
+        // on every mousemove/touchmove (called via getSVGCoordinates).
+        this._svgRect = null;
+        const invalidateRect = () => { this._svgRect = null; };
+        window.addEventListener('resize', invalidateRect);
+        window.addEventListener('scroll', invalidateRect, { passive: true });
+
         this.setupEventListeners();
+    }
+
+    _getSVGRect() {
+        if (!this._svgRect) this._svgRect = this.svg.getBoundingClientRect();
+        return this._svgRect;
     }
 
     setupEventListeners() {
@@ -1570,13 +1562,11 @@ class InteractionManager {
     }
 
     getSVGCoordinates(clientX, clientY) {
-        const rect = this.svg.getBoundingClientRect();
-        const x = clientX - rect.left;
-        const y = clientY - rect.top;
+        const rect = this._getSVGRect();
         const viewBox = this.svg.viewBox.baseVal;
         const scaleX = viewBox.width / rect.width;
         const scaleY = viewBox.height / rect.height;
-        return { x: x * scaleX, y: y * scaleY };
+        return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
     }
 
     getTouchDistance(touch1, touch2) {
@@ -1832,9 +1822,6 @@ class InteractionManager {
         await this.audio.playNote(index, (lockedIndex) => {
             this.renderer.lockSlice(lockedIndex);
         });
-
-        // No longer need interaction tracking for manual lock detection
-        // Auto-lock handles it via timeout
     }
 
     deactivateSlice(index) {
@@ -2032,8 +2019,13 @@ class ControlsManager {
             noteMarkerSizeSlider: document.getElementById('noteMarkerSizeSlider'),
             noteMarkerSizeValue: document.getElementById('noteMarkerSizeValue'),
             noteMarkerColor: document.getElementById('noteMarkerColor'),
+            noteMarkerOpacitySlider: document.getElementById('noteMarkerOpacitySlider'),
+            noteMarkerOpacityValue: document.getElementById('noteMarkerOpacityValue'),
             noteMarkerPositionSlider: document.getElementById('noteMarkerPositionSlider'),
             noteMarkerPositionValue: document.getElementById('noteMarkerPositionValue'),
+            // Slice opacity
+            sliceOpacitySlider: document.getElementById('sliceOpacitySlider'),
+            sliceOpacityValue: document.getElementById('sliceOpacityValue'),
             // Save slot buttons
             presetNameInput: document.getElementById('presetNameInput'),
             savePresetBtn: document.getElementById('savePresetBtn'),
@@ -2145,7 +2137,9 @@ class ControlsManager {
         // Note Marker controls
         this.setupSlider('noteMarkerSizeSlider', 'noteMarkerSize', 'noteMarkerSizeValue', 'px', () => this.renderer.render());
         this.setupColorInput('noteMarkerColor', 'noteMarkerColor', () => this.renderer.render());
+        this.setupSlider('noteMarkerOpacitySlider', 'noteMarkerOpacity', 'noteMarkerOpacityValue', '%', () => this.renderer.render());
         this.setupSlider('noteMarkerPositionSlider', 'noteMarkerPosition', 'noteMarkerPositionValue', 'pt', () => this.renderer.render());
+        this.setupSlider('sliceOpacitySlider', 'sliceOpacity', 'sliceOpacityValue', '%', (value) => this.updateSliceOpacity(value));
 
         // Save slot controls
         this.elements.savePresetBtn.addEventListener('click', () => this.savePreset());
@@ -2225,6 +2219,10 @@ class ControlsManager {
         this.renderer.render();
     }
 
+    updateSliceOpacity(value) {
+        document.documentElement.style.setProperty('--slice-opacity', value / 100);
+    }
+
     updateAnimationSpeed() {
         const activationSpeed = this.state.get('notchActivationSpeed');
         const deactivationSpeed = this.state.get('notchDeactivationSpeed');
@@ -2290,6 +2288,9 @@ class ControlsManager {
         this.elements.gripRingNoiseEnabledToggle.checked = state.gripRingNoiseEnabled;
         this.elements.noiseSubgroup.classList.toggle('disabled', !state.gripRingNoiseEnabled);
 
+        // Sync CSS custom properties
+        this.updateSliceOpacity(state.sliceOpacity);
+
         // Sync theme buttons
         this.updateThemeButtons(state.theme);
     }
@@ -2331,7 +2332,7 @@ class ControlsManager {
         const name = this.elements.presetNameInput.value.trim();
         if (!name) return;
         const presets = this.getPresets();
-        const { rotation: _r, ...stateWithoutRotation } = this.state.getAll();
+        const stateWithoutRotation = stripRotation(this.state.getAll());
         const existingIndex = presets.findIndex(p => p.name === name);
         if (existingIndex !== -1) {
             if (!confirm(`A preset named "${name}" already exists. Overwrite it?`)) return;
@@ -2348,7 +2349,7 @@ class ControlsManager {
         const presets = this.getPresets();
         if (!presets[index]) return;
         if (!confirm(`Update "${presets[index].name}" with current settings?`)) return;
-        const { rotation: _r, ...stateWithoutRotation } = this.state.getAll();
+        const stateWithoutRotation = stripRotation(this.state.getAll());
         presets[index].state = stateWithoutRotation;
         presets[index].date = Date.now();
         this.savePresets(presets);
@@ -2389,8 +2390,7 @@ class ControlsManager {
         const presets = this.getPresets();
         const preset = presets[index];
         if (!preset) return;
-        const { rotation: _r, ...stateWithoutRotation } = preset.state;
-        await navigator.clipboard.writeText(JSON.stringify(stateWithoutRotation));
+        await navigator.clipboard.writeText(JSON.stringify(stripRotation(preset.state)));
         if (btn) {
             const orig = btn.innerHTML;
             btn.innerHTML = '✓';
@@ -2504,8 +2504,6 @@ class Application {
     }
 
     async init() {
-        // Note: Auto-load removed - users now manually load from slots
-
         // Prevent context menu on iOS and other touch devices
         this.svgElement.addEventListener('contextmenu', (e) => e.preventDefault());
         document.addEventListener('contextmenu', (e) => {
@@ -2522,6 +2520,9 @@ class Application {
         const grayValue = Math.round((this.stateManager.get('bgGray') / 100) * 255);
         const hexValue = grayValue.toString(16).padStart(2, '0');
         document.documentElement.style.setProperty('--bg-primary', `#${hexValue}${hexValue}${hexValue}`);
+
+        // Initialize slice opacity CSS variable
+        document.documentElement.style.setProperty('--slice-opacity', this.stateManager.get('sliceOpacity') / 100);
 
         // Initial render (with startup animation)
         this.renderEngine.render();
@@ -2685,32 +2686,6 @@ class Application {
         this.renderEngine.setKeyPickerOpen(false);
     }
 
-    async handleStartupAnimation() {
-        // Calculate animation duration
-        // Last slice starts at: sliceCount * 20ms
-        // Animation duration: 600ms
-        // Total: (sliceCount * 20) + 600
-        const sliceCount = this.stateManager.get('sliceCount');
-        const staggerDelay = 20; // ms per slice
-        const animationDuration = 600; // ms
-        const totalDuration = (sliceCount * staggerDelay) + animationDuration;
-
-        // Wait for animation to complete
-        await new Promise(resolve => setTimeout(resolve, totalDuration));
-
-        // Remove overlay
-        const overlay = document.getElementById('startupOverlay');
-        if (overlay) {
-            overlay.classList.add('fade-out');
-            // Wait for fade-out transition
-            setTimeout(() => {
-                overlay.remove();
-            }, 300);
-        }
-
-        // Clean up animation classes
-        this.renderEngine.completeStartupAnimation();
-    }
 }
 
 // ============================================
