@@ -1,0 +1,9 @@
+# macOS
+.DS_Store
+
+# Local dev / agent configs
+.claude/
+
+# Local-only files (not for tracking)
+piano-experimental/_reference/
+piano-experimental/key-circle.html
