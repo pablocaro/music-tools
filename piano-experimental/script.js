@@ -95,7 +95,7 @@ const INITIAL_STATE = {
     bgGray: 54,
     anchor: 'bottom-right',
     innerCircleSize: 155,
-    grabberWidth: 38,  // pt — grip/tick zone width; hub resting radius = innerCircleSize - grabberWidth
+    grabberWidth: 48,  // pt — grip/tick zone width; hub resting radius = innerCircleSize - grabberWidth
     uiScale: 1,
     uiScaleMax: 1.5,
     // Key & Audio
@@ -110,14 +110,14 @@ const INITIAL_STATE = {
     radius: 155,
     // rotation is not stored in presets; computed via computeDefaultRotation()
     rotation: 101,
-    gapSize: 1.9,
-    gripThickness: 2,
+    gapSize: 2.5,
+    gripThickness: 2.5,
     gripOpacity: 25,
     ticksPerEdge: 3,
     gripInset: 0,
     pressShrink: 0,
     // Flat colours
-    keyColor:        '#242728', // flat fill for unpressed slices
+    keyColor:        '#24292b', // flat fill for unpressed slices
     keyPressedColor:    '#7d8b8d', // pressed gradient — INNER stop. Outer stop = keyColor.
     pressedGradType:    'linear',  // 'linear' (per-slice along radial axis) or 'radial' (wheel-centered)
     pressedGradAngle:      180,    // degrees — linear only; rotation from radial axis (0 = inner→outer)
@@ -133,7 +133,7 @@ const INITIAL_STATE = {
     droneLockTime: 3000,
     // Experimental: Gripper animations
     notchGrowthFactor: 1.4,
-    notchActivationSpeed: 200,
+    notchActivationSpeed: 120,
     notchDeactivationSpeed: 300,
     notchBrightnessBoost: 2.1,
     // Key circle — scale mode
@@ -185,7 +185,7 @@ const INITIAL_STATE = {
     pickerDimOpacity:  81,     // % — bg dim when picker open
     // Audio-off dim overlay
     offDimColor:     '#000000',
-    offDimOpacity:     61,     // %
+    offDimOpacity:     80,     // %
     // Animations — separate settings for expansion (open) and contraction (close)
     animOpenEasing:      'easeOutExpo',
     animOpenDuration:     620, // ms — open: picker fade, label slide, hub radius
@@ -511,15 +511,22 @@ class AudioEngine {
         return CHROMATIC_NOTES[chromaticIndex] + octave;
     }
 
-    // Brief attack-release for a preview (e.g. when switching keys).
-    // Bumps the note up one octave so it sits in a more audible range than the rootOctave.
-    previewNote(index, duration = '4n') {
+    // 1-3-5 arpeggio preview (e.g. when switching keys). Scale-aware via slice indices:
+    // slice 2 is a major or minor third depending on the active scaleMode.
+    // Bumps notes up one octave so they sit in a more audible range than rootOctave.
+    previewNote() {
         if (!this.audioStarted || !this.enabled || !this.synth) return;
-        const note = this.getNote(index);
-        // Note format is "C3", "F#4", etc. Increment the trailing octave digit by 1.
-        const m = note.match(/^([A-G][#b]?)(-?\d+)$/);
-        const previewNoteName = m ? `${m[1]}${parseInt(m[2], 10) + 1}` : note;
-        try { this.synth.triggerAttackRelease(previewNoteName, duration); } catch (e) {}
+        const indices = [0, 2, 4, 7];
+        const stagger = 90;       // ms between onsets
+        const duration = '16n';   // each note length
+        indices.forEach((idx, k) => {
+            const note = this.getNote(idx);
+            const m = note.match(/^([A-G][#b]?)(-?\d+)$/);
+            const noteUp = m ? `${m[1]}${parseInt(m[2], 10) + 1}` : note;
+            setTimeout(() => {
+                try { this.synth.triggerAttackRelease(noteUp, duration); } catch (e) {}
+            }, k * stagger);
+        });
     }
 
     async playNote(index, onAutoLock) {
@@ -696,7 +703,13 @@ class RenderEngine {
 
         this.sliceGroup = document.createElementNS(SVG_NS, 'g');
         this.sliceGroup.setAttribute('id', 'sliceGroup');
-        this.sliceGroup.setAttribute('transform', `rotate(${rotation} ${center.x} ${center.y})`);
+        // Use CSS transform so the browser composites this group on the GPU during
+        // rotation (smoother on mobile / ProMotion). transform-origin is set in
+        // user-space pixels via style so it matches the SVG viewBox.
+        this.sliceGroup.style.transformOrigin = `${center.x}px ${center.y}px`;
+        // translateZ(0) forces a separate GPU compositing layer (smoother rotation)
+        this.sliceGroup.style.transform = `translateZ(0) rotate(${rotation}deg)`;
+        this.sliceGroup.style.willChange = 'transform';
 
         const defs = document.createElementNS(SVG_NS, 'defs');
         this.sliceGroup.appendChild(defs);
@@ -1318,6 +1331,13 @@ class RenderEngine {
         const g = document.createElementNS(SVG_NS, 'g');
         g.setAttribute('class', 'acc-toggle');
         g.style.cursor = 'pointer';
+        // Transparent hit area — larger than the visible pill for easier tapping
+        const hit = document.createElementNS(SVG_NS, 'circle');
+        hit.setAttribute('class', 'toggle-hit');
+        hit.setAttribute('cx', x); hit.setAttribute('cy', y);
+        hit.setAttribute('r', r * 1.7);
+        hit.setAttribute('fill', 'transparent');
+        g.appendChild(hit);
         g.appendChild(this._makePillCircle(x, y, r, st));
 
         const t = document.createElementNS(SVG_NS, 'text');
@@ -1348,6 +1368,13 @@ class RenderEngine {
         const g = document.createElementNS(SVG_NS, 'g');
         g.setAttribute('class', 'scale-toggle');
         g.style.cursor = 'pointer';
+        // Transparent hit area — larger than the visible pill for easier tapping
+        const hit = document.createElementNS(SVG_NS, 'circle');
+        hit.setAttribute('class', 'toggle-hit');
+        hit.setAttribute('cx', x); hit.setAttribute('cy', y);
+        hit.setAttribute('r', r * 1.7);
+        hit.setAttribute('fill', 'transparent');
+        g.appendChild(hit);
         g.appendChild(this._makePillCircle(x, y, r, st));
 
         const t = document.createElementNS(SVG_NS, 'text');
@@ -2007,6 +2034,9 @@ class RenderEngine {
 
         this.updateViewBox();
         this.clear();
+        // Refresh cached center after viewBox is up-to-date — used by updateRotation
+        // (and anywhere else that needs the center without a layout flush)
+        this._cachedCenter = this.geometry.calculateCenter();
         this.renderBackground();
         this.renderSlices();
         const innerRadius = this.renderInnerCircle();
@@ -2088,11 +2118,9 @@ class RenderEngine {
     }
 
     updateRotation() {
-        if (this.sliceGroup) {
-            const center = this.geometry.calculateCenter();
-            const rotation = this.state.get('rotation');
-            this.sliceGroup.setAttribute('transform', `rotate(${rotation} ${center.x} ${center.y})`);
-        }
+        if (!this.sliceGroup) return;
+        const rotation = this.state.get('rotation');
+        this.sliceGroup.style.transform = `translateZ(0) rotate(${rotation}deg)`;
     }
 
     getGrayColor(grayPercent) {
@@ -2109,12 +2137,14 @@ class RenderEngine {
         const slice = this.sliceElements.get(index);
         if (slice) {
             const activationSpeed = this.state.get('notchActivationSpeed');
-            slice.style.transition = `d ${activationSpeed}ms cubic-bezier(0.4, 0.0, 0.2, 1)`;
+            // ease-out (fast start, slow end) — snappy press response
+            const pressEase = 'cubic-bezier(0.16, 1, 0.3, 1)';
+            slice.style.transition = `d ${activationSpeed}ms ${pressEase}`;
             // Mutate the slice's gradient inner stop — CSS transition on stop-color (see styles.css)
             // smoothly fades the gradient in.
             const stop = this._getSliceInnerStop(index);
             if (stop) {
-                stop.style.transition = `stop-color ${activationSpeed}ms cubic-bezier(0.4, 0.0, 0.2, 1)`;
+                stop.style.transition = `stop-color ${activationSpeed}ms ${pressEase}`;
                 stop.setAttribute('stop-color', this.state.get('keyPressedColor'));
             }
         }
@@ -2442,16 +2472,47 @@ class InteractionManager {
         this.dragState.wasInGripperZone = true;
         this.dragState.startedFromSlice = false;
         this.dragState.lastAngle = this.geometry.getAngleFromPoint(x, y, innerCircleData.center);
-        // Reset inertia tracking for a new gesture
         this._stopInertia();
         this.dragState.rotationVelocity = 0;
         this.dragState.lastRotationTime = performance.now();
+        this._beginRotationFollow();
 
         const innerCircle = document.getElementById('innerRotationPlate');
         if (innerCircle) innerCircle.style.cursor = 'grabbing';
 
         // Activate gripper animation
         this.renderer.activateGripper();
+    }
+
+    // Smooth-follow loop: the displayed rotation chases targetRotation each frame.
+    // Gives the wheel a slight lag under the fingertip (sense of mass).
+    _beginRotationFollow() {
+        this.dragState.targetRotation = this.state.get('rotation');
+        if (this.dragState.followRAF) cancelAnimationFrame(this.dragState.followRAF);
+        const alphaPerFrame = 0.2;   // catch-up fraction per ~16ms frame (1.0 = no lag)
+        let last = performance.now();
+        const tick = (now) => {
+            if (!this.dragState.isRotating) {
+                this.dragState.followRAF = null;
+                return;
+            }
+            const dt = Math.max(1, now - last);
+            last = now;
+            const factor = 1 - Math.pow(1 - alphaPerFrame, dt / 16);
+            const cur = this.state.get('rotation');
+            let delta = this.dragState.targetRotation - cur;
+            if (delta > 180)  delta -= 360;
+            if (delta < -180) delta += 360;
+            const newRot = (cur + delta * factor + 360) % 360;
+            const visualDelta = newRot - cur;
+            // Track WHEEL velocity (not finger) so inertia carries on smoothly
+            const instantV = visualDelta / dt;
+            this.dragState.rotationVelocity = this.dragState.rotationVelocity * 0.6 + instantV * 0.4;
+            this.dragState.lastRotationTime = now;
+            this.state.set('rotation', newRot);
+            this.dragState.followRAF = requestAnimationFrame(tick);
+        };
+        this.dragState.followRAF = requestAnimationFrame(tick);
     }
 
     _stopInertia() {
@@ -2519,6 +2580,9 @@ class InteractionManager {
                 this.dragState.isRotating = true;
                 this.dragState.wasInGripperZone = true;
                 this.dragState.lastAngle = this.geometry.getAngleFromPoint(x, y, innerCircleData.center);
+                this.dragState.rotationVelocity = 0;
+                this.dragState.lastRotationTime = performance.now();
+                this._beginRotationFollow();
                 const innerCircle = document.getElementById('innerRotationPlate');
                 if (innerCircle) innerCircle.style.cursor = 'grabbing';
                 this.renderer.activateGripper();
@@ -2558,6 +2622,9 @@ class InteractionManager {
             this.dragState.isRotating = true;
             this.dragState.wasInGripperZone = true;
             this.dragState.lastAngle = this.geometry.getAngleFromPoint(x, y, innerCircleData.center);
+            this.dragState.rotationVelocity = 0;
+            this.dragState.lastRotationTime = performance.now();
+            this._beginRotationFollow();
             const innerCircle = document.getElementById('innerRotationPlate');
             if (innerCircle) innerCircle.style.cursor = 'grabbing';
             this.renderer.activateGripper();
@@ -2600,16 +2667,10 @@ class InteractionManager {
         if (angleDiff > 180) angleDiff -= 360;
         if (angleDiff < -180) angleDiff += 360;
 
-        const newRotation = (this.state.get('rotation') + angleDiff + 360) % 360;
-        this.state.set('rotation', newRotation);
+        // Update the TARGET rotation. The follow loop in _beginRotationFollow lerps
+        // the displayed rotation toward this target each animation frame.
+        this.dragState.targetRotation = (this.dragState.targetRotation + angleDiff + 360) % 360;
         this.dragState.lastAngle = currentAngle;
-
-        // Track instantaneous angular velocity (deg/ms) with EMA for smoothness
-        const now = performance.now();
-        const dt = Math.max(1, now - this.dragState.lastRotationTime);
-        const instantV = angleDiff / dt;
-        this.dragState.rotationVelocity = this.dragState.rotationVelocity * 0.6 + instantV * 0.4;
-        this.dragState.lastRotationTime = now;
 
         if (this.dragState.startedFromSlice) {
             this.activateSliceAtPosition(x, y, innerCircleData);
@@ -3270,10 +3331,20 @@ class ControlsManager {
         this.elements.copyStateBtn.addEventListener('click', () => this.copyState());
 
         // Subscribe to rotation changes from interaction
+        // Transform updates run synchronously (visual smoothness); slider/label DOM
+        // writes are batched to one per animation frame (mobile-friendly).
+        let rotUIFrame = null;
+        let rotLatest = 0;
         this.state.subscribe('rotation', (value) => {
-            this.elements.rotationSlider.value = Math.round(value);
-            this.elements.rotationValue.textContent = Math.round(value);
             this.renderer.updateRotation();
+            rotLatest = value;
+            if (rotUIFrame) return;
+            rotUIFrame = requestAnimationFrame(() => {
+                rotUIFrame = null;
+                const rounded = Math.round(rotLatest);
+                this.elements.rotationSlider.value = rounded;
+                this.elements.rotationValue.textContent = rounded;
+            });
         });
 
         // Subscribe to slice count changes from pinch gesture
@@ -3824,6 +3895,7 @@ class Application {
                 const letter    = NOTE_LETTERS[letterIdx];
                 this.stateManager.set('rootNote', NOTE_TO_CHROMATIC[letter][newMode]);
                 this.renderEngine.render();
+                this.audioEngine.previewNote();
                 return;
             }
 
@@ -3832,24 +3904,29 @@ class Application {
                 const current = this.stateManager.get('scaleMode');
                 this.stateManager.set('scaleMode', current === 'major' ? 'minor' : 'major');
                 this.renderEngine.render();
+                this.audioEngine.previewNote();
                 return;
             }
 
-            // Tapping a picker note: select key with letter-blink transition
+            // Tapping a picker note: always play the arpeggio. If the letter changed,
+            // run it after the blink callback so it reflects the new key.
             if (target && target.closest('.key-picker-note')) {
                 const letterIdx = parseInt(target.closest('.key-picker-note').dataset.letter);
                 if (!isNaN(letterIdx)) {
-                    if (letterIdx === this.stateManager.get('rootLetter')) return;
-                    this.renderEngine.blinkKeyLabel(() => {
-                        this.stateManager.set('rootLetter', letterIdx);
-                        // Sync chromatic rootNote (audio) from letter + current accidental
-                        const letter = NOTE_LETTERS[letterIdx];
-                        const accMode = this.stateManager.get('accidentalMode');
-                        this.stateManager.set('rootNote', NOTE_TO_CHROMATIC[letter][accMode]);
-                        this.renderEngine.render();
-                        // Audible preview of the new root note
-                        this.audioEngine.previewNote(0);
-                    });
+                    if (letterIdx !== this.stateManager.get('rootLetter')) {
+                        this.renderEngine.blinkKeyLabel(() => {
+                            this.stateManager.set('rootLetter', letterIdx);
+                            // Sync chromatic rootNote (audio) from letter + current accidental
+                            const letter = NOTE_LETTERS[letterIdx];
+                            const accMode = this.stateManager.get('accidentalMode');
+                            this.stateManager.set('rootNote', NOTE_TO_CHROMATIC[letter][accMode]);
+                            this.renderEngine.render();
+                            this.audioEngine.previewNote();
+                        });
+                    } else {
+                        // Same letter — state already correct, preview immediately
+                        this.audioEngine.previewNote();
+                    }
                 }
                 return;
             }

@@ -413,8 +413,8 @@ body {
 .scale-toggle:active {
     transform: scale(var(--press-pill-scale, 0.93));
 }
-.acc-toggle:active > circle,
-.scale-toggle:active > circle {
+.acc-toggle:active > circle:not(.toggle-hit),
+.scale-toggle:active > circle:not(.toggle-hit) {
     fill: var(--press-pill-fill, #8593aa);
 }
 .power-button:active {
