@@ -325,13 +325,22 @@ class StateManager {
 class GeometryEngine {
     constructor(stateManager) {
         this.state = stateManager;
+        // Cached viewport size. getBoundingClientRect() forces a synchronous layout;
+        // calling it every pinch frame (via calculateCenter/calculateRadii, right
+        // after mutating slice paths) caused layout thrash → the pinch stutter.
+        // The SVG's pixel size only changes on resize (the panel dispatches a
+        // synthetic 'resize' on open/close), so cache it and invalidate there.
+        this._viewportSize = null;
+        window.addEventListener('resize', () => { this._viewportSize = null; });
     }
 
     getViewportSize() {
+        if (this._viewportSize) return this._viewportSize;
         const svg = document.getElementById('pianoSvg');
         if (svg) {
             const rect = svg.getBoundingClientRect();
-            return { width: rect.width, height: rect.height };
+            this._viewportSize = { width: rect.width, height: rect.height };
+            return this._viewportSize;
         }
         return {
             width: window.innerWidth,
@@ -2312,6 +2321,10 @@ class InteractionManager {
             rotationVelocity: 0,
             lastRotationTime: 0,
             inertiaRAF: null,
+            springRAF: null,
+            targetRawOffset: 0,
+            rawOffset: 0,
+            pinchClamp: null,
         };
 
         this.controls = null;
@@ -2366,8 +2379,11 @@ class InteractionManager {
         // Calling preventDefault() on touchstart of these would suppress the synthetic click on iOS.
         if (e.target.closest('.audio-toggle, .power-button, .acc-toggle, .scale-toggle, .key-picker-note')) return;
 
-        // Any new touch interrupts inertia spin and resets velocity tracking
+        // Any new touch interrupts inertia spin AND any in-flight spring-back, and
+        // resets velocity tracking. Cancelling the spring here means a re-grab mid
+        // spring-back doesn't keep animating under the new gesture.
         this._stopInertia();
+        if (this.dragState.springRAF) { cancelAnimationFrame(this.dragState.springRAF); this.dragState.springRAF = null; }
         this.dragState.rotationVelocity = 0;
         this.dragState.lastRotationTime = performance.now();
 
@@ -2429,6 +2445,8 @@ class InteractionManager {
 
     startPinch(touch1, touch2) {
         this.dragState.isPinching = true;
+        // Cancel any in-flight post-pinch spring so it doesn't fight the new gesture.
+        if (this.dragState.springRAF) { cancelAnimationFrame(this.dragState.springRAF); this.dragState.springRAF = null; }
         this.dragState.pinchInitialDistance = this.getTouchDistance(touch1, touch2);
         this.dragState.pinchAnchorN = this.state.get('sliceCount');
 
@@ -2446,6 +2464,14 @@ class InteractionManager {
         const wheelAngle = (midAngle - rotation + 360) % 360;
         const oldAps = 360 / this.dragState.pinchAnchorN;
         this.dragState.pinchF = wheelAngle / oldAps;
+
+        // Rubber-band the wheel to the note range DURING the pinch: the anchored
+        // point tracks the fingers in range; near an end the dashed seam RESISTS
+        // coming in (a damped peek ≤ overshoot) and springs hidden on release
+        // (_springBackAfterPinch). Same feel as the rotation rubber-band. Range is
+        // viewport-derived (drag limits, Feature 2), captured once for the gesture.
+        const pc = this._computeRotationClamp();
+        this.dragState.pinchClamp = pc.active ? { center: pc.allowedCenter, half: pc.halfAllowed } : null;
 
         // Pinch wins — cancel any in-progress note presses
         this.dragState.pressedSlices.forEach(slice => {
@@ -2486,7 +2512,168 @@ class InteractionManager {
 
     // Smooth-follow loop: the displayed rotation chases targetRotation each frame.
     // Gives the wheel a slight lag under the fingertip (sense of mass).
+    // ---- Rotation range limit (Feature 2) -------------------------------------
+    // Keep the high<->low "seam" out of the on-screen arc so a drag can't spin
+    // past the lowest or highest note. Gesture-only: the panel Rotation slider
+    // and presets stay free. See SPEC-gestures.md.
+    _computeRotationClamp() {
+        const size = this.geometry.getViewportSize();
+        const center = this.geometry.calculateCenter();
+        const cx = center.x, cy = center.y;
+        const toAng = (x, y) => ((Math.atan2(y - cy, x - cx) * 180 / Math.PI) + 360) % 360;
+        // Directions from the (corner-anchored) wheel centre to each viewport
+        // corner. The viewport subtends one contiguous arc; the seam must live in
+        // the *blind* arc — the largest angular gap between those directions.
+        const corners = [[0, 0], [size.width, 0], [0, size.height], [size.width, size.height]];
+        const angs = [];
+        for (const [x, y] of corners) {
+            if (Math.hypot(x - cx, y - cy) < 1) continue; // skip the corner at the centre
+            angs.push(toAng(x, y));
+        }
+        if (angs.length < 2) return { active: false, allowedCenter: 0, halfAllowed: 180 };
+        angs.sort((a, b) => a - b);
+        let gapStart = angs[angs.length - 1];
+        let gap = (angs[0] + 360) - angs[angs.length - 1]; // wrap-around gap
+        for (let i = 1; i < angs.length; i++) {
+            const g = angs[i] - angs[i - 1];
+            if (g > gap) { gap = g; gapStart = angs[i - 1]; }
+        }
+        // Only meaningful when the viewport sees ~a quadrant/half (corner/edge
+        // anchor). If most of the wheel is visible there's no usable range.
+        if (gap < 100) return { active: false, allowedCenter: 0, halfAllowed: 180 };
+        const allowedCenter = ((gapStart + gap / 2) % 360 + 360) % 360;
+        return { active: true, allowedCenter, halfAllowed: gap / 2 };
+    }
+
+    _setupRotationClamp() {
+        const c = this._computeRotationClamp();
+        // If the wheel is parked WELL outside the range by the slider/presets (a
+        // "design" position), don't yank it — leave this gesture unclamped.
+        // BUT: gesture residue (a spring-back still easing, or an over-pull) is only
+        // ever within ~overshoot of the bound. Re-grabbing mid-spring must NOT be
+        // mistaken for a design park (that was the "gives up past the seam" bug) —
+        // so only exempt positions farther out than any gesture could produce.
+        if (c.active) {
+            const R = this.state.get('rotation');
+            const d = Math.abs(((R - c.allowedCenter + 540) % 360) - 180);
+            const overshoot = Math.min(20, (180 - c.halfAllowed) * 0.45); // == _rotationOvershoot()
+            const isGestureResidue = d <= c.halfAllowed + overshoot + 2;
+            if (d > c.halfAllowed + 0.001 && !isGestureResidue) c.active = false;
+        }
+        this.dragState.clampActive = c.active;
+        this.dragState.clampAllowedCenter = c.allowedCenter;
+        this.dragState.clampHalfAllowed = c.halfAllowed;
+    }
+
+    // Clamp a rotation (deg, 0-360) so the seam stays in the allowed blind arc.
+    _clampRotation(R) {
+        if (!this.dragState.clampActive) return R;
+        const c = this.dragState.clampAllowedCenter;
+        const half = this.dragState.clampHalfAllowed;
+        let d = ((R - c + 540) % 360) - 180; // signed angular distance, [-180,180]
+        if (d > half) d = half;
+        else if (d < -half) d = -half;
+        return ((c + d) % 360 + 360) % 360;
+    }
+
+    // ---- Rubber-band overscroll (native feel past the range ends) -------------
+    // Max *visible* give (deg) at full stretch. Asymptotic, so typical pulls show
+    // much less. Scaled to the blind arc so it never reaches the arc midpoint.
+    _rotationOvershoot() {
+        const half = this.dragState.clampHalfAllowed;
+        return Math.min(20, (180 - half) * 0.45);
+    }
+
+    // Overscroll is tracked as an UNWRAPPED signed offset from allowedCenter (deg).
+    // It is never modulo'd while accumulating, so determined dragging simply pegs
+    // at the wall instead of folding across the seam to the opposite end.
+    _maxRawOffset() {                        // hard wall, short of the blind-arc midpoint
+        const half = this.dragState.clampHalfAllowed;
+        return half + (180 - half) * 0.9;
+    }
+    _offsetFromRot(R) {                      // one-time: displayed rotation -> signed offset
+        const c = this.dragState.clampAllowedCenter;
+        return ((R - c + 540) % 360) - 180;
+    }
+    _rotFromOffset(offD) {                   // signed offset -> 0-360 rotation
+        const c = this.dragState.clampAllowedCenter;
+        return ((c + offD) % 360 + 360) % 360;
+    }
+    // |offset| <= half: identity. Beyond: damp asymptotically toward half + overshoot.
+    _rubberBandOffset(offD) {
+        const half = this.dragState.clampHalfAllowed;
+        const ad = Math.abs(offD);
+        if (ad <= half) return offD;
+        const over = this._rotationOvershoot();
+        const excess = ad - half;
+        const damped = over * excess / (excess + over);
+        return (offD < 0 ? -1 : 1) * (half + damped);
+    }
+
+    _isPastBound(R) {
+        if (!this.dragState.clampActive) return false;
+        const c = this.dragState.clampAllowedCenter;
+        const half = this.dragState.clampHalfAllowed;
+        const d = Math.abs(((R - c + 540) % 360) - 180);
+        return d > half + 0.01;
+    }
+
+    // Ease the wheel back to the nearest range end after an over-pull or a fling
+    // that overshot. _clampRotation gives the nearest bound (hard clamp).
+    _springBackRotation() {
+        this._stopInertia();
+        if (this.dragState.followRAF) { cancelAnimationFrame(this.dragState.followRAF); this.dragState.followRAF = null; }
+        const start = this.state.get('rotation');
+        const target = this._clampRotation(start);
+        let sd = ((target - start + 540) % 360) - 180; // shortest signed path
+        if (Math.abs(sd) < 0.05) { this.state.set('rotation', target); this.dragState.springRAF = null; return; }
+        const dur = 340;
+        const t0 = performance.now();
+        const ease = t => 1 - Math.pow(1 - t, 3); // easeOutCubic
+        const tick = (now) => {
+            const t = Math.min(1, (now - t0) / dur);
+            const r = ((start + sd * ease(t)) % 360 + 360) % 360;
+            this.state.set('rotation', r);
+            if (t < 1) {
+                this.dragState.springRAF = requestAnimationFrame(tick);
+            } else {
+                this.dragState.springRAF = null;
+                this.dragState.rotationVelocity = 0;
+            }
+        };
+        this.dragState.springRAF = requestAnimationFrame(tick);
+    }
+
+    // After a pinch, if the rubber-band left the seam peeking past a bound, ease it
+    // back to the nearest in-range end. Uses the pinch's own clamp (pinchClamp), not
+    // the drag clamp. Reuses the rotation spring's easeOutCubic for a consistent feel.
+    _springBackAfterPinch() {
+        const pc = this.dragState.pinchClamp;
+        if (!pc) return;
+        const wrap = a => ((a % 360) + 360) % 360;
+        const start = this.state.get('rotation');
+        let dd = ((start - pc.center + 540) % 360) - 180;
+        if (Math.abs(dd) <= pc.half + 0.01) return;     // seam already hidden — nothing to do
+        if (dd > pc.half) dd = pc.half; else if (dd < -pc.half) dd = -pc.half;
+        const target = wrap(pc.center + dd);
+        let sd = ((target - start + 540) % 360) - 180;  // shortest signed path
+        if (this.dragState.springRAF) { cancelAnimationFrame(this.dragState.springRAF); this.dragState.springRAF = null; }
+        const dur = 340;
+        const t0 = performance.now();
+        const ease = t => 1 - Math.pow(1 - t, 3);
+        const tick = (now) => {
+            const t = Math.min(1, (now - t0) / dur);
+            this.state.set('rotation', wrap(start + sd * ease(t)));
+            this.renderer.updateRotation();
+            this.dragState.springRAF = t < 1 ? requestAnimationFrame(tick) : null;
+        };
+        this.dragState.springRAF = requestAnimationFrame(tick);
+    }
+
     _beginRotationFollow() {
+        this._setupRotationClamp();
+        if (this.dragState.springRAF) { cancelAnimationFrame(this.dragState.springRAF); this.dragState.springRAF = null; }
+        this.dragState.targetRawOffset = this.dragState.clampActive ? this._offsetFromRot(this.state.get('rotation')) : 0;
         this.dragState.targetRotation = this.state.get('rotation');
         if (this.dragState.followRAF) cancelAnimationFrame(this.dragState.followRAF);
         const alphaPerFrame = 0.2;   // catch-up fraction per ~16ms frame (1.0 = no lag)
@@ -2523,8 +2710,10 @@ class InteractionManager {
     }
 
     _startInertia() {
-        const friction = 0.8;           // velocity multiplier per frame
-        const stopThreshold = 0.005;    // deg/ms ≈ 0.3 deg/s — when slower, stop
+        const baseFriction = 0.8;       // velocity multiplier per ~16ms frame
+        const edgeFriction = 0.55;      // stronger drag once past a range end
+        const stopThreshold = 0.005;    // deg/ms ≈ 0.3 deg/s — when slower, settle
+        this.dragState.rawOffset = this.dragState.clampActive ? this._offsetFromRot(this.state.get('rotation')) : 0;
         let last = performance.now();
         const tick = (now) => {
             const dt = now - last;
@@ -2533,12 +2722,24 @@ class InteractionManager {
             if (Math.abs(v) < stopThreshold) {
                 this.dragState.rotationVelocity = 0;
                 this.dragState.inertiaRAF = null;
+                if (this._isPastBound(this.state.get('rotation'))) this._springBackRotation();
                 return;
             }
-            const rot = (this.state.get('rotation') + v * dt + 360) % 360;
-            this.state.set('rotation', rot);
-            // Frame-rate independent decay: friction is "per ~16ms frame"
-            this.dragState.rotationVelocity *= Math.pow(friction, dt / 16);
+            if (this.dragState.clampActive) {
+                // Same unwrapped accumulator as the drag — a fling can't fold past the seam.
+                const maxOff = this._maxRawOffset();
+                let off = this.dragState.rawOffset + v * dt;
+                off = Math.max(-maxOff, Math.min(maxOff, off));
+                this.dragState.rawOffset = off;
+                this.state.set('rotation', this._rotFromOffset(this._rubberBandOffset(off)));
+                // Rubber resists the fling: decay faster while past a range end.
+                const past = Math.abs(off) > this.dragState.clampHalfAllowed + 0.01;
+                this.dragState.rotationVelocity *= Math.pow(past ? edgeFriction : baseFriction, dt / 16);
+            } else {
+                const rot = (this.state.get('rotation') + v * dt + 360) % 360;
+                this.state.set('rotation', rot);
+                this.dragState.rotationVelocity *= Math.pow(baseFriction, dt / 16);
+            }
             this.dragState.inertiaRAF = requestAnimationFrame(tick);
         };
         this.dragState.inertiaRAF = requestAnimationFrame(tick);
@@ -2564,6 +2765,7 @@ class InteractionManager {
         if (this.dragState.isPinching && e.touches && e.touches.length < 2) {
             if (this._pinchRAF) { cancelAnimationFrame(this._pinchRAF); this._pinchRAF = null; }
             if (this.controls) this.controls.commitWidthScale();
+            this._springBackAfterPinch();   // seam peeking past a bound → ease it hidden
             this.dragState.isPinching = false;
             this.dragState.lastPinchDistance = 0;
             this.dragState.pinchInitialDistance = 0;
@@ -2643,18 +2845,27 @@ class InteractionManager {
         if (!this.controls) return;
         const currentDistance = this.getTouchDistance(touch1, touch2);
         if (this.dragState.pinchInitialDistance <= 0) return;
-        const W = currentDistance / this.dragState.pinchInitialDistance;
+        const rawW = currentDistance / this.dragState.pinchInitialDistance;
+        // Dampen pinch sensitivity to ~75% of raw finger travel. W is a ratio, so we
+        // take the geometric fraction (rawW^k), not linear — keeps pinch-in/out
+        // equally damped (reciprocal-symmetric) and fixes W=1 (no move → no change).
+        // Gesture only; the panel slider passes its value straight to applyWidthScale.
+        const PINCH_SENSITIVITY = 0.75;
+        const W = Math.pow(rawW, PINCH_SENSITIVITY);
         // Cache latest W and schedule a single render per animation frame.
         this._pendingPinchW = W;
+        // PURE ZOOM (decoupled): pinch changes ONLY slice width/count and leaves
+        // rotation untouched — exactly like the panel width slider, which "works so
+        // well" (it passes no rotationAnchor). The old code re-anchored rotation to
+        // the LIVE two-finger midpoint every frame; that midpoint jitters, so the
+        // wheel rotated while zooming ("threw things off"). Rotation is now its own
+        // one-finger gesture. (startPinch's pinchF/pinchMidpointAngle/pinchClamp are
+        // now unused; _springBackAfterPinch no-ops since rotation never moves here.)
         if (this._pinchRAF) return;
         this._pinchRAF = requestAnimationFrame(() => {
             this._pinchRAF = null;
             const w = this._pendingPinchW;
             this.controls.applyWidthScale(w, this.dragState.pinchAnchorN, {
-                rotationAnchor: {
-                    midpointAngle: this.dragState.pinchMidpointAngle,
-                    f: this.dragState.pinchF,
-                },
                 syncSlider: true,
             });
         });
@@ -2669,7 +2880,18 @@ class InteractionManager {
 
         // Update the TARGET rotation. The follow loop in _beginRotationFollow lerps
         // the displayed rotation toward this target each animation frame.
-        this.dragState.targetRotation = (this.dragState.targetRotation + angleDiff + 360) % 360;
+        if (this.dragState.clampActive) {
+            // Accumulate UNWRAPPED offset from center and hard-wall it, so a
+            // determined drag pegs at the wall rather than folding past the seam.
+            const maxOff = this._maxRawOffset();
+            let off = this.dragState.targetRawOffset + angleDiff;
+            off = Math.max(-maxOff, Math.min(maxOff, off));
+            this.dragState.targetRawOffset = off;
+            this.dragState.targetRotation = this._rotFromOffset(this._rubberBandOffset(off));
+        } else {
+            // Free spin (parked outside range by slider/preset): original wrap.
+            this.dragState.targetRotation = (this.dragState.targetRotation + angleDiff + 360) % 360;
+        }
         this.dragState.lastAngle = currentAngle;
 
         if (this.dragState.startedFromSlice) {
@@ -2776,7 +2998,9 @@ class InteractionManager {
         // Deactivate gripper animation + start inertia if rotating
         if (this.dragState.isRotating) {
             this.renderer.deactivateGripper();
-            if (Math.abs(this.dragState.rotationVelocity) > 0.02) {
+            if (this._isPastBound(this.state.get('rotation'))) {
+                this._springBackRotation();           // released past a range end → ease back
+            } else if (Math.abs(this.dragState.rotationVelocity) > 0.02) {
                 this._startInertia();
             }
         }
@@ -2785,6 +3009,7 @@ class InteractionManager {
         if (this.dragState.isPinching) {
             if (this._pinchRAF) { cancelAnimationFrame(this._pinchRAF); this._pinchRAF = null; }
             if (this.controls) this.controls.commitWidthScale();
+            this._springBackAfterPinch();   // seam peeking past a bound → ease it hidden
         }
 
         // ALWAYS reset drag state to prevent stuck interactions
@@ -3437,8 +3662,30 @@ class ControlsManager {
         if (opts.rotationAnchor) {
             const { midpointAngle, f } = opts.rotationAnchor;
             const newAps = 360 / (sc - 1 + pf);
-            const newRot = ((midpointAngle - f * newAps) % 360 + 360) % 360;
+            let newRot = ((midpointAngle - f * newAps) % 360 + 360) % 360;
             const curRot = this.state.get('rotation');
+            if (opts.rotationAnchor.clamp) {
+                // Rubber-band the seam during a pinch (see startPinch): in range the
+                // anchor tracks the fingers; past a bound the seam resists with a
+                // damped peek (≤ overshoot), springs hidden on release. Pick the
+                // bound nearest the CURRENT rotation — NOT absolute-nearest — so a
+                // desired angle sweeping the blind arc can't fold to the far end
+                // (the "gives up" bug). Matches the rotation rubber-band.
+                const { center, half } = opts.rotationAnchor.clamp;
+                const wrap = a => ((a % 360) + 360) % 360;
+                const dd = ((newRot - center + 540) % 360) - 180;
+                if (Math.abs(dd) > half) {
+                    const angDist = (a, b) => { const d = Math.abs(wrap(a - b)); return d > 180 ? 360 - d : d; };
+                    const nearPlus = angDist(curRot, wrap(center + half)) <= angDist(curRot, wrap(center - half));
+                    const over = Math.min(20, (180 - half) * 0.45); // == _rotationOvershoot()
+                    let beyond = ((newRot - wrap(nearPlus ? center + half : center - half) + 540) % 360) - 180;
+                    beyond = Math.max(0, nearPlus ? beyond : -beyond);
+                    const damped = over * beyond / (beyond + over); // asymptotic, 0..over
+                    newRot = wrap(center + (nearPlus ? 1 : -1) * (half + damped));
+                } else {
+                    newRot = wrap(center + dd);
+                }
+            }
             if (Math.abs(newRot - curRot) > 0.01) {
                 this.state.set('rotation', newRot);
                 rotChanged = true;

@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Spiral Zoom — Prototype</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#0a0c0d;
+    font-family:-apple-system,system-ui,sans-serif; touch-action:none; }
+  #wrap { position:fixed; inset:0; }
+  svg { width:100%; height:100%; display:block; }
+  .key { stroke:#0a0c0d; stroke-width:1.5; }
+  .key-label { fill:#cfd3d4; font-weight:600; text-anchor:middle; dominant-baseline:middle;
+    pointer-events:none; user-select:none; }
+  .hub { fill:#16191a; }
+  /* HUD */
+  #hud { position:fixed; top:10px; left:10px; color:#7c8385; font-size:12px; line-height:1.5;
+    background:rgba(0,0,0,0.35); padding:8px 10px; border-radius:8px; font-variant-numeric:tabular-nums; }
+  #hud b { color:#cfd3d4; font-weight:600; }
+  #fps.bad { color:#e06b6b; }
+  #fps.ok  { color:#6be08a; }
+  #ctrls { position:fixed; bottom:14px; left:50%; transform:translateX(-50%);
+    display:flex; gap:14px; align-items:center; background:rgba(0,0,0,0.4);
+    padding:10px 16px; border-radius:12px; color:#9aa1a3; font-size:13px; }
+  #ctrls input[type=range] { width:160px; }
+  #ctrls button { background:#23282a; color:#cfd3d4; border:0; border-radius:7px;
+    padding:7px 12px; font-size:13px; }
+  .hint { position:fixed; top:10px; right:10px; color:#5a6163; font-size:11px; text-align:right; line-height:1.6; }
+</style>
+</head>
+<body>
+<div id="wrap"><svg id="svg" role="application" aria-label="Spiral zoom prototype"></svg></div>
+
+<div id="hud">
+  <div><b id="fps">–</b> fps <span id="fpsmin"></span></div>
+  <div>zoom <b id="zoomv">7</b> keys (<b id="octv">1.0</b> oct)</div>
+  <div>scroll <b id="scrollv">0</b> / <b id="scrollmaxv">0</b></div>
+  <div>rendered <b id="renderedv">0</b> of <b id="totalv">0</b></div>
+</div>
+
+<div class="hint">
+  1 finger drag ring · 2 finger pinch = zoom<br>
+  desktop: drag = scroll · slider = zoom
+</div>
+
+<div id="ctrls">
+  <label>zoom <input id="zoom" type="range" min="7" max="21" step="0.1" value="7"></label>
+  <button id="reset">reset</button>
+</div>
+
+<script>
+'use strict';
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+// ---- Instrument model ------------------------------------------------------
+const STEPS_PER_OCT = 7;                 // scale steps (C D E F G A B)
+const OCTAVES       = 7;                  // ~piano
+const TOTAL_KEYS    = OCTAVES * STEPS_PER_OCT;   // 49
+const ZOOM_IN       = 7;                  // keys on face when zoomed in  (1 octave)
+const ZOOM_OUT      = 21;                 // keys on face when zoomed out (3 octaves)
+const LETTERS       = ['C','D','E','F','G','A','B'];
+const START_OCT     = 2;
+
+// ---- Visible arc (bottom-right anchor: center at corner, arc 180°→270°) -----
+const ENTRY = 180, SPAN = 90;
+const EDGE  = 0.7;                        // keys within this many slots of an edge collapse
+const GAP_DEG_FRAC = 0.12;               // fraction of each slot used as gap
+
+// ---- State -----------------------------------------------------------------
+let keysVisible = ZOOM_IN;               // how many keys fill the face
+let scrollPos   = 0;                     // index of the key at the entry edge
+let scrollVel   = 0;                     // inertia (slots/frame)
+const state = { cx:0, cy:0, innerR:0, outerR:0 };
+
+const svg = document.getElementById('svg');
+let keyPool = [];                        // { path, label } — created once, reused
+
+function scrollMax() { return Math.max(0, TOTAL_KEYS - keysVisible); }
+function clampScroll(s) { return Math.max(0, Math.min(scrollMax(), s)); }
+
+function computeGeometry() {
+  const r = svg.getBoundingClientRect();
+  const W = r.width, H = r.height;
+  state.cx = W;            // bottom-right corner
+  state.cy = H;
+  const maxR = Math.hypot(W, H);
+  state.outerR = maxR * 0.92;
+  state.innerR = Math.min(W, H) * 0.30;   // hub radius
+}
+
+function buildPool() {
+  svg.innerHTML = '';
+  // hub disc (drawn last so keys tuck "under" its edge visually)
+  computeGeometry();
+  keyPool = [];
+  for (let i = 0; i < TOTAL_KEYS; i++) {
+    const path = document.createElementNS(SVG_NS, 'path');
+    path.setAttribute('class', 'key');
+    const label = document.createElementNS(SVG_NS, 'text');
+    label.setAttribute('class', 'key-label');
+    svg.appendChild(path);
+    svg.appendChild(label);
+    keyPool.push({ path, label });
+  }
+  hub = document.createElementNS(SVG_NS, 'circle');
+  hub.setAttribute('class', 'hub');
+  svg.appendChild(hub);
+}
+let hub;
+
+function noteName(i) {
+  const oct = START_OCT + Math.floor(i / STEPS_PER_OCT);
+  return LETTERS[i % STEPS_PER_OCT] + oct;
+}
+// grey ramp so adjacent keys are distinguishable; root (C) a touch brighter
+function keyFill(i) {
+  const isRoot = (i % STEPS_PER_OCT) === 0;
+  return isRoot ? '#3a4042' : '#272c2e';
+}
+
+function wedgePath(angleDeg, halfDeg, innerR, outerR) {
+  const a0 = (angleDeg - halfDeg) * Math.PI/180;
+  const a1 = (angleDeg + halfDeg) * Math.PI/180;
+  const { cx, cy } = state;
+  const x0i = cx + innerR*Math.cos(a0), y0i = cy + innerR*Math.sin(a0);
+  const x0o = cx + outerR*Math.cos(a0), y0o = cy + outerR*Math.sin(a0);
+  const x1o = cx + outerR*Math.cos(a1), y1o = cy + outerR*Math.sin(a1);
+  const x1i = cx + innerR*Math.cos(a1), y1i = cy + innerR*Math.sin(a1);
+  return `M ${x0i} ${y0i} L ${x0o} ${y0o} A ${outerR} ${outerR} 0 0 1 ${x1o} ${y1o} `
+       + `L ${x1i} ${y1i} A ${innerR} ${innerR} 0 0 0 ${x0i} ${y0i} Z`;
+}
+
+let renderedCount = 0;
+function layout() {
+  const slotDeg = SPAN / keysVisible;
+  const halfFull = (slotDeg / 2) * (1 - GAP_DEG_FRAC);
+  const labelR = (state.innerR + state.outerR) / 2;
+  renderedCount = 0;
+
+  for (let i = 0; i < TOTAL_KEYS; i++) {
+    const cell = keyPool[i];
+    const w = i - scrollPos;                       // 0..keysVisible across the face
+    if (w < -EDGE || w > keysVisible + EDGE) {      // fully off-face → hide (still in DOM, no churn)
+      if (cell.path.style.display !== 'none') { cell.path.style.display='none'; cell.label.style.display='none'; }
+      continue;
+    }
+    // collapse ramp near the two edges
+    let t = 1;
+    if (w < EDGE)                 t = Math.max(0, w / EDGE);
+    else if (w > keysVisible-EDGE) t = Math.max(0, (keysVisible - w) / EDGE);
+    const ease = t*t*(3-2*t);                       // smoothstep
+
+    const angle = ENTRY + (w / keysVisible) * SPAN;
+    const half  = halfFull * ease;
+    cell.path.setAttribute('d', wedgePath(angle, half, state.innerR, state.outerR));
+    cell.path.setAttribute('fill', keyFill(i));
+    cell.path.style.opacity = ease;
+    cell.path.style.display = '';
+
+    // label
+    const ar = angle * Math.PI/180;
+    const lx = state.cx + labelR*Math.cos(ar), ly = state.cy + labelR*Math.sin(ar);
+    cell.label.setAttribute('x', lx); cell.label.setAttribute('y', ly);
+    cell.label.setAttribute('font-size', Math.max(8, slotDeg*0.55));
+    cell.label.textContent = noteName(i);
+    cell.label.style.opacity = ease;
+    cell.label.style.display = (ease > 0.4) ? '' : 'none';
+    renderedCount++;
+  }
+
+  hub.setAttribute('cx', state.cx);
+  hub.setAttribute('cy', state.cy);
+  hub.setAttribute('r', state.innerR);
+
+  updateHUD();
+}
+
+// ---- HUD + FPS -------------------------------------------------------------
+let frames=0, fpsLast=performance.now(), fpsMin=999;
+const $ = id => document.getElementById(id);
+function updateHUD() {
+  $('zoomv').textContent = keysVisible.toFixed(keysVisible%1?1:0);
+  $('octv').textContent  = (keysVisible/STEPS_PER_OCT).toFixed(1);
+  $('scrollv').textContent = scrollPos.toFixed(1);
+  $('scrollmaxv').textContent = scrollMax().toFixed(0);
+  $('renderedv').textContent = renderedCount;
+  $('totalv').textContent = TOTAL_KEYS;
+}
+function fpsTick(now) {
+  frames++;
+  if (now - fpsLast >= 500) {
+    const fps = Math.round(frames * 1000 / (now - fpsLast));
+    frames = 0; fpsLast = now;
+    if (anim) fpsMin = Math.min(fpsMin, fps);     // only track min while animating
+    const el = $('fps'); el.textContent = fps;
+    el.className = fps >= 55 ? 'ok' : (fps < 45 ? 'bad' : '');
+    $('fpsmin').textContent = fpsMin<999 ? `(min ${fpsMin})` : '';
+  }
+  requestAnimationFrame(fpsTick);
+}
+requestAnimationFrame(fpsTick);
+
+// ---- Inertia loop ----------------------------------------------------------
+let anim = null;
+function startAnim() { if (!anim) anim = requestAnimationFrame(animTick); }
+function animTick() {
+  if (Math.abs(scrollVel) < 0.0005) { anim=null; return; }
+  scrollPos = scrollPos + scrollVel;
+  // clamp ends, kill velocity at the wall
+  const sm = scrollMax();
+  if (scrollPos < 0)  { scrollPos = 0;  scrollVel = 0; }
+  if (scrollPos > sm) { scrollPos = sm; scrollVel = 0; }
+  scrollVel *= 0.92;
+  layout();
+  anim = requestAnimationFrame(animTick);
+}
+
+// ---- Input: pointer drag = scroll, touch pinch = zoom ----------------------
+let dragId=null, lastX=0, lastY=0, lastT=0;
+let pinch=null;   // { d0, zoom0, focusKey }
+
+function angleAt(clientX, clientY) {
+  return Math.atan2(clientY - state.cy, clientX - state.cx) * 180/Math.PI;
+}
+// map a finger position to a fractional key index (for scroll + pinch focus)
+function keyAtPointer(clientX, clientY) {
+  let a = angleAt(clientX, clientY);
+  // normalize into [ENTRY, ENTRY+SPAN]
+  let w = ((a - ENTRY) / SPAN) * keysVisible;
+  return scrollPos + w;
+}
+
+svg.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (e.touches.length >= 2) {
+    const [t1,t2] = [e.touches[0], e.touches[1]];
+    const d0 = Math.hypot(t2.clientX-t1.clientX, t2.clientY-t1.clientY);
+    const mx=(t1.clientX+t2.clientX)/2, my=(t1.clientY+t2.clientY)/2;
+    pinch = { d0, zoom0: keysVisible, focusCenter: scrollPos + keysVisible/2 };
+    scrollVel = 0;
+    dragId = null;
+  } else {
+    const t = e.touches[0];
+    dragId = t.identifier; lastX=t.clientX; lastY=t.clientY; lastT=performance.now();
+    scrollVel = 0;
+  }
+}, {passive:false});
+
+svg.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (pinch && e.touches.length >= 2) {
+    const [t1,t2] = [e.touches[0], e.touches[1]];
+    const d = Math.hypot(t2.clientX-t1.clientX, t2.clientY-t1.clientY);
+    let z = pinch.zoom0 * (pinch.d0 / d);          // spread fingers → fewer keys (zoom in)
+    z = Math.max(ZOOM_IN, Math.min(ZOOM_OUT, z));
+    keysVisible = z;
+    // PURE ZOOM: keep the face-center key fixed; do NOT chase the finger midpoint.
+    // Coupling scroll to the noisy two-finger midpoint made the wheel rotate while
+    // zooming — the "throws things off" feel. The zoom slider feels great precisely
+    // because it's pure zoom around center; mirror it. (Rotate separately, 1 finger.)
+    scrollPos = clampScroll(pinch.focusCenter - keysVisible/2);
+    layout();
+  } else if (dragId !== null) {
+    let t=null; for (const x of e.touches) if (x.identifier===dragId) t=x;
+    if (!t) return;
+    applyDrag(t.clientX, t.clientY);
+  }
+}, {passive:false});
+
+svg.addEventListener('touchend', e => {
+  e.preventDefault();
+  if (pinch && e.touches.length < 2) pinch = null;
+  if (dragId!==null && !([...e.touches].some(x=>x.identifier===dragId))) {
+    dragId = null; startAnim();   // release → inertia
+  }
+}, {passive:false});
+
+// mouse (desktop scroll test)
+svg.addEventListener('mousedown', e => { dragId='mouse'; lastX=e.clientX; lastY=e.clientY; lastT=performance.now(); scrollVel=0; });
+window.addEventListener('mousemove', e => { if (dragId==='mouse') applyDrag(e.clientX, e.clientY); });
+window.addEventListener('mouseup', () => { if (dragId==='mouse'){ dragId=null; startAnim(); } });
+
+function applyDrag(x, y) {
+  // convert angular change under the finger into scroll-slots
+  const aPrev = angleAt(lastX, lastY), aNow = angleAt(x, y);
+  let dA = aNow - aPrev;
+  if (dA > 180) dA -= 360; if (dA < -180) dA += 360;
+  const dSlots = (dA / SPAN) * keysVisible;        // dragging along the arc moves the conveyor
+  scrollPos = clampScroll(scrollPos - dSlots);
+  const now = performance.now(), dt = Math.max(1, now - lastT);
+  scrollVel = (-dSlots) * (16/dt) * 0.6 + scrollVel*0.4;
+  lastX=x; lastY=y; lastT=now;
+  layout();
+}
+
+// ---- zoom slider + reset (desktop) -----------------------------------------
+$('zoom').addEventListener('input', e => {
+  const focus = scrollPos + keysVisible/2;         // zoom around face center
+  keysVisible = parseFloat(e.target.value);
+  scrollPos = clampScroll(focus - keysVisible/2);
+  layout();
+});
+$('reset').addEventListener('click', () => { keysVisible=ZOOM_IN; scrollPos=0; scrollVel=0; $('zoom').value=ZOOM_IN; layout(); });
+
+window.addEventListener('resize', () => { computeGeometry(); layout(); });
+
+// ---- go --------------------------------------------------------------------
+buildPool();
+layout();
+</script>
+</body>
+</html>
