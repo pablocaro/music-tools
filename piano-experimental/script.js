@@ -2353,8 +2353,8 @@ class InteractionManager {
         document.addEventListener('mousemove', (e) => this.handleMove(e));
         document.addEventListener('touchmove', (e) => this.handleMove(e), { passive: false });
         document.addEventListener('mouseup', () => this.handleEnd());
-        document.addEventListener('touchend', () => this.handleEnd());
-        document.addEventListener('touchcancel', () => this.handleEnd());
+        document.addEventListener('touchend', (e) => this.handleEnd(e));
+        document.addEventListener('touchcancel', (e) => this.handleEnd(e));
 
         // Keyboard support
         this.svg.addEventListener('keydown', (e) => this.handleKeyboard(e));
@@ -2401,26 +2401,24 @@ class InteractionManager {
             }
         }
 
-        // Multi-touch: pinch wins ONLY if at least one finger is in the gripper ring.
-        // Otherwise the touches fall through to slice presses (multi-note play).
+        // Multi-touch: pinch (zoom) wins ONLY when BOTH pinching fingers are in the
+        // gripper ring. If only one (or neither) is, the touches fall through to the
+        // single-touch path — so you can rest/play with one finger while the other
+        // is elsewhere, instead of accidentally zooming.
         if (e.touches && e.touches.length >= 2 && this.audio?.enabled) {
             const innerCircleData = this.renderer.getInnerCircleData();
-            let anyInGripper = false;
-            for (let i = 0; i < e.touches.length; i++) {
-                const c = this.getSVGCoordinates(e.touches[i].clientX, e.touches[i].clientY);
-                if (this.geometry.isInDraggableRing(c.x, c.y, innerCircleData.center, innerCircleData.innerRadius, innerCircleData.gripRingRadius)) {
-                    anyInGripper = true;
-                    break;
-                }
-            }
-            if (anyInGripper) {
+            const c0 = this.getSVGCoordinates(e.touches[0].clientX, e.touches[0].clientY);
+            const c1 = this.getSVGCoordinates(e.touches[1].clientX, e.touches[1].clientY);
+            const inGrip0 = this.geometry.isInDraggableRing(c0.x, c0.y, innerCircleData.center, innerCircleData.innerRadius, innerCircleData.gripRingRadius);
+            const inGrip1 = this.geometry.isInDraggableRing(c1.x, c1.y, innerCircleData.center, innerCircleData.innerRadius, innerCircleData.gripRingRadius);
+            if (inGrip0 && inGrip1) {
                 if (!this.dragState.isPinching) {
                     this.startPinch(e.touches[0], e.touches[1]);
                 }
                 e.preventDefault();
                 return;
             }
-            // Both fingers on slices → fall through, let each touch press its slice
+            // Not both in the grip ring → fall through to single-touch handling.
         }
 
         const clientX = e.clientX || (e.touches && e.touches[0].clientX);
@@ -2832,8 +2830,11 @@ class InteractionManager {
             this.renderer.activateGripper();
         }
 
+        // touchCount gates the gripper finger's own note-play (see handleRotation):
+        // with a 2nd finger down, that finger plays the note, so the gripper stays silent.
+        const touchCount = (e.touches && e.touches.length) ? e.touches.length : 1;
         if (this.dragState.isRotating) {
-            this.handleRotation(x, y, innerCircleData);
+            this.handleRotation(x, y, innerCircleData, touchCount);
         } else if (this.dragState.isDragging) {
             this.handleSliceDrag(clientX, clientY);
         }
@@ -2871,7 +2872,7 @@ class InteractionManager {
         });
     }
 
-    handleRotation(x, y, innerCircleData) {
+    handleRotation(x, y, innerCircleData, touchCount = 1) {
         const currentAngle = this.geometry.getAngleFromPoint(x, y, innerCircleData.center);
         let angleDiff = currentAngle - this.dragState.lastAngle;
 
@@ -2894,8 +2895,18 @@ class InteractionManager {
         }
         this.dragState.lastAngle = currentAngle;
 
-        if (this.dragState.startedFromSlice) {
+        // Only the SINGLE rotating finger scrubs notes under itself. With a second
+        // finger down (rotate-with-gripper + play-with-other), that finger owns the
+        // note — so the gripper finger must not also sound its slice's note.
+        if (this.dragState.startedFromSlice && touchCount <= 1) {
             this.activateSliceAtPosition(x, y, innerCircleData);
+        } else if (touchCount > 1 && this.dragState.lastRotationSlice !== null) {
+            // A second finger arrived mid-scrub — release the gripper's held note.
+            if (!this.audio.isLocked(this.dragState.lastRotationSlice)) {
+                this.renderer.releaseSlice(this.dragState.lastRotationSlice);
+                this.audio.stopNote(this.dragState.lastRotationSlice);
+            }
+            this.dragState.lastRotationSlice = null;
         }
     }
 
@@ -2964,7 +2975,44 @@ class InteractionManager {
         this.audio.stopNote(index);
     }
 
-    handleEnd() {
+    handleEnd(e) {
+        // PARTIAL LIFT: if other touches remain, don't tear down the whole gesture.
+        // Lifting the note finger while the gripper finger keeps rotating used to
+        // call the full reset below (isRotating=false) and kill rotation. Now: if a
+        // finger still rests in the gripper and we're rotating, release only the
+        // played note(s) and keep spinning; resync lastAngle to the remaining finger
+        // so rotation doesn't jump when touches[0] changes identity.
+        const remaining = (e && e.touches) ? e.touches.length : 0;
+        if (remaining > 0 && this.dragState.isRotating) {
+            const t = e.touches[0];
+            const { x, y } = this.getSVGCoordinates(t.clientX, t.clientY);
+            const icd = this.renderer.getInnerCircleData();
+            if (this.geometry.isInDraggableRing(x, y, icd.center, icd.innerRadius, icd.gripRingRadius)) {
+                // release every played note, keep rotation state intact
+                this.dragState.pressedSlices.forEach(slice => {
+                    const i = parseInt(slice.getAttribute('data-slice'));
+                    if (!this.audio.isLocked(i)) { this.renderer.releaseSlice(i); this.audio.stopNote(i); }
+                });
+                this.dragState.pressedSlices.clear();
+                if (this.dragState.lastTouchedSlice) {
+                    const i = parseInt(this.dragState.lastTouchedSlice.getAttribute('data-slice'));
+                    if (!this.audio.isLocked(i)) { this.renderer.releaseSlice(i); this.audio.stopNote(i); }
+                    this.dragState.lastTouchedSlice = null;
+                }
+                if (this.dragState.lastRotationSlice !== null) {
+                    if (!this.audio.isLocked(this.dragState.lastRotationSlice)) {
+                        this.renderer.releaseSlice(this.dragState.lastRotationSlice);
+                        this.audio.stopNote(this.dragState.lastRotationSlice);
+                    }
+                    this.dragState.lastRotationSlice = null;
+                }
+                this.dragState.isDragging = false;
+                this.dragState.startedFromSlice = false;
+                this.dragState.lastAngle = this.geometry.getAngleFromPoint(x, y, icd.center);
+                return;   // rotation continues with the remaining gripper finger
+            }
+        }
+
         // DEFENSIVE CLEANUP: Always clean up, even if drag state seems wrong
         // This prevents stuck notes if touch events fire out of order on iOS
 
