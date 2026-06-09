@@ -315,13 +315,13 @@ let shadowDy     = -3;
 
 // Button appearance
 let btnColor     = '#ebebeb';
-let btnFontSize  = 11;      // px
-let btnTracking  = 12;      // hundredths of em  (12 → 0.12em)
-let btnPadV      = 18;      // vertical padding px
-let btnRadius    = 0;       // border-radius px
-let btnBorderW   = 1;       // border width px
-let btnGap       = 1;       // gap between buttons px
-let btnAreaPad   = 0;       // padding around button row px
+let btnFontSize  = 14;      // px
+let btnTracking  = 14;      // hundredths of em  (14 → 0.14em)
+let btnPadV      = 19;      // vertical padding px
+let btnRadius    = 22;      // border-radius px
+let btnBorderW   = 2;       // border width px
+let btnGap       = 12;      // gap between buttons px
+let btnAreaPad   = 20;      // padding around button row px
 
 const pillW        = () => pinR * 0.95;
 const pillD        = () => pinR * 1.4;
@@ -554,7 +554,6 @@ let hasPlucked = false;
 
 function pluckString(idx, amp0) {
   playTone(stringFreqs[idx]);
-  pulseBody();
   if (!hasPlucked) { hasPlucked = true; setButtonsReady(true); }
   vib[idx] = true;
   const decay = vibDecay(), t0 = performance.now();
