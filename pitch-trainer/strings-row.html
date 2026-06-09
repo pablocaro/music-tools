@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Strings Row</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      width: 100vw; height: 100dvh;
+      overflow: hidden;
+      font-family: 'Courier New', Courier, monospace;
+      touch-action: none;
+      user-select: none; -webkit-user-select: none;
+    }
+
+    #stage { position: relative; width: 100%; height: 100%; }
+    #svg   { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+
+    #gear {
+      position: fixed; top: 16px; right: 16px;
+      width: 40px; height: 40px; border-radius: 50%;
+      border: 1px solid rgba(128,128,128,.45);
+      background: rgba(128,128,128,.14);
+      color: rgba(128,128,128,.95);
+      font: 10px 'Courier New', monospace;
+      letter-spacing: 1px; cursor: pointer; z-index: 30;
+    }
+    #gear:active { background: rgba(128,128,128,.3); }
+
+    #panel {
+      position: fixed; top: 0; right: 0;
+      width: min(260px, 82vw); height: 100%;
+      background: rgba(250,250,248,.97); color: #111;
+      border-left: 1px solid rgba(0,0,0,.12);
+      box-shadow: -8px 0 24px rgba(0,0,0,.08);
+      padding: 70px 20px 20px;
+      transform: translateX(100%); transition: transform .22s ease;
+      z-index: 25; font-size: 10px; letter-spacing: 1.5px; overflow-y: auto;
+    }
+    #panel.open { transform: translateX(0); }
+    #panel h2 { font-size: 11px; letter-spacing: 3px; opacity: .4; margin-bottom: 28px; font-weight: normal; }
+    #panel .section {
+      font-size: 9px; letter-spacing: 3px; opacity: .3;
+      margin: 28px 0 16px;
+      border-top: 1px solid rgba(0,0,0,.1); padding-top: 14px;
+    }
+    #panel .row { margin-bottom: 22px; }
+    #panel label { display: flex; justify-content: space-between; margin-bottom: 10px; opacity: .55; }
+    #panel .val { opacity: .6; }
+    #panel input[type="range"] { width: 100%; accent-color: #888; }
+    #panel input[type="color"] {
+      width: 100%; height: 30px;
+      border: 1px solid rgba(0,0,0,.15);
+      background: none; cursor: pointer; padding: 2px;
+    }
+    #panel button {
+      font: 10px 'Courier New', monospace; letter-spacing: 1.5px;
+      border: 1px solid rgba(0,0,0,.2); background: rgba(0,0,0,.04);
+      padding: 7px 10px; cursor: pointer; width: 100%;
+    }
+    #panel button:active { background: rgba(0,0,0,.12); }
+    #panel .btn-row { display: flex; gap: 8px; margin-top: 8px; }
+    #panel .btn-row button { width: auto; flex: 1; }
+    #panel textarea {
+      width: 100%; font: 10px 'Courier New', monospace;
+      letter-spacing: 0.5px; border: 1px solid rgba(0,0,0,.15);
+      background: rgba(0,0,0,.03); padding: 8px; resize: none; line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+<div id="stage"><svg id="svg"></svg></div>
+<button id="gear">SET</button>
+<div id="panel">
+  <h2>SETTINGS</h2>
+  <div class="row">
+    <label>BACKGROUND</label>
+    <input type="color" id="bgColor" autocomplete="off">
+  </div>
+  <div class="row">
+    <label>STRING COLOR</label>
+    <input type="color" id="stringColor" autocomplete="off">
+  </div>
+  <div class="row">
+    <label>HOLE COLOR</label>
+    <input type="color" id="holeColor" autocomplete="off">
+  </div>
+  <div class="row">
+    <label>STRING THICKNESS <span class="val" id="stringThicknessVal"></span></label>
+    <input type="range" id="stringThickness" min="4" max="20" step="1" autocomplete="off">
+  </div>
+  <div class="row">
+    <label>HOLE SIZE <span class="val" id="holeSizeVal"></span></label>
+    <input type="range" id="holeSize" min="10" max="28" step="1" autocomplete="off">
+  </div>
+  <div class="row">
+    <label>STRING LENGTH <span class="val" id="stringLengthVal"></span></label>
+    <input type="range" id="stringLength" min="30" max="100" step="1" autocomplete="off">
+  </div>
+  <div class="row">
+    <label>SPACING <span class="val" id="spacingVal"></span></label>
+    <input type="range" id="spacingRange" min="0" max="200" step="1" autocomplete="off">
+  </div>
+
+  <div class="section">BODY</div>
+  <div class="row">
+    <label>COLOR</label>
+    <input type="color" id="bodyColorInput" autocomplete="off">
+  </div>
+  <div class="row">
+    <label>RADIUS <span class="val" id="bodyRadiusVal"></span></label>
+    <input type="range" id="bodyRadiusRange" min="0" max="200" step="5" autocomplete="off">
+  </div>
+
+  <div class="section">VIBRATION</div>
+  <div class="row">
+    <label>BOW <span class="val" id="bowAmountVal"></span></label>
+    <input type="range" id="bowAmountRange" min="20" max="150" step="5" autocomplete="off">
+  </div>
+  <div class="row">
+    <label>BLUR <span class="val" id="vibBlurVal"></span></label>
+    <input type="range" id="vibBlurRange" min="0" max="10" step="1" autocomplete="off">
+  </div>
+  <div class="row">
+    <label>SUSTAIN <span class="val" id="vibSustainVal"></span></label>
+    <input type="range" id="vibSustainRange" min="1" max="100" step="1" autocomplete="off">
+  </div>
+
+  <div class="section">SHADOW</div>
+  <div class="row">
+    <label>COLOR</label>
+    <input type="color" id="shadowColorInput" autocomplete="off">
+  </div>
+  <div class="row">
+    <label>OPACITY <span class="val" id="shadowOpacityVal"></span></label>
+    <input type="range" id="shadowOpacityRange" min="0" max="100" step="1" autocomplete="off">
+  </div>
+  <div class="row">
+    <label>BLUR <span class="val" id="shadowBlurVal"></span></label>
+    <input type="range" id="shadowBlurRange" min="0" max="20" step="1" autocomplete="off">
+  </div>
+  <div class="row">
+    <label>OFFSET X <span class="val" id="shadowDxVal"></span></label>
+    <input type="range" id="shadowDxRange" min="-20" max="20" step="1" autocomplete="off">
+  </div>
+  <div class="row">
+    <label>OFFSET Y <span class="val" id="shadowDyVal"></span></label>
+    <input type="range" id="shadowDyRange" min="-20" max="20" step="1" autocomplete="off">
+  </div>
+
+  <div class="section">PRESET</div>
+  <div class="row">
+    <button id="saveDefault">SET AS DEFAULT</button>
+  </div>
+  <div class="row">
+    <label>EXPORT / IMPORT</label>
+    <textarea id="settingsJson" rows="3" spellcheck="false" autocomplete="off"></textarea>
+    <div class="btn-row">
+      <button id="copySettings">COPY</button>
+      <button id="applySettings">APPLY</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Config ────────────────────────────────────────────────────
+const NUM_STRINGS = 2;
+const NUM_GHOSTS  = 12;
+const MIN_PLUCK   = 8;
+const TAP_FRAC    = 0.44;
+const SVGNS       = 'http://www.w3.org/2000/svg';
+
+// ── Settings ──────────────────────────────────────────────────
+let bg        = '#444444';
+let strCol    = '#ebebeb';
+let holeCol   = '#232323';
+let strW      = 6;
+let pinR      = 13;
+let stringLen = 0.69;
+let spacing   = 85;   // px between string centres
+// Body
+let bodyColor  = '#232323';
+let bodyRadius = 100;
+// Vibration
+let bowAmount     = 90;
+let vibBlurAmt    = 3;
+let vibSustainAmt = 64;
+// Shadow
+let shadowCol        = '#000000';
+let shadowOpacityAmt = 17;
+let shadowBlurAmt    = 2;
+let shadowDxAmt      = 5;
+let shadowDyAmt      = -3;
+
+const pillW        = () => pinR * 0.95;
+const pillD        = () => pinR * 1.4;
+const pinMargin    = () => pinR * 0.6;
+const ghostW       = () => Math.max(1.5, strW * 0.35);
+const lengthMargin = () => (H * (1 - stringLen)) / 2;
+const vibDecay     = () => 0.3 + 5.7 * (1 - vibSustainAmt / 100);
+
+// ── State ─────────────────────────────────────────────────────
+let W = 0, H = 0;
+const cx  = new Array(NUM_STRINGS).fill(0);
+const vib = new Array(NUM_STRINGS).fill(false);
+
+let mainPath = [], ghostEls = [], blurDev = [], grpEls = [], pinEls = [];
+let shadowPathEls = [], shadowBlurDevEls = [];
+let bodyCircle = null;
+
+// ── Geometry ──────────────────────────────────────────────────
+function xRatio(i) { return 0.5 + (i === 0 ? -1 : 1) * spacing / (2 * W); }
+function pinTopY() { return pinR + pinMargin() + lengthMargin(); }
+function pinBotY() { return H - pinR - pinMargin() - lengthMargin(); }
+function strTopY() { return pinTopY() + pinR - pillD() + pillW() / 2; }
+function strBotY() { return pinBotY() - pinR + pillD() - pillW() / 2; }
+
+function stringD(i, offset) {
+  const x = W * xRatio(i), top = strTopY(), bot = strBotY();
+  return `M ${x} ${top} Q ${x + offset} ${(top + bot) / 2} ${x} ${bot}`;
+}
+function ghostD(i, k) {
+  const frac = NUM_GHOSTS > 1 ? (k / (NUM_GHOSTS - 1)) * 2 - 1 : 0;
+  return stringD(i, cx[i] * frac);
+}
+function ghostOpacity(k, env) {
+  const frac = NUM_GHOSTS > 1 ? k / (NUM_GHOSTS - 1) : 0.5;
+  return (0.12 + Math.abs(frac * 2 - 1) * 0.30) * Math.min(env * 2, 1);
+}
+
+// ── SVG build ─────────────────────────────────────────────────
+// Z-order: shadows → body circle → ghost groups → strings → pins
+// Shadows are behind the circle (circle occludes them).
+// Ghost blur groups are in FRONT of the circle (vibration visible over hole).
+function buildSVG() {
+  const svg  = document.getElementById('svg');
+  const rect = document.getElementById('stage').getBoundingClientRect();
+  W = rect.width; H = rect.height;
+
+  const topY = pinTopY(), botY = pinBotY();
+  const pw = pillW(), pd = pillD();
+
+  let defs = '<defs>';
+  for (let i = 0; i < NUM_STRINGS; i++) {
+    const x = W * xRatio(i), px = x - pw / 2, rxv = pw / 2;
+    defs += `
+      <filter id="fblur-${i}" x="-60%" y="-10%" width="220%" height="120%">
+        <feGaussianBlur id="fdev-${i}" stdDeviation="0 0"/>
+      </filter>
+      <filter id="fshad-${i}" filterUnits="userSpaceOnUse"
+              x="${x - 200}" y="-50" width="400" height="${H + 100}">
+        <feGaussianBlur id="fshad-dev-${i}" stdDeviation="${shadowBlurAmt}"/>
+      </filter>
+      <mask id="mask-top-${i}">
+        <circle cx="${x}" cy="${topY}" r="${pinR}" fill="white"/>
+        <rect x="${px}" y="${topY + pinR - pd}" width="${pw}" height="${pd + pinR}" rx="${rxv}" ry="${rxv}" fill="black"/>
+      </mask>
+      <mask id="mask-bot-${i}">
+        <circle cx="${x}" cy="${botY}" r="${pinR}" fill="white"/>
+        <rect x="${px}" y="${botY - pinR - pinR}" width="${pw}" height="${pd + pinR}" rx="${rxv}" ry="${rxv}" fill="black"/>
+      </mask>`;
+  }
+  defs += '</defs>';
+  svg.innerHTML = defs;
+
+  mainPath = []; ghostEls = []; blurDev = []; grpEls = []; pinEls = [];
+  shadowPathEls = []; shadowBlurDevEls = [];
+  bodyCircle = null;
+
+  // ── Pass 1: shadow paths (lowest z — behind the body circle) ──
+  for (let i = 0; i < NUM_STRINGS; i++) {
+    shadowBlurDevEls.push(document.getElementById(`fshad-dev-${i}`));
+    const shad = document.createElementNS(SVGNS, 'path');
+    shad.setAttribute('d', stringD(i, 0));
+    shad.setAttribute('stroke', shadowCol);
+    shad.setAttribute('stroke-width', strW);
+    shad.setAttribute('fill', 'none');
+    shad.setAttribute('stroke-linecap', 'round');
+    shad.setAttribute('stroke-opacity', shadowOpacityAmt / 100);
+    shad.setAttribute('transform', `translate(${shadowDxAmt}, ${shadowDyAmt})`);
+    shad.setAttribute('filter', `url(#fshad-${i})`);
+    svg.appendChild(shad);
+    shadowPathEls.push(shad);
+  }
+
+  // ── Body circle: above shadows, below ghost blur ───────────────
+  const body = document.createElementNS(SVGNS, 'circle');
+  body.setAttribute('cx', W / 2);
+  body.setAttribute('cy', H / 2);
+  body.setAttribute('r', bodyRadius);
+  body.setAttribute('fill', bodyColor);
+  svg.appendChild(body);
+  bodyCircle = body;
+
+  // ── Pass 2: ghost groups (above circle — blur shows over hole) ─
+  for (let i = 0; i < NUM_STRINGS; i++) {
+    blurDev.push(document.getElementById(`fdev-${i}`));
+    const grp = document.createElementNS(SVGNS, 'g');
+    svg.appendChild(grp);
+    grpEls.push(grp);
+    const ghosts = [];
+    for (let k = 0; k < NUM_GHOSTS; k++) {
+      const g = document.createElementNS(SVGNS, 'path');
+      g.setAttribute('stroke', strCol);
+      g.setAttribute('stroke-width', ghostW());
+      g.setAttribute('fill', 'none');
+      g.setAttribute('stroke-linecap', 'round');
+      g.setAttribute('opacity', '0');
+      grp.appendChild(g);
+      ghosts.push(g);
+    }
+    ghostEls.push(ghosts);
+  }
+
+  // ── Pass 3: strings + pins (highest z) ────────────────────────
+  for (let i = 0; i < NUM_STRINGS; i++) {
+    const x = W * xRatio(i);
+
+    const path = document.createElementNS(SVGNS, 'path');
+    path.setAttribute('d', stringD(i, 0));
+    path.setAttribute('stroke', strCol);
+    path.setAttribute('stroke-width', strW);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke-linecap', 'round');
+    svg.appendChild(path);
+    mainPath.push(path);
+
+    const pinTop = document.createElementNS(SVGNS, 'circle');
+    pinTop.setAttribute('cx', x); pinTop.setAttribute('cy', topY);
+    pinTop.setAttribute('r', pinR); pinTop.setAttribute('fill', holeCol);
+    pinTop.setAttribute('mask', `url(#mask-top-${i})`);
+    svg.appendChild(pinTop);
+
+    const pinBot = document.createElementNS(SVGNS, 'circle');
+    pinBot.setAttribute('cx', x); pinBot.setAttribute('cy', botY);
+    pinBot.setAttribute('r', pinR); pinBot.setAttribute('fill', holeCol);
+    pinBot.setAttribute('mask', `url(#mask-bot-${i})`);
+    svg.appendChild(pinBot);
+
+    pinEls.push([pinTop, pinBot]);
+  }
+
+  for (let i = 0; i < NUM_STRINGS; i++) redraw(i);
+}
+
+// ── Redraw ────────────────────────────────────────────────────
+function redraw(i) {
+  if (!mainPath[i]) return;
+  const d = vib[i] ? stringD(i, 0) : stringD(i, cx[i]);
+  mainPath[i].setAttribute('d', d);
+  if (shadowPathEls[i]) shadowPathEls[i].setAttribute('d', d);
+
+  if (vib[i]) {
+    grpEls[i].setAttribute('filter', `url(#fblur-${i})`);
+    const env = Math.min(cx[i] / bowAmount, 1);
+    for (let k = 0; k < NUM_GHOSTS; k++) {
+      ghostEls[i][k].setAttribute('d', ghostD(i, k));
+      ghostEls[i][k].setAttribute('opacity', ghostOpacity(k, env).toFixed(3));
+    }
+    blurDev[i].setAttribute('stdDeviation', (vibBlurAmt * env).toFixed(2) + ' 0');
+  } else {
+    grpEls[i].setAttribute('filter', 'none');
+    for (let k = 0; k < NUM_GHOSTS; k++) ghostEls[i][k].setAttribute('opacity', '0');
+  }
+}
+
+// ── Pluck ─────────────────────────────────────────────────────
+function pluck(idx, amp0) {
+  vib[idx] = true;
+  const decay = vibDecay();
+  const t0 = performance.now();
+  function tick() {
+    const t = (performance.now() - t0) / 1000;
+    const env = Math.exp(-decay * t);
+    cx[idx] = amp0 * env;
+    redraw(idx);
+    if (env > 0.004) { requestAnimationFrame(tick); }
+    else { cx[idx] = 0; vib[idx] = false; redraw(idx); }
+  }
+  requestAnimationFrame(tick);
+}
+
+// ── Interaction ───────────────────────────────────────────────
+const ptr = { active: false, idx: -1, startX: 0, moved: false };
+
+function findString(clientX) {
+  let best = -1, bestDist = Infinity;
+  for (let i = 0; i < NUM_STRINGS; i++) {
+    const d = Math.abs(clientX - W * xRatio(i));
+    if (d < bestDist) { bestDist = d; best = i; }
+  }
+  return bestDist <= 80 ? best : -1;
+}
+
+function pointerDown(clientX) {
+  if (!W) return;
+  const idx = findString(clientX);
+  if (idx < 0 || vib[idx]) return;
+  ptr.active = true; ptr.idx = idx; ptr.startX = clientX; ptr.moved = false;
+}
+function pointerMove(clientX) {
+  if (!ptr.active) return;
+  if (Math.abs(clientX - ptr.startX) > 4) ptr.moved = true;
+  cx[ptr.idx] = Math.max(-bowAmount, Math.min(bowAmount, (clientX - W * xRatio(ptr.idx)) * 1.3));
+  redraw(ptr.idx);
+}
+function pointerUp() {
+  if (!ptr.active) return;
+  const idx = ptr.idx;
+  ptr.active = false; ptr.idx = -1;
+  if (!ptr.moved) { cx[idx] = 0; pluck(idx, bowAmount * TAP_FRAC); return; }
+  if (Math.abs(cx[idx]) < MIN_PLUCK) { cx[idx] = 0; redraw(idx); return; }
+  pluck(idx, Math.abs(cx[idx]));
+}
+
+const stage = document.getElementById('stage');
+stage.addEventListener('mousedown',  e => pointerDown(e.clientX));
+stage.addEventListener('touchstart', e => { e.preventDefault(); pointerDown(e.touches[0].clientX); }, { passive: false });
+window.addEventListener('mousemove',  e => pointerMove(e.clientX));
+window.addEventListener('mouseup',    pointerUp);
+window.addEventListener('touchmove',  e => { e.preventDefault(); pointerMove(e.touches[0].clientX); }, { passive: false });
+window.addEventListener('touchend',   pointerUp);
+window.addEventListener('resize',     buildSVG);
+
+// ── Apply helpers ─────────────────────────────────────────────
+function applyColors() {
+  document.body.style.background = bg;
+  for (let i = 0; i < NUM_STRINGS; i++) {
+    mainPath[i].setAttribute('stroke', strCol);
+    for (const g of ghostEls[i]) g.setAttribute('stroke', strCol);
+    pinEls[i][0].setAttribute('fill', holeCol);
+    pinEls[i][1].setAttribute('fill', holeCol);
+  }
+}
+function applyStringWidth() {
+  const gw = ghostW();
+  for (let i = 0; i < NUM_STRINGS; i++) {
+    mainPath[i].setAttribute('stroke-width', strW);
+    for (const g of ghostEls[i]) g.setAttribute('stroke-width', gw);
+    if (shadowPathEls[i]) shadowPathEls[i].setAttribute('stroke-width', strW);
+  }
+}
+function applyDropShadow() {
+  const sop = shadowOpacityAmt / 100;
+  for (let i = 0; i < NUM_STRINGS; i++) {
+    if (!shadowPathEls[i]) continue;
+    shadowPathEls[i].setAttribute('stroke', shadowCol);
+    shadowPathEls[i].setAttribute('stroke-opacity', sop);
+    shadowPathEls[i].setAttribute('stroke-width', strW);
+    shadowPathEls[i].setAttribute('transform', `translate(${shadowDxAmt}, ${shadowDyAmt})`);
+    shadowBlurDevEls[i].setAttribute('stdDeviation', shadowBlurAmt);
+  }
+}
+function applyBody() {
+  if (!bodyCircle) return;
+  bodyCircle.setAttribute('r', bodyRadius);
+  bodyCircle.setAttribute('fill', bodyColor);
+}
+
+// ── Settings panel DOM refs ───────────────────────────────────
+const gear  = document.getElementById('gear');
+const panel = document.getElementById('panel');
+
+const bgIn         = document.getElementById('bgColor');
+const strColIn     = document.getElementById('stringColor');
+const holeColIn    = document.getElementById('holeColor');
+const strWIn       = document.getElementById('stringThickness');
+const strWOut      = document.getElementById('stringThicknessVal');
+const pinRIn       = document.getElementById('holeSize');
+const pinROut      = document.getElementById('holeSizeVal');
+const strLenIn     = document.getElementById('stringLength');
+const strLenOut    = document.getElementById('stringLengthVal');
+const spacingIn    = document.getElementById('spacingRange');
+const spacingOut   = document.getElementById('spacingVal');
+const bodyColIn    = document.getElementById('bodyColorInput');
+const bodyRadIn    = document.getElementById('bodyRadiusRange');
+const bodyRadOut   = document.getElementById('bodyRadiusVal');
+const bowIn        = document.getElementById('bowAmountRange');
+const bowOut       = document.getElementById('bowAmountVal');
+const vibBlurIn    = document.getElementById('vibBlurRange');
+const vibBlurOut   = document.getElementById('vibBlurVal');
+const vibSusIn     = document.getElementById('vibSustainRange');
+const vibSusOut    = document.getElementById('vibSustainVal');
+const shadowColIn  = document.getElementById('shadowColorInput');
+const shadowOpIn   = document.getElementById('shadowOpacityRange');
+const shadowOpOut  = document.getElementById('shadowOpacityVal');
+const shadowBluIn  = document.getElementById('shadowBlurRange');
+const shadowBluOut = document.getElementById('shadowBlurVal');
+const shadowDxIn   = document.getElementById('shadowDxRange');
+const shadowDxOut  = document.getElementById('shadowDxVal');
+const shadowDyIn   = document.getElementById('shadowDyRange');
+const shadowDyOut  = document.getElementById('shadowDyVal');
+
+// ── Serialise / sync ──────────────────────────────────────────
+function currentSettings() {
+  return {
+    bg, strCol, holeCol, strW, pinR,
+    stringLen: +stringLen.toFixed(2), spacing,
+    bodyColor, bodyRadius,
+    bowAmount, vibBlurAmt, vibSustainAmt,
+    shadowCol, shadowOpacityAmt, shadowBlurAmt, shadowDxAmt, shadowDyAmt
+  };
+}
+function syncTextarea() {
+  document.getElementById('settingsJson').value = JSON.stringify(currentSettings());
+}
+function syncInputs() {
+  bgIn.value        = bg;
+  strColIn.value    = strCol;
+  holeColIn.value   = holeCol;
+  strWIn.value      = strW;                          strWOut.textContent    = strW;
+  pinRIn.value      = pinR;                          pinROut.textContent    = pinR;
+  strLenIn.value    = Math.round(stringLen * 100);   strLenOut.textContent  = strLenIn.value + '%';
+  spacingIn.value   = spacing;                        spacingOut.textContent = spacing + 'px';
+  bodyColIn.value   = bodyColor;
+  bodyRadIn.value   = bodyRadius;                    bodyRadOut.textContent = bodyRadius;
+  bowIn.value       = bowAmount;                     bowOut.textContent     = bowAmount;
+  vibBlurIn.value   = vibBlurAmt;                    vibBlurOut.textContent = vibBlurAmt;
+  vibSusIn.value    = vibSustainAmt;                 vibSusOut.textContent  = vibSustainAmt;
+  shadowColIn.value = shadowCol;
+  shadowOpIn.value  = shadowOpacityAmt;              shadowOpOut.textContent  = shadowOpacityAmt + '%';
+  shadowBluIn.value = shadowBlurAmt;                 shadowBluOut.textContent = shadowBlurAmt;
+  shadowDxIn.value  = shadowDxAmt;                   shadowDxOut.textContent  = shadowDxAmt;
+  shadowDyIn.value  = shadowDyAmt;                   shadowDyOut.textContent  = shadowDyAmt;
+}
+
+// ── Persist defaults ──────────────────────────────────────────
+const LS_KEY = 'strings-row-settings-v2';
+function saveDefaults() { localStorage.setItem(LS_KEY, JSON.stringify(currentSettings())); }
+function loadDefaults() {
+  try {
+    const s = JSON.parse(localStorage.getItem(LS_KEY));
+    if (!s) return;
+    if (s.bg              != null) bg              = s.bg;
+    if (s.strCol          != null) strCol          = s.strCol;
+    if (s.holeCol         != null) holeCol         = s.holeCol;
+    if (s.strW            != null) strW            = +s.strW;
+    if (s.pinR            != null) pinR            = +s.pinR;
+    if (s.stringLen       != null) stringLen       = +s.stringLen;
+    if (s.spacing         != null) spacing         = +s.spacing;
+    if (s.bodyColor       != null) bodyColor       = s.bodyColor;
+    if (s.bodyRadius      != null) bodyRadius      = +s.bodyRadius;
+    if (s.bowAmount       != null) bowAmount       = +s.bowAmount;
+    if (s.vibBlurAmt      != null) vibBlurAmt      = +s.vibBlurAmt;
+    if (s.vibSustainAmt   != null) vibSustainAmt   = +s.vibSustainAmt;
+    if (s.shadowCol       != null) shadowCol       = s.shadowCol;
+    if (s.shadowOpacityAmt!= null) shadowOpacityAmt= +s.shadowOpacityAmt;
+    if (s.shadowBlurAmt   != null) shadowBlurAmt   = +s.shadowBlurAmt;
+    if (s.shadowDxAmt     != null) shadowDxAmt     = +s.shadowDxAmt;
+    if (s.shadowDyAmt     != null) shadowDyAmt     = +s.shadowDyAmt;
+  } catch(e) {}
+}
+
+loadDefaults();
+syncInputs();
+
+// ── Event listeners ───────────────────────────────────────────
+bgIn.addEventListener('input',      e => { bg = e.target.value; applyColors(); });
+strColIn.addEventListener('input',  e => { strCol = e.target.value; applyColors(); });
+holeColIn.addEventListener('input', e => { holeCol = e.target.value; applyColors(); });
+strWIn.addEventListener('input',    e => { strW = +e.target.value; strWOut.textContent = strW; applyStringWidth(); });
+pinRIn.addEventListener('input',    e => { pinR = +e.target.value; pinROut.textContent = pinR; buildSVG(); });
+strLenIn.addEventListener('input',  e => { stringLen = +e.target.value / 100; strLenOut.textContent = e.target.value + '%'; buildSVG(); });
+spacingIn.addEventListener('input', e => { spacing = +e.target.value; spacingOut.textContent = spacing + 'px'; buildSVG(); });
+
+bodyColIn.addEventListener('input', e => { bodyColor = e.target.value; applyBody(); });
+bodyRadIn.addEventListener('input', e => { bodyRadius = +e.target.value; bodyRadOut.textContent = bodyRadius; applyBody(); });
+
+bowIn.addEventListener('input',    e => { bowAmount     = +e.target.value; bowOut.textContent    = bowAmount; });
+vibBlurIn.addEventListener('input',e => { vibBlurAmt    = +e.target.value; vibBlurOut.textContent= vibBlurAmt; });
+vibSusIn.addEventListener('input', e => { vibSustainAmt = +e.target.value; vibSusOut.textContent = vibSustainAmt; });
+
+shadowColIn.addEventListener('input', e => { shadowCol = e.target.value; applyDropShadow(); });
+shadowOpIn.addEventListener('input',  e => { shadowOpacityAmt = +e.target.value; shadowOpOut.textContent  = shadowOpacityAmt + '%'; applyDropShadow(); });
+shadowBluIn.addEventListener('input', e => { shadowBlurAmt    = +e.target.value; shadowBluOut.textContent = shadowBlurAmt; applyDropShadow(); });
+shadowDxIn.addEventListener('input',  e => { shadowDxAmt      = +e.target.value; shadowDxOut.textContent  = shadowDxAmt; applyDropShadow(); });
+shadowDyIn.addEventListener('input',  e => { shadowDyAmt      = +e.target.value; shadowDyOut.textContent  = shadowDyAmt; applyDropShadow(); });
+
+gear.addEventListener('click', () => {
+  const open = panel.classList.toggle('open');
+  gear.textContent = open ? 'CLOSE' : 'SET';
+  if (open) syncTextarea();
+});
+panel.addEventListener('input', () => syncTextarea());
+
+document.getElementById('saveDefault').addEventListener('click', () => {
+  saveDefaults();
+  const btn = document.getElementById('saveDefault');
+  btn.textContent = 'SAVED ✓';
+  setTimeout(() => { btn.textContent = 'SET AS DEFAULT'; }, 1500);
+});
+document.getElementById('copySettings').addEventListener('click', () => {
+  const json = document.getElementById('settingsJson').value;
+  navigator.clipboard.writeText(json)
+    .then(() => {
+      const btn = document.getElementById('copySettings');
+      btn.textContent = 'COPIED ✓';
+      setTimeout(() => { btn.textContent = 'COPY'; }, 1500);
+    })
+    .catch(() => { const ta = document.getElementById('settingsJson'); ta.select(); document.execCommand('copy'); });
+});
+document.getElementById('applySettings').addEventListener('click', () => {
+  try {
+    const s = JSON.parse(document.getElementById('settingsJson').value);
+    if (s.bg              != null) bg              = s.bg;
+    if (s.strCol          != null) strCol          = s.strCol;
+    if (s.holeCol         != null) holeCol         = s.holeCol;
+    if (s.strW            != null) strW            = +s.strW;
+    if (s.pinR            != null) pinR            = +s.pinR;
+    if (s.stringLen       != null) stringLen       = +s.stringLen;
+    if (s.spacing         != null) spacing         = +s.spacing < 2 ? 80 : +s.spacing; // migrate old fraction→px
+    if (s.bodyColor       != null) bodyColor       = s.bodyColor;
+    if (s.bodyRadius      != null) bodyRadius      = +s.bodyRadius;
+    if (s.bowAmount       != null) bowAmount       = +s.bowAmount;
+    if (s.vibBlurAmt      != null) vibBlurAmt      = +s.vibBlurAmt;
+    if (s.vibSustainAmt   != null) vibSustainAmt   = +s.vibSustainAmt;
+    if (s.shadowCol       != null) shadowCol       = s.shadowCol;
+    if (s.shadowOpacityAmt!= null) shadowOpacityAmt= +s.shadowOpacityAmt;
+    if (s.shadowBlurAmt   != null) shadowBlurAmt   = +s.shadowBlurAmt;
+    if (s.shadowDxAmt     != null) shadowDxAmt     = +s.shadowDxAmt;
+    if (s.shadowDyAmt     != null) shadowDyAmt     = +s.shadowDyAmt;
+    syncInputs(); applyColors(); applyStringWidth(); applyBody(); applyDropShadow(); buildSVG();
+  } catch(e) {}
+});
+
+// ── Init ──────────────────────────────────────────────────────
+document.body.style.background = bg;
+buildSVG();
+</script>
+</body>
+</html>
