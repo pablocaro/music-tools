@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Pitch Trainer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      width: 100vw; height: 100dvh; overflow: hidden;
+      background: #444444; color: #ebebeb;
+      font-family: 'Rubik', system-ui, sans-serif;
+      touch-action: none; user-select: none; -webkit-user-select: none;
+      display: flex; flex-direction: column;
+    }
+
+    /* ── Header ────────────────────────────── */
+    #header {
+      flex-shrink: 0; height: 58px; padding: 0 20px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    #threshold { font-size: 22px; letter-spacing: 0.5px; opacity: .85; }
+    #threshold .unit { font-size: 13px; opacity: .45; margin-left: 1px; }
+    #best { font-size: 10px; letter-spacing: 2px; opacity: .3; margin-top: 3px; }
+    #header-right { display: flex; align-items: center; gap: 12px; }
+    #history { display: flex; gap: 6px; align-items: center; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(235,235,235,.14); transition: background .3s; }
+    .dot.ok  { background: rgba(235,235,235,.75); }
+    .dot.err { background: rgba(255,100,100,.65); }
+    #gear {
+      width: 32px; height: 32px; border-radius: 50%;
+      border: 1px solid rgba(235,235,235,.2); background: rgba(235,235,235,.06);
+      color: rgba(235,235,235,.5); font: 8px 'Courier New', monospace;
+      letter-spacing: 1px; cursor: pointer; flex-shrink: 0;
+    }
+    #gear:active { background: rgba(235,235,235,.15); }
+
+    /* ── Stage ──────────────────────────────── */
+    #stage { flex: 1; position: relative; overflow: hidden; }
+    #svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+
+    /* ── Answer buttons ─────────────────────── */
+    #answers { flex-shrink: 0; display: flex; justify-content: center; }
+
+    :root {
+      --btn-ready:        rgba(235,235,235, .80);
+      --btn-dim:          rgba(235,235,235, .18);
+      --btn-border-ready: rgba(235,235,235, .55);
+      --btn-border-dim:   rgba(235,235,235, .10);
+    }
+    .abtn {
+      flex: 1;
+      background: transparent;
+      border: 1px solid var(--btn-border-dim);
+      color: var(--btn-dim);
+      font-family: 'Rubik', system-ui, sans-serif;
+      font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+      cursor: pointer;
+      transition: border-color .2s, color .2s, background .15s;
+      pointer-events: none;
+    }
+    .abtn.ready {
+      border-color: var(--btn-border-ready);
+      color: var(--btn-ready);
+      pointer-events: all;
+    }
+    .abtn.ready:active { background: rgba(235,235,235,.07); }
+    .abtn.reveal-correct {
+      border-color: rgba(120,220,120,.55); color: rgba(160,255,160,.9);
+      pointer-events: none;
+    }
+    .abtn.reveal-wrong {
+      border-color: rgba(255,80,80,.45); color: rgba(255,150,150,.8);
+      pointer-events: none;
+    }
+
+    /* ── Overlay (tap-outside-to-close) ─────── */
+    #overlay {
+      position: fixed; inset: 0; z-index: 24;
+      background: rgba(0,0,0,0); pointer-events: none;
+      transition: background .22s;
+    }
+    #overlay.on { pointer-events: all; background: rgba(0,0,0,.25); }
+
+    /* ── Settings panel ─────────────────────── */
+    #panel {
+      position: fixed; top: 0; right: 0;
+      width: min(270px, 84vw); height: 100%;
+      background: rgba(36,36,34,.98); color: #ebebeb;
+      border-left: 1px solid rgba(235,235,235,.08);
+      box-shadow: -10px 0 30px rgba(0,0,0,.35);
+      transform: translateX(100%); transition: transform .22s ease;
+      z-index: 25; font-size: 10px; letter-spacing: 1.5px;
+      display: flex; flex-direction: column;
+    }
+    #panel.open { transform: translateX(0); }
+
+    #panel-head {
+      flex-shrink: 0; padding: 18px 18px 14px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid rgba(235,235,235,.07);
+    }
+    #panel-head h2 { font-size: 10px; letter-spacing: 3px; opacity: .35; font-weight: normal; }
+    #pClose {
+      width: 28px; height: 28px; border-radius: 50%;
+      border: 1px solid rgba(235,235,235,.18); background: rgba(235,235,235,.05);
+      color: rgba(235,235,235,.5); font-size: 13px; cursor: pointer;
+    }
+    #pClose:active { background: rgba(235,235,235,.15); }
+
+    #panel-scroll { flex: 1; overflow-y: auto; padding: 6px 18px 24px; }
+
+    /* Collapsible sections */
+    .psec-hdr {
+      font-size: 9px; letter-spacing: 3px; opacity: .32; cursor: pointer;
+      padding: 14px 0 10px;
+      border-top: 1px solid rgba(235,235,235,.07);
+      display: flex; align-items: center; gap: 7px;
+      user-select: none; -webkit-user-select: none;
+    }
+    .psec-hdr:first-child { border-top: none; padding-top: 10px; }
+    .psec-hdr:hover { opacity: .5; }
+    .psec-arrow { font-size: 8px; opacity: .6; transition: transform .15s; }
+    .psec-body { overflow: hidden; max-height: 1200px; transition: max-height .25s ease; }
+    .psec-body.collapsed { max-height: 0; }
+
+    .prow { margin-bottom: 18px; }
+    .prow label { display: flex; justify-content: space-between; margin-bottom: 8px; opacity: .48; }
+    .prow .v { opacity: .6; }
+    .prow input[type="range"] { width: 100%; accent-color: #999; }
+    .prow input[type="color"] {
+      width: 100%; height: 26px; padding: 2px;
+      border: 1px solid rgba(235,235,235,.12); background: none; cursor: pointer;
+    }
+    .prow button, #panel button {
+      font: 10px 'Courier New', monospace; letter-spacing: 1.5px;
+      border: 1px solid rgba(235,235,235,.16); background: rgba(235,235,235,.04);
+      color: rgba(235,235,235,.55); padding: 7px 10px; cursor: pointer; width: 100%;
+    }
+    .prow button:active, #panel button:active { background: rgba(235,235,235,.12); }
+    #panel textarea {
+      width: 100%; font: 10px 'Courier New', monospace;
+      background: rgba(235,235,235,.03); color: rgba(235,235,235,.55);
+      border: 1px solid rgba(235,235,235,.1); padding: 8px;
+      resize: none; line-height: 1.5; margin-top: 10px;
+    }
+    .pbtn-row { display: flex; gap: 8px; margin-top: 8px; }
+    .pbtn-row button { flex: 1; }
+    .prow.check label { justify-content: flex-start; gap: 9px; cursor: pointer; margin-bottom: 0; }
+    .prow.check input[type="checkbox"] { width: 15px; height: 15px; accent-color: #999; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <div id="threshold">—<span class="unit">¢</span></div>
+    <div id="best"></div>
+  </div>
+  <div id="header-right">
+    <div id="history"></div>
+    <button id="gear">SET</button>
+  </div>
+</div>
+
+<div id="stage"><svg id="svg"></svg></div>
+
+<div id="answers">
+  <button class="abtn" data-ans="flat">↓ flat</button>
+  <button class="abtn" data-ans="in_tune">≈ in tune</button>
+  <button class="abtn" data-ans="sharp">↑ sharp</button>
+</div>
+
+<div id="overlay"></div>
+
+<div id="panel">
+  <div id="panel-head">
+    <h2>VISUAL SETTINGS</h2>
+    <button id="pClose">✕</button>
+  </div>
+  <div id="panel-scroll">
+
+    <!-- APPEARANCE -->
+    <div class="psec-hdr" onclick="toggleSec('appearance')">
+      <span class="psec-arrow" id="arr-appearance">▾</span>APPEARANCE
+    </div>
+    <div class="psec-body" id="sec-appearance">
+      <div class="prow"><label>BACKGROUND</label>
+        <input type="color" id="pBg" autocomplete="off"></div>
+      <div class="prow"><label>BACKGROUND 2 (gradient)</label>
+        <input type="color" id="pBgCol2" autocomplete="off"></div>
+      <div class="prow"><label>BG GRADIENT ANGLE <span class="v" id="pBgAngleV"></span></label>
+        <input type="range" id="pBgAngle" min="0" max="360" step="1" autocomplete="off"></div>
+      <div class="prow"><label>STRING COLOR</label>
+        <input type="color" id="pStrCol" autocomplete="off"></div>
+      <div class="prow"><label>NOTCH COLOR</label>
+        <input type="color" id="pHoleCol" autocomplete="off"></div>
+      <div class="prow"><label>NOTCH EDGE (gradient)</label>
+        <input type="color" id="pNotchCol2" autocomplete="off"></div>
+      <div class="prow"><label>THICKNESS <span class="v" id="pStrWV"></span></label>
+        <input type="range" id="pStrW" min="2" max="20" step="1" autocomplete="off"></div>
+      <div class="prow"><label>PIN SIZE <span class="v" id="pPinRV"></span></label>
+        <input type="range" id="pPinR" min="8" max="28" step="1" autocomplete="off"></div>
+      <div class="prow"><label>STRING LENGTH <span class="v" id="pLenV"></span></label>
+        <input type="range" id="pLen" min="30" max="100" step="1" autocomplete="off"></div>
+      <div class="prow"><label>SPACING <span class="v" id="pSpacingV"></span></label>
+        <input type="range" id="pSpacing" min="0" max="200" step="1" autocomplete="off"></div>
+      <div class="prow"><label>VERTICAL OFFSET <span class="v" id="pVOffV"></span></label>
+        <input type="range" id="pVOff" min="-200" max="200" step="1" autocomplete="off"></div>
+    </div>
+
+    <!-- BODY -->
+    <div class="psec-hdr" onclick="toggleSec('body')">
+      <span class="psec-arrow" id="arr-body">▾</span>BODY
+    </div>
+    <div class="psec-body" id="sec-body">
+      <div class="prow"><label>COLOR (center)</label>
+        <input type="color" id="pBodyCol" autocomplete="off"></div>
+      <div class="prow"><label>EDGE (gradient)</label>
+        <input type="color" id="pBodyCol2" autocomplete="off"></div>
+      <div class="prow"><label>RADIUS <span class="v" id="pBodyRV"></span></label>
+        <input type="range" id="pBodyR" min="0" max="220" step="5" autocomplete="off"></div>
+    </div>
+
+    <!-- HOLE LIGHT -->
+    <div class="psec-hdr" onclick="toggleSec('glow')">
+      <span class="psec-arrow" id="arr-glow">▾</span>HOLE LIGHT
+    </div>
+    <div class="psec-body" id="sec-glow">
+      <div class="prow"><label>COLOR</label>
+        <input type="color" id="pGlowCol" autocomplete="off"></div>
+      <div class="prow"><label>OPACITY <span class="v" id="pGlowOpV"></span></label>
+        <input type="range" id="pGlowOp" min="0" max="100" step="1" autocomplete="off"></div>
+      <div class="prow"><label>BLUR <span class="v" id="pGlowBlurV"></span></label>
+        <input type="range" id="pGlowBlur" min="0" max="40" step="1" autocomplete="off"></div>
+      <div class="prow"><label>Y OFFSET <span class="v" id="pGlowDyV"></span></label>
+        <input type="range" id="pGlowDy" min="-40" max="40" step="1" autocomplete="off"></div>
+      <div class="prow"><label>THICKNESS <span class="v" id="pGlowThickV"></span></label>
+        <input type="range" id="pGlowThick" min="0" max="40" step="1" autocomplete="off"></div>
+    </div>
+
+    <!-- STRING TEXTURE -->
+    <div class="psec-hdr" onclick="toggleSec('tex')">
+      <span class="psec-arrow" id="arr-tex">▾</span>STRING TEXTURE
+    </div>
+    <div class="psec-body" id="sec-tex">
+      <div class="prow"><label>RIDGE SPACING <span class="v" id="pRidgeSpV"></span></label>
+        <input type="range" id="pRidgeSp" min="2" max="12" step="1" autocomplete="off"></div>
+      <div class="prow"><label>RIDGE DEPTH <span class="v" id="pRidgeDepthV"></span></label>
+        <input type="range" id="pRidgeDepth" min="0" max="100" step="1" autocomplete="off"></div>
+      <div class="prow"><label>RIDGE COLOR</label>
+        <input type="color" id="pRidgeCol" autocomplete="off"></div>
+      <div class="prow"><label>SHADING <span class="v" id="pShadeV"></span></label>
+        <input type="range" id="pShade" min="0" max="100" step="1" autocomplete="off"></div>
+      <div class="prow"><label>HIGHLIGHT POS <span class="v" id="pShadeHiV"></span></label>
+        <input type="range" id="pShadeHi" min="0" max="100" step="1" autocomplete="off"></div>
+      <div class="prow"><label>EDGE COLOR</label>
+        <input type="color" id="pEdgeCol" autocomplete="off"></div>
+    </div>
+
+    <!-- VIBRATION -->
+    <div class="psec-hdr" onclick="toggleSec('vib')">
+      <span class="psec-arrow" id="arr-vib">▾</span>VIBRATION
+    </div>
+    <div class="psec-body" id="sec-vib">
+      <div class="prow"><label>BOW <span class="v" id="pBowV"></span></label>
+        <input type="range" id="pBow" min="20" max="150" step="5" autocomplete="off"></div>
+      <div class="prow"><label>BLUR <span class="v" id="pVibBlurV"></span></label>
+        <input type="range" id="pVibBlur" min="0" max="10" step="1" autocomplete="off"></div>
+      <div class="prow"><label>SUSTAIN <span class="v" id="pSustainV"></span></label>
+        <input type="range" id="pSustain" min="1" max="100" step="1" autocomplete="off"></div>
+    </div>
+
+    <!-- SHADOW -->
+    <div class="psec-hdr" onclick="toggleSec('shadow')">
+      <span class="psec-arrow" id="arr-shadow">▾</span>SHADOW
+    </div>
+    <div class="psec-body" id="sec-shadow">
+      <div class="prow"><label>COLOR</label>
+        <input type="color" id="pShadCol" autocomplete="off"></div>
+      <div class="prow"><label>OPACITY <span class="v" id="pShadOpV"></span></label>
+        <input type="range" id="pShadOp" min="0" max="100" step="1" autocomplete="off"></div>
+      <div class="prow"><label>BLUR <span class="v" id="pShadBlurV"></span></label>
+        <input type="range" id="pShadBlur" min="0" max="20" step="1" autocomplete="off"></div>
+      <div class="prow"><label>OFFSET X <span class="v" id="pShadDxV"></span></label>
+        <input type="range" id="pShadDx" min="-20" max="20" step="1" autocomplete="off"></div>
+      <div class="prow"><label>OFFSET Y <span class="v" id="pShadDyV"></span></label>
+        <input type="range" id="pShadDy" min="-20" max="20" step="1" autocomplete="off"></div>
+      <div class="prow check"><label><input type="checkbox" id="pShadHole" autocomplete="off">CAST ON HOLE</label></div>
+      <div class="prow check"><label><input type="checkbox" id="pShadNotch" autocomplete="off">CAST ON NOTCHES</label></div>
+    </div>
+
+    <!-- BUTTONS -->
+    <div class="psec-hdr" onclick="toggleSec('btns')">
+      <span class="psec-arrow" id="arr-btns">▾</span>BUTTONS
+    </div>
+    <div class="psec-body" id="sec-btns">
+      <div class="prow"><label>COLOR</label>
+        <input type="color" id="pBtnColor" autocomplete="off"></div>
+      <div class="prow"><label>FONT SIZE <span class="v" id="pBtnFontV"></span></label>
+        <input type="range" id="pBtnFont" min="8" max="18" step="1" autocomplete="off"></div>
+      <div class="prow"><label>TRACKING <span class="v" id="pBtnTrackV"></span></label>
+        <input type="range" id="pBtnTrack" min="0" max="60" step="2" autocomplete="off"></div>
+      <div class="prow"><label>PADDING <span class="v" id="pBtnPadV"></span></label>
+        <input type="range" id="pBtnPad" min="8" max="36" step="1" autocomplete="off"></div>
+      <div class="prow"><label>CORNER RADIUS <span class="v" id="pBtnRadV"></span></label>
+        <input type="range" id="pBtnRad" min="0" max="30" step="1" autocomplete="off"></div>
+      <div class="prow"><label>BORDER <span class="v" id="pBtnBorderV"></span></label>
+        <input type="range" id="pBtnBorder" min="0" max="4" step="1" autocomplete="off"></div>
+      <div class="prow"><label>GAP <span class="v" id="pBtnGapV"></span></label>
+        <input type="range" id="pBtnGap" min="0" max="16" step="1" autocomplete="off"></div>
+      <div class="prow"><label>AREA PADDING <span class="v" id="pBtnAreaPadV"></span></label>
+        <input type="range" id="pBtnAreaPad" min="0" max="20" step="1" autocomplete="off"></div>
+      <div class="prow"><label>MIN WIDTH <span class="v" id="pBtnMinWV"></span></label>
+        <input type="range" id="pBtnMinW" min="40" max="200" step="4" autocomplete="off"></div>
+      <div class="prow"><label>MAX WIDTH <span class="v" id="pBtnMaxWV"></span></label>
+        <input type="range" id="pBtnMaxW" min="80" max="400" step="8" autocomplete="off"></div>
+    </div>
+
+    <!-- PRESET -->
+    <div class="psec-hdr" onclick="toggleSec('preset')">
+      <span class="psec-arrow" id="arr-preset">▾</span>PRESET
+    </div>
+    <div class="psec-body" id="sec-preset">
+      <div class="prow">
+        <button id="pSave">SET AS DEFAULT</button>
+      </div>
+      <div class="prow">
+        <button id="pReset">↺ RESET TO BAKED DEFAULTS</button>
+      </div>
+      <div class="prow">
+        <label>EXPORT / IMPORT</label>
+        <textarea id="pJson" rows="4" spellcheck="false" autocomplete="off"></textarea>
+        <div class="pbtn-row">
+          <button id="pCopy">COPY</button>
+          <button id="pApply">APPLY</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /panel-scroll -->
+</div><!-- /panel -->
+
+<script>
+// ─────────────────────────────────────────────────────────────
+// Visual settings
+// ─────────────────────────────────────────────────────────────
+const NUM_STRINGS = 2;
+const NUM_GHOSTS  = 12;
+const MIN_PLUCK   = 8;
+const TAP_FRAC    = 0.44;
+const SVGNS       = 'http://www.w3.org/2000/svg';
+
+// SVG / visual
+let bg           = '#575757';
+let bgCol2       = '#444444';   // background gradient end color
+let bgAngle      = 169;         // background gradient angle (deg)
+let strCol       = '#ebebeb';
+let holeCol      = '#000000';   // notch (pin) base color
+let notchCol2    = '#232323';   // notch gradient edge color
+let strW         = 5;
+let pinR         = 11;
+let stringLen    = 0.9;
+let spacing      = 82;
+let bodyColor    = '#232323';
+let bodyCol2     = '#232323';   // hole gradient edge color
+let bodyRadius   = 100;
+let bowAmount    = 90;
+let vibBlurAmt   = 3;
+let vibSustain   = 64;
+let shadowCol    = '#000000';
+let shadowOp     = 12;
+let shadowBlur   = 1;
+let shadowDx     = 5;
+let shadowDy     = -3;
+let shadowHole   = false;   // cast the shadow on the hole too
+let shadowNotch  = false;   // cast the shadow on the notches
+
+// Button appearance
+let btnColor     = '#ebebeb';
+let btnFontSize  = 14;      // px
+let btnTracking  = 14;      // hundredths of em  (14 → 0.14em)
+let btnPadV      = 14;      // vertical padding px
+let btnRadius    = 22;      // border-radius px
+let btnBorderW   = 2;       // border width px
+let btnGap       = 9;       // gap between buttons px
+let btnAreaPad   = 20;      // padding around button row px
+let btnMinW      = 80;      // min-width px
+let btnMaxW      = 200;     // max-width px
+
+// Layout
+let vOffset      = -43;     // vertical offset px (added on top of auto-center)
+
+// Hole light (outer halo / drop shadow behind the body circle)
+let glowCol      = '#ffffff';
+let glowOp       = 16;      // %
+let glowBlur     = 1;       // px
+let glowDy       = 1;       // px (y offset)
+let glowThick    = 0;       // px spread past the hole edge
+
+// String ridges (wound-string texture)
+let ridgeSpacing = 2;       // px dash period
+let ridgeDepth   = 21;      // % overlay opacity (0 = off)
+let ridgeCol     = '#000000';
+
+// String gradient (cylindrical shading across width)
+let shadeAmt     = 100;     // % edge darkening (0 = flat)
+let shadeHiPos   = 89;      // % highlight position across width
+let edgeCol      = '#888888';
+
+const pillW        = () => pinR * 0.95;
+const pillD        = () => pinR * 1.4;
+const pinMargin    = () => pinR * 0.6;
+const ghostW       = () => Math.max(1.5, strW * 0.35);
+const lengthMargin = () => (H * (1 - stringLen)) / 2;
+const vibDecay     = () => 0.3 + 5.7 * (1 - vibSustain / 100);
+
+// ─────────────────────────────────────────────────────────────
+// SVG state
+// ─────────────────────────────────────────────────────────────
+let W = 0, H = 0;
+const cx  = [0, 0];
+const vib = [false, false];
+let mainPath = [], ghostEls = [], blurDev = [], grpEls = [], pinEls = [], ridgeEls = [], notchGrpEls = [];
+let shadowPathEls = [], shadowBlurDevEls = [];
+let bodyCircle = null, glowCircle = null;
+
+function xRatio(i) { return 0.5 + (i === 0 ? -1 : 1) * spacing / (2 * W); }
+function pinTopY() { return pinR + pinMargin() + lengthMargin(); }
+function pinBotY() { return H - pinR - pinMargin() - lengthMargin(); }
+function strTopY() { return pinTopY() + pinR - pillD() + pillW() / 2; }
+function strBotY() { return pinBotY() - pinR + pillD() - pillW() / 2; }
+
+function stringD(i, offset) {
+  const x = W * xRatio(i), top = strTopY(), bot = strBotY();
+  return `M ${x} ${top} Q ${x + offset} ${(top + bot) / 2} ${x} ${bot}`;
+}
+function ghostD(i, k) {
+  const frac = NUM_GHOSTS > 1 ? (k / (NUM_GHOSTS - 1)) * 2 - 1 : 0;
+  return stringD(i, cx[i] * frac);
+}
+function ghostOpacity(k, env) {
+  const frac = NUM_GHOSTS > 1 ? k / (NUM_GHOSTS - 1) : 0.5;
+  return (0.12 + Math.abs(frac * 2 - 1) * 0.30) * Math.min(env * 2, 1);
+}
+
+function buildSVG() {
+  const svg = document.getElementById('svg');
+  const rect = document.getElementById('stage').getBoundingClientRect();
+  W = rect.width; H = rect.height;
+  applyVOffset();
+  const topY = pinTopY(), botY = pinBotY();
+  const pw = pillW(), pd = pillD();
+  const edge = mixHex(strCol, edgeCol, shadeAmt / 100);
+
+  let defs = '<defs>';
+  defs += `
+    <filter id="fglow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur id="fglow-dev" stdDeviation="${glowBlur}"/>
+    </filter>
+    <filter id="fdrop" x="-150%" y="-150%" width="400%" height="400%">
+      <feDropShadow id="fdrop-dev" dx="${shadowDx}" dy="${shadowDy}"
+              stdDeviation="${shadowBlur}" flood-color="${shadowCol}"
+              flood-opacity="${shadowOp / 100}"/>
+    </filter>
+    <radialGradient id="bodyGrad" cx="50%" cy="50%" r="50%">
+      <stop id="bodyGradS0" offset="0%" stop-color="${bodyColor}"/>
+      <stop id="bodyGradS1" offset="100%" stop-color="${bodyCol2}"/>
+    </radialGradient>
+    <radialGradient id="notchGrad" cx="50%" cy="50%" r="50%">
+      <stop id="notchGradS0" offset="0%" stop-color="${holeCol}"/>
+      <stop id="notchGradS1" offset="100%" stop-color="${notchCol2}"/>
+    </radialGradient>`;
+  for (let i = 0; i < NUM_STRINGS; i++) {
+    const x = W * xRatio(i), px = x - pw / 2, rxv = pw / 2;
+    defs += `
+      <linearGradient id="strGrad-${i}" gradientUnits="userSpaceOnUse"
+              x1="${x - strW / 2}" y1="0" x2="${x + strW / 2}" y2="0">
+        <stop id="strGradS0-${i}" offset="0%" stop-color="${edge}"/>
+        <stop id="strGradS1-${i}" offset="${shadeHiPos}%" stop-color="${strCol}"/>
+        <stop id="strGradS2-${i}" offset="100%" stop-color="${edge}"/>
+      </linearGradient>
+      <filter id="fblur-${i}" x="-60%" y="-10%" width="220%" height="120%">
+        <feGaussianBlur id="fdev-${i}" stdDeviation="0 0"/>
+      </filter>
+      <filter id="fshad-${i}" filterUnits="userSpaceOnUse"
+              x="${x-200}" y="-50" width="400" height="${H+100}">
+        <feGaussianBlur id="fshad-dev-${i}" stdDeviation="${shadowBlur}"/>
+      </filter>
+      <mask id="mask-top-${i}">
+        <circle cx="${x}" cy="${topY}" r="${pinR}" fill="white"/>
+        <rect x="${px}" y="${topY+pinR-pd}" width="${pw}" height="${pd+pinR}" rx="${rxv}" ry="${rxv}" fill="black"/>
+      </mask>
+      <mask id="mask-bot-${i}">
+        <circle cx="${x}" cy="${botY}" r="${pinR}" fill="white"/>
+        <rect x="${px}" y="${botY-pinR-pinR}" width="${pw}" height="${pd+pinR}" rx="${rxv}" ry="${rxv}" fill="black"/>
+      </mask>`;
+  }
+  defs += '</defs>';
+  svg.innerHTML = defs;
+  mainPath = []; ghostEls = []; blurDev = []; grpEls = []; pinEls = []; ridgeEls = []; notchGrpEls = [];
+  shadowPathEls = []; shadowBlurDevEls = []; bodyCircle = null; glowCircle = null;
+
+  for (let i = 0; i < NUM_STRINGS; i++) {
+    shadowBlurDevEls.push(document.getElementById(`fshad-dev-${i}`));
+    const sh = document.createElementNS(SVGNS, 'path');
+    sh.setAttribute('d', stringD(i, 0)); sh.setAttribute('stroke', shadowCol);
+    sh.setAttribute('stroke-width', strW); sh.setAttribute('fill', 'none');
+    sh.setAttribute('stroke-linecap', 'round');
+    sh.setAttribute('stroke-opacity', shadowOp / 100);
+    sh.setAttribute('transform', `translate(${shadowDx},${shadowDy})`);
+    sh.setAttribute('filter', `url(#fshad-${i})`);
+    svg.appendChild(sh); shadowPathEls.push(sh);
+  }
+
+  // Hole light: a soft light circle behind the body, offset in Y so it peeks
+  // out as a crescent halo on one side (decoupled — not a filter on the body).
+  const glow = document.createElementNS(SVGNS, 'circle');
+  glow.setAttribute('cx', W / 2); glow.setAttribute('cy', H / 2);
+  glow.setAttribute('r', bodyRadius + glowThick);
+  glow.setAttribute('fill', glowCol);
+  glow.setAttribute('opacity', glowOp / 100);
+  glow.setAttribute('transform', `translate(0,${glowDy})`);
+  glow.setAttribute('filter', 'url(#fglow)');
+  svg.appendChild(glow); glowCircle = glow;
+
+  const body = document.createElementNS(SVGNS, 'circle');
+  body.setAttribute('cx', W / 2); body.setAttribute('cy', H / 2);
+  body.setAttribute('r', bodyRadius); body.setAttribute('fill', 'url(#bodyGrad)');
+  if (shadowHole) body.setAttribute('filter', 'url(#fdrop)');
+  svg.appendChild(body); bodyCircle = body;
+
+  for (let i = 0; i < NUM_STRINGS; i++) {
+    blurDev.push(document.getElementById(`fdev-${i}`));
+    const grp = document.createElementNS(SVGNS, 'g');
+    svg.appendChild(grp); grpEls.push(grp);
+    const gs = [];
+    for (let k = 0; k < NUM_GHOSTS; k++) {
+      const g = document.createElementNS(SVGNS, 'path');
+      g.setAttribute('stroke', strCol); g.setAttribute('stroke-width', ghostW());
+      g.setAttribute('fill', 'none'); g.setAttribute('stroke-linecap', 'round');
+      g.setAttribute('opacity', '0'); grp.appendChild(g); gs.push(g);
+    }
+    ghostEls.push(gs);
+  }
+
+  for (let i = 0; i < NUM_STRINGS; i++) {
+    const x = W * xRatio(i);
+    const path = document.createElementNS(SVGNS, 'path');
+    path.setAttribute('d', stringD(i, 0)); path.setAttribute('stroke', `url(#strGrad-${i})`);
+    path.setAttribute('stroke-width', strW); path.setAttribute('fill', 'none');
+    path.setAttribute('stroke-linecap', 'round');
+    svg.appendChild(path); mainPath.push(path);
+
+    // Ridge overlay: dashed copy on top → fine bands across the string width
+    const rg = document.createElementNS(SVGNS, 'path');
+    rg.setAttribute('d', stringD(i, 0)); rg.setAttribute('stroke', ridgeCol);
+    rg.setAttribute('stroke-width', strW); rg.setAttribute('fill', 'none');
+    rg.setAttribute('stroke-linecap', 'butt');
+    rg.setAttribute('stroke-dasharray', `${ridgeSpacing / 2} ${ridgeSpacing / 2}`);
+    rg.setAttribute('opacity', ridgeDepth / 100);
+    svg.appendChild(rg); ridgeEls.push(rg);
+
+    // Each notch is wrapped in a <g> so the drop-shadow filter applies AFTER
+    // the mask (a filter on the circle itself would get clipped by the mask).
+    const gt = document.createElementNS(SVGNS, 'g');
+    const pt = document.createElementNS(SVGNS, 'circle');
+    pt.setAttribute('cx', x); pt.setAttribute('cy', topY);
+    pt.setAttribute('r', pinR); pt.setAttribute('fill', 'url(#notchGrad)');
+    pt.setAttribute('mask', `url(#mask-top-${i})`); gt.appendChild(pt);
+    if (shadowNotch) gt.setAttribute('filter', 'url(#fdrop)');
+    svg.appendChild(gt);
+
+    const gb = document.createElementNS(SVGNS, 'g');
+    const pb = document.createElementNS(SVGNS, 'circle');
+    pb.setAttribute('cx', x); pb.setAttribute('cy', botY);
+    pb.setAttribute('r', pinR); pb.setAttribute('fill', 'url(#notchGrad)');
+    pb.setAttribute('mask', `url(#mask-bot-${i})`); gb.appendChild(pb);
+    if (shadowNotch) gb.setAttribute('filter', 'url(#fdrop)');
+    svg.appendChild(gb);
+
+    pinEls.push([pt, pb]); notchGrpEls.push([gt, gb]);
+  }
+  for (let i = 0; i < NUM_STRINGS; i++) redraw(i);
+}
+
+function redraw(i) {
+  if (!mainPath[i]) return;
+  const d = vib[i] ? stringD(i, 0) : stringD(i, cx[i]);
+  mainPath[i].setAttribute('d', d);
+  if (ridgeEls[i]) ridgeEls[i].setAttribute('d', d);
+  if (shadowPathEls[i]) shadowPathEls[i].setAttribute('d', d);
+  if (vib[i]) {
+    grpEls[i].setAttribute('filter', `url(#fblur-${i})`);
+    const env = Math.min(cx[i] / bowAmount, 1);
+    for (let k = 0; k < NUM_GHOSTS; k++) {
+      ghostEls[i][k].setAttribute('d', ghostD(i, k));
+      ghostEls[i][k].setAttribute('opacity', ghostOpacity(k, env).toFixed(3));
+    }
+    blurDev[i].setAttribute('stdDeviation', (vibBlurAmt * env).toFixed(2) + ' 0');
+  } else {
+    grpEls[i].setAttribute('filter', 'none');
+    for (let k = 0; k < NUM_GHOSTS; k++) ghostEls[i][k].setAttribute('opacity', '0');
+  }
+}
+
+// ── Apply helpers ─────────────────────────────────────────────
+function hexToRgb(hex) {
+  const r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return r ? { r: parseInt(r[1],16), g: parseInt(r[2],16), b: parseInt(r[3],16) } : null;
+}
+function mixHex(a, b, t) {
+  const ca = hexToRgb(a) || { r:0, g:0, b:0 }, cb = hexToRgb(b) || { r:0, g:0, b:0 };
+  const m = (x, y) => Math.round(x + (y - x) * t);
+  const h = n => n.toString(16).padStart(2, '0');
+  return `#${h(m(ca.r,cb.r))}${h(m(ca.g,cb.g))}${h(m(ca.b,cb.b))}`;
+}
+function applyVOffset() {
+  const answersH = document.getElementById('answers').offsetHeight;
+  const headerH  = document.getElementById('header').offsetHeight;
+  document.getElementById('svg').style.transform =
+    `translateY(${(answersH - headerH) / 2 + vOffset}px)`;
+}
+function applyHoleGlow() {
+  if (!glowCircle) return;
+  glowCircle.setAttribute('r', bodyRadius + glowThick);
+  glowCircle.setAttribute('fill', glowCol);
+  glowCircle.setAttribute('opacity', glowOp / 100);
+  glowCircle.setAttribute('transform', `translate(0,${glowDy})`);
+  const dev = document.getElementById('fglow-dev');
+  if (dev) dev.setAttribute('stdDeviation', glowBlur);
+}
+function applyStringGradient() {
+  const edge = mixHex(strCol, edgeCol, shadeAmt / 100);
+  for (let i = 0; i < NUM_STRINGS; i++) {
+    const grad = document.getElementById(`strGrad-${i}`);
+    if (!grad) continue;
+    const x = W * xRatio(i);
+    grad.setAttribute('x1', x - strW / 2);   // keep span aligned to stroke width
+    grad.setAttribute('x2', x + strW / 2);
+    const s0 = document.getElementById(`strGradS0-${i}`);
+    const s1 = document.getElementById(`strGradS1-${i}`);
+    const s2 = document.getElementById(`strGradS2-${i}`);
+    s0.setAttribute('stop-color', edge);
+    s2.setAttribute('stop-color', edge);
+    s1.setAttribute('stop-color', strCol);
+    s1.setAttribute('offset', shadeHiPos + '%');
+  }
+}
+function applyRidges() {
+  const dash = (ridgeSpacing / 2).toFixed(2);
+  for (let i = 0; i < NUM_STRINGS; i++) {
+    if (!ridgeEls[i]) continue;
+    ridgeEls[i].setAttribute('stroke', ridgeCol);
+    ridgeEls[i].setAttribute('stroke-width', strW);
+    ridgeEls[i].setAttribute('stroke-dasharray', `${dash} ${dash}`);
+    ridgeEls[i].setAttribute('opacity', ridgeDepth / 100);
+  }
+}
+function applyBg() {
+  document.body.style.background = `linear-gradient(${bgAngle}deg, ${bg}, ${bgCol2})`;
+}
+function applyNotchGrad() {
+  const s0 = document.getElementById('notchGradS0');
+  const s1 = document.getElementById('notchGradS1');
+  if (!s0) return;
+  s0.setAttribute('stop-color', holeCol);   // notch base color
+  s1.setAttribute('stop-color', notchCol2); // notch edge color
+}
+function applyColors() {
+  applyBg();
+  for (let i = 0; i < NUM_STRINGS; i++) {
+    if (ghostEls[i]) ghostEls[i].forEach(g => g.setAttribute('stroke', strCol));
+  }
+  applyStringGradient(); // main string stroke is the gradient; strCol drives its core/edges
+  applyNotchGrad();      // notches are filled with the notch gradient (holeCol = base)
+}
+function applyStringWidth() {
+  const gw = ghostW();
+  for (let i = 0; i < NUM_STRINGS; i++) {
+    if (mainPath[i]) mainPath[i].setAttribute('stroke-width', strW);
+    if (ghostEls[i]) ghostEls[i].forEach(g => g.setAttribute('stroke-width', gw));
+    if (shadowPathEls[i]) shadowPathEls[i].setAttribute('stroke-width', strW);
+  }
+  applyDropShadow();
+  applyRidges();          // ridge overlay shares the string width
+  applyStringGradient();  // gradient span is keyed to the stroke width
+}
+function applyDropShadow() {
+  const sop = shadowOp / 100;
+  for (let i = 0; i < NUM_STRINGS; i++) {
+    if (!shadowPathEls[i]) continue;
+    shadowPathEls[i].setAttribute('stroke', shadowCol);
+    shadowPathEls[i].setAttribute('stroke-opacity', sop);
+    shadowPathEls[i].setAttribute('stroke-width', strW);
+    shadowPathEls[i].setAttribute('transform', `translate(${shadowDx},${shadowDy})`);
+    if (shadowBlurDevEls[i]) shadowBlurDevEls[i].setAttribute('stdDeviation', shadowBlur);
+  }
+  // Shared feDropShadow cast by the hole + notches ("the same shadow")
+  const d = document.getElementById('fdrop-dev');
+  if (d) {
+    d.setAttribute('dx', shadowDx);
+    d.setAttribute('dy', shadowDy);
+    d.setAttribute('stdDeviation', shadowBlur);
+    d.setAttribute('flood-color', shadowCol);
+    d.setAttribute('flood-opacity', sop);
+  }
+  if (bodyCircle) bodyCircle.setAttribute('filter', shadowHole ? 'url(#fdrop)' : 'none');
+  notchGrpEls.forEach(pair => pair.forEach(g =>
+    g.setAttribute('filter', shadowNotch ? 'url(#fdrop)' : 'none')));
+}
+function applyBody() {
+  if (!bodyCircle) return;
+  bodyCircle.setAttribute('r', bodyRadius);
+  const s0 = document.getElementById('bodyGradS0');
+  const s1 = document.getElementById('bodyGradS1');
+  if (s0) s0.setAttribute('stop-color', bodyColor); // hole center color
+  if (s1) s1.setAttribute('stop-color', bodyCol2);  // hole edge color
+  applyHoleGlow(); // halo radius keys off bodyRadius
+}
+function applyButtonStyles() {
+  const rgb = hexToRgb(btnColor) || { r:235, g:235, b:235 };
+  const rs = `rgba(${rgb.r},${rgb.g},${rgb.b}`;
+  document.documentElement.style.setProperty('--btn-ready',        `${rs},.80)`);
+  document.documentElement.style.setProperty('--btn-dim',          `${rs},.18)`);
+  document.documentElement.style.setProperty('--btn-border-ready', `${rs},.55)`);
+  document.documentElement.style.setProperty('--btn-border-dim',   `${rs},.10)`);
+  document.querySelectorAll('.abtn').forEach(b => {
+    b.style.fontSize      = btnFontSize + 'px';
+    b.style.letterSpacing = (btnTracking / 100) + 'em';
+    b.style.paddingTop    = btnPadV + 'px';
+    b.style.paddingBottom = btnPadV + 'px';
+    b.style.borderRadius  = btnRadius + 'px';
+    b.style.borderWidth   = btnBorderW + 'px';
+    b.style.minWidth      = btnMinW + 'px';
+    b.style.maxWidth      = btnMaxW + 'px';
+    b.style.borderStyle   = 'solid';
+  });
+  const ans = document.getElementById('answers');
+  ans.style.gap     = btnGap + 'px';
+  ans.style.padding = btnAreaPad + 'px';
+}
+
+// ─────────────────────────────────────────────────────────────
+// Audio
+// ─────────────────────────────────────────────────────────────
+let audioCtx = null;
+const stringFreqs = [440, 440];
+
+function initAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume(); // fire-and-forget pre-warm
+}
+async function playTone(freq) {
+  initAudio();
+  // Wait until context is actually running before scheduling —
+  // avoids the "quiet blip then delayed full volume" on first play
+  if (audioCtx.state !== 'running') {
+    try { await audioCtx.resume(); } catch(e) {}
+  }
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(freq * 1.004, now);
+  osc.frequency.exponentialRampToValueAtTime(freq, now + 0.08);
+  gain.gain.value = 0; // ensure 0 before any scheduled ramps
+  gain.gain.setValueAtTime(0, now);
+  gain.gain.linearRampToValueAtTime(0.30, now + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 3.2);
+  osc.start(now); osc.stop(now + 3.3);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Pluck
+// ─────────────────────────────────────────────────────────────
+let hasPlucked = false;
+
+function pluckString(idx, amp0) {
+  playTone(stringFreqs[idx]);
+  if (!hasPlucked) { hasPlucked = true; setButtonsReady(true); }
+  vib[idx] = true;
+  const decay = vibDecay(), t0 = performance.now();
+  (function tick() {
+    const t = (performance.now() - t0) / 1000, env = Math.exp(-decay * t);
+    cx[idx] = amp0 * env; redraw(idx);
+    if (env > 0.004) requestAnimationFrame(tick);
+    else { cx[idx] = 0; vib[idx] = false; redraw(idx); }
+  })();
+}
+function pulseBody() {
+  if (!bodyCircle) return;
+  bodyCircle.setAttribute('r', bodyRadius * 1.055);
+  setTimeout(() => bodyCircle.setAttribute('r', bodyRadius), 200);
+}
+function flashBody(correct) {
+  if (!bodyCircle) return;
+  bodyCircle.setAttribute('fill', correct ? '#1e2e1e' : '#2e1e1e');
+  setTimeout(() => bodyCircle.setAttribute('fill', bodyColor), 750);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Interaction
+// ─────────────────────────────────────────────────────────────
+const ptr = { active: false, idx: -1, startX: 0, moved: false };
+function nearestString(clientX) {
+  let best = -1, dist = Infinity;
+  for (let i = 0; i < NUM_STRINGS; i++) {
+    const d = Math.abs(clientX - W * xRatio(i));
+    if (d < dist) { dist = d; best = i; }
+  }
+  return dist <= 80 ? best : -1;
+}
+function onDown(clientX) {
+  initAudio(); // pre-warm context as early as possible so resume() has time to complete
+  if (!W || phase === 'feedback') return;
+  const i = nearestString(clientX);
+  if (i < 0 || vib[i]) return;
+  ptr.active = true; ptr.idx = i; ptr.startX = clientX; ptr.moved = false;
+}
+function onMove(clientX) {
+  if (!ptr.active) return;
+  if (Math.abs(clientX - ptr.startX) > 4) ptr.moved = true;
+  cx[ptr.idx] = Math.max(-bowAmount, Math.min(bowAmount,
+    (clientX - W * xRatio(ptr.idx)) * 1.3));
+  redraw(ptr.idx);
+}
+function onUp() {
+  if (!ptr.active) return;
+  const i = ptr.idx; ptr.active = false; ptr.idx = -1;
+  if (!ptr.moved) { cx[i] = 0; pluckString(i, bowAmount * TAP_FRAC); return; }
+  if (Math.abs(cx[i]) < MIN_PLUCK) { cx[i] = 0; redraw(i); return; }
+  pluckString(i, Math.abs(cx[i]));
+}
+const stage = document.getElementById('stage');
+stage.addEventListener('mousedown',  e => onDown(e.clientX));
+stage.addEventListener('touchstart', e => { e.preventDefault(); onDown(e.touches[0].clientX); }, { passive: false });
+window.addEventListener('mousemove',  e => onMove(e.clientX));
+window.addEventListener('mouseup',   onUp);
+window.addEventListener('touchmove',  e => { e.preventDefault(); onMove(e.touches[0].clientX); }, { passive: false });
+window.addEventListener('touchend',  onUp);
+window.addEventListener('resize', buildSVG);
+
+// ─────────────────────────────────────────────────────────────
+// Game logic
+// ─────────────────────────────────────────────────────────────
+const ROOT = 440, MAX_D = 50, MIN_D = 1;
+const LS_GAME = 'pitch-game-v1';
+let deviation = MAX_D, bestDev = MAX_D, phase = 'play', roundDir = 'sharp';
+let lastCorrect = null, oscillations = 0, history = [];
+
+function loadGame() {
+  try { const s = JSON.parse(localStorage.getItem(LS_GAME)); if (s?.best != null) bestDev = +s.best; } catch(e) {}
+}
+function saveGame() { localStorage.setItem(LS_GAME, JSON.stringify({ best: bestDev })); }
+function fmt(c) { return c >= 10 ? Math.round(c) : c.toFixed(1); }
+
+function updateHeader() {
+  document.getElementById('threshold').innerHTML = `±${fmt(deviation)}<span class="unit">¢</span>`;
+  document.getElementById('best').textContent = bestDev < MAX_D ? `best  ±${fmt(bestDev)}¢` : '';
+  document.getElementById('history').innerHTML =
+    history.map(ok => `<div class="dot ${ok ? 'ok' : 'err'}"></div>`).join('');
+}
+function setButtonsReady(ready) {
+  document.querySelectorAll('.abtn').forEach(b => ready ? b.classList.add('ready') : b.classList.remove('ready'));
+}
+function newRound() {
+  const inTuneP = 0.1 + 0.2 * (1 - Math.min(deviation, MAX_D) / MAX_D);
+  const r = Math.random();
+  roundDir = r < inTuneP ? 'in_tune' : Math.random() < 0.5 ? 'sharp' : 'flat';
+  stringFreqs[0] = ROOT;
+  stringFreqs[1] = roundDir === 'sharp'  ? ROOT * Math.pow(2,  deviation / 1200)
+                 : roundDir === 'flat'   ? ROOT * Math.pow(2, -deviation / 1200)
+                 : ROOT;
+  phase = 'play'; hasPlucked = false;
+  clearButtons(); updateHeader();
+}
+function adjust(correct) {
+  if (lastCorrect !== null && lastCorrect !== correct) oscillations = Math.min(oscillations + 1, 10);
+  else oscillations = Math.max(0, oscillations - 1);
+  lastCorrect = correct;
+  if (correct) {
+    deviation = Math.max(MIN_D, deviation * (oscillations > 4 ? 0.90 : 0.75));
+    if (deviation < bestDev) { bestDev = deviation; saveGame(); }
+  } else {
+    const bigStep  = history.slice(-4).filter(x => !x).length >= 4;
+    const tightStep = oscillations > 4;
+    deviation = Math.min(MAX_D, deviation * (bigStep ? 1.8 : tightStep ? 1.1 : 1.3));
+  }
+}
+function answer(userAns) {
+  if (phase !== 'play' || !hasPlucked) return;
+  phase = 'feedback';
+  const correct = userAns === roundDir;
+  adjust(correct);
+  history.push(correct); if (history.length > 7) history.shift();
+  flashBody(correct); revealButtons(userAns, correct); updateHeader();
+  setTimeout(newRound, 950);
+}
+function revealButtons(userAns, correct) {
+  document.querySelectorAll('.abtn').forEach(b => {
+    b.classList.remove('ready');
+    if (b.dataset.ans === roundDir) b.classList.add('reveal-correct');
+    if (!correct && b.dataset.ans === userAns) b.classList.add('reveal-wrong');
+  });
+}
+function clearButtons() {
+  document.querySelectorAll('.abtn').forEach(b =>
+    b.classList.remove('ready', 'reveal-correct', 'reveal-wrong'));
+}
+document.querySelectorAll('.abtn').forEach(b =>
+  b.addEventListener('click', () => answer(b.dataset.ans)));
+
+// ─────────────────────────────────────────────────────────────
+// Settings panel
+// ─────────────────────────────────────────────────────────────
+const LS_VIS = 'pitch-game-settings-v1';
+const panel  = document.getElementById('panel');
+const overlay = document.getElementById('overlay');
+
+function openPanel()  { panel.classList.add('open'); overlay.classList.add('on'); syncPanel(); }
+function closePanel() { panel.classList.remove('open'); overlay.classList.remove('on'); }
+
+document.getElementById('gear').addEventListener('click', openPanel);
+document.getElementById('pClose').addEventListener('click', closePanel);
+overlay.addEventListener('click', closePanel);
+
+// Collapsible sections
+function toggleSec(id) {
+  const body  = document.getElementById('sec-' + id);
+  const arrow = document.getElementById('arr-' + id);
+  const col   = body.classList.toggle('collapsed');
+  arrow.textContent = col ? '▸' : '▾';
+}
+
+function currentVis() {
+  return {
+    bg, bgCol2, bgAngle, strCol, holeCol, notchCol2, strW, pinR,
+    stringLen: +stringLen.toFixed(2), spacing,
+    bodyColor, bodyCol2, bodyRadius, bowAmount, vibBlurAmt, vibSustain,
+    shadowCol, shadowOp, shadowBlur, shadowDx, shadowDy, shadowHole, shadowNotch,
+    btnColor, btnFontSize, btnTracking, btnPadV, btnRadius, btnBorderW, btnGap, btnAreaPad,
+    btnMinW, btnMaxW,
+    vOffset,
+    glowCol, glowOp, glowBlur, glowDy, glowThick,
+    ridgeSpacing, ridgeDepth, ridgeCol,
+    shadeAmt, shadeHiPos, edgeCol
+  };
+}
+
+function syncPanel() {
+  const g = id => document.getElementById(id);
+  g('pBg').value       = bg;
+  g('pBgCol2').value   = bgCol2;
+  g('pBgAngle').value  = bgAngle;       g('pBgAngleV').textContent   = bgAngle + '°';
+  g('pStrCol').value   = strCol;
+  g('pHoleCol').value  = holeCol;
+  g('pNotchCol2').value= notchCol2;
+  g('pStrW').value     = strW;          g('pStrWV').textContent      = strW;
+  g('pPinR').value     = pinR;          g('pPinRV').textContent      = pinR;
+  g('pLen').value      = Math.round(stringLen*100);
+                                        g('pLenV').textContent       = Math.round(stringLen*100) + '%';
+  g('pSpacing').value  = spacing;       g('pSpacingV').textContent   = spacing + 'px';
+  g('pBodyCol').value  = bodyColor;
+  g('pBodyCol2').value = bodyCol2;
+  g('pBodyR').value    = bodyRadius;    g('pBodyRV').textContent     = bodyRadius;
+  g('pBow').value      = bowAmount;     g('pBowV').textContent       = bowAmount;
+  g('pVibBlur').value  = vibBlurAmt;    g('pVibBlurV').textContent   = vibBlurAmt;
+  g('pSustain').value  = vibSustain;    g('pSustainV').textContent   = vibSustain;
+  g('pShadCol').value  = shadowCol;
+  g('pShadOp').value   = shadowOp;      g('pShadOpV').textContent    = shadowOp + '%';
+  g('pShadBlur').value = shadowBlur;    g('pShadBlurV').textContent  = shadowBlur;
+  g('pShadDx').value   = shadowDx;      g('pShadDxV').textContent    = shadowDx;
+  g('pShadDy').value   = shadowDy;      g('pShadDyV').textContent    = shadowDy;
+  g('pShadHole').checked  = shadowHole;
+  g('pShadNotch').checked = shadowNotch;
+  g('pBtnColor').value = btnColor;
+  g('pBtnFont').value  = btnFontSize;   g('pBtnFontV').textContent   = btnFontSize + 'px';
+  g('pBtnTrack').value = btnTracking;   g('pBtnTrackV').textContent  = (btnTracking/100).toFixed(2) + 'em';
+  g('pBtnPad').value   = btnPadV;       g('pBtnPadV').textContent    = btnPadV + 'px';
+  g('pBtnRad').value   = btnRadius;     g('pBtnRadV').textContent    = btnRadius + 'px';
+  g('pBtnBorder').value= btnBorderW;    g('pBtnBorderV').textContent = btnBorderW + 'px';
+  g('pBtnGap').value   = btnGap;        g('pBtnGapV').textContent    = btnGap + 'px';
+  g('pBtnAreaPad').value=btnAreaPad;    g('pBtnAreaPadV').textContent= btnAreaPad + 'px';
+  g('pBtnMinW').value  = btnMinW;       g('pBtnMinWV').textContent   = btnMinW + 'px';
+  g('pBtnMaxW').value  = btnMaxW;       g('pBtnMaxWV').textContent   = btnMaxW + 'px';
+  g('pVOff').value     = vOffset;       g('pVOffV').textContent      = vOffset + 'px';
+  g('pGlowCol').value  = glowCol;
+  g('pGlowOp').value   = glowOp;        g('pGlowOpV').textContent    = glowOp + '%';
+  g('pGlowBlur').value = glowBlur;      g('pGlowBlurV').textContent  = glowBlur;
+  g('pGlowDy').value   = glowDy;        g('pGlowDyV').textContent    = glowDy;
+  g('pGlowThick').value= glowThick;     g('pGlowThickV').textContent = glowThick;
+  g('pRidgeSp').value  = ridgeSpacing;  g('pRidgeSpV').textContent   = ridgeSpacing + 'px';
+  g('pRidgeDepth').value=ridgeDepth;    g('pRidgeDepthV').textContent= ridgeDepth + '%';
+  g('pRidgeCol').value = ridgeCol;
+  g('pShade').value    = shadeAmt;      g('pShadeV').textContent     = shadeAmt + '%';
+  g('pShadeHi').value  = shadeHiPos;    g('pShadeHiV').textContent   = shadeHiPos + '%';
+  g('pEdgeCol').value  = edgeCol;
+  g('pJson').value = JSON.stringify(currentVis());
+}
+
+function loadVis() {
+  try {
+    const s = JSON.parse(localStorage.getItem(LS_VIS)); if (!s) return;
+    if (s.bg          != null) bg          = s.bg;
+    if (s.bgCol2      != null) bgCol2      = s.bgCol2;
+    if (s.bgAngle     != null) bgAngle     = +s.bgAngle;
+    if (s.strCol      != null) strCol      = s.strCol;
+    if (s.holeCol     != null) holeCol     = s.holeCol;
+    if (s.notchCol2   != null) notchCol2   = s.notchCol2;
+    if (s.strW        != null) strW        = +s.strW;
+    if (s.pinR        != null) pinR        = +s.pinR;
+    if (s.stringLen   != null) stringLen   = +s.stringLen;
+    if (s.spacing     != null) spacing     = +s.spacing < 2 ? 85 : +s.spacing;
+    if (s.bodyColor   != null) bodyColor   = s.bodyColor;
+    if (s.bodyCol2    != null) bodyCol2    = s.bodyCol2;
+    if (s.bodyRadius  != null) bodyRadius  = +s.bodyRadius;
+    if (s.bowAmount   != null) bowAmount   = +s.bowAmount;
+    if (s.vibBlurAmt  != null) vibBlurAmt  = +s.vibBlurAmt;
+    if (s.vibSustain  != null) vibSustain  = +s.vibSustain;
+    if (s.shadowCol   != null) shadowCol   = s.shadowCol;
+    if (s.shadowOp    != null) shadowOp    = +s.shadowOp;
+    if (s.shadowBlur  != null) shadowBlur  = +s.shadowBlur;
+    if (s.shadowDx    != null) shadowDx    = +s.shadowDx;
+    if (s.shadowDy    != null) shadowDy    = +s.shadowDy;
+    if (s.shadowHole  != null) shadowHole  = !!s.shadowHole;
+    if (s.shadowNotch != null) shadowNotch = !!s.shadowNotch;
+    if (s.btnColor    != null) btnColor    = s.btnColor;
+    if (s.btnFontSize != null) btnFontSize = +s.btnFontSize;
+    if (s.btnTracking != null) btnTracking = +s.btnTracking;
+    if (s.btnPadV     != null) btnPadV     = +s.btnPadV;
+    if (s.btnRadius   != null) btnRadius   = +s.btnRadius;
+    if (s.btnBorderW  != null) btnBorderW  = +s.btnBorderW;
+    if (s.btnGap      != null) btnGap      = +s.btnGap;
+    if (s.btnAreaPad  != null) btnAreaPad  = +s.btnAreaPad;
+    if (s.btnMinW     != null) btnMinW     = +s.btnMinW;
+    if (s.btnMaxW     != null) btnMaxW     = +s.btnMaxW;
+    if (s.vOffset     != null) vOffset     = +s.vOffset;
+    if (s.glowCol     != null) glowCol     = s.glowCol;
+    if (s.glowOp      != null) glowOp      = +s.glowOp;
+    if (s.glowBlur    != null) glowBlur    = +s.glowBlur;
+    if (s.glowDy      != null) glowDy      = +s.glowDy;
+    if (s.glowThick   != null) glowThick   = +s.glowThick;
+    if (s.ridgeSpacing!= null) ridgeSpacing= +s.ridgeSpacing;
+    if (s.ridgeDepth  != null) ridgeDepth  = +s.ridgeDepth;
+    if (s.ridgeCol    != null) ridgeCol    = s.ridgeCol;
+    if (s.shadeAmt    != null) shadeAmt    = +s.shadeAmt;
+    if (s.shadeHiPos  != null) shadeHiPos  = +s.shadeHiPos;
+    if (s.edgeCol     != null) edgeCol     = s.edgeCol;
+  } catch(e) {}
+}
+function saveVis() { localStorage.setItem(LS_VIS, JSON.stringify(currentVis())); }
+
+function applyVisObj(s) {
+  if (s.bg          != null) bg          = s.bg;
+  if (s.bgCol2      != null) bgCol2      = s.bgCol2;
+  if (s.bgAngle     != null) bgAngle     = +s.bgAngle;
+  if (s.strCol      != null) strCol      = s.strCol;
+  if (s.holeCol     != null) holeCol     = s.holeCol;
+  if (s.notchCol2   != null) notchCol2   = s.notchCol2;
+  if (s.strW        != null) strW        = +s.strW;
+  if (s.pinR        != null) pinR        = +s.pinR;
+  if (s.stringLen   != null) stringLen   = +s.stringLen;
+  if (s.spacing     != null) spacing     = +s.spacing < 2 ? 85 : +s.spacing;
+  if (s.bodyColor   != null) bodyColor   = s.bodyColor;
+  if (s.bodyCol2    != null) bodyCol2    = s.bodyCol2;
+  if (s.bodyRadius  != null) bodyRadius  = +s.bodyRadius;
+  if (s.bowAmount   != null) bowAmount   = +s.bowAmount;
+  if (s.vibBlurAmt  != null) vibBlurAmt  = +s.vibBlurAmt;
+  if (s.vibSustain  != null) vibSustain  = +s.vibSustain;
+  if (s.shadowCol   != null) shadowCol   = s.shadowCol;
+  if (s.shadowOp    != null) shadowOp    = +s.shadowOp;
+  if (s.shadowBlur  != null) shadowBlur  = +s.shadowBlur;
+  if (s.shadowDx    != null) shadowDx    = +s.shadowDx;
+  if (s.shadowDy    != null) shadowDy    = +s.shadowDy;
+  if (s.shadowHole  != null) shadowHole  = !!s.shadowHole;
+  if (s.shadowNotch != null) shadowNotch = !!s.shadowNotch;
+  if (s.btnColor    != null) btnColor    = s.btnColor;
+  if (s.btnFontSize != null) btnFontSize = +s.btnFontSize;
+  if (s.btnTracking != null) btnTracking = +s.btnTracking;
+  if (s.btnPadV     != null) btnPadV     = +s.btnPadV;
+  if (s.btnRadius   != null) btnRadius   = +s.btnRadius;
+  if (s.btnBorderW  != null) btnBorderW  = +s.btnBorderW;
+  if (s.btnGap      != null) btnGap      = +s.btnGap;
+  if (s.btnAreaPad  != null) btnAreaPad  = +s.btnAreaPad;
+  if (s.btnMinW     != null) btnMinW     = +s.btnMinW;
+  if (s.btnMaxW     != null) btnMaxW     = +s.btnMaxW;
+  if (s.vOffset     != null) vOffset     = +s.vOffset;
+  if (s.glowCol     != null) glowCol     = s.glowCol;
+  if (s.glowOp      != null) glowOp      = +s.glowOp;
+  if (s.glowBlur    != null) glowBlur    = +s.glowBlur;
+  if (s.glowDy      != null) glowDy      = +s.glowDy;
+  if (s.glowThick   != null) glowThick   = +s.glowThick;
+  if (s.ridgeSpacing!= null) ridgeSpacing= +s.ridgeSpacing;
+  if (s.ridgeDepth  != null) ridgeDepth  = +s.ridgeDepth;
+  if (s.ridgeCol    != null) ridgeCol    = s.ridgeCol;
+  if (s.shadeAmt    != null) shadeAmt    = +s.shadeAmt;
+  if (s.shadeHiPos  != null) shadeHiPos  = +s.shadeHiPos;
+  if (s.edgeCol     != null) edgeCol     = s.edgeCol;
+}
+
+// Live inputs
+const on = (id, fn) => document.getElementById(id).addEventListener('input', fn);
+on('pBg',        e => { bg         = e.target.value; applyBg(); });
+on('pBgCol2',    e => { bgCol2     = e.target.value; applyBg(); });
+on('pBgAngle',   e => { bgAngle    = +e.target.value; document.getElementById('pBgAngleV').textContent = bgAngle+'°'; applyBg(); });
+on('pStrCol',    e => { strCol     = e.target.value; applyColors(); });
+on('pHoleCol',   e => { holeCol    = e.target.value; applyColors(); });
+on('pNotchCol2', e => { notchCol2  = e.target.value; applyNotchGrad(); });
+on('pStrW',      e => { strW       = +e.target.value; document.getElementById('pStrWV').textContent    = strW; applyStringWidth(); });
+on('pPinR',      e => { pinR       = +e.target.value; document.getElementById('pPinRV').textContent    = pinR; buildSVG(); });
+on('pLen',       e => { stringLen  = +e.target.value/100; document.getElementById('pLenV').textContent = e.target.value+'%'; buildSVG(); });
+on('pSpacing',   e => { spacing    = +e.target.value; document.getElementById('pSpacingV').textContent = spacing+'px'; buildSVG(); });
+on('pBodyCol',   e => { bodyColor  = e.target.value; applyBody(); });
+on('pBodyCol2',  e => { bodyCol2   = e.target.value; applyBody(); });
+on('pBodyR',     e => { bodyRadius = +e.target.value; document.getElementById('pBodyRV').textContent   = bodyRadius; applyBody(); });
+on('pBow',       e => { bowAmount  = +e.target.value; document.getElementById('pBowV').textContent     = bowAmount; });
+on('pVibBlur',   e => { vibBlurAmt = +e.target.value; document.getElementById('pVibBlurV').textContent = vibBlurAmt; });
+on('pSustain',   e => { vibSustain = +e.target.value; document.getElementById('pSustainV').textContent = vibSustain; });
+on('pShadCol',   e => { shadowCol  = e.target.value; applyDropShadow(); });
+on('pShadOp',    e => { shadowOp   = +e.target.value; document.getElementById('pShadOpV').textContent  = shadowOp+'%'; applyDropShadow(); });
+on('pShadBlur',  e => { shadowBlur = +e.target.value; document.getElementById('pShadBlurV').textContent= shadowBlur; applyDropShadow(); });
+on('pShadDx',    e => { shadowDx   = +e.target.value; document.getElementById('pShadDxV').textContent  = shadowDx; applyDropShadow(); });
+on('pShadDy',    e => { shadowDy   = +e.target.value; document.getElementById('pShadDyV').textContent  = shadowDy; applyDropShadow(); });
+on('pShadHole',  e => { shadowHole = e.target.checked; applyDropShadow(); });
+on('pShadNotch', e => { shadowNotch= e.target.checked; applyDropShadow(); });
+on('pBtnColor',  e => { btnColor   = e.target.value; applyButtonStyles(); });
+on('pBtnFont',   e => { btnFontSize= +e.target.value; document.getElementById('pBtnFontV').textContent = btnFontSize+'px'; applyButtonStyles(); });
+on('pBtnTrack',  e => { btnTracking= +e.target.value; document.getElementById('pBtnTrackV').textContent= (btnTracking/100).toFixed(2)+'em'; applyButtonStyles(); });
+on('pBtnPad',    e => { btnPadV    = +e.target.value; document.getElementById('pBtnPadV').textContent  = btnPadV+'px'; applyButtonStyles(); });
+on('pBtnRad',    e => { btnRadius  = +e.target.value; document.getElementById('pBtnRadV').textContent  = btnRadius+'px'; applyButtonStyles(); });
+on('pBtnBorder', e => { btnBorderW = +e.target.value; document.getElementById('pBtnBorderV').textContent= btnBorderW+'px'; applyButtonStyles(); });
+on('pBtnGap',    e => { btnGap     = +e.target.value; document.getElementById('pBtnGapV').textContent  = btnGap+'px'; applyButtonStyles(); });
+on('pBtnAreaPad',e => { btnAreaPad = +e.target.value; document.getElementById('pBtnAreaPadV').textContent= btnAreaPad+'px'; applyButtonStyles(); });
+on('pBtnMinW',   e => { btnMinW    = +e.target.value; document.getElementById('pBtnMinWV').textContent  = btnMinW+'px'; applyButtonStyles(); });
+on('pBtnMaxW',   e => { btnMaxW    = +e.target.value; document.getElementById('pBtnMaxWV').textContent  = btnMaxW+'px'; applyButtonStyles(); });
+on('pVOff',      e => { vOffset    = +e.target.value; document.getElementById('pVOffV').textContent     = vOffset+'px'; applyVOffset(); });
+on('pGlowCol',   e => { glowCol    = e.target.value; applyHoleGlow(); });
+on('pGlowOp',    e => { glowOp     = +e.target.value; document.getElementById('pGlowOpV').textContent   = glowOp+'%'; applyHoleGlow(); });
+on('pGlowBlur',  e => { glowBlur   = +e.target.value; document.getElementById('pGlowBlurV').textContent = glowBlur; applyHoleGlow(); });
+on('pGlowDy',    e => { glowDy     = +e.target.value; document.getElementById('pGlowDyV').textContent   = glowDy; applyHoleGlow(); });
+on('pGlowThick', e => { glowThick  = +e.target.value; document.getElementById('pGlowThickV').textContent= glowThick; applyHoleGlow(); });
+on('pRidgeSp',   e => { ridgeSpacing=+e.target.value; document.getElementById('pRidgeSpV').textContent  = ridgeSpacing+'px'; applyRidges(); });
+on('pRidgeDepth',e => { ridgeDepth = +e.target.value; document.getElementById('pRidgeDepthV').textContent=ridgeDepth+'%'; applyRidges(); });
+on('pRidgeCol',  e => { ridgeCol   = e.target.value; applyRidges(); });
+on('pShade',     e => { shadeAmt   = +e.target.value; document.getElementById('pShadeV').textContent    = shadeAmt+'%'; applyStringGradient(); });
+on('pShadeHi',   e => { shadeHiPos = +e.target.value; document.getElementById('pShadeHiV').textContent  = shadeHiPos+'%'; applyStringGradient(); });
+on('pEdgeCol',   e => { edgeCol    = e.target.value; applyStringGradient(); });
+
+// Keep textarea live when any slider moves
+document.getElementById('panel-scroll').addEventListener('input',
+  () => document.getElementById('pJson').value = JSON.stringify(currentVis()));
+
+document.getElementById('pSave').addEventListener('click', () => {
+  saveVis();
+  const b = document.getElementById('pSave');
+  b.textContent = 'SAVED ✓'; setTimeout(() => b.textContent = 'SET AS DEFAULT', 1500);
+});
+document.getElementById('pReset').addEventListener('click', () => {
+  // Clear the saved snapshot so the code-baked defaults load fresh
+  localStorage.removeItem(LS_VIS);
+  location.reload();
+});
+document.getElementById('pCopy').addEventListener('click', () => {
+  navigator.clipboard.writeText(document.getElementById('pJson').value)
+    .then(() => { const b=document.getElementById('pCopy'); b.textContent='COPIED ✓'; setTimeout(()=>b.textContent='COPY',1500); })
+    .catch(() => { const ta=document.getElementById('pJson'); ta.select(); document.execCommand('copy'); });
+});
+document.getElementById('pApply').addEventListener('click', () => {
+  try {
+    applyVisObj(JSON.parse(document.getElementById('pJson').value));
+    syncPanel(); applyBg(); applyColors(); applyStringWidth();
+    applyBody(); applyDropShadow(); applyButtonStyles(); buildSVG();
+  } catch(e) {}
+});
+
+// ─────────────────────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────────────────────
+loadVis(); loadGame();
+deviation = Math.min(MAX_D, bestDev * 1.5);
+applyBg();
+applyButtonStyles();  // size the buttons first so #answers has its final height…
+buildSVG();           // …then buildSVG measures it correctly for vertical centering
+newRound();
+// Web font (Rubik) loads async and nudges the buttons-bar height — recenter once ready
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(applyVOffset);
+</script>
+</body>
+</html>
