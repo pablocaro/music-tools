@@ -272,6 +272,8 @@
         <input type="range" id="pVibBlur" min="0" max="10" step="1" autocomplete="off"></div>
       <div class="prow"><label>SUSTAIN <span class="v" id="pSustainV"></span></label>
         <input type="range" id="pSustain" min="1" max="100" step="1" autocomplete="off"></div>
+      <div class="prow"><label>GRAB ZONE <span class="v" id="pGrabV"></span></label>
+        <input type="range" id="pGrab" min="40" max="260" step="5" autocomplete="off"></div>
     </div>
 
     <!-- SHADOW -->
@@ -371,6 +373,7 @@ let bodyRadius   = 100;
 let bowAmount    = 90;
 let vibBlurAmt   = 3;
 let vibSustain   = 64;
+let grabZone     = 130;     // px catch radius around a string for grab/pull
 let shadowCol    = '#000000';
 let shadowOp     = 12;
 let shadowBlur   = 1;
@@ -812,7 +815,7 @@ function nearestString(clientX) {
     const d = Math.abs(clientX - W * xRatio(i));
     if (d < dist) { dist = d; best = i; }
   }
-  return dist <= 80 ? best : -1;
+  return dist <= grabZone ? best : -1;
 }
 function onDown(clientX) {
   initAudio(); // pre-warm context as early as possible so resume() has time to complete
@@ -831,9 +834,9 @@ function onMove(clientX) {
 function onUp() {
   if (!ptr.active) return;
   const i = ptr.idx; ptr.active = false; ptr.idx = -1;
-  if (!ptr.moved) { cx[i] = 0; pluckString(i, bowAmount * TAP_FRAC); return; }
-  if (Math.abs(cx[i]) < MIN_PLUCK) { cx[i] = 0; redraw(i); return; }
-  pluckString(i, Math.abs(cx[i]));
+  // Tap or pull, a released grab always sounds. Pull strength scales with the
+  // bow, floored at a light tap so small drags never land in a silent dead zone.
+  pluckString(i, Math.max(Math.abs(cx[i]), bowAmount * TAP_FRAC));
 }
 const stage = document.getElementById('stage');
 stage.addEventListener('mousedown',  e => onDown(e.clientX));
@@ -940,7 +943,7 @@ function currentVis() {
   return {
     bg, bgCol2, bgAngle, strCol, holeCol, notchCol2, strW, pinR,
     stringLen: +stringLen.toFixed(2), spacing,
-    bodyColor, bodyCol2, bodyRadius, bowAmount, vibBlurAmt, vibSustain,
+    bodyColor, bodyCol2, bodyRadius, bowAmount, vibBlurAmt, vibSustain, grabZone,
     shadowCol, shadowOp, shadowBlur, shadowDx, shadowDy, shadowHole, shadowNotch,
     btnColor, btnFontSize, btnTracking, btnPadV, btnRadius, btnBorderW, btnGap, btnAreaPad,
     btnMinW, btnMaxW,
@@ -970,6 +973,7 @@ function syncPanel() {
   g('pBow').value      = bowAmount;     g('pBowV').textContent       = bowAmount;
   g('pVibBlur').value  = vibBlurAmt;    g('pVibBlurV').textContent   = vibBlurAmt;
   g('pSustain').value  = vibSustain;    g('pSustainV').textContent   = vibSustain;
+  g('pGrab').value     = grabZone;      g('pGrabV').textContent      = grabZone + 'px';
   g('pShadCol').value  = shadowCol;
   g('pShadOp').value   = shadowOp;      g('pShadOpV').textContent    = shadowOp + '%';
   g('pShadBlur').value = shadowBlur;    g('pShadBlurV').textContent  = shadowBlur;
@@ -1021,6 +1025,7 @@ function loadVis() {
     if (s.bowAmount   != null) bowAmount   = +s.bowAmount;
     if (s.vibBlurAmt  != null) vibBlurAmt  = +s.vibBlurAmt;
     if (s.vibSustain  != null) vibSustain  = +s.vibSustain;
+    if (s.grabZone    != null) grabZone    = +s.grabZone;
     if (s.shadowCol   != null) shadowCol   = s.shadowCol;
     if (s.shadowOp    != null) shadowOp    = +s.shadowOp;
     if (s.shadowBlur  != null) shadowBlur  = +s.shadowBlur;
@@ -1071,6 +1076,7 @@ function applyVisObj(s) {
   if (s.bowAmount   != null) bowAmount   = +s.bowAmount;
   if (s.vibBlurAmt  != null) vibBlurAmt  = +s.vibBlurAmt;
   if (s.vibSustain  != null) vibSustain  = +s.vibSustain;
+  if (s.grabZone    != null) grabZone    = +s.grabZone;
   if (s.shadowCol   != null) shadowCol   = s.shadowCol;
   if (s.shadowOp    != null) shadowOp    = +s.shadowOp;
   if (s.shadowBlur  != null) shadowBlur  = +s.shadowBlur;
@@ -1120,6 +1126,7 @@ on('pBodyR',     e => { bodyRadius = +e.target.value; document.getElementById('p
 on('pBow',       e => { bowAmount  = +e.target.value; document.getElementById('pBowV').textContent     = bowAmount; });
 on('pVibBlur',   e => { vibBlurAmt = +e.target.value; document.getElementById('pVibBlurV').textContent = vibBlurAmt; });
 on('pSustain',   e => { vibSustain = +e.target.value; document.getElementById('pSustainV').textContent = vibSustain; });
+on('pGrab',      e => { grabZone   = +e.target.value; document.getElementById('pGrabV').textContent    = grabZone+'px'; });
 on('pShadCol',   e => { shadowCol  = e.target.value; applyDropShadow(); });
 on('pShadOp',    e => { shadowOp   = +e.target.value; document.getElementById('pShadOpV').textContent  = shadowOp+'%'; applyDropShadow(); });
 on('pShadBlur',  e => { shadowBlur = +e.target.value; document.getElementById('pShadBlurV').textContent= shadowBlur; applyDropShadow(); });
