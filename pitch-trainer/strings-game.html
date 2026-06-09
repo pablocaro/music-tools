@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Pitch Trainer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      width: 100vw; height: 100dvh; overflow: hidden;
+      background: #444444; color: #ebebeb;
+      font-family: 'Courier New', Courier, monospace;
+      touch-action: none; user-select: none; -webkit-user-select: none;
+      display: flex; flex-direction: column;
+    }
+
+    /* ── Header ── */
+    #header {
+      flex-shrink: 0; height: 58px;
+      padding: 0 22px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    #threshold {
+      font-size: 22px; letter-spacing: 0.5px; opacity: .85;
+      transition: opacity .3s;
+    }
+    #threshold .unit { font-size: 13px; opacity: .45; margin-left: 1px; }
+    #best { font-size: 10px; letter-spacing: 2px; opacity: .3; margin-top: 3px; }
+    #history { display: flex; gap: 6px; align-items: center; }
+    .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: rgba(235,235,235,.14); transition: background .3s;
+    }
+    .dot.ok  { background: rgba(235,235,235,.75); }
+    .dot.err { background: rgba(255,100,100,.65); }
+
+    /* ── Stage ── */
+    #stage { flex: 1; position: relative; overflow: hidden; }
+    #svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+
+    /* ── Answers ── */
+    #answers {
+      flex-shrink: 0;
+      padding: 10px 16px 28px;
+      display: flex; flex-direction: column; gap: 7px;
+    }
+    .abtn {
+      height: 54px;
+      border: 1px solid rgba(235,235,235,.11);
+      background: rgba(235,235,235,.05);
+      color: rgba(235,235,235,.5);
+      font: 11px 'Courier New', monospace;
+      letter-spacing: 3.5px; border-radius: 8px; cursor: pointer;
+      transition: background .12s, border-color .12s, color .12s, transform .08s;
+    }
+    .abtn:active:not(:disabled) {
+      background: rgba(235,235,235,.13);
+      transform: scale(0.98);
+    }
+    .abtn.reveal-correct {
+      background: rgba(110,210,110,.15);
+      border-color: rgba(110,210,110,.35);
+      color: rgba(180,255,180,.9);
+    }
+    .abtn.reveal-wrong {
+      background: rgba(255,75,75,.15);
+      border-color: rgba(255,75,75,.35);
+      color: rgba(255,155,155,.85);
+    }
+    .abtn:disabled { cursor: default; }
+
+    #hint {
+      text-align: center; font-size: 9px;
+      letter-spacing: 2.5px; color: rgba(235,235,235,.22);
+      margin-top: 2px;
+      transition: opacity 1.2s;
+    }
+    #hint.gone { opacity: 0; }
+  </style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <div id="threshold">—<span class="unit">¢</span></div>
+    <div id="best"></div>
+  </div>
+  <div id="history"></div>
+</div>
+
+<div id="stage"><svg id="svg"></svg></div>
+
+<div id="answers">
+  <button class="abtn" data-ans="sharp">↑ &nbsp;SHARP</button>
+  <button class="abtn" data-ans="in_tune">≈ &nbsp;IN TUNE</button>
+  <button class="abtn" data-ans="flat">↓ &nbsp;FLAT</button>
+  <div id="hint">pluck both strings · then answer</div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+// SVG / Visual constants  (baked-in from settings)
+// ─────────────────────────────────────────────────────────────
+const NUM_STRINGS = 2;
+const NUM_GHOSTS  = 12;
+const MIN_PLUCK   = 8;
+const TAP_FRAC    = 0.44;
+const SVGNS       = 'http://www.w3.org/2000/svg';
+
+const strCol    = '#ebebeb';
+const holeCol   = '#232323';
+let   strW      = 6;
+let   pinR      = 13;
+let   stringLen = 0.69;
+let   spacing   = 85;          // px between string centres
+const bodyColor  = '#232323';
+const bodyRadius = 100;
+const bowAmount  = 90;
+const vibBlurAmt = 3;
+const vibSustain = 64;
+const shadowCol  = '#000000';
+const shadowOp   = 17;
+const shadowBlur = 2;
+const shadowDx   = 5;
+const shadowDy   = -3;
+
+const pillW        = () => pinR * 0.95;
+const pillD        = () => pinR * 1.4;
+const pinMargin    = () => pinR * 0.6;
+const ghostW       = () => Math.max(1.5, strW * 0.35);
+const lengthMargin = () => (H * (1 - stringLen)) / 2;
+const vibDecay     = () => 0.3 + 5.7 * (1 - vibSustain / 100);
+
+// ─────────────────────────────────────────────────────────────
+// SVG state
+// ─────────────────────────────────────────────────────────────
+let W = 0, H = 0;
+const cx  = [0, 0];
+const vib = [false, false];
+let mainPath = [], ghostEls = [], blurDev = [], grpEls = [], pinEls = [];
+let shadowPathEls = [], shadowBlurDevEls = [];
+let bodyCircle = null;
+
+function xRatio(i) { return 0.5 + (i === 0 ? -1 : 1) * spacing / (2 * W); }
+function pinTopY() { return pinR + pinMargin() + lengthMargin(); }
+function pinBotY() { return H - pinR - pinMargin() - lengthMargin(); }
+function strTopY() { return pinTopY() + pinR - pillD() + pillW() / 2; }
+function strBotY() { return pinBotY() - pinR + pillD() - pillW() / 2; }
+
+function stringD(i, offset) {
+  const x = W * xRatio(i), top = strTopY(), bot = strBotY();
+  return `M ${x} ${top} Q ${x + offset} ${(top + bot) / 2} ${x} ${bot}`;
+}
+function ghostD(i, k) {
+  const frac = NUM_GHOSTS > 1 ? (k / (NUM_GHOSTS - 1)) * 2 - 1 : 0;
+  return stringD(i, cx[i] * frac);
+}
+function ghostOpacity(k, env) {
+  const frac = NUM_GHOSTS > 1 ? k / (NUM_GHOSTS - 1) : 0.5;
+  return (0.12 + Math.abs(frac * 2 - 1) * 0.30) * Math.min(env * 2, 1);
+}
+
+function buildSVG() {
+  const svg  = document.getElementById('svg');
+  const rect = document.getElementById('stage').getBoundingClientRect();
+  W = rect.width; H = rect.height;
+  const topY = pinTopY(), botY = pinBotY();
+  const pw = pillW(), pd = pillD();
+
+  let defs = '<defs>';
+  for (let i = 0; i < NUM_STRINGS; i++) {
+    const x = W * xRatio(i), px = x - pw / 2, rxv = pw / 2;
+    defs += `
+      <filter id="fblur-${i}" x="-60%" y="-10%" width="220%" height="120%">
+        <feGaussianBlur id="fdev-${i}" stdDeviation="0 0"/>
+      </filter>
+      <filter id="fshad-${i}" filterUnits="userSpaceOnUse"
+              x="${x-200}" y="-50" width="400" height="${H+100}">
+        <feGaussianBlur id="fshad-dev-${i}" stdDeviation="${shadowBlur}"/>
+      </filter>
+      <mask id="mask-top-${i}">
+        <circle cx="${x}" cy="${topY}" r="${pinR}" fill="white"/>
+        <rect x="${px}" y="${topY+pinR-pd}" width="${pw}" height="${pd+pinR}" rx="${rxv}" ry="${rxv}" fill="black"/>
+      </mask>
+      <mask id="mask-bot-${i}">
+        <circle cx="${x}" cy="${botY}" r="${pinR}" fill="white"/>
+        <rect x="${px}" y="${botY-pinR-pinR}" width="${pw}" height="${pd+pinR}" rx="${rxv}" ry="${rxv}" fill="black"/>
+      </mask>`;
+  }
+  defs += '</defs>';
+  svg.innerHTML = defs;
+
+  mainPath = []; ghostEls = []; blurDev = []; grpEls = []; pinEls = [];
+  shadowPathEls = []; shadowBlurDevEls = []; bodyCircle = null;
+
+  // 1 — shadow paths
+  for (let i = 0; i < NUM_STRINGS; i++) {
+    shadowBlurDevEls.push(document.getElementById(`fshad-dev-${i}`));
+    const sh = document.createElementNS(SVGNS, 'path');
+    sh.setAttribute('d', stringD(i, 0));
+    sh.setAttribute('stroke', shadowCol);
+    sh.setAttribute('stroke-width', strW);
+    sh.setAttribute('fill', 'none');
+    sh.setAttribute('stroke-linecap', 'round');
+    sh.setAttribute('stroke-opacity', shadowOp / 100);
+    sh.setAttribute('transform', `translate(${shadowDx},${shadowDy})`);
+    sh.setAttribute('filter', `url(#fshad-${i})`);
+    svg.appendChild(sh);
+    shadowPathEls.push(sh);
+  }
+
+  // 2 — body circle
+  const body = document.createElementNS(SVGNS, 'circle');
+  body.setAttribute('cx', W / 2); body.setAttribute('cy', H / 2);
+  body.setAttribute('r', bodyRadius); body.setAttribute('fill', bodyColor);
+  svg.appendChild(body);
+  bodyCircle = body;
+
+  // 3 — ghost groups
+  for (let i = 0; i < NUM_STRINGS; i++) {
+    blurDev.push(document.getElementById(`fdev-${i}`));
+    const grp = document.createElementNS(SVGNS, 'g');
+    svg.appendChild(grp); grpEls.push(grp);
+    const gs = [];
+    for (let k = 0; k < NUM_GHOSTS; k++) {
+      const g = document.createElementNS(SVGNS, 'path');
+      g.setAttribute('stroke', strCol); g.setAttribute('stroke-width', ghostW());
+      g.setAttribute('fill', 'none'); g.setAttribute('stroke-linecap', 'round');
+      g.setAttribute('opacity', '0');
+      grp.appendChild(g); gs.push(g);
+    }
+    ghostEls.push(gs);
+  }
+
+  // 4 — strings + pins
+  for (let i = 0; i < NUM_STRINGS; i++) {
+    const x = W * xRatio(i);
+    const path = document.createElementNS(SVGNS, 'path');
+    path.setAttribute('d', stringD(i, 0)); path.setAttribute('stroke', strCol);
+    path.setAttribute('stroke-width', strW); path.setAttribute('fill', 'none');
+    path.setAttribute('stroke-linecap', 'round');
+    svg.appendChild(path); mainPath.push(path);
+
+    const pt = document.createElementNS(SVGNS, 'circle');
+    pt.setAttribute('cx', x); pt.setAttribute('cy', topY);
+    pt.setAttribute('r', pinR); pt.setAttribute('fill', holeCol);
+    pt.setAttribute('mask', `url(#mask-top-${i})`);
+    svg.appendChild(pt);
+
+    const pb = document.createElementNS(SVGNS, 'circle');
+    pb.setAttribute('cx', x); pb.setAttribute('cy', botY);
+    pb.setAttribute('r', pinR); pb.setAttribute('fill', holeCol);
+    pb.setAttribute('mask', `url(#mask-bot-${i})`);
+    svg.appendChild(pb);
+    pinEls.push([pt, pb]);
+  }
+
+  for (let i = 0; i < NUM_STRINGS; i++) redraw(i);
+}
+
+function redraw(i) {
+  if (!mainPath[i]) return;
+  const d = vib[i] ? stringD(i, 0) : stringD(i, cx[i]);
+  mainPath[i].setAttribute('d', d);
+  if (shadowPathEls[i]) shadowPathEls[i].setAttribute('d', d);
+  if (vib[i]) {
+    grpEls[i].setAttribute('filter', `url(#fblur-${i})`);
+    const env = Math.min(cx[i] / bowAmount, 1);
+    for (let k = 0; k < NUM_GHOSTS; k++) {
+      ghostEls[i][k].setAttribute('d', ghostD(i, k));
+      ghostEls[i][k].setAttribute('opacity', ghostOpacity(k, env).toFixed(3));
+    }
+    blurDev[i].setAttribute('stdDeviation', (vibBlurAmt * env).toFixed(2) + ' 0');
+  } else {
+    grpEls[i].setAttribute('filter', 'none');
+    for (let k = 0; k < NUM_GHOSTS; k++) ghostEls[i][k].setAttribute('opacity', '0');
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Audio
+// ─────────────────────────────────────────────────────────────
+let audioCtx = null;
+const stringFreqs = [440, 440];  // Hz; set each round
+
+function ensureAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+function playTone(freq) {
+  ensureAudio();
+  const now  = audioCtx.currentTime;
+  const osc  = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.type = 'triangle';
+  // Slight settle — natural pluck artefact
+  osc.frequency.setValueAtTime(freq * 1.004, now);
+  osc.frequency.exponentialRampToValueAtTime(freq, now + 0.08);
+  gain.gain.setValueAtTime(0, now);
+  gain.gain.linearRampToValueAtTime(0.30, now + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 3.2);
+  osc.start(now); osc.stop(now + 3.3);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Pluck  (visual + audio)
+// ─────────────────────────────────────────────────────────────
+function pluckString(idx, amp0) {
+  playTone(stringFreqs[idx]);
+  pulseBody();
+  vib[idx] = true;
+  const decay = vibDecay(), t0 = performance.now();
+  (function tick() {
+    const t = (performance.now() - t0) / 1000;
+    const env = Math.exp(-decay * t);
+    cx[idx] = amp0 * env;
+    redraw(idx);
+    if (env > 0.004) requestAnimationFrame(tick);
+    else { cx[idx] = 0; vib[idx] = false; redraw(idx); }
+  })();
+}
+
+function pulseBody() {
+  if (!bodyCircle) return;
+  bodyCircle.setAttribute('r', bodyRadius * 1.055);
+  setTimeout(() => bodyCircle.setAttribute('r', bodyRadius), 200);
+}
+function flashBody(correct) {
+  if (!bodyCircle) return;
+  bodyCircle.setAttribute('fill', correct ? '#1e2e1e' : '#2e1e1e');
+  setTimeout(() => bodyCircle.setAttribute('fill', bodyColor), 700);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Interaction
+// ─────────────────────────────────────────────────────────────
+const ptr = { active: false, idx: -1, startX: 0, moved: false };
+
+function nearestString(clientX) {
+  let best = -1, dist = Infinity;
+  for (let i = 0; i < NUM_STRINGS; i++) {
+    const d = Math.abs(clientX - W * xRatio(i));
+    if (d < dist) { dist = d; best = i; }
+  }
+  return dist <= 80 ? best : -1;
+}
+function onDown(clientX) {
+  if (!W || phase === 'feedback') return;
+  const i = nearestString(clientX);
+  if (i < 0 || vib[i]) return;
+  ptr.active = true; ptr.idx = i; ptr.startX = clientX; ptr.moved = false;
+}
+function onMove(clientX) {
+  if (!ptr.active) return;
+  if (Math.abs(clientX - ptr.startX) > 4) ptr.moved = true;
+  cx[ptr.idx] = Math.max(-bowAmount, Math.min(bowAmount,
+    (clientX - W * xRatio(ptr.idx)) * 1.3));
+  redraw(ptr.idx);
+}
+function onUp() {
+  if (!ptr.active) return;
+  const i = ptr.idx; ptr.active = false; ptr.idx = -1;
+  if (!ptr.moved) { cx[i] = 0; pluckString(i, bowAmount * TAP_FRAC); return; }
+  if (Math.abs(cx[i]) < MIN_PLUCK) { cx[i] = 0; redraw(i); return; }
+  pluckString(i, Math.abs(cx[i]));
+}
+
+const stage = document.getElementById('stage');
+stage.addEventListener('mousedown',  e => onDown(e.clientX));
+stage.addEventListener('touchstart', e => { e.preventDefault(); onDown(e.touches[0].clientX); }, { passive: false });
+window.addEventListener('mousemove',  e => onMove(e.clientX));
+window.addEventListener('mouseup',   onUp);
+window.addEventListener('touchmove',  e => { e.preventDefault(); onMove(e.touches[0].clientX); }, { passive: false });
+window.addEventListener('touchend',  onUp);
+window.addEventListener('resize', buildSVG);
+
+// ─────────────────────────────────────────────────────────────
+// Game
+// ─────────────────────────────────────────────────────────────
+const ROOT   = 440;
+const MAX_D  = 50;
+const MIN_D  = 1;
+const LS_KEY = 'pitch-game-v1';
+
+let deviation     = MAX_D;
+let bestDev       = MAX_D;
+let phase         = 'play';    // 'play' | 'feedback'
+let roundDir      = 'sharp';   // 'sharp' | 'flat' | 'in_tune'
+let lastCorrect   = null;
+let oscillations  = 0;
+let streak        = 0;
+let history       = [];        // last 7 booleans
+
+// Persist only bestDev; derive session start from it
+function loadState() {
+  try {
+    const s = JSON.parse(localStorage.getItem(LS_KEY));
+    if (s && s.best != null) bestDev = +s.best;
+  } catch(e) {}
+}
+function saveState() {
+  localStorage.setItem(LS_KEY, JSON.stringify({ best: bestDev }));
+}
+
+function fmt(c) { return c >= 10 ? Math.round(c) : c.toFixed(1); }
+
+function updateHeader() {
+  document.getElementById('threshold').innerHTML =
+    `±${fmt(deviation)}<span class="unit">¢</span>`;
+  document.getElementById('best').textContent =
+    bestDev < MAX_D ? `best  ±${fmt(bestDev)}¢` : '';
+  document.getElementById('history').innerHTML =
+    history.map(ok => `<div class="dot ${ok ? 'ok' : 'err'}"></div>`).join('');
+}
+
+function newRound() {
+  // Pick direction — in_tune probability rises as deviation shrinks
+  const inTuneP = 0.1 + 0.2 * (1 - Math.min(deviation, MAX_D) / MAX_D);
+  const r = Math.random();
+  roundDir = r < inTuneP ? 'in_tune' : (Math.random() < 0.5 ? 'sharp' : 'flat');
+
+  // Set string frequencies
+  stringFreqs[0] = ROOT;
+  stringFreqs[1] = roundDir === 'sharp'  ? ROOT * Math.pow(2,  deviation / 1200)
+                 : roundDir === 'flat'   ? ROOT * Math.pow(2, -deviation / 1200)
+                 : ROOT;
+
+  phase = 'play';
+  clearButtons();
+  updateHeader();
+}
+
+function adjust(correct) {
+  // Oscillation tracking
+  if (lastCorrect !== null && lastCorrect !== correct)
+    oscillations = Math.min(oscillations + 1, 10);
+  else
+    oscillations = Math.max(0, oscillations - 1);
+  lastCorrect = correct;
+
+  if (correct) {
+    streak++;
+    const tight = oscillations > 4;
+    deviation = Math.max(MIN_D, deviation * (tight ? 0.90 : 0.75));
+    if (deviation < bestDev) { bestDev = deviation; saveState(); }
+  } else {
+    streak = 0;
+    const bigStep  = streak === 0 && history.filter(x => !x).slice(-4).length >= 4;
+    const tightStep = oscillations > 4;
+    deviation = Math.min(MAX_D, deviation * (bigStep ? 1.8 : tightStep ? 1.1 : 1.3));
+  }
+}
+
+function answer(userAns) {
+  if (phase !== 'play') return;
+  phase = 'feedback';
+  document.getElementById('hint').classList.add('gone');
+
+  const correct = userAns === roundDir;
+  adjust(correct);
+  history.push(correct); if (history.length > 7) history.shift();
+  flashBody(correct);
+  revealButtons(userAns, correct);
+  updateHeader();
+
+  setTimeout(newRound, 950);
+}
+
+// Button feedback
+const btns = document.querySelectorAll('.abtn');
+
+function revealButtons(userAns, correct) {
+  btns.forEach(b => b.disabled = true);
+  btns.forEach(b => {
+    if (b.dataset.ans === roundDir) b.classList.add('reveal-correct');
+    if (!correct && b.dataset.ans === userAns) b.classList.add('reveal-wrong');
+  });
+}
+function clearButtons() {
+  btns.forEach(b => {
+    b.classList.remove('reveal-correct', 'reveal-wrong');
+    b.disabled = false;
+  });
+}
+
+btns.forEach(b => b.addEventListener('click', () => answer(b.dataset.ans)));
+
+// ─────────────────────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────────────────────
+loadState();
+// Warm-up start: 1.5× personal best (capped), so first session
+// feels easy and confirms improvement from rest/sleep
+deviation = Math.min(MAX_D, bestDev * 1.5);
+
+buildSVG();
+newRound();
+</script>
+</body>
+</html>
