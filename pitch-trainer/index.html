@@ -752,12 +752,13 @@ function applyButtonStyles() {
 // ─────────────────────────────────────────────────────────────
 let audioCtx = null;
 const stringFreqs = [440, 440];
+const activeNotes = [null, null]; // currently-ringing {osc,gain} per string, for re-pluck damping
 
 function initAudio() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (audioCtx.state === 'suspended') audioCtx.resume(); // fire-and-forget pre-warm
 }
-async function playTone(freq) {
+async function playTone(freq, idx) {
   initAudio();
   // Wait until context is actually running before scheduling —
   // avoids the "quiet blip then delayed full volume" on first play
@@ -765,6 +766,16 @@ async function playTone(freq) {
     try { await audioCtx.resume(); } catch(e) {}
   }
   const now = audioCtx.currentTime;
+  // Damp a note still ringing on this string so rapid re-plucks don't stack
+  if (idx != null && activeNotes[idx]) {
+    const prev = activeNotes[idx];
+    try {
+      prev.gain.gain.cancelScheduledValues(now);
+      prev.gain.gain.setValueAtTime(Math.max(prev.gain.gain.value, 0.0001), now);
+      prev.gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.06);
+      prev.osc.stop(now + 0.08);
+    } catch(e) {}
+  }
   const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
   osc.connect(gain); gain.connect(audioCtx.destination);
   osc.type = 'triangle';
@@ -775,19 +786,27 @@ async function playTone(freq) {
   gain.gain.linearRampToValueAtTime(0.30, now + 0.012);
   gain.gain.exponentialRampToValueAtTime(0.001, now + 3.2);
   osc.start(now); osc.stop(now + 3.3);
+  if (idx != null) {
+    const note = { osc, gain };
+    activeNotes[idx] = note;
+    osc.onended = () => { if (activeNotes[idx] === note) activeNotes[idx] = null; };
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
 // Pluck
 // ─────────────────────────────────────────────────────────────
 let hasPlucked = false;
+const vibGen = [0, 0]; // per-string token; bumping it cancels a running decay tick
 
 function pluckString(idx, amp0) {
-  playTone(stringFreqs[idx]);
+  playTone(stringFreqs[idx], idx);
   if (!hasPlucked) { hasPlucked = true; setButtonsReady(true); }
   vib[idx] = true;
+  const myGen = ++vibGen[idx];   // supersede any prior decay tick for this string
   const decay = vibDecay(), t0 = performance.now();
   (function tick() {
+    if (vibGen[idx] !== myGen) return;   // a newer pluck/grab took over — stop
     const t = (performance.now() - t0) / 1000, env = Math.exp(-decay * t);
     cx[idx] = amp0 * env; redraw(idx);
     if (env > 0.004) requestAnimationFrame(tick);
@@ -821,7 +840,9 @@ function onDown(clientX) {
   initAudio(); // pre-warm context as early as possible so resume() has time to complete
   if (!W || phase === 'feedback') return;
   const i = nearestString(clientX);
-  if (i < 0 || vib[i]) return;
+  if (i < 0) return;
+  // Re-grab a still-ringing string: cancel its decay so it bows fresh
+  if (vib[i]) { vibGen[i]++; vib[i] = false; cx[i] = 0; redraw(i); }
   ptr.active = true; ptr.idx = i; ptr.startX = clientX; ptr.moved = false;
 }
 function onMove(clientX) {
