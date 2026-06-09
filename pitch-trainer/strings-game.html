@@ -14,118 +14,138 @@
       display: flex; flex-direction: column;
     }
 
-    /* ── Header ────────────────────────────────── */
+    /* ── Header ────────────────────────────── */
     #header {
-      flex-shrink: 0; height: 58px;
-      padding: 0 22px;
+      flex-shrink: 0; height: 58px; padding: 0 20px;
       display: flex; align-items: center; justify-content: space-between;
     }
     #threshold { font-size: 22px; letter-spacing: 0.5px; opacity: .85; }
     #threshold .unit { font-size: 13px; opacity: .45; margin-left: 1px; }
     #best { font-size: 10px; letter-spacing: 2px; opacity: .3; margin-top: 3px; }
-
-    #header-right { display: flex; align-items: center; gap: 14px; }
+    #header-right { display: flex; align-items: center; gap: 12px; }
     #history { display: flex; gap: 6px; align-items: center; }
     .dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(235,235,235,.14); transition: background .3s; }
     .dot.ok  { background: rgba(235,235,235,.75); }
     .dot.err { background: rgba(255,100,100,.65); }
-
     #gear {
       width: 32px; height: 32px; border-radius: 50%;
-      border: 1px solid rgba(235,235,235,.2);
-      background: rgba(235,235,235,.06);
-      color: rgba(235,235,235,.5);
-      font: 8px 'Courier New', monospace; letter-spacing: 1px;
-      cursor: pointer; flex-shrink: 0;
+      border: 1px solid rgba(235,235,235,.2); background: rgba(235,235,235,.06);
+      color: rgba(235,235,235,.5); font: 8px 'Courier New', monospace;
+      letter-spacing: 1px; cursor: pointer; flex-shrink: 0;
     }
     #gear:active { background: rgba(235,235,235,.15); }
 
-    /* ── Stage ─────────────────────────────────── */
+    /* ── Stage ──────────────────────────────── */
     #stage { flex: 1; position: relative; overflow: hidden; }
     #svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 
-    /* ── Answer buttons (piano style) ──────────── */
-    #answers {
-      flex-shrink: 0;
-      padding: 0 0 0 0;
-      display: flex;
-      gap: 1px;
+    /* ── Answer buttons ─────────────────────── */
+    #answers { flex-shrink: 0; display: flex; }
+
+    :root {
+      --btn-ready:        rgba(235,235,235, .80);
+      --btn-dim:          rgba(235,235,235, .18);
+      --btn-border-ready: rgba(235,235,235, .55);
+      --btn-border-dim:   rgba(235,235,235, .10);
     }
     .abtn {
       flex: 1;
-      padding: 18px 4px;
       background: transparent;
-      border: none;
-      border-top: 1px solid rgba(235,235,235,.1);
-      color: rgba(235,235,235,.18);
+      border: 1px solid var(--btn-border-dim);
+      color: var(--btn-dim);
       font-family: 'Courier New', Courier, monospace;
-      font-size: 11px;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
+      font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
       cursor: pointer;
       transition: border-color .2s, color .2s, background .15s;
       pointer-events: none;
     }
     .abtn.ready {
-      border-color: rgba(235,235,235,.55);
-      color: rgba(235,235,235,.8);
+      border-color: var(--btn-border-ready);
+      color: var(--btn-ready);
       pointer-events: all;
     }
     .abtn.ready:active { background: rgba(235,235,235,.07); }
     .abtn.reveal-correct {
-      border-color: rgba(120,220,120,.55);
-      color: rgba(160,255,160,.9);
+      border-color: rgba(120,220,120,.55); color: rgba(160,255,160,.9);
       pointer-events: none;
     }
     .abtn.reveal-wrong {
-      border-color: rgba(255,80,80,.45);
-      color: rgba(255,150,150,.8);
+      border-color: rgba(255,80,80,.45); color: rgba(255,150,150,.8);
       pointer-events: none;
     }
-    .abtn:disabled { pointer-events: none; }
 
-    /* ── Dev settings panel ─────────────────────── */
+    /* ── Overlay (tap-outside-to-close) ─────── */
+    #overlay {
+      position: fixed; inset: 0; z-index: 24;
+      background: rgba(0,0,0,0); pointer-events: none;
+      transition: background .22s;
+    }
+    #overlay.on { pointer-events: all; background: rgba(0,0,0,.25); }
+
+    /* ── Settings panel ─────────────────────── */
     #panel {
       position: fixed; top: 0; right: 0;
-      width: min(260px, 82vw); height: 100%;
-      background: rgba(40,40,38,.97); color: #ebebeb;
-      border-left: 1px solid rgba(235,235,235,.1);
-      box-shadow: -8px 0 24px rgba(0,0,0,.25);
-      padding: 68px 20px 24px;
+      width: min(270px, 84vw); height: 100%;
+      background: rgba(36,36,34,.98); color: #ebebeb;
+      border-left: 1px solid rgba(235,235,235,.08);
+      box-shadow: -10px 0 30px rgba(0,0,0,.35);
       transform: translateX(100%); transition: transform .22s ease;
-      z-index: 25; font-size: 10px; letter-spacing: 1.5px; overflow-y: auto;
+      z-index: 25; font-size: 10px; letter-spacing: 1.5px;
+      display: flex; flex-direction: column;
     }
     #panel.open { transform: translateX(0); }
-    #panel h2 { font-size: 11px; letter-spacing: 3px; opacity: .35; margin-bottom: 24px; font-weight: normal; }
-    #panel .section {
-      font-size: 9px; letter-spacing: 3px; opacity: .28;
-      margin: 24px 0 14px;
-      border-top: 1px solid rgba(235,235,235,.08); padding-top: 12px;
+
+    #panel-head {
+      flex-shrink: 0; padding: 18px 18px 14px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid rgba(235,235,235,.07);
     }
-    #panel .row { margin-bottom: 20px; }
-    #panel label { display: flex; justify-content: space-between; margin-bottom: 9px; opacity: .5; }
-    #panel .val { opacity: .6; }
-    #panel input[type="range"] { width: 100%; accent-color: #aaa; }
-    #panel input[type="color"] {
-      width: 100%; height: 28px;
-      border: 1px solid rgba(235,235,235,.15);
-      background: none; cursor: pointer; padding: 2px;
+    #panel-head h2 { font-size: 10px; letter-spacing: 3px; opacity: .35; font-weight: normal; }
+    #pClose {
+      width: 28px; height: 28px; border-radius: 50%;
+      border: 1px solid rgba(235,235,235,.18); background: rgba(235,235,235,.05);
+      color: rgba(235,235,235,.5); font-size: 13px; cursor: pointer;
     }
-    #panel button {
+    #pClose:active { background: rgba(235,235,235,.15); }
+
+    #panel-scroll { flex: 1; overflow-y: auto; padding: 6px 18px 24px; }
+
+    /* Collapsible sections */
+    .psec-hdr {
+      font-size: 9px; letter-spacing: 3px; opacity: .32; cursor: pointer;
+      padding: 14px 0 10px;
+      border-top: 1px solid rgba(235,235,235,.07);
+      display: flex; align-items: center; gap: 7px;
+      user-select: none; -webkit-user-select: none;
+    }
+    .psec-hdr:first-child { border-top: none; padding-top: 10px; }
+    .psec-hdr:hover { opacity: .5; }
+    .psec-arrow { font-size: 8px; opacity: .6; transition: transform .15s; }
+    .psec-body { overflow: hidden; max-height: 1200px; transition: max-height .25s ease; }
+    .psec-body.collapsed { max-height: 0; }
+
+    .prow { margin-bottom: 18px; }
+    .prow label { display: flex; justify-content: space-between; margin-bottom: 8px; opacity: .48; }
+    .prow .v { opacity: .6; }
+    .prow input[type="range"] { width: 100%; accent-color: #999; }
+    .prow input[type="color"] {
+      width: 100%; height: 26px; padding: 2px;
+      border: 1px solid rgba(235,235,235,.12); background: none; cursor: pointer;
+    }
+    .prow button, #panel button {
       font: 10px 'Courier New', monospace; letter-spacing: 1.5px;
-      border: 1px solid rgba(235,235,235,.18); background: rgba(235,235,235,.04);
-      color: rgba(235,235,235,.6);
-      padding: 7px 10px; cursor: pointer; width: 100%; margin-top: 6px;
+      border: 1px solid rgba(235,235,235,.16); background: rgba(235,235,235,.04);
+      color: rgba(235,235,235,.55); padding: 7px 10px; cursor: pointer; width: 100%;
     }
-    #panel button:active { background: rgba(235,235,235,.12); }
+    .prow button:active, #panel button:active { background: rgba(235,235,235,.12); }
     #panel textarea {
       width: 100%; font: 10px 'Courier New', monospace;
-      background: rgba(235,235,235,.04); color: rgba(235,235,235,.6);
-      border: 1px solid rgba(235,235,235,.12);
-      padding: 8px; resize: none; line-height: 1.5;
+      background: rgba(235,235,235,.03); color: rgba(235,235,235,.55);
+      border: 1px solid rgba(235,235,235,.1); padding: 8px;
+      resize: none; line-height: 1.5; margin-top: 10px;
     }
-    #panel .btn-row { display: flex; gap: 8px; margin-top: 8px; }
-    #panel .btn-row button { width: auto; flex: 1; margin-top: 0; }
+    .pbtn-row { display: flex; gap: 8px; margin-top: 8px; }
+    .pbtn-row button { flex: 1; }
   </style>
 </head>
 <body>
@@ -149,65 +169,124 @@
   <button class="abtn" data-ans="sharp">↑ sharp</button>
 </div>
 
-<!-- Dev Settings Panel -->
+<div id="overlay"></div>
+
 <div id="panel">
-  <h2>VISUAL SETTINGS</h2>
-  <div class="row"><label>BACKGROUND</label>
-    <input type="color" id="pBg" autocomplete="off"></div>
-  <div class="row"><label>STRING COLOR</label>
-    <input type="color" id="pStrCol" autocomplete="off"></div>
-  <div class="row"><label>HOLE COLOR</label>
-    <input type="color" id="pHoleCol" autocomplete="off"></div>
-  <div class="row"><label>STRING THICKNESS <span class="val" id="pStrWV"></span></label>
-    <input type="range" id="pStrW" min="2" max="20" step="1" autocomplete="off"></div>
-  <div class="row"><label>HOLE SIZE <span class="val" id="pPinRV"></span></label>
-    <input type="range" id="pPinR" min="8" max="28" step="1" autocomplete="off"></div>
-  <div class="row"><label>STRING LENGTH <span class="val" id="pLenV"></span></label>
-    <input type="range" id="pLen" min="30" max="100" step="1" autocomplete="off"></div>
-  <div class="row"><label>SPACING <span class="val" id="pSpacingV"></span></label>
-    <input type="range" id="pSpacing" min="0" max="200" step="1" autocomplete="off"></div>
-
-  <div class="section">BODY</div>
-  <div class="row"><label>COLOR</label>
-    <input type="color" id="pBodyCol" autocomplete="off"></div>
-  <div class="row"><label>RADIUS <span class="val" id="pBodyRV"></span></label>
-    <input type="range" id="pBodyR" min="0" max="220" step="5" autocomplete="off"></div>
-
-  <div class="section">VIBRATION</div>
-  <div class="row"><label>BOW <span class="val" id="pBowV"></span></label>
-    <input type="range" id="pBow" min="20" max="150" step="5" autocomplete="off"></div>
-  <div class="row"><label>BLUR <span class="val" id="pVibBlurV"></span></label>
-    <input type="range" id="pVibBlur" min="0" max="10" step="1" autocomplete="off"></div>
-  <div class="row"><label>SUSTAIN <span class="val" id="pSustainV"></span></label>
-    <input type="range" id="pSustain" min="1" max="100" step="1" autocomplete="off"></div>
-
-  <div class="section">SHADOW</div>
-  <div class="row"><label>COLOR</label>
-    <input type="color" id="pShadCol" autocomplete="off"></div>
-  <div class="row"><label>OPACITY <span class="val" id="pShadOpV"></span></label>
-    <input type="range" id="pShadOp" min="0" max="100" step="1" autocomplete="off"></div>
-  <div class="row"><label>BLUR <span class="val" id="pShadBlurV"></span></label>
-    <input type="range" id="pShadBlur" min="0" max="20" step="1" autocomplete="off"></div>
-  <div class="row"><label>OFFSET X <span class="val" id="pShadDxV"></span></label>
-    <input type="range" id="pShadDx" min="-20" max="20" step="1" autocomplete="off"></div>
-  <div class="row"><label>OFFSET Y <span class="val" id="pShadDyV"></span></label>
-    <input type="range" id="pShadDy" min="-20" max="20" step="1" autocomplete="off"></div>
-
-  <div class="section">PRESET</div>
-  <button id="pSave">SET AS DEFAULT</button>
-  <div class="row" style="margin-top:14px">
-    <label>EXPORT / IMPORT</label>
-    <textarea id="pJson" rows="3" spellcheck="false" autocomplete="off"></textarea>
-    <div class="btn-row">
-      <button id="pCopy">COPY</button>
-      <button id="pApply">APPLY</button>
-    </div>
+  <div id="panel-head">
+    <h2>VISUAL SETTINGS</h2>
+    <button id="pClose">✕</button>
   </div>
-</div>
+  <div id="panel-scroll">
+
+    <!-- APPEARANCE -->
+    <div class="psec-hdr" onclick="toggleSec('appearance')">
+      <span class="psec-arrow" id="arr-appearance">▾</span>APPEARANCE
+    </div>
+    <div class="psec-body" id="sec-appearance">
+      <div class="prow"><label>BACKGROUND</label>
+        <input type="color" id="pBg" autocomplete="off"></div>
+      <div class="prow"><label>STRING COLOR</label>
+        <input type="color" id="pStrCol" autocomplete="off"></div>
+      <div class="prow"><label>HOLE COLOR</label>
+        <input type="color" id="pHoleCol" autocomplete="off"></div>
+      <div class="prow"><label>THICKNESS <span class="v" id="pStrWV"></span></label>
+        <input type="range" id="pStrW" min="2" max="20" step="1" autocomplete="off"></div>
+      <div class="prow"><label>PIN SIZE <span class="v" id="pPinRV"></span></label>
+        <input type="range" id="pPinR" min="8" max="28" step="1" autocomplete="off"></div>
+      <div class="prow"><label>STRING LENGTH <span class="v" id="pLenV"></span></label>
+        <input type="range" id="pLen" min="30" max="100" step="1" autocomplete="off"></div>
+      <div class="prow"><label>SPACING <span class="v" id="pSpacingV"></span></label>
+        <input type="range" id="pSpacing" min="0" max="200" step="1" autocomplete="off"></div>
+    </div>
+
+    <!-- BODY -->
+    <div class="psec-hdr" onclick="toggleSec('body')">
+      <span class="psec-arrow" id="arr-body">▾</span>BODY
+    </div>
+    <div class="psec-body" id="sec-body">
+      <div class="prow"><label>COLOR</label>
+        <input type="color" id="pBodyCol" autocomplete="off"></div>
+      <div class="prow"><label>RADIUS <span class="v" id="pBodyRV"></span></label>
+        <input type="range" id="pBodyR" min="0" max="220" step="5" autocomplete="off"></div>
+    </div>
+
+    <!-- VIBRATION -->
+    <div class="psec-hdr" onclick="toggleSec('vib')">
+      <span class="psec-arrow" id="arr-vib">▾</span>VIBRATION
+    </div>
+    <div class="psec-body" id="sec-vib">
+      <div class="prow"><label>BOW <span class="v" id="pBowV"></span></label>
+        <input type="range" id="pBow" min="20" max="150" step="5" autocomplete="off"></div>
+      <div class="prow"><label>BLUR <span class="v" id="pVibBlurV"></span></label>
+        <input type="range" id="pVibBlur" min="0" max="10" step="1" autocomplete="off"></div>
+      <div class="prow"><label>SUSTAIN <span class="v" id="pSustainV"></span></label>
+        <input type="range" id="pSustain" min="1" max="100" step="1" autocomplete="off"></div>
+    </div>
+
+    <!-- SHADOW -->
+    <div class="psec-hdr" onclick="toggleSec('shadow')">
+      <span class="psec-arrow" id="arr-shadow">▾</span>SHADOW
+    </div>
+    <div class="psec-body" id="sec-shadow">
+      <div class="prow"><label>COLOR</label>
+        <input type="color" id="pShadCol" autocomplete="off"></div>
+      <div class="prow"><label>OPACITY <span class="v" id="pShadOpV"></span></label>
+        <input type="range" id="pShadOp" min="0" max="100" step="1" autocomplete="off"></div>
+      <div class="prow"><label>BLUR <span class="v" id="pShadBlurV"></span></label>
+        <input type="range" id="pShadBlur" min="0" max="20" step="1" autocomplete="off"></div>
+      <div class="prow"><label>OFFSET X <span class="v" id="pShadDxV"></span></label>
+        <input type="range" id="pShadDx" min="-20" max="20" step="1" autocomplete="off"></div>
+      <div class="prow"><label>OFFSET Y <span class="v" id="pShadDyV"></span></label>
+        <input type="range" id="pShadDy" min="-20" max="20" step="1" autocomplete="off"></div>
+    </div>
+
+    <!-- BUTTONS -->
+    <div class="psec-hdr" onclick="toggleSec('btns')">
+      <span class="psec-arrow" id="arr-btns">▾</span>BUTTONS
+    </div>
+    <div class="psec-body" id="sec-btns">
+      <div class="prow"><label>COLOR</label>
+        <input type="color" id="pBtnColor" autocomplete="off"></div>
+      <div class="prow"><label>FONT SIZE <span class="v" id="pBtnFontV"></span></label>
+        <input type="range" id="pBtnFont" min="8" max="18" step="1" autocomplete="off"></div>
+      <div class="prow"><label>TRACKING <span class="v" id="pBtnTrackV"></span></label>
+        <input type="range" id="pBtnTrack" min="0" max="60" step="2" autocomplete="off"></div>
+      <div class="prow"><label>PADDING <span class="v" id="pBtnPadV"></span></label>
+        <input type="range" id="pBtnPad" min="8" max="36" step="1" autocomplete="off"></div>
+      <div class="prow"><label>CORNER RADIUS <span class="v" id="pBtnRadV"></span></label>
+        <input type="range" id="pBtnRad" min="0" max="30" step="1" autocomplete="off"></div>
+      <div class="prow"><label>BORDER <span class="v" id="pBtnBorderV"></span></label>
+        <input type="range" id="pBtnBorder" min="0" max="4" step="1" autocomplete="off"></div>
+      <div class="prow"><label>GAP <span class="v" id="pBtnGapV"></span></label>
+        <input type="range" id="pBtnGap" min="0" max="16" step="1" autocomplete="off"></div>
+      <div class="prow"><label>AREA PADDING <span class="v" id="pBtnAreaPadV"></span></label>
+        <input type="range" id="pBtnAreaPad" min="0" max="20" step="1" autocomplete="off"></div>
+    </div>
+
+    <!-- PRESET -->
+    <div class="psec-hdr" onclick="toggleSec('preset')">
+      <span class="psec-arrow" id="arr-preset">▾</span>PRESET
+    </div>
+    <div class="psec-body" id="sec-preset">
+      <div class="prow">
+        <button id="pSave">SET AS DEFAULT</button>
+      </div>
+      <div class="prow">
+        <label>EXPORT / IMPORT</label>
+        <textarea id="pJson" rows="4" spellcheck="false" autocomplete="off"></textarea>
+        <div class="pbtn-row">
+          <button id="pCopy">COPY</button>
+          <button id="pApply">APPLY</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /panel-scroll -->
+</div><!-- /panel -->
 
 <script>
 // ─────────────────────────────────────────────────────────────
-// Visual settings  (all let — editable via panel)
+// Visual settings
 // ─────────────────────────────────────────────────────────────
 const NUM_STRINGS = 2;
 const NUM_GHOSTS  = 12;
@@ -215,6 +294,7 @@ const MIN_PLUCK   = 8;
 const TAP_FRAC    = 0.44;
 const SVGNS       = 'http://www.w3.org/2000/svg';
 
+// SVG / visual
 let bg           = '#444444';
 let strCol       = '#ebebeb';
 let holeCol      = '#232323';
@@ -232,6 +312,16 @@ let shadowOp     = 17;
 let shadowBlur   = 2;
 let shadowDx     = 5;
 let shadowDy     = -3;
+
+// Button appearance
+let btnColor     = '#ebebeb';
+let btnFontSize  = 11;      // px
+let btnTracking  = 12;      // hundredths of em  (12 → 0.12em)
+let btnPadV      = 18;      // vertical padding px
+let btnRadius    = 0;       // border-radius px
+let btnBorderW   = 1;       // border width px
+let btnGap       = 1;       // gap between buttons px
+let btnAreaPad   = 0;       // padding around button row px
 
 const pillW        = () => pinR * 0.95;
 const pillD        = () => pinR * 1.4;
@@ -270,7 +360,7 @@ function ghostOpacity(k, env) {
 }
 
 function buildSVG() {
-  const svg  = document.getElementById('svg');
+  const svg = document.getElementById('svg');
   const rect = document.getElementById('stage').getBoundingClientRect();
   W = rect.width; H = rect.height;
   const topY = pinTopY(), botY = pinBotY();
@@ -301,24 +391,24 @@ function buildSVG() {
   mainPath = []; ghostEls = []; blurDev = []; grpEls = []; pinEls = [];
   shadowPathEls = []; shadowBlurDevEls = []; bodyCircle = null;
 
-  for (let i = 0; i < NUM_STRINGS; i++) {          // 1 — shadows
+  for (let i = 0; i < NUM_STRINGS; i++) {
     shadowBlurDevEls.push(document.getElementById(`fshad-dev-${i}`));
     const sh = document.createElementNS(SVGNS, 'path');
-    sh.setAttribute('d', stringD(i, 0));
-    sh.setAttribute('stroke', shadowCol); sh.setAttribute('stroke-width', strW);
-    sh.setAttribute('fill', 'none'); sh.setAttribute('stroke-linecap', 'round');
+    sh.setAttribute('d', stringD(i, 0)); sh.setAttribute('stroke', shadowCol);
+    sh.setAttribute('stroke-width', strW); sh.setAttribute('fill', 'none');
+    sh.setAttribute('stroke-linecap', 'round');
     sh.setAttribute('stroke-opacity', shadowOp / 100);
     sh.setAttribute('transform', `translate(${shadowDx},${shadowDy})`);
     sh.setAttribute('filter', `url(#fshad-${i})`);
     svg.appendChild(sh); shadowPathEls.push(sh);
   }
 
-  const body = document.createElementNS(SVGNS, 'circle');   // 2 — body
+  const body = document.createElementNS(SVGNS, 'circle');
   body.setAttribute('cx', W / 2); body.setAttribute('cy', H / 2);
   body.setAttribute('r', bodyRadius); body.setAttribute('fill', bodyColor);
   svg.appendChild(body); bodyCircle = body;
 
-  for (let i = 0; i < NUM_STRINGS; i++) {          // 3 — ghost groups
+  for (let i = 0; i < NUM_STRINGS; i++) {
     blurDev.push(document.getElementById(`fdev-${i}`));
     const grp = document.createElementNS(SVGNS, 'g');
     svg.appendChild(grp); grpEls.push(grp);
@@ -327,13 +417,12 @@ function buildSVG() {
       const g = document.createElementNS(SVGNS, 'path');
       g.setAttribute('stroke', strCol); g.setAttribute('stroke-width', ghostW());
       g.setAttribute('fill', 'none'); g.setAttribute('stroke-linecap', 'round');
-      g.setAttribute('opacity', '0');
-      grp.appendChild(g); gs.push(g);
+      g.setAttribute('opacity', '0'); grp.appendChild(g); gs.push(g);
     }
     ghostEls.push(gs);
   }
 
-  for (let i = 0; i < NUM_STRINGS; i++) {          // 4 — strings + pins
+  for (let i = 0; i < NUM_STRINGS; i++) {
     const x = W * xRatio(i);
     const path = document.createElementNS(SVGNS, 'path');
     path.setAttribute('d', stringD(i, 0)); path.setAttribute('stroke', strCol);
@@ -375,7 +464,11 @@ function redraw(i) {
 }
 
 // ── Apply helpers ─────────────────────────────────────────────
-function applyBg()     { document.body.style.background = bg; }
+function hexToRgb(hex) {
+  const r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return r ? { r: parseInt(r[1],16), g: parseInt(r[2],16), b: parseInt(r[3],16) } : null;
+}
+function applyBg()    { document.body.style.background = bg; }
 function applyColors() {
   applyBg();
   for (let i = 0; i < NUM_STRINGS; i++) {
@@ -408,6 +501,26 @@ function applyBody() {
   if (!bodyCircle) return;
   bodyCircle.setAttribute('r', bodyRadius);
   bodyCircle.setAttribute('fill', bodyColor);
+}
+function applyButtonStyles() {
+  const rgb = hexToRgb(btnColor) || { r:235, g:235, b:235 };
+  const rs = `rgba(${rgb.r},${rgb.g},${rgb.b}`;
+  document.documentElement.style.setProperty('--btn-ready',        `${rs},.80)`);
+  document.documentElement.style.setProperty('--btn-dim',          `${rs},.18)`);
+  document.documentElement.style.setProperty('--btn-border-ready', `${rs},.55)`);
+  document.documentElement.style.setProperty('--btn-border-dim',   `${rs},.10)`);
+  document.querySelectorAll('.abtn').forEach(b => {
+    b.style.fontSize      = btnFontSize + 'px';
+    b.style.letterSpacing = (btnTracking / 100) + 'em';
+    b.style.paddingTop    = btnPadV + 'px';
+    b.style.paddingBottom = btnPadV + 'px';
+    b.style.borderRadius  = btnRadius + 'px';
+    b.style.borderWidth   = btnBorderW + 'px';
+    b.style.borderStyle   = 'solid';
+  });
+  const ans = document.getElementById('answers');
+  ans.style.gap     = btnGap + 'px';
+  ans.style.padding = btnAreaPad + 'px';
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -442,10 +555,7 @@ let hasPlucked = false;
 function pluckString(idx, amp0) {
   playTone(stringFreqs[idx]);
   pulseBody();
-
-  // First pluck this round → unlock buttons
   if (!hasPlucked) { hasPlucked = true; setButtonsReady(true); }
-
   vib[idx] = true;
   const decay = vibDecay(), t0 = performance.now();
   (function tick() {
@@ -455,7 +565,6 @@ function pluckString(idx, amp0) {
     else { cx[idx] = 0; vib[idx] = false; redraw(idx); }
   })();
 }
-
 function pulseBody() {
   if (!bodyCircle) return;
   bodyCircle.setAttribute('r', bodyRadius * 1.055);
@@ -471,7 +580,6 @@ function flashBody(correct) {
 // Interaction
 // ─────────────────────────────────────────────────────────────
 const ptr = { active: false, idx: -1, startX: 0, moved: false };
-
 function nearestString(clientX) {
   let best = -1, dist = Infinity;
   for (let i = 0; i < NUM_STRINGS; i++) {
@@ -500,7 +608,6 @@ function onUp() {
   if (Math.abs(cx[i]) < MIN_PLUCK) { cx[i] = 0; redraw(i); return; }
   pluckString(i, Math.abs(cx[i]));
 }
-
 const stage = document.getElementById('stage');
 stage.addEventListener('mousedown',  e => onDown(e.clientX));
 stage.addEventListener('touchstart', e => { e.preventDefault(); onDown(e.touches[0].clientX); }, { passive: false });
@@ -513,94 +620,59 @@ window.addEventListener('resize', buildSVG);
 // ─────────────────────────────────────────────────────────────
 // Game logic
 // ─────────────────────────────────────────────────────────────
-const ROOT   = 440;
-const MAX_D  = 50;
-const MIN_D  = 1;
+const ROOT = 440, MAX_D = 50, MIN_D = 1;
 const LS_GAME = 'pitch-game-v1';
-
-let deviation    = MAX_D;
-let bestDev      = MAX_D;
-let phase        = 'play';
-let roundDir     = 'sharp';
-let lastCorrect  = null;
-let oscillations = 0;
-let history      = [];
+let deviation = MAX_D, bestDev = MAX_D, phase = 'play', roundDir = 'sharp';
+let lastCorrect = null, oscillations = 0, history = [];
 
 function loadGame() {
-  try {
-    const s = JSON.parse(localStorage.getItem(LS_GAME));
-    if (s && s.best != null) bestDev = +s.best;
-  } catch(e) {}
+  try { const s = JSON.parse(localStorage.getItem(LS_GAME)); if (s?.best != null) bestDev = +s.best; } catch(e) {}
 }
-function saveGame() {
-  localStorage.setItem(LS_GAME, JSON.stringify({ best: bestDev }));
-}
-
+function saveGame() { localStorage.setItem(LS_GAME, JSON.stringify({ best: bestDev })); }
 function fmt(c) { return c >= 10 ? Math.round(c) : c.toFixed(1); }
 
 function updateHeader() {
-  document.getElementById('threshold').innerHTML =
-    `±${fmt(deviation)}<span class="unit">¢</span>`;
-  document.getElementById('best').textContent =
-    bestDev < MAX_D ? `best  ±${fmt(bestDev)}¢` : '';
+  document.getElementById('threshold').innerHTML = `±${fmt(deviation)}<span class="unit">¢</span>`;
+  document.getElementById('best').textContent = bestDev < MAX_D ? `best  ±${fmt(bestDev)}¢` : '';
   document.getElementById('history').innerHTML =
     history.map(ok => `<div class="dot ${ok ? 'ok' : 'err'}"></div>`).join('');
 }
-
 function setButtonsReady(ready) {
-  document.querySelectorAll('.abtn').forEach(b => {
-    if (ready) b.classList.add('ready');
-    else b.classList.remove('ready');
-  });
+  document.querySelectorAll('.abtn').forEach(b => ready ? b.classList.add('ready') : b.classList.remove('ready'));
 }
-
 function newRound() {
   const inTuneP = 0.1 + 0.2 * (1 - Math.min(deviation, MAX_D) / MAX_D);
   const r = Math.random();
-  roundDir = r < inTuneP ? 'in_tune' : (Math.random() < 0.5 ? 'sharp' : 'flat');
-
+  roundDir = r < inTuneP ? 'in_tune' : Math.random() < 0.5 ? 'sharp' : 'flat';
   stringFreqs[0] = ROOT;
   stringFreqs[1] = roundDir === 'sharp'  ? ROOT * Math.pow(2,  deviation / 1200)
                  : roundDir === 'flat'   ? ROOT * Math.pow(2, -deviation / 1200)
                  : ROOT;
-
-  phase = 'play';
-  hasPlucked = false;
-  clearButtons();
-  updateHeader();
+  phase = 'play'; hasPlucked = false;
+  clearButtons(); updateHeader();
 }
-
 function adjust(correct) {
-  if (lastCorrect !== null && lastCorrect !== correct)
-    oscillations = Math.min(oscillations + 1, 10);
-  else
-    oscillations = Math.max(0, oscillations - 1);
+  if (lastCorrect !== null && lastCorrect !== correct) oscillations = Math.min(oscillations + 1, 10);
+  else oscillations = Math.max(0, oscillations - 1);
   lastCorrect = correct;
-
   if (correct) {
-    const tight = oscillations > 4;
-    deviation = Math.max(MIN_D, deviation * (tight ? 0.90 : 0.75));
+    deviation = Math.max(MIN_D, deviation * (oscillations > 4 ? 0.90 : 0.75));
     if (deviation < bestDev) { bestDev = deviation; saveGame(); }
   } else {
+    const bigStep  = history.slice(-4).filter(x => !x).length >= 4;
     const tightStep = oscillations > 4;
-    const recentWrongs = history.slice(-4).filter(x => !x).length;
-    const bigStep = recentWrongs >= 4;
     deviation = Math.min(MAX_D, deviation * (bigStep ? 1.8 : tightStep ? 1.1 : 1.3));
   }
 }
-
 function answer(userAns) {
   if (phase !== 'play' || !hasPlucked) return;
   phase = 'feedback';
   const correct = userAns === roundDir;
   adjust(correct);
   history.push(correct); if (history.length > 7) history.shift();
-  flashBody(correct);
-  revealButtons(userAns, correct);
-  updateHeader();
+  flashBody(correct); revealButtons(userAns, correct); updateHeader();
   setTimeout(newRound, 950);
 }
-
 function revealButtons(userAns, correct) {
   document.querySelectorAll('.abtn').forEach(b => {
     b.classList.remove('ready');
@@ -609,119 +681,166 @@ function revealButtons(userAns, correct) {
   });
 }
 function clearButtons() {
-  document.querySelectorAll('.abtn').forEach(b => {
-    b.classList.remove('ready', 'reveal-correct', 'reveal-wrong');
-  });
+  document.querySelectorAll('.abtn').forEach(b =>
+    b.classList.remove('ready', 'reveal-correct', 'reveal-wrong'));
 }
-
 document.querySelectorAll('.abtn').forEach(b =>
   b.addEventListener('click', () => answer(b.dataset.ans)));
 
 // ─────────────────────────────────────────────────────────────
-// Dev Settings Panel
+// Settings panel
 // ─────────────────────────────────────────────────────────────
 const LS_VIS = 'pitch-game-settings-v1';
+const panel  = document.getElementById('panel');
+const overlay = document.getElementById('overlay');
+
+function openPanel()  { panel.classList.add('open'); overlay.classList.add('on'); syncPanel(); }
+function closePanel() { panel.classList.remove('open'); overlay.classList.remove('on'); }
+
+document.getElementById('gear').addEventListener('click', openPanel);
+document.getElementById('pClose').addEventListener('click', closePanel);
+overlay.addEventListener('click', closePanel);
+
+// Collapsible sections
+function toggleSec(id) {
+  const body  = document.getElementById('sec-' + id);
+  const arrow = document.getElementById('arr-' + id);
+  const col   = body.classList.toggle('collapsed');
+  arrow.textContent = col ? '▸' : '▾';
+}
 
 function currentVis() {
-  return { bg, strCol, holeCol, strW, pinR,
+  return {
+    bg, strCol, holeCol, strW, pinR,
     stringLen: +stringLen.toFixed(2), spacing,
     bodyColor, bodyRadius, bowAmount, vibBlurAmt, vibSustain,
-    shadowCol, shadowOp, shadowBlur, shadowDx, shadowDy };
+    shadowCol, shadowOp, shadowBlur, shadowDx, shadowDy,
+    btnColor, btnFontSize, btnTracking, btnPadV, btnRadius, btnBorderW, btnGap, btnAreaPad
+  };
 }
+
 function syncPanel() {
-  document.getElementById('pBg').value       = bg;
-  document.getElementById('pStrCol').value   = strCol;
-  document.getElementById('pHoleCol').value  = holeCol;
-  document.getElementById('pStrW').value     = strW;       document.getElementById('pStrWV').textContent    = strW;
-  document.getElementById('pPinR').value     = pinR;       document.getElementById('pPinRV').textContent    = pinR;
-  document.getElementById('pLen').value      = Math.round(stringLen * 100);
-                                                            document.getElementById('pLenV').textContent    = Math.round(stringLen*100) + '%';
-  document.getElementById('pSpacing').value  = spacing;    document.getElementById('pSpacingV').textContent = spacing + 'px';
-  document.getElementById('pBodyCol').value  = bodyColor;
-  document.getElementById('pBodyR').value    = bodyRadius;  document.getElementById('pBodyRV').textContent   = bodyRadius;
-  document.getElementById('pBow').value      = bowAmount;   document.getElementById('pBowV').textContent     = bowAmount;
-  document.getElementById('pVibBlur').value  = vibBlurAmt;  document.getElementById('pVibBlurV').textContent = vibBlurAmt;
-  document.getElementById('pSustain').value  = vibSustain;  document.getElementById('pSustainV').textContent = vibSustain;
-  document.getElementById('pShadCol').value  = shadowCol;
-  document.getElementById('pShadOp').value   = shadowOp;    document.getElementById('pShadOpV').textContent  = shadowOp + '%';
-  document.getElementById('pShadBlur').value = shadowBlur;  document.getElementById('pShadBlurV').textContent= shadowBlur;
-  document.getElementById('pShadDx').value   = shadowDx;    document.getElementById('pShadDxV').textContent  = shadowDx;
-  document.getElementById('pShadDy').value   = shadowDy;    document.getElementById('pShadDyV').textContent  = shadowDy;
-  document.getElementById('pJson').value = JSON.stringify(currentVis());
+  const g = id => document.getElementById(id);
+  g('pBg').value       = bg;
+  g('pStrCol').value   = strCol;
+  g('pHoleCol').value  = holeCol;
+  g('pStrW').value     = strW;          g('pStrWV').textContent      = strW;
+  g('pPinR').value     = pinR;          g('pPinRV').textContent      = pinR;
+  g('pLen').value      = Math.round(stringLen*100);
+                                        g('pLenV').textContent       = Math.round(stringLen*100) + '%';
+  g('pSpacing').value  = spacing;       g('pSpacingV').textContent   = spacing + 'px';
+  g('pBodyCol').value  = bodyColor;
+  g('pBodyR').value    = bodyRadius;    g('pBodyRV').textContent     = bodyRadius;
+  g('pBow').value      = bowAmount;     g('pBowV').textContent       = bowAmount;
+  g('pVibBlur').value  = vibBlurAmt;    g('pVibBlurV').textContent   = vibBlurAmt;
+  g('pSustain').value  = vibSustain;    g('pSustainV').textContent   = vibSustain;
+  g('pShadCol').value  = shadowCol;
+  g('pShadOp').value   = shadowOp;      g('pShadOpV').textContent    = shadowOp + '%';
+  g('pShadBlur').value = shadowBlur;    g('pShadBlurV').textContent  = shadowBlur;
+  g('pShadDx').value   = shadowDx;      g('pShadDxV').textContent    = shadowDx;
+  g('pShadDy').value   = shadowDy;      g('pShadDyV').textContent    = shadowDy;
+  g('pBtnColor').value = btnColor;
+  g('pBtnFont').value  = btnFontSize;   g('pBtnFontV').textContent   = btnFontSize + 'px';
+  g('pBtnTrack').value = btnTracking;   g('pBtnTrackV').textContent  = (btnTracking/100).toFixed(2) + 'em';
+  g('pBtnPad').value   = btnPadV;       g('pBtnPadV').textContent    = btnPadV + 'px';
+  g('pBtnRad').value   = btnRadius;     g('pBtnRadV').textContent    = btnRadius + 'px';
+  g('pBtnBorder').value= btnBorderW;    g('pBtnBorderV').textContent = btnBorderW + 'px';
+  g('pBtnGap').value   = btnGap;        g('pBtnGapV').textContent    = btnGap + 'px';
+  g('pBtnAreaPad').value=btnAreaPad;    g('pBtnAreaPadV').textContent= btnAreaPad + 'px';
+  g('pJson').value = JSON.stringify(currentVis());
 }
+
 function loadVis() {
   try {
-    const s = JSON.parse(localStorage.getItem(LS_VIS));
-    if (!s) return;
-    if (s.bg         != null) bg         = s.bg;
-    if (s.strCol     != null) strCol     = s.strCol;
-    if (s.holeCol    != null) holeCol    = s.holeCol;
-    if (s.strW       != null) strW       = +s.strW;
-    if (s.pinR       != null) pinR       = +s.pinR;
-    if (s.stringLen  != null) stringLen  = +s.stringLen;
-    if (s.spacing    != null) spacing    = +s.spacing < 2 ? 85 : +s.spacing;
-    if (s.bodyColor  != null) bodyColor  = s.bodyColor;
-    if (s.bodyRadius != null) bodyRadius = +s.bodyRadius;
-    if (s.bowAmount  != null) bowAmount  = +s.bowAmount;
-    if (s.vibBlurAmt != null) vibBlurAmt = +s.vibBlurAmt;
-    if (s.vibSustain != null) vibSustain = +s.vibSustain;
-    if (s.shadowCol  != null) shadowCol  = s.shadowCol;
-    if (s.shadowOp   != null) shadowOp   = +s.shadowOp;
-    if (s.shadowBlur != null) shadowBlur = +s.shadowBlur;
-    if (s.shadowDx   != null) shadowDx   = +s.shadowDx;
-    if (s.shadowDy   != null) shadowDy   = +s.shadowDy;
+    const s = JSON.parse(localStorage.getItem(LS_VIS)); if (!s) return;
+    if (s.bg          != null) bg          = s.bg;
+    if (s.strCol      != null) strCol      = s.strCol;
+    if (s.holeCol     != null) holeCol     = s.holeCol;
+    if (s.strW        != null) strW        = +s.strW;
+    if (s.pinR        != null) pinR        = +s.pinR;
+    if (s.stringLen   != null) stringLen   = +s.stringLen;
+    if (s.spacing     != null) spacing     = +s.spacing < 2 ? 85 : +s.spacing;
+    if (s.bodyColor   != null) bodyColor   = s.bodyColor;
+    if (s.bodyRadius  != null) bodyRadius  = +s.bodyRadius;
+    if (s.bowAmount   != null) bowAmount   = +s.bowAmount;
+    if (s.vibBlurAmt  != null) vibBlurAmt  = +s.vibBlurAmt;
+    if (s.vibSustain  != null) vibSustain  = +s.vibSustain;
+    if (s.shadowCol   != null) shadowCol   = s.shadowCol;
+    if (s.shadowOp    != null) shadowOp    = +s.shadowOp;
+    if (s.shadowBlur  != null) shadowBlur  = +s.shadowBlur;
+    if (s.shadowDx    != null) shadowDx    = +s.shadowDx;
+    if (s.shadowDy    != null) shadowDy    = +s.shadowDy;
+    if (s.btnColor    != null) btnColor    = s.btnColor;
+    if (s.btnFontSize != null) btnFontSize = +s.btnFontSize;
+    if (s.btnTracking != null) btnTracking = +s.btnTracking;
+    if (s.btnPadV     != null) btnPadV     = +s.btnPadV;
+    if (s.btnRadius   != null) btnRadius   = +s.btnRadius;
+    if (s.btnBorderW  != null) btnBorderW  = +s.btnBorderW;
+    if (s.btnGap      != null) btnGap      = +s.btnGap;
+    if (s.btnAreaPad  != null) btnAreaPad  = +s.btnAreaPad;
   } catch(e) {}
 }
 function saveVis() { localStorage.setItem(LS_VIS, JSON.stringify(currentVis())); }
-function applyVisJson(s) {
-  if (s.bg         != null) bg         = s.bg;
-  if (s.strCol     != null) strCol     = s.strCol;
-  if (s.holeCol    != null) holeCol    = s.holeCol;
-  if (s.strW       != null) strW       = +s.strW;
-  if (s.pinR       != null) pinR       = +s.pinR;
-  if (s.stringLen  != null) stringLen  = +s.stringLen;
-  if (s.spacing    != null) spacing    = +s.spacing < 2 ? 85 : +s.spacing;
-  if (s.bodyColor  != null) bodyColor  = s.bodyColor;
-  if (s.bodyRadius != null) bodyRadius = +s.bodyRadius;
-  if (s.bowAmount  != null) bowAmount  = +s.bowAmount;
-  if (s.vibBlurAmt != null) vibBlurAmt = +s.vibBlurAmt;
-  if (s.vibSustain != null) vibSustain = +s.vibSustain;
-  if (s.shadowCol  != null) shadowCol  = s.shadowCol;
-  if (s.shadowOp   != null) shadowOp   = +s.shadowOp;
-  if (s.shadowBlur != null) shadowBlur = +s.shadowBlur;
-  if (s.shadowDx   != null) shadowDx   = +s.shadowDx;
-  if (s.shadowDy   != null) shadowDy   = +s.shadowDy;
+
+function applyVisObj(s) {
+  if (s.bg          != null) bg          = s.bg;
+  if (s.strCol      != null) strCol      = s.strCol;
+  if (s.holeCol     != null) holeCol     = s.holeCol;
+  if (s.strW        != null) strW        = +s.strW;
+  if (s.pinR        != null) pinR        = +s.pinR;
+  if (s.stringLen   != null) stringLen   = +s.stringLen;
+  if (s.spacing     != null) spacing     = +s.spacing < 2 ? 85 : +s.spacing;
+  if (s.bodyColor   != null) bodyColor   = s.bodyColor;
+  if (s.bodyRadius  != null) bodyRadius  = +s.bodyRadius;
+  if (s.bowAmount   != null) bowAmount   = +s.bowAmount;
+  if (s.vibBlurAmt  != null) vibBlurAmt  = +s.vibBlurAmt;
+  if (s.vibSustain  != null) vibSustain  = +s.vibSustain;
+  if (s.shadowCol   != null) shadowCol   = s.shadowCol;
+  if (s.shadowOp    != null) shadowOp    = +s.shadowOp;
+  if (s.shadowBlur  != null) shadowBlur  = +s.shadowBlur;
+  if (s.shadowDx    != null) shadowDx    = +s.shadowDx;
+  if (s.shadowDy    != null) shadowDy    = +s.shadowDy;
+  if (s.btnColor    != null) btnColor    = s.btnColor;
+  if (s.btnFontSize != null) btnFontSize = +s.btnFontSize;
+  if (s.btnTracking != null) btnTracking = +s.btnTracking;
+  if (s.btnPadV     != null) btnPadV     = +s.btnPadV;
+  if (s.btnRadius   != null) btnRadius   = +s.btnRadius;
+  if (s.btnBorderW  != null) btnBorderW  = +s.btnBorderW;
+  if (s.btnGap      != null) btnGap      = +s.btnGap;
+  if (s.btnAreaPad  != null) btnAreaPad  = +s.btnAreaPad;
 }
 
-// Panel inputs
-const panel = document.getElementById('panel');
-const gear  = document.getElementById('gear');
-gear.addEventListener('click', () => {
-  const open = panel.classList.toggle('open');
-  gear.textContent = open ? '✕' : 'SET';
-  if (open) syncPanel();
-});
-panel.addEventListener('input', () => {
-  document.getElementById('pJson').value = JSON.stringify(currentVis());
-});
+// Live inputs
+const on = (id, fn) => document.getElementById(id).addEventListener('input', fn);
+on('pBg',        e => { bg         = e.target.value; applyBg(); });
+on('pStrCol',    e => { strCol     = e.target.value; applyColors(); });
+on('pHoleCol',   e => { holeCol    = e.target.value; applyColors(); });
+on('pStrW',      e => { strW       = +e.target.value; document.getElementById('pStrWV').textContent    = strW; applyStringWidth(); });
+on('pPinR',      e => { pinR       = +e.target.value; document.getElementById('pPinRV').textContent    = pinR; buildSVG(); });
+on('pLen',       e => { stringLen  = +e.target.value/100; document.getElementById('pLenV').textContent = e.target.value+'%'; buildSVG(); });
+on('pSpacing',   e => { spacing    = +e.target.value; document.getElementById('pSpacingV').textContent = spacing+'px'; buildSVG(); });
+on('pBodyCol',   e => { bodyColor  = e.target.value; applyBody(); });
+on('pBodyR',     e => { bodyRadius = +e.target.value; document.getElementById('pBodyRV').textContent   = bodyRadius; applyBody(); });
+on('pBow',       e => { bowAmount  = +e.target.value; document.getElementById('pBowV').textContent     = bowAmount; });
+on('pVibBlur',   e => { vibBlurAmt = +e.target.value; document.getElementById('pVibBlurV').textContent = vibBlurAmt; });
+on('pSustain',   e => { vibSustain = +e.target.value; document.getElementById('pSustainV').textContent = vibSustain; });
+on('pShadCol',   e => { shadowCol  = e.target.value; applyDropShadow(); });
+on('pShadOp',    e => { shadowOp   = +e.target.value; document.getElementById('pShadOpV').textContent  = shadowOp+'%'; applyDropShadow(); });
+on('pShadBlur',  e => { shadowBlur = +e.target.value; document.getElementById('pShadBlurV').textContent= shadowBlur; applyDropShadow(); });
+on('pShadDx',    e => { shadowDx   = +e.target.value; document.getElementById('pShadDxV').textContent  = shadowDx; applyDropShadow(); });
+on('pShadDy',    e => { shadowDy   = +e.target.value; document.getElementById('pShadDyV').textContent  = shadowDy; applyDropShadow(); });
+on('pBtnColor',  e => { btnColor   = e.target.value; applyButtonStyles(); });
+on('pBtnFont',   e => { btnFontSize= +e.target.value; document.getElementById('pBtnFontV').textContent = btnFontSize+'px'; applyButtonStyles(); });
+on('pBtnTrack',  e => { btnTracking= +e.target.value; document.getElementById('pBtnTrackV').textContent= (btnTracking/100).toFixed(2)+'em'; applyButtonStyles(); });
+on('pBtnPad',    e => { btnPadV    = +e.target.value; document.getElementById('pBtnPadV').textContent  = btnPadV+'px'; applyButtonStyles(); });
+on('pBtnRad',    e => { btnRadius  = +e.target.value; document.getElementById('pBtnRadV').textContent  = btnRadius+'px'; applyButtonStyles(); });
+on('pBtnBorder', e => { btnBorderW = +e.target.value; document.getElementById('pBtnBorderV').textContent= btnBorderW+'px'; applyButtonStyles(); });
+on('pBtnGap',    e => { btnGap     = +e.target.value; document.getElementById('pBtnGapV').textContent  = btnGap+'px'; applyButtonStyles(); });
+on('pBtnAreaPad',e => { btnAreaPad = +e.target.value; document.getElementById('pBtnAreaPadV').textContent= btnAreaPad+'px'; applyButtonStyles(); });
 
-document.getElementById('pBg').addEventListener('input',       e => { bg = e.target.value; applyBg(); });
-document.getElementById('pStrCol').addEventListener('input',   e => { strCol = e.target.value; applyColors(); });
-document.getElementById('pHoleCol').addEventListener('input',  e => { holeCol = e.target.value; applyColors(); });
-document.getElementById('pStrW').addEventListener('input',     e => { strW = +e.target.value; document.getElementById('pStrWV').textContent = strW; applyStringWidth(); });
-document.getElementById('pPinR').addEventListener('input',     e => { pinR = +e.target.value; document.getElementById('pPinRV').textContent = pinR; buildSVG(); });
-document.getElementById('pLen').addEventListener('input',      e => { stringLen = +e.target.value/100; document.getElementById('pLenV').textContent = e.target.value+'%'; buildSVG(); });
-document.getElementById('pSpacing').addEventListener('input',  e => { spacing = +e.target.value; document.getElementById('pSpacingV').textContent = spacing+'px'; buildSVG(); });
-document.getElementById('pBodyCol').addEventListener('input',  e => { bodyColor = e.target.value; applyBody(); });
-document.getElementById('pBodyR').addEventListener('input',    e => { bodyRadius = +e.target.value; document.getElementById('pBodyRV').textContent = bodyRadius; applyBody(); });
-document.getElementById('pBow').addEventListener('input',      e => { bowAmount = +e.target.value; document.getElementById('pBowV').textContent = bowAmount; });
-document.getElementById('pVibBlur').addEventListener('input',  e => { vibBlurAmt = +e.target.value; document.getElementById('pVibBlurV').textContent = vibBlurAmt; });
-document.getElementById('pSustain').addEventListener('input',  e => { vibSustain = +e.target.value; document.getElementById('pSustainV').textContent = vibSustain; });
-document.getElementById('pShadCol').addEventListener('input',  e => { shadowCol = e.target.value; applyDropShadow(); });
-document.getElementById('pShadOp').addEventListener('input',   e => { shadowOp = +e.target.value; document.getElementById('pShadOpV').textContent = shadowOp+'%'; applyDropShadow(); });
-document.getElementById('pShadBlur').addEventListener('input', e => { shadowBlur = +e.target.value; document.getElementById('pShadBlurV').textContent = shadowBlur; applyDropShadow(); });
-document.getElementById('pShadDx').addEventListener('input',   e => { shadowDx = +e.target.value; document.getElementById('pShadDxV').textContent = shadowDx; applyDropShadow(); });
-document.getElementById('pShadDy').addEventListener('input',   e => { shadowDy = +e.target.value; document.getElementById('pShadDyV').textContent = shadowDy; applyDropShadow(); });
+// Keep textarea live when any slider moves
+document.getElementById('panel-scroll').addEventListener('input',
+  () => document.getElementById('pJson').value = JSON.stringify(currentVis()));
 
 document.getElementById('pSave').addEventListener('click', () => {
   saveVis();
@@ -730,24 +849,25 @@ document.getElementById('pSave').addEventListener('click', () => {
 });
 document.getElementById('pCopy').addEventListener('click', () => {
   navigator.clipboard.writeText(document.getElementById('pJson').value)
-    .then(() => { const b = document.getElementById('pCopy'); b.textContent='COPIED ✓'; setTimeout(()=>b.textContent='COPY',1500); })
+    .then(() => { const b=document.getElementById('pCopy'); b.textContent='COPIED ✓'; setTimeout(()=>b.textContent='COPY',1500); })
     .catch(() => { const ta=document.getElementById('pJson'); ta.select(); document.execCommand('copy'); });
 });
 document.getElementById('pApply').addEventListener('click', () => {
   try {
-    applyVisJson(JSON.parse(document.getElementById('pJson').value));
-    syncPanel(); applyBg(); applyColors(); applyStringWidth(); applyBody(); applyDropShadow(); buildSVG();
+    applyVisObj(JSON.parse(document.getElementById('pJson').value));
+    syncPanel(); applyBg(); applyColors(); applyStringWidth();
+    applyBody(); applyDropShadow(); applyButtonStyles(); buildSVG();
   } catch(e) {}
 });
 
 // ─────────────────────────────────────────────────────────────
 // Init
 // ─────────────────────────────────────────────────────────────
-loadVis();
-loadGame();
+loadVis(); loadGame();
 deviation = Math.min(MAX_D, bestDev * 1.5);
 applyBg();
 buildSVG();
+applyButtonStyles();
 newRound();
 </script>
 </body>
