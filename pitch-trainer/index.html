@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Pitch Trainer</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,28 +19,69 @@
 
     /* ── Header ────────────────────────────── */
     #header {
-      flex-shrink: 0; height: 58px; padding: 0 20px;
+      flex-shrink: 0; min-height: 58px;
+      /* safe-area clears the notch/status bar; --hdr-top is a manual nudge on top of that */
+      padding: calc(env(safe-area-inset-top, 0px) + var(--hdr-top, 0px)) 20px 6px;
       display: flex; align-items: center; justify-content: space-between;
+      position: relative; z-index: 5;   /* sits above the strings that run up to the top */
     }
+    #threshold-row { display: flex; align-items: center; gap: 11px; }
     #threshold { font-size: 22px; letter-spacing: 0.5px; opacity: .85; }
     #threshold .unit { font-size: 13px; opacity: .45; margin-left: 1px; }
+    #reset {
+      width: 34px; height: 34px; border-radius: 50%; padding: 0;
+      border: 1px solid rgba(235,235,235,.2); background: rgba(235,235,235,.06);
+      color: rgba(235,235,235,.5); font-size: 16px; line-height: 1; cursor: pointer;
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      touch-action: manipulation;
+    }
+    #reset:active { background: rgba(235,235,235,.15); color: rgba(235,235,235,.85); }
     #best { font-size: 10px; letter-spacing: 2px; opacity: .3; margin-top: 3px; }
     #header-right { display: flex; align-items: center; gap: 12px; }
-    #history { display: flex; gap: 6px; align-items: center; }
-    .dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(235,235,235,.14); transition: background .3s; }
-    .dot.ok  { background: rgba(235,235,235,.75); }
-    .dot.err { background: rgba(255,100,100,.65); }
+    #history { display: flex; gap: var(--dot-gap, 6px); align-items: center; margin-top: 8px; }
+    .dot { width: var(--dot-size, 7px); height: var(--dot-size, 7px); border-radius: 50%; background: rgba(235,235,235,.14); transition: background .3s; }
+    .dot.ok  { background: color-mix(in srgb, var(--dot-ok, #ebebeb) 75%, transparent); }
+    .dot.err { background: color-mix(in srgb, var(--dot-err, #ff6464) 65%, transparent); }
     #gear {
-      width: 32px; height: 32px; border-radius: 50%;
+      width: 34px; height: 34px; border-radius: 50%;
       border: 1px solid rgba(235,235,235,.2); background: rgba(235,235,235,.06);
       color: rgba(235,235,235,.5); font: 8px 'Courier New', monospace;
-      letter-spacing: 1px; cursor: pointer; flex-shrink: 0;
+      letter-spacing: 1px; cursor: pointer; flex-shrink: 0; touch-action: manipulation;
     }
     #gear:active { background: rgba(235,235,235,.15); }
+    #noteChip {
+      min-width: 52px; height: 34px; border-radius: 17px; padding: 0 14px;
+      border: 1px solid rgba(235,235,235,.2); background: rgba(235,235,235,.06);
+      color: rgba(235,235,235,.62); font-family: 'Rubik', system-ui, sans-serif;
+      font-size: 13px; font-weight: 500; letter-spacing: .5px; cursor: pointer;
+      flex-shrink: 0; touch-action: manipulation;
+    }
+    #noteChip:active { background: rgba(235,235,235,.15); color: rgba(235,235,235,.9); }
 
     /* ── Stage ──────────────────────────────── */
-    #stage { flex: 1; position: relative; overflow: hidden; }
+    #stage { flex: 1; position: relative; overflow: visible; }
     #svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+    #feedback {
+      position: absolute; left: 0; right: 0; text-align: center; z-index: 2;
+      opacity: 0; transition: opacity .25s ease; pointer-events: none;
+    }
+    #feedback.show { opacity: 1; }
+    #fbPill {
+      display: inline-flex; align-items: center; gap: 10px;
+      font-family: 'Rubik', system-ui, sans-serif;
+      border-radius: 999px; padding: var(--tpv, 12px) var(--tph, 22px);
+      transform-origin: center; touch-action: manipulation;
+    }
+    /* During review the whole pill is the tap target (advance), not just the › */
+    #feedback.has-next #fbPill { padding-right: 8px; pointer-events: auto; cursor: pointer; }
+    #fbNext {
+      display: none; align-items: center; justify-content: center;
+      width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%;
+      pointer-events: none;
+      border: none; font-family: inherit; line-height: 1; padding: 0;
+    }
+    #feedback.has-next #fbNext { display: inline-flex; }
+    #toastPrev { display: flex; justify-content: center; padding: 4px 0; }
 
     /* ── Answer buttons ─────────────────────── */
     #answers { flex-shrink: 0; display: flex; justify-content: center; }
@@ -53,6 +94,7 @@
     }
     .abtn {
       flex: 1;
+      touch-action: manipulation;
       background: transparent;
       border: 1px solid var(--btn-border-dim);
       color: var(--btn-dim);
@@ -68,14 +110,6 @@
       pointer-events: all;
     }
     .abtn.ready:active { background: rgba(235,235,235,.07); }
-    .abtn.reveal-correct {
-      border-color: rgba(120,220,120,.55); color: rgba(160,255,160,.9);
-      pointer-events: none;
-    }
-    .abtn.reveal-wrong {
-      border-color: rgba(255,80,80,.45); color: rgba(255,150,150,.8);
-      pointer-events: none;
-    }
 
     /* ── Overlay (tap-outside-to-close) ─────── */
     #overlay {
@@ -151,22 +185,34 @@
     .pbtn-row button { flex: 1; }
     .prow.check label { justify-content: flex-start; gap: 9px; cursor: pointer; margin-bottom: 0; }
     .prow.check input[type="checkbox"] { width: 15px; height: 15px; accent-color: #999; cursor: pointer; }
+    .prow input[type="text"], .prow select {
+      width: 100%; font: 11px 'Courier New', monospace; letter-spacing: 1px;
+      background: rgba(235,235,235,.03); color: rgba(235,235,235,.7);
+      border: 1px solid rgba(235,235,235,.12); padding: 7px 8px; cursor: pointer;
+    }
+    #pToastChevron { text-align: center; font-size: 15px; letter-spacing: 0; }
   </style>
 </head>
 <body>
 
 <div id="header">
   <div>
-    <div id="threshold">—<span class="unit">¢</span></div>
+    <div id="threshold-row">
+      <div id="threshold">—<span class="unit">¢</span></div>
+      <button id="reset" aria-label="Reset exercise" title="Reset">↺</button>
+    </div>
     <div id="best"></div>
+    <div id="history"></div>
   </div>
   <div id="header-right">
-    <div id="history"></div>
+    <button id="noteChip" aria-label="Test note">A4</button>
     <button id="gear">SET</button>
   </div>
 </div>
 
-<div id="stage"><svg id="svg"></svg></div>
+<div id="stage"><svg id="svg"></svg>
+  <div id="feedback"><div id="fbPill"><span id="fbLabel"></span><button id="fbNext" aria-label="Next round">›</button></div></div>
+</div>
 
 <div id="answers">
   <button class="abtn" data-ans="flat">↓ flat</button>
@@ -183,6 +229,42 @@
   </div>
   <div id="panel-scroll">
 
+    <!-- HEADER (top bar) -->
+    <div class="psec-hdr" onclick="toggleSec('hdr')">
+      <span class="psec-arrow" id="arr-hdr">▾</span>HEADER
+    </div>
+    <div class="psec-body" id="sec-hdr">
+      <div class="prow"><label>TOP OFFSET <span class="v" id="pHdrTopV"></span></label>
+        <input type="range" id="pHdrTop" min="0" max="90" step="1" autocomplete="off"></div>
+      <div class="prow"><label>FONT</label>
+        <select id="pHdrFont" autocomplete="off">
+          <option value="Rubik">Rubik</option><option value="System">System</option>
+          <option value="Serif">Serif</option><option value="Mono">Mono</option>
+        </select></div>
+      <div class="prow"><label>CENT SIZE <span class="v" id="pThreshSizeV"></span></label>
+        <input type="range" id="pThreshSize" min="12" max="40" step="1" autocomplete="off"></div>
+      <div class="prow"><label>CENT COLOR</label>
+        <input type="color" id="pThreshCol" autocomplete="off"></div>
+      <div class="prow"><label>CENT WEIGHT <span class="v" id="pThreshWeightV"></span></label>
+        <input type="range" id="pThreshWeight" min="300" max="900" step="100" autocomplete="off"></div>
+      <div class="prow"><label>BEST SIZE <span class="v" id="pBestSizeV"></span></label>
+        <input type="range" id="pBestSize" min="6" max="20" step="1" autocomplete="off"></div>
+      <div class="prow"><label>BEST OPACITY <span class="v" id="pBestOpV"></span></label>
+        <input type="range" id="pBestOp" min="0" max="100" step="5" autocomplete="off"></div>
+      <div class="prow"><label>DOT SIZE <span class="v" id="pDotSizeV"></span></label>
+        <input type="range" id="pDotSize" min="3" max="16" step="1" autocomplete="off"></div>
+      <div class="prow"><label>DOT GAP <span class="v" id="pDotGapV"></span></label>
+        <input type="range" id="pDotGap" min="2" max="16" step="1" autocomplete="off"></div>
+      <div class="prow"><label>DOT — CORRECT</label>
+        <input type="color" id="pDotOk" autocomplete="off"></div>
+      <div class="prow"><label>DOT — WRONG</label>
+        <input type="color" id="pDotErr" autocomplete="off"></div>
+      <div class="prow"><label>GAP: CENT → BEST <span class="v" id="pBestGapV"></span></label>
+        <input type="range" id="pBestGap" min="0" max="40" step="1" autocomplete="off"></div>
+      <div class="prow"><label>GAP: BEST → DOTS <span class="v" id="pHistGapV"></span></label>
+        <input type="range" id="pHistGap" min="0" max="40" step="1" autocomplete="off"></div>
+    </div>
+
     <!-- APPEARANCE -->
     <div class="psec-hdr" onclick="toggleSec('appearance')">
       <span class="psec-arrow" id="arr-appearance">▾</span>APPEARANCE
@@ -196,14 +278,16 @@
         <input type="range" id="pBgAngle" min="0" max="360" step="1" autocomplete="off"></div>
       <div class="prow"><label>STRING COLOR</label>
         <input type="color" id="pStrCol" autocomplete="off"></div>
-      <div class="prow"><label>NOTCH COLOR</label>
-        <input type="color" id="pHoleCol" autocomplete="off"></div>
-      <div class="prow"><label>NOTCH EDGE (gradient)</label>
-        <input type="color" id="pNotchCol2" autocomplete="off"></div>
       <div class="prow"><label>THICKNESS <span class="v" id="pStrWV"></span></label>
         <input type="range" id="pStrW" min="2" max="20" step="1" autocomplete="off"></div>
       <div class="prow"><label>PIN SIZE <span class="v" id="pPinRV"></span></label>
         <input type="range" id="pPinR" min="8" max="28" step="1" autocomplete="off"></div>
+      <div class="prow"><label>PIN COLOR</label>
+        <input type="color" id="pPinCol" autocomplete="off"></div>
+      <div class="prow"><label>PIN HOLE SIZE <span class="v" id="pPinHoleRV"></span></label>
+        <input type="range" id="pPinHoleR" min="0" max="20" step="1" autocomplete="off"></div>
+      <div class="prow"><label>PIN HOLE COLOR</label>
+        <input type="color" id="pPinHoleCol" autocomplete="off"></div>
       <div class="prow"><label>STRING LENGTH <span class="v" id="pLenV"></span></label>
         <input type="range" id="pLen" min="30" max="100" step="1" autocomplete="off"></div>
       <div class="prow"><label>SPACING <span class="v" id="pSpacingV"></span></label>
@@ -223,42 +307,53 @@
         <input type="color" id="pBodyCol2" autocomplete="off"></div>
       <div class="prow"><label>RADIUS <span class="v" id="pBodyRV"></span></label>
         <input type="range" id="pBodyR" min="0" max="220" step="5" autocomplete="off"></div>
+      <div class="prow"><label>Y POSITION <span class="v" id="pBodyYV"></span></label>
+        <input type="range" id="pBodyY" min="10" max="90" step="1" autocomplete="off"></div>
     </div>
 
-    <!-- HOLE LIGHT -->
-    <div class="psec-hdr" onclick="toggleSec('glow')">
-      <span class="psec-arrow" id="arr-glow">▾</span>HOLE LIGHT
+    <!-- ROSETTE -->
+    <div class="psec-hdr" onclick="toggleSec('rosette')">
+      <span class="psec-arrow" id="arr-rosette">▾</span>ROSETTE
     </div>
-    <div class="psec-body" id="sec-glow">
+    <div class="psec-body" id="sec-rosette">
       <div class="prow"><label>COLOR</label>
-        <input type="color" id="pGlowCol" autocomplete="off"></div>
-      <div class="prow"><label>OPACITY <span class="v" id="pGlowOpV"></span></label>
-        <input type="range" id="pGlowOp" min="0" max="100" step="1" autocomplete="off"></div>
-      <div class="prow"><label>BLUR <span class="v" id="pGlowBlurV"></span></label>
-        <input type="range" id="pGlowBlur" min="0" max="40" step="1" autocomplete="off"></div>
-      <div class="prow"><label>Y OFFSET <span class="v" id="pGlowDyV"></span></label>
-        <input type="range" id="pGlowDy" min="-40" max="40" step="1" autocomplete="off"></div>
-      <div class="prow"><label>THICKNESS <span class="v" id="pGlowThickV"></span></label>
-        <input type="range" id="pGlowThick" min="0" max="40" step="1" autocomplete="off"></div>
+        <input type="color" id="pRosCol" autocomplete="off"></div>
+      <div class="prow"><label>POINTS <span class="v" id="pRosPtsV"></span></label>
+        <input type="range" id="pRosPts" min="0" max="16" step="1" autocomplete="off"></div>
+      <div class="prow"><label>DEPTH <span class="v" id="pRosDepthV"></span></label>
+        <input type="range" id="pRosDepth" min="0" max="60" step="1" autocomplete="off"></div>
+      <div class="prow"><label>ROUNDNESS <span class="v" id="pRosRoundV"></span></label>
+        <input type="range" id="pRosRound" min="0" max="50" step="1" autocomplete="off"></div>
+      <div class="prow"><label>GAP (from hole) <span class="v" id="pRosGapV"></span></label>
+        <input type="range" id="pRosGap" min="0" max="80" step="1" autocomplete="off"></div>
+      <div class="prow"><label>STROKE <span class="v" id="pRosWV"></span></label>
+        <input type="range" id="pRosW" min="0" max="20" step="1" autocomplete="off"></div>
     </div>
 
-    <!-- STRING TEXTURE -->
-    <div class="psec-hdr" onclick="toggleSec('tex')">
-      <span class="psec-arrow" id="arr-tex">▾</span>STRING TEXTURE
+    <!-- SADDLE -->
+    <div class="psec-hdr" onclick="toggleSec('saddle')">
+      <span class="psec-arrow" id="arr-saddle">▾</span>SADDLE
     </div>
-    <div class="psec-body" id="sec-tex">
-      <div class="prow"><label>RIDGE SPACING <span class="v" id="pRidgeSpV"></span></label>
-        <input type="range" id="pRidgeSp" min="2" max="12" step="1" autocomplete="off"></div>
-      <div class="prow"><label>RIDGE DEPTH <span class="v" id="pRidgeDepthV"></span></label>
-        <input type="range" id="pRidgeDepth" min="0" max="100" step="1" autocomplete="off"></div>
-      <div class="prow"><label>RIDGE COLOR</label>
-        <input type="color" id="pRidgeCol" autocomplete="off"></div>
-      <div class="prow"><label>SHADING <span class="v" id="pShadeV"></span></label>
-        <input type="range" id="pShade" min="0" max="100" step="1" autocomplete="off"></div>
-      <div class="prow"><label>HIGHLIGHT POS <span class="v" id="pShadeHiV"></span></label>
-        <input type="range" id="pShadeHi" min="0" max="100" step="1" autocomplete="off"></div>
-      <div class="prow"><label>EDGE COLOR</label>
-        <input type="color" id="pEdgeCol" autocomplete="off"></div>
+    <div class="psec-body" id="sec-saddle">
+      <div class="prow"><label>HEIGHT (above pins) <span class="v" id="pSaddleYV"></span></label>
+        <input type="range" id="pSaddleY" min="-20" max="100" step="1" autocomplete="off"></div>
+      <div class="prow"><label>WIDTH <span class="v" id="pSaddleWV"></span></label>
+        <input type="range" id="pSaddleW" min="20" max="100" step="1" autocomplete="off"></div>
+      <div class="prow"><label>THICKNESS <span class="v" id="pSaddleThickV"></span></label>
+        <input type="range" id="pSaddleThick" min="1" max="24" step="1" autocomplete="off"></div>
+      <div class="prow"><label>COLOR</label>
+        <input type="color" id="pSaddleCol" autocomplete="off"></div>
+    </div>
+
+    <!-- BRIDGE -->
+    <div class="psec-hdr" onclick="toggleSec('bridge')">
+      <span class="psec-arrow" id="arr-bridge">▾</span>BRIDGE
+    </div>
+    <div class="psec-body" id="sec-bridge">
+      <div class="prow"><label>BOARD SCALE (width) <span class="v" id="pBridgeWV"></span></label>
+        <input type="range" id="pBridgeW" min="120" max="360" step="5" autocomplete="off"></div>
+      <div class="prow"><label>BOARD COLOR</label>
+        <input type="color" id="pBridgeCol" autocomplete="off"></div>
     </div>
 
     <!-- VIBRATION -->
@@ -274,25 +369,8 @@
         <input type="range" id="pSustain" min="1" max="100" step="1" autocomplete="off"></div>
       <div class="prow"><label>GRAB ZONE <span class="v" id="pGrabV"></span></label>
         <input type="range" id="pGrab" min="40" max="260" step="5" autocomplete="off"></div>
-    </div>
-
-    <!-- SHADOW -->
-    <div class="psec-hdr" onclick="toggleSec('shadow')">
-      <span class="psec-arrow" id="arr-shadow">▾</span>SHADOW
-    </div>
-    <div class="psec-body" id="sec-shadow">
-      <div class="prow"><label>COLOR</label>
-        <input type="color" id="pShadCol" autocomplete="off"></div>
-      <div class="prow"><label>OPACITY <span class="v" id="pShadOpV"></span></label>
-        <input type="range" id="pShadOp" min="0" max="100" step="1" autocomplete="off"></div>
-      <div class="prow"><label>BLUR <span class="v" id="pShadBlurV"></span></label>
-        <input type="range" id="pShadBlur" min="0" max="20" step="1" autocomplete="off"></div>
-      <div class="prow"><label>OFFSET X <span class="v" id="pShadDxV"></span></label>
-        <input type="range" id="pShadDx" min="-20" max="20" step="1" autocomplete="off"></div>
-      <div class="prow"><label>OFFSET Y <span class="v" id="pShadDyV"></span></label>
-        <input type="range" id="pShadDy" min="-20" max="20" step="1" autocomplete="off"></div>
-      <div class="prow check"><label><input type="checkbox" id="pShadHole" autocomplete="off">CAST ON HOLE</label></div>
-      <div class="prow check"><label><input type="checkbox" id="pShadNotch" autocomplete="off">CAST ON NOTCHES</label></div>
+      <div class="prow"><label>RESET ANIM <span class="v" id="pResetMsV"></span></label>
+        <input type="range" id="pResetMs" min="0" max="800" step="25" autocomplete="off"></div>
     </div>
 
     <!-- BUTTONS -->
@@ -302,6 +380,18 @@
     <div class="psec-body" id="sec-btns">
       <div class="prow"><label>COLOR</label>
         <input type="color" id="pBtnColor" autocomplete="off"></div>
+      <div class="prow"><label>FONT</label>
+        <select id="pBtnFamily" autocomplete="off">
+          <option value="Rubik">Rubik</option><option value="System">System</option>
+          <option value="Serif">Serif</option><option value="Mono">Mono</option>
+        </select></div>
+      <div class="prow"><label>WEIGHT <span class="v" id="pBtnWeightV"></span></label>
+        <input type="range" id="pBtnWeight" min="300" max="900" step="100" autocomplete="off"></div>
+      <div class="prow"><label>CASE</label>
+        <select id="pBtnCase" autocomplete="off">
+          <option value="uppercase">ALL CAPS</option><option value="none">Sentence</option>
+          <option value="lowercase">lower</option>
+        </select></div>
       <div class="prow"><label>FONT SIZE <span class="v" id="pBtnFontV"></span></label>
         <input type="range" id="pBtnFont" min="8" max="18" step="1" autocomplete="off"></div>
       <div class="prow"><label>TRACKING <span class="v" id="pBtnTrackV"></span></label>
@@ -315,11 +405,61 @@
       <div class="prow"><label>GAP <span class="v" id="pBtnGapV"></span></label>
         <input type="range" id="pBtnGap" min="0" max="16" step="1" autocomplete="off"></div>
       <div class="prow"><label>AREA PADDING <span class="v" id="pBtnAreaPadV"></span></label>
-        <input type="range" id="pBtnAreaPad" min="0" max="20" step="1" autocomplete="off"></div>
+        <input type="range" id="pBtnAreaPad" min="0" max="80" step="1" autocomplete="off"></div>
       <div class="prow"><label>MIN WIDTH <span class="v" id="pBtnMinWV"></span></label>
         <input type="range" id="pBtnMinW" min="40" max="200" step="4" autocomplete="off"></div>
       <div class="prow"><label>MAX WIDTH <span class="v" id="pBtnMaxWV"></span></label>
         <input type="range" id="pBtnMaxW" min="80" max="400" step="8" autocomplete="off"></div>
+    </div>
+
+    <!-- TOASTS -->
+    <div class="psec-hdr" onclick="toggleSec('toast')">
+      <span class="psec-arrow" id="arr-toast">▾</span>TOASTS
+    </div>
+    <div class="psec-body" id="sec-toast">
+      <div class="prow"><label>PREVIEW</label>
+        <div id="toastPrev"><span id="toastPrevPill">Great! Correct <b id="toastPrevNext">›</b></span></div></div>
+      <div class="prow"><label>BG COLOR</label>
+        <input type="color" id="pToastBg" autocomplete="off"></div>
+      <div class="prow"><label>TEXT COLOR</label>
+        <input type="color" id="pToastText" autocomplete="off"></div>
+      <div class="prow"><label>NEXT BG</label>
+        <input type="color" id="pToastNextBg" autocomplete="off"></div>
+      <div class="prow"><label>NEXT ARROW</label>
+        <input type="color" id="pToastNextCol" autocomplete="off"></div>
+      <div class="prow"><label>NEXT SYMBOL</label>
+        <input type="text" id="pToastChevron" maxlength="3" autocomplete="off"></div>
+      <div class="prow"><label>NEXT GAP <span class="v" id="pToastNextGapV"></span></label>
+        <input type="range" id="pToastNextGap" min="0" max="30" step="1" autocomplete="off"></div>
+      <div class="prow"><label>NEXT Y <span class="v" id="pToastNextDYV"></span></label>
+        <input type="range" id="pToastNextDY" min="-12" max="12" step="1" autocomplete="off"></div>
+      <div class="prow"><label>CASE</label>
+        <select id="pToastCase" autocomplete="off">
+          <option value="none">Sentence</option>
+          <option value="uppercase">ALL CAPS</option>
+          <option value="lowercase">lower</option>
+        </select></div>
+      <div class="prow"><label>FONT</label>
+        <select id="pToastFamily" autocomplete="off">
+          <option value="Rubik">Rubik</option><option value="System">System</option>
+          <option value="Serif">Serif</option><option value="Mono">Mono</option>
+        </select></div>
+      <div class="prow"><label>WEIGHT <span class="v" id="pToastWeightV"></span></label>
+        <input type="range" id="pToastWeight" min="300" max="900" step="100" autocomplete="off"></div>
+      <div class="prow"><label>FONT SIZE <span class="v" id="pToastFontV"></span></label>
+        <input type="range" id="pToastFont" min="8" max="22" step="1" autocomplete="off"></div>
+      <div class="prow"><label>TRACKING <span class="v" id="pToastTrackV"></span></label>
+        <input type="range" id="pToastTrack" min="0" max="60" step="2" autocomplete="off"></div>
+      <div class="prow"><label>SIZE <span class="v" id="pToastScaleV"></span></label>
+        <input type="range" id="pToastScale" min="60" max="180" step="5" autocomplete="off"></div>
+      <div class="prow"><label>PADDING <span class="v" id="pToastPadV"></span></label>
+        <input type="range" id="pToastPad" min="0" max="48" step="1" autocomplete="off"></div>
+      <div class="prow"><label>Y PLACEMENT <span class="v" id="pToastYV"></span></label>
+        <input type="range" id="pToastY" min="-200" max="200" step="2" autocomplete="off"></div>
+      <div class="prow"><label>HOLD (auto-advance) <span class="v" id="pToastHoldV"></span></label>
+        <input type="range" id="pToastHold" min="300" max="3000" step="50" autocomplete="off"></div>
+      <div class="prow"><label>FADE <span class="v" id="pToastFadeV"></span></label>
+        <input type="range" id="pToastFade" min="0" max="800" step="25" autocomplete="off"></div>
     </div>
 
     <!-- PRESET -->
@@ -355,64 +495,102 @@ const NUM_GHOSTS  = 12;
 const MIN_PLUCK   = 8;
 const TAP_FRAC    = 0.44;
 const SVGNS       = 'http://www.w3.org/2000/svg';
+const FONT_STACKS = {
+  Rubik:  "'Rubik', system-ui, sans-serif",
+  System: "system-ui, -apple-system, 'Segoe UI', sans-serif",
+  Serif:  "Georgia, 'Times New Roman', serif",
+  Mono:   "ui-monospace, 'Courier New', monospace"
+};
+const fontStack = k => FONT_STACKS[k] || FONT_STACKS.Rubik;
 
 // SVG / visual
-let bg           = '#575757';
-let bgCol2       = '#444444';   // background gradient end color
-let bgAngle      = 169;         // background gradient angle (deg)
-let strCol       = '#ebebeb';
-let holeCol      = '#000000';   // notch (pin) base color
-let notchCol2    = '#232323';   // notch gradient edge color
+let bg           = '#f98a57';   // orange soundboard
+let bgCol2       = '#f98a57';   // soundboard end (flat by default)
+let bgAngle      = 180;         // background gradient angle (deg)
+let strCol       = '#fff24b';   // yellow string
 let strW         = 5;
-let pinR         = 11;
+let pinR         = 9;           // grommet outer radius
 let stringLen    = 0.9;
-let spacing      = 82;
-let bodyColor    = '#232323';
-let bodyCol2     = '#232323';   // hole gradient edge color
-let bodyRadius   = 100;
+let spacing      = 72;
+let bodyColor    = '#7b3920';   // soundhole brown (center)
+let bodyCol2     = '#7b3920';   // soundhole brown (edge)
+let bodyRadius   = 80;          // soundhole radius
 let bowAmount    = 90;
 let vibBlurAmt   = 3;
 let vibSustain   = 64;
-let grabZone     = 130;     // px catch radius around a string for grab/pull
-let shadowCol    = '#000000';
-let shadowOp     = 12;
-let shadowBlur   = 1;
-let shadowDx     = 5;
-let shadowDy     = -3;
-let shadowHole   = false;   // cast the shadow on the hole too
-let shadowNotch  = false;   // cast the shadow on the notches
+let grabZone     = 40;      // px catch radius around a string for grab/pull
+let resetMs      = 300;     // new-round reset: strings collapse width+fade out, then back (0 = off)
 
 // Button appearance
 let btnColor     = '#ebebeb';
+let btnFont      = 'Rubik';  // family key (see FONT_STACKS)
+let btnWeight    = 400;      // font-weight
+let btnCase      = 'uppercase'; // text-transform: none | uppercase | lowercase
 let btnFontSize  = 14;      // px
-let btnTracking  = 14;      // hundredths of em  (14 → 0.14em)
-let btnPadV      = 14;      // vertical padding px
+let btnTracking  = 10;      // hundredths of em  (10 → 0.10em)
+let btnPadV      = 11;      // vertical padding px
 let btnRadius    = 22;      // border-radius px
 let btnBorderW   = 2;       // border width px
 let btnGap       = 9;       // gap between buttons px
-let btnAreaPad   = 20;      // padding around button row px
-let btnMinW      = 80;      // min-width px
-let btnMaxW      = 200;     // max-width px
+let btnAreaPad   = 37;      // padding around button row px
+let btnMinW      = 68;      // min-width px
+let btnMaxW      = 120;     // max-width px
+
+// Feedback toast (pill) — independent of the string/bridge palette
+let toastBg       = '#ffe44e';  // pill background
+let toastTextCol  = '#7b3920';  // pill label text
+let toastFont     = 'Rubik';    // family key (see FONT_STACKS)
+let toastWeight   = 400;        // font-weight
+let toastNextBg   = '#7b3920';  // next-button disc
+let toastNextCol  = '#F7F2E8';  // next-button arrow
+let toastFontSize = 14;         // px
+let toastTracking = 4;          // hundredths of em (4 → 0.04em)
+let toastHold     = 950;        // ms held before auto-advance on a correct answer
+let toastFade     = 250;        // ms fade in/out
+let toastScale    = 85;         // overall pill size, percent
+let toastPad      = 7;          // pill vertical padding px (horizontal = +10)
+let toastY        = -12;        // vertical nudge px (− up / + down)
+let toastCase     = 'uppercase';// label case: 'none' = sentence (as authored) | 'uppercase' = ALL CAPS
+let toastChevron  = '›';        // glyph shown inside the next button
+let toastNextGap  = 11;         // px gap between the label and the chevron
+let toastNextDY   = 0;          // px vertical nudge of the chevron
+
+// Header ("top") visuals
+let hdrFont      = 'Rubik';   // family key for the cent readout + best line
+let threshSize   = 22;        // px cent readout size
+let threshCol    = '#ebebeb'; // cent readout colour
+let threshWeight = 400;       // cent readout weight
+let bestSize     = 10;        // px best-line size
+let bestOp       = 30;        // best-line opacity %
+let dotSize      = 12;        // px streak-dot diameter
+let dotGap       = 6;         // px gap between streak dots (horizontal)
+let dotOkCol     = '#fff065'; // correct streak dot (shown at 75% via color-mix)
+let dotErrCol    = '#7b3920'; // wrong streak dot (shown at 65% via color-mix)
+let bestGap      = 3;         // px vertical gap: cent readout → best line
+let histGap      = 8;         // px vertical gap: best line → streak dots
+let hdrTop       = 10;        // px manual top nudge for the whole header (added to the safe area)
 
 // Layout
-let vOffset      = -43;     // vertical offset px (added on top of auto-center)
+let vOffset      = 60;      // manual vertical nudge px
 
-// Hole light (outer halo / drop shadow behind the body circle)
-let glowCol      = '#ffffff';
-let glowOp       = 16;      // %
-let glowBlur     = 1;       // px
-let glowDy       = 1;       // px (y offset)
-let glowThick    = 0;       // px spread past the hole edge
-
-// String ridges (wound-string texture)
-let ridgeSpacing = 2;       // px dash period
-let ridgeDepth   = 21;      // % overlay opacity (0 = off)
-let ridgeCol     = '#000000';
-
-// String gradient (cylindrical shading across width)
-let shadeAmt     = 100;     // % edge darkening (0 = flat)
-let shadeHiPos   = 89;      // % highlight position across width
-let edgeCol      = '#888888';
+// ── Bridge layout (ukulele) ──────────────────────────────────
+let holePos      = 0.33;    // soundhole center Y (fraction of stage H)
+let bridgePos    = 0.76;    // bridge pin row Y (fraction of stage H)
+let rosetteGap    = 19;     // px gap from hole edge to the rosette's valleys
+let rosetteW      = 5;      // px rosette stroke width
+let rosetteCol    = '#7b3920';
+let rosettePoints = 8;      // lobe count (<3 → plain circle ring)
+let rosetteDepth  = 16;     // px the lobes bump out past the valley
+let rosetteRound  = 50;     // corner rounding %: 0 = sharp star … 50 = smooth flower
+let bridgeW      = 210;     // bridge plate width (fixed px)
+let bridgeCol    = '#7B3920';
+let saddleWFrac  = 0.65;    // saddle line width as fraction of the board
+let saddleThick  = 5;       // px saddle line thickness
+let saddleYOff   = 28;      // px the saddle sits above the bridge pin row
+let saddleCol    = '#F7F2E8';
+let pinCol       = '#F7F2E8';  // grommet outer disc
+let pinHoleR     = 3;          // grommet inner hole radius
+let pinHoleCol   = '#6B3A22';  // grommet inner hole
 
 const pillW        = () => pinR * 0.95;
 const pillD        = () => pinR * 1.4;
@@ -427,19 +605,50 @@ const vibDecay     = () => 0.3 + 5.7 * (1 - vibSustain / 100);
 let W = 0, H = 0;
 const cx  = [0, 0];
 const vib = [false, false];
-let mainPath = [], ghostEls = [], blurDev = [], grpEls = [], pinEls = [], ridgeEls = [], notchGrpEls = [];
-let shadowPathEls = [], shadowBlurDevEls = [];
-let bodyCircle = null, glowCircle = null;
+let mainPath = [], ghostEls = [], blurDev = [], grpEls = [], pinEls = [];
+let bodyCircle = null, rosetteCircle = null, bridgeGrp = null, saddleLine = null;
+const BRIDGE_PATH = 'M0.427937 7.39967L8.79791 60.3275C9.06274 62.0021 10.5063 63.2353 12.2017 63.2353C32.4322 63.2353 52.1332 69.0626 70.9013 76.6145C83.2111 81.5676 97.6181 86 109.758 86C121.897 86 136.304 81.5676 148.614 76.6145C167.382 69.0626 187.083 63.2353 207.314 63.2353C209.009 63.2353 210.453 62.0021 210.718 60.3275L219.088 7.39967C219.491 4.85148 219.692 3.57738 219.317 2.58547C218.988 1.71493 218.366 0.98639 217.557 0.525332C216.636 0 215.346 0 212.766 0H6.74938C4.16952 0 2.8796 0 1.95844 0.525332C1.14998 0.98639 0.527602 1.71493 0.198483 2.58547C-0.176517 3.57738 0.0249675 4.85148 0.427937 7.39967Z';
 
 function xRatio(i) { return 0.5 + (i === 0 ? -1 : 1) * spacing / (2 * W); }
-function pinTopY() { return pinR + pinMargin() + lengthMargin(); }
-function pinBotY() { return H - pinR - pinMargin() - lengthMargin(); }
-function strTopY() { return pinTopY() + pinR - pillD() + pillW() / 2; }
-function strBotY() { return pinBotY() - pinR + pillD() - pillW() / 2; }
+const holeCY   = () => H * holePos;       // soundhole center Y
+const bridgeCY = () => H * bridgePos;     // bridge pin row Y
+
+// Rosette as a rounded N-point star (Figma-style). Valleys sit `rosetteGap` out
+// from the hole edge; peaks bump out a further `rosetteDepth`. `rosetteRound`
+// (0–50%) fillets each corner: 0 = sharp star, 50 = fully smooth flower.
+function rosettePath(cx, cy) {
+  const n = Math.round(rosettePoints);
+  const rv = bodyRadius + rosetteGap;               // valley radius (near the hole)
+  if (n < 3 || rosetteDepth <= 0) {                 // degenerate → plain circle ring
+    return `M ${(cx - rv).toFixed(2)} ${cy.toFixed(2)} `
+         + `a ${rv} ${rv} 0 1 0 ${(2 * rv).toFixed(2)} 0 `
+         + `a ${rv} ${rv} 0 1 0 ${(-2 * rv).toFixed(2)} 0 Z`;
+  }
+  const rp = rv + rosetteDepth;                     // peak radius (lobe tips)
+  const t  = Math.max(0, Math.min(0.5, rosetteRound / 100));
+  const pts = [];
+  for (let i = 0; i < 2 * n; i++) {
+    const ang = Math.PI * i / n - Math.PI / 2;      // first peak at top
+    const r = (i % 2 === 0) ? rp : rv;
+    pts.push([cx + r * Math.cos(ang), cy + r * Math.sin(ang)]);
+  }
+  let d = '';
+  const m = pts.length;
+  for (let i = 0; i < m; i++) {
+    const cur = pts[i], prev = pts[(i - 1 + m) % m], next = pts[(i + 1) % m];
+    const ex = cur[0] + (prev[0] - cur[0]) * t, ey = cur[1] + (prev[1] - cur[1]) * t;
+    const xx = cur[0] + (next[0] - cur[0]) * t, xy = cur[1] + (next[1] - cur[1]) * t;
+    d += (i === 0 ? 'M' : 'L') + ` ${ex.toFixed(2)} ${ey.toFixed(2)} `
+       + `Q ${cur[0].toFixed(2)} ${cur[1].toFixed(2)} ${xx.toFixed(2)} ${xy.toFixed(2)} `;
+  }
+  return d + 'Z';
+}
+function strTopY() { return -H * 0.5; }   // run well above the stage; body clips at the screen top
+function strBotY() { return bridgeCY(); } // anchor at the bridge pin
 
 function stringD(i, offset) {
   const x = W * xRatio(i), top = strTopY(), bot = strBotY();
-  return `M ${x} ${top} Q ${x + offset} ${(top + bot) / 2} ${x} ${bot}`;
+  return `M ${x} ${top} Q ${x + offset} ${holeCY()} ${x} ${bot}`;  // bow bulges over the soundhole
 }
 function ghostD(i, k) {
   const frac = NUM_GHOSTS > 1 ? (k / (NUM_GHOSTS - 1)) * 2 - 1 : 0;
@@ -455,87 +664,53 @@ function buildSVG() {
   const rect = document.getElementById('stage').getBoundingClientRect();
   W = rect.width; H = rect.height;
   applyVOffset();
-  const topY = pinTopY(), botY = pinBotY();
-  const pw = pillW(), pd = pillD();
-  const edge = mixHex(strCol, edgeCol, shadeAmt / 100);
+  const hcy = holeCY(), bcy = bridgeCY();
 
   let defs = '<defs>';
   defs += `
-    <filter id="fglow" x="-100%" y="-100%" width="300%" height="300%">
-      <feGaussianBlur id="fglow-dev" stdDeviation="${glowBlur}"/>
-    </filter>
-    <filter id="fdrop" x="-150%" y="-150%" width="400%" height="400%">
-      <feDropShadow id="fdrop-dev" dx="${shadowDx}" dy="${shadowDy}"
-              stdDeviation="${shadowBlur}" flood-color="${shadowCol}"
-              flood-opacity="${shadowOp / 100}"/>
-    </filter>
     <radialGradient id="bodyGrad" cx="50%" cy="50%" r="50%">
       <stop id="bodyGradS0" offset="0%" stop-color="${bodyColor}"/>
       <stop id="bodyGradS1" offset="100%" stop-color="${bodyCol2}"/>
-    </radialGradient>
-    <radialGradient id="notchGrad" cx="50%" cy="50%" r="50%">
-      <stop id="notchGradS0" offset="0%" stop-color="${holeCol}"/>
-      <stop id="notchGradS1" offset="100%" stop-color="${notchCol2}"/>
     </radialGradient>`;
   for (let i = 0; i < NUM_STRINGS; i++) {
-    const x = W * xRatio(i), px = x - pw / 2, rxv = pw / 2;
     defs += `
-      <linearGradient id="strGrad-${i}" gradientUnits="userSpaceOnUse"
-              x1="${x - strW / 2}" y1="0" x2="${x + strW / 2}" y2="0">
-        <stop id="strGradS0-${i}" offset="0%" stop-color="${edge}"/>
-        <stop id="strGradS1-${i}" offset="${shadeHiPos}%" stop-color="${strCol}"/>
-        <stop id="strGradS2-${i}" offset="100%" stop-color="${edge}"/>
-      </linearGradient>
       <filter id="fblur-${i}" x="-60%" y="-10%" width="220%" height="120%">
         <feGaussianBlur id="fdev-${i}" stdDeviation="0 0"/>
-      </filter>
-      <filter id="fshad-${i}" filterUnits="userSpaceOnUse"
-              x="${x-200}" y="-50" width="400" height="${H+100}">
-        <feGaussianBlur id="fshad-dev-${i}" stdDeviation="${shadowBlur}"/>
-      </filter>
-      <mask id="mask-top-${i}">
-        <circle cx="${x}" cy="${topY}" r="${pinR}" fill="white"/>
-        <rect x="${px}" y="${topY+pinR-pd}" width="${pw}" height="${pd+pinR}" rx="${rxv}" ry="${rxv}" fill="black"/>
-      </mask>
-      <mask id="mask-bot-${i}">
-        <circle cx="${x}" cy="${botY}" r="${pinR}" fill="white"/>
-        <rect x="${px}" y="${botY-pinR-pinR}" width="${pw}" height="${pd+pinR}" rx="${rxv}" ry="${rxv}" fill="black"/>
-      </mask>`;
+      </filter>`;
   }
   defs += '</defs>';
   svg.innerHTML = defs;
-  mainPath = []; ghostEls = []; blurDev = []; grpEls = []; pinEls = []; ridgeEls = []; notchGrpEls = [];
-  shadowPathEls = []; shadowBlurDevEls = []; bodyCircle = null; glowCircle = null;
+  mainPath = []; ghostEls = []; blurDev = []; grpEls = []; pinEls = [];
+  bodyCircle = null; rosetteCircle = null; bridgeGrp = null; saddleLine = null;
 
-  for (let i = 0; i < NUM_STRINGS; i++) {
-    shadowBlurDevEls.push(document.getElementById(`fshad-dev-${i}`));
-    const sh = document.createElementNS(SVGNS, 'path');
-    sh.setAttribute('d', stringD(i, 0)); sh.setAttribute('stroke', shadowCol);
-    sh.setAttribute('stroke-width', strW); sh.setAttribute('fill', 'none');
-    sh.setAttribute('stroke-linecap', 'round');
-    sh.setAttribute('stroke-opacity', shadowOp / 100);
-    sh.setAttribute('transform', `translate(${shadowDx},${shadowDy})`);
-    sh.setAttribute('filter', `url(#fshad-${i})`);
-    svg.appendChild(sh); shadowPathEls.push(sh);
-  }
-
-  // Hole light: a soft light circle behind the body, offset in Y so it peeks
-  // out as a crescent halo on one side (decoupled — not a filter on the body).
-  const glow = document.createElementNS(SVGNS, 'circle');
-  glow.setAttribute('cx', W / 2); glow.setAttribute('cy', H / 2);
-  glow.setAttribute('r', bodyRadius + glowThick);
-  glow.setAttribute('fill', glowCol);
-  glow.setAttribute('opacity', glowOp / 100);
-  glow.setAttribute('transform', `translate(0,${glowDy})`);
-  glow.setAttribute('filter', 'url(#fglow)');
-  svg.appendChild(glow); glowCircle = glow;
-
+  // 1) Soundhole (filled) + rosette ring
   const body = document.createElementNS(SVGNS, 'circle');
-  body.setAttribute('cx', W / 2); body.setAttribute('cy', H / 2);
+  body.setAttribute('cx', W / 2); body.setAttribute('cy', hcy);
   body.setAttribute('r', bodyRadius); body.setAttribute('fill', 'url(#bodyGrad)');
-  if (shadowHole) body.setAttribute('filter', 'url(#fdrop)');
   svg.appendChild(body); bodyCircle = body;
 
+  const rosette = document.createElementNS(SVGNS, 'path');
+  rosette.setAttribute('d', rosettePath(W / 2, hcy));
+  rosette.setAttribute('fill', 'none');
+  rosette.setAttribute('stroke', rosetteCol);
+  rosette.setAttribute('stroke-width', rosetteW);
+  rosette.setAttribute('stroke-linejoin', 'round');
+  svg.appendChild(rosette); rosetteCircle = rosette;
+
+  // 2) Bridge plate (scaled panel path) — positioned/sized live by applyBridge
+  const bgrp = document.createElementNS(SVGNS, 'g');
+  const bpath = document.createElementNS(SVGNS, 'path');
+  bpath.setAttribute('d', BRIDGE_PATH);
+  bgrp.appendChild(bpath); svg.appendChild(bgrp); bridgeGrp = bgrp;
+  applyBridge();
+
+  // 3) Saddle line, above the pins (positioned/sized live by applySaddle)
+  const saddle = document.createElementNS(SVGNS, 'line');
+  saddle.setAttribute('stroke-linecap', 'round');
+  svg.appendChild(saddle); saddleLine = saddle;
+  applySaddle();
+
+  // 4) String motion-blur (ghost) groups
   for (let i = 0; i < NUM_STRINGS; i++) {
     blurDev.push(document.getElementById(`fdev-${i}`));
     const grp = document.createElementNS(SVGNS, 'g');
@@ -550,42 +725,27 @@ function buildSVG() {
     ghostEls.push(gs);
   }
 
+  // 5) Main strings (flat) — over the hole, plate and saddle
   for (let i = 0; i < NUM_STRINGS; i++) {
-    const x = W * xRatio(i);
     const path = document.createElementNS(SVGNS, 'path');
-    path.setAttribute('d', stringD(i, 0)); path.setAttribute('stroke', `url(#strGrad-${i})`);
+    path.setAttribute('d', stringD(i, 0)); path.setAttribute('stroke', strCol);
     path.setAttribute('stroke-width', strW); path.setAttribute('fill', 'none');
     path.setAttribute('stroke-linecap', 'round');
     svg.appendChild(path); mainPath.push(path);
+  }
 
-    // Ridge overlay: dashed copy on top → fine bands across the string width
-    const rg = document.createElementNS(SVGNS, 'path');
-    rg.setAttribute('d', stringD(i, 0)); rg.setAttribute('stroke', ridgeCol);
-    rg.setAttribute('stroke-width', strW); rg.setAttribute('fill', 'none');
-    rg.setAttribute('stroke-linecap', 'butt');
-    rg.setAttribute('stroke-dasharray', `${ridgeSpacing / 2} ${ridgeSpacing / 2}`);
-    rg.setAttribute('opacity', ridgeDepth / 100);
-    svg.appendChild(rg); ridgeEls.push(rg);
-
-    // Each notch is wrapped in a <g> so the drop-shadow filter applies AFTER
-    // the mask (a filter on the circle itself would get clipped by the mask).
-    const gt = document.createElementNS(SVGNS, 'g');
-    const pt = document.createElementNS(SVGNS, 'circle');
-    pt.setAttribute('cx', x); pt.setAttribute('cy', topY);
-    pt.setAttribute('r', pinR); pt.setAttribute('fill', 'url(#notchGrad)');
-    pt.setAttribute('mask', `url(#mask-top-${i})`); gt.appendChild(pt);
-    if (shadowNotch) gt.setAttribute('filter', 'url(#fdrop)');
-    svg.appendChild(gt);
-
-    const gb = document.createElementNS(SVGNS, 'g');
-    const pb = document.createElementNS(SVGNS, 'circle');
-    pb.setAttribute('cx', x); pb.setAttribute('cy', botY);
-    pb.setAttribute('r', pinR); pb.setAttribute('fill', 'url(#notchGrad)');
-    pb.setAttribute('mask', `url(#mask-bot-${i})`); gb.appendChild(pb);
-    if (shadowNotch) gb.setAttribute('filter', 'url(#fdrop)');
-    svg.appendChild(gb);
-
-    pinEls.push([pt, pb]); notchGrpEls.push([gt, gb]);
+  // 6) Grommet bridge pins (outer disc + inner hole) at the string ends
+  for (let i = 0; i < NUM_STRINGS; i++) {
+    const x = W * xRatio(i);
+    const outer = document.createElementNS(SVGNS, 'circle');
+    outer.setAttribute('cx', x); outer.setAttribute('cy', bcy);
+    outer.setAttribute('r', pinR); outer.setAttribute('fill', pinCol);
+    svg.appendChild(outer);
+    const inner = document.createElementNS(SVGNS, 'circle');
+    inner.setAttribute('cx', x); inner.setAttribute('cy', bcy);
+    inner.setAttribute('r', pinHoleR); inner.setAttribute('fill', pinHoleCol);
+    svg.appendChild(inner);
+    pinEls.push([outer, inner]);
   }
   for (let i = 0; i < NUM_STRINGS; i++) redraw(i);
 }
@@ -594,8 +754,6 @@ function redraw(i) {
   if (!mainPath[i]) return;
   const d = vib[i] ? stringD(i, 0) : stringD(i, cx[i]);
   mainPath[i].setAttribute('d', d);
-  if (ridgeEls[i]) ridgeEls[i].setAttribute('d', d);
-  if (shadowPathEls[i]) shadowPathEls[i].setAttribute('d', d);
   if (vib[i]) {
     grpEls[i].setAttribute('filter', `url(#fblur-${i})`);
     const env = Math.min(cx[i] / bowAmount, 1);
@@ -615,105 +773,95 @@ function hexToRgb(hex) {
   const r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return r ? { r: parseInt(r[1],16), g: parseInt(r[2],16), b: parseInt(r[3],16) } : null;
 }
-function mixHex(a, b, t) {
-  const ca = hexToRgb(a) || { r:0, g:0, b:0 }, cb = hexToRgb(b) || { r:0, g:0, b:0 };
-  const m = (x, y) => Math.round(x + (y - x) * t);
-  const h = n => n.toString(16).padStart(2, '0');
-  return `#${h(m(ca.r,cb.r))}${h(m(ca.g,cb.g))}${h(m(ca.b,cb.b))}`;
-}
 function applyVOffset() {
-  const answersH = document.getElementById('answers').offsetHeight;
-  const headerH  = document.getElementById('header').offsetHeight;
-  document.getElementById('svg').style.transform =
-    `translateY(${(answersH - headerH) / 2 + vOffset}px)`;
-}
-function applyHoleGlow() {
-  if (!glowCircle) return;
-  glowCircle.setAttribute('r', bodyRadius + glowThick);
-  glowCircle.setAttribute('fill', glowCol);
-  glowCircle.setAttribute('opacity', glowOp / 100);
-  glowCircle.setAttribute('transform', `translate(0,${glowDy})`);
-  const dev = document.getElementById('fglow-dev');
-  if (dev) dev.setAttribute('stdDeviation', glowBlur);
-}
-function applyStringGradient() {
-  const edge = mixHex(strCol, edgeCol, shadeAmt / 100);
-  for (let i = 0; i < NUM_STRINGS; i++) {
-    const grad = document.getElementById(`strGrad-${i}`);
-    if (!grad) continue;
-    const x = W * xRatio(i);
-    grad.setAttribute('x1', x - strW / 2);   // keep span aligned to stroke width
-    grad.setAttribute('x2', x + strW / 2);
-    const s0 = document.getElementById(`strGradS0-${i}`);
-    const s1 = document.getElementById(`strGradS1-${i}`);
-    const s2 = document.getElementById(`strGradS2-${i}`);
-    s0.setAttribute('stop-color', edge);
-    s2.setAttribute('stop-color', edge);
-    s1.setAttribute('stop-color', strCol);
-    s1.setAttribute('offset', shadeHiPos + '%');
-  }
-}
-function applyRidges() {
-  const dash = (ridgeSpacing / 2).toFixed(2);
-  for (let i = 0; i < NUM_STRINGS; i++) {
-    if (!ridgeEls[i]) continue;
-    ridgeEls[i].setAttribute('stroke', ridgeCol);
-    ridgeEls[i].setAttribute('stroke-width', strW);
-    ridgeEls[i].setAttribute('stroke-dasharray', `${dash} ${dash}`);
-    ridgeEls[i].setAttribute('opacity', ridgeDepth / 100);
-  }
+  document.getElementById('svg').style.transform = `translateY(${vOffset}px)`;
 }
 function applyBg() {
   document.body.style.background = `linear-gradient(${bgAngle}deg, ${bg}, ${bgCol2})`;
 }
-function applyNotchGrad() {
-  const s0 = document.getElementById('notchGradS0');
-  const s1 = document.getElementById('notchGradS1');
-  if (!s0) return;
-  s0.setAttribute('stop-color', holeCol);   // notch base color
-  s1.setAttribute('stop-color', notchCol2); // notch edge color
-}
 function applyColors() {
   applyBg();
   for (let i = 0; i < NUM_STRINGS; i++) {
+    if (mainPath[i]) mainPath[i].setAttribute('stroke', strCol);
     if (ghostEls[i]) ghostEls[i].forEach(g => g.setAttribute('stroke', strCol));
   }
-  applyStringGradient(); // main string stroke is the gradient; strCol drives its core/edges
-  applyNotchGrad();      // notches are filled with the notch gradient (holeCol = base)
 }
 function applyStringWidth() {
   const gw = ghostW();
   for (let i = 0; i < NUM_STRINGS; i++) {
     if (mainPath[i]) mainPath[i].setAttribute('stroke-width', strW);
     if (ghostEls[i]) ghostEls[i].forEach(g => g.setAttribute('stroke-width', gw));
-    if (shadowPathEls[i]) shadowPathEls[i].setAttribute('stroke-width', strW);
   }
-  applyDropShadow();
-  applyRidges();          // ridge overlay shares the string width
-  applyStringGradient();  // gradient span is keyed to the stroke width
 }
-function applyDropShadow() {
-  const sop = shadowOp / 100;
+// New-round "reset": collapse the strings (width→0 + fade out), then bring them
+// back (width→strW + fade in). Cosmetic punctuation that a fresh try has begun.
+let resetGen = 0;
+function clearStringAnim() {                     // restore solid, full-width strings
+  for (let i = 0; i < NUM_STRINGS; i++) if (mainPath[i]) {
+    mainPath[i].setAttribute('stroke-width', strW);
+    mainPath[i].setAttribute('opacity', 1);
+    mainPath[i].style.strokeDasharray = '';
+    mainPath[i].style.strokeDashoffset = '';
+  }
+}
+function resetStrings() {
+  if (!mainPath[0]) return;
+  if (resetMs <= 0) { clearStringAnim(); return; }
+  // Settle any lingering ring so the redraw runs on straight strings.
+  for (let i = 0; i < NUM_STRINGS; i++) { vibGen[i]++; vib[i] = false; cx[i] = 0; redraw(i); }
+  const myGen = ++resetGen, t0 = performance.now();
+  const outMs = resetMs * 0.4;                  // collapse takes 40%, redraw gets the rest
+  const lens = mainPath.map(p => p ? p.getTotalLength() : 0);
+  // The string runs well above the viewport; only map the redraw to the on-screen
+  // length (pin → top of stage) so the visible draw spans the whole phase.
+  const offTop = Math.max(0, H * 0.5 - vOffset);
+  (function frame() {
+    if (myGen !== resetGen) return;              // a newer reset superseded this one
+    const t = performance.now() - t0;
+    if (t >= resetMs) { clearStringAnim(); return; }
+    for (let i = 0; i < NUM_STRINGS; i++) {
+      const p = mainPath[i]; if (!p) continue;
+      if (t < outMs) {                            // phase 1: collapse + fade the old string away
+        const f = 1 - t / outMs;
+        p.setAttribute('stroke-width', (strW * f).toFixed(2));
+        p.setAttribute('opacity', f.toFixed(3));
+        p.style.strokeDasharray = ''; p.style.strokeDashoffset = '';
+      } else {                                    // phase 2: draw up from the pin, full width/opacity
+        // Reveal the LAST `drawn` units of the path with a gap-then-dash pattern, so the
+        // visible segment sits at the pin end and grows upward. Mapped to the on-screen
+        // length so the draw spans the whole phase instead of finishing off-screen.
+        const drawP = (t - outMs) / (resetMs - outMs), L = lens[i];
+        const visLen = Math.max(L * 0.3, L - offTop);
+        const drawn = drawP * visLen;
+        // Pattern "0 gap dash": a zero lead dash, then a gap of (L−drawn), then the visible
+        // dash of length `drawn` — so the drawn segment sits at the pin end and grows up.
+        p.setAttribute('stroke-width', strW);
+        p.setAttribute('opacity', 1);
+        p.style.strokeDasharray = `0 ${(L - drawn).toFixed(1)} ${drawn.toFixed(1)}`;
+        p.style.strokeDashoffset = '0';
+      }
+    }
+    requestAnimationFrame(frame);
+  })();
+  // Safety net: rAF is throttled in background tabs, so guarantee the strings are
+  // restored to full even if the frame loop stalls mid-animation.
+  setTimeout(() => { if (myGen === resetGen) clearStringAnim(); }, resetMs + 80);
+}
+function applyBridge() {
+  if (!bridgeGrp) return;
+  const bscale = bridgeW / 220, bh = 86 * bscale;
+  bridgeGrp.setAttribute('transform',
+    `translate(${W / 2 - bridgeW / 2},${bridgeCY() - bh * 0.58}) scale(${bscale})`);
+  const bpath = bridgeGrp.querySelector('path');
+  if (bpath) bpath.setAttribute('fill', bridgeCol);
+}
+function applyPins() {
   for (let i = 0; i < NUM_STRINGS; i++) {
-    if (!shadowPathEls[i]) continue;
-    shadowPathEls[i].setAttribute('stroke', shadowCol);
-    shadowPathEls[i].setAttribute('stroke-opacity', sop);
-    shadowPathEls[i].setAttribute('stroke-width', strW);
-    shadowPathEls[i].setAttribute('transform', `translate(${shadowDx},${shadowDy})`);
-    if (shadowBlurDevEls[i]) shadowBlurDevEls[i].setAttribute('stdDeviation', shadowBlur);
+    if (!pinEls[i]) continue;
+    const [outer, inner] = pinEls[i];
+    outer.setAttribute('r', pinR);  outer.setAttribute('fill', pinCol);
+    inner.setAttribute('r', pinHoleR); inner.setAttribute('fill', pinHoleCol);
   }
-  // Shared feDropShadow cast by the hole + notches ("the same shadow")
-  const d = document.getElementById('fdrop-dev');
-  if (d) {
-    d.setAttribute('dx', shadowDx);
-    d.setAttribute('dy', shadowDy);
-    d.setAttribute('stdDeviation', shadowBlur);
-    d.setAttribute('flood-color', shadowCol);
-    d.setAttribute('flood-opacity', sop);
-  }
-  if (bodyCircle) bodyCircle.setAttribute('filter', shadowHole ? 'url(#fdrop)' : 'none');
-  notchGrpEls.forEach(pair => pair.forEach(g =>
-    g.setAttribute('filter', shadowNotch ? 'url(#fdrop)' : 'none')));
 }
 function applyBody() {
   if (!bodyCircle) return;
@@ -722,7 +870,23 @@ function applyBody() {
   const s1 = document.getElementById('bodyGradS1');
   if (s0) s0.setAttribute('stop-color', bodyColor); // hole center color
   if (s1) s1.setAttribute('stop-color', bodyCol2);  // hole edge color
-  applyHoleGlow(); // halo radius keys off bodyRadius
+  applyRosette();                                    // rosette valleys track the hole radius
+}
+function applyRosette() {
+  if (!rosetteCircle) return;
+  rosetteCircle.setAttribute('d', rosettePath(W / 2, holeCY()));
+  rosetteCircle.setAttribute('stroke', rosetteCol);
+  rosetteCircle.setAttribute('stroke-width', rosetteW);
+}
+function applySaddle() {
+  if (!saddleLine) return;
+  const sw = bridgeW * saddleWFrac, sy = bridgeCY() - saddleYOff;
+  saddleLine.setAttribute('x1', W / 2 - sw / 2);
+  saddleLine.setAttribute('y1', sy);
+  saddleLine.setAttribute('x2', W / 2 + sw / 2);
+  saddleLine.setAttribute('y2', sy);
+  saddleLine.setAttribute('stroke', saddleCol);
+  saddleLine.setAttribute('stroke-width', saddleThick);
 }
 function applyButtonStyles() {
   const rgb = hexToRgb(btnColor) || { r:235, g:235, b:235 };
@@ -732,6 +896,9 @@ function applyButtonStyles() {
   document.documentElement.style.setProperty('--btn-border-ready', `${rs},.55)`);
   document.documentElement.style.setProperty('--btn-border-dim',   `${rs},.10)`);
   document.querySelectorAll('.abtn').forEach(b => {
+    b.style.fontFamily    = fontStack(btnFont);
+    b.style.fontWeight    = btnWeight;
+    b.style.textTransform = btnCase;
     b.style.fontSize      = btnFontSize + 'px';
     b.style.letterSpacing = (btnTracking / 100) + 'em';
     b.style.paddingTop    = btnPadV + 'px';
@@ -745,6 +912,25 @@ function applyButtonStyles() {
   const ans = document.getElementById('answers');
   ans.style.gap     = btnGap + 'px';
   ans.style.padding = btnAreaPad + 'px';
+  // keep the button row clear of the home indicator on edge-to-edge devices
+  ans.style.paddingBottom = `calc(${btnAreaPad}px + env(safe-area-inset-bottom, 0px))`;
+  styleFeedback();  // keep the feedback label matched to the button font
+}
+function applyHeader() {
+  const th = document.getElementById('threshold'), bs = document.getElementById('best');
+  const ff = fontStack(hdrFont);
+  th.style.fontFamily = ff; th.style.fontSize = threshSize + 'px';
+  th.style.color = threshCol; th.style.fontWeight = threshWeight;
+  bs.style.fontFamily = ff; bs.style.fontSize = bestSize + 'px';
+  bs.style.opacity = bestOp / 100;
+  bs.style.marginTop = bestGap + 'px';
+  document.getElementById('history').style.marginTop = histGap + 'px';
+  const r = document.documentElement.style;
+  r.setProperty('--hdr-top',  hdrTop + 'px');
+  r.setProperty('--dot-size', dotSize + 'px');
+  r.setProperty('--dot-gap',  dotGap + 'px');
+  r.setProperty('--dot-ok',   dotOkCol);
+  r.setProperty('--dot-err',  dotErrCol);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -778,14 +964,14 @@ async function playTone(freq, idx) {
   }
   const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
   osc.connect(gain); gain.connect(audioCtx.destination);
-  osc.type = 'triangle';
-  osc.frequency.setValueAtTime(freq * 1.004, now);
-  osc.frequency.exponentialRampToValueAtTime(freq, now + 0.08);
+  osc.type = 'sine';                                          // clean tone (matches the piano prototype)
+  osc.frequency.setValueAtTime(freq, now);                    // no pitch glide
   gain.gain.value = 0; // ensure 0 before any scheduled ramps
   gain.gain.setValueAtTime(0, now);
-  gain.gain.linearRampToValueAtTime(0.30, now + 0.012);
-  gain.gain.exponentialRampToValueAtTime(0.001, now + 3.2);
-  osc.start(now); osc.stop(now + 3.3);
+  gain.gain.linearRampToValueAtTime(0.34, now + 0.028);       // soft attack
+  gain.gain.exponentialRampToValueAtTime(0.22, now + 0.5);    // gentle decay into the body
+  gain.gain.exponentialRampToValueAtTime(0.0008, now + 4.2);  // long smooth tail — notes ring while you compare
+  osc.start(now); osc.stop(now + 4.3);
   if (idx != null) {
     const note = { osc, gain };
     activeNotes[idx] = note;
@@ -818,17 +1004,16 @@ function pulseBody() {
   bodyCircle.setAttribute('r', bodyRadius * 1.055);
   setTimeout(() => bodyCircle.setAttribute('r', bodyRadius), 200);
 }
-function flashBody(correct) {
-  if (!bodyCircle) return;
-  bodyCircle.setAttribute('fill', correct ? '#1e2e1e' : '#2e1e1e');
-  setTimeout(() => bodyCircle.setAttribute('fill', bodyColor), 750);
-}
-
 // ─────────────────────────────────────────────────────────────
 // Interaction
 // ─────────────────────────────────────────────────────────────
 const ptr = { active: false, idx: -1, startX: 0, moved: false };
-function nearestString(clientX) {
+function nearestString(clientX, localY) {
+  // A string only exists from the top of the board down to its bridge pin.
+  // Ignore grabs below that line (bridge body, toast, button band) — otherwise
+  // the string's hit area would span the whole stage height. (SVG is shifted by
+  // vOffset, so the pin sits at strBotY() + vOffset in stage-local coords.)
+  if (localY != null && localY > strBotY() + vOffset + pinR) return -1;
   let best = -1, dist = Infinity;
   for (let i = 0; i < NUM_STRINGS; i++) {
     const d = Math.abs(clientX - W * xRatio(i));
@@ -836,10 +1021,11 @@ function nearestString(clientX) {
   }
   return dist <= grabZone ? best : -1;
 }
-function onDown(clientX) {
+function onDown(clientX, clientY) {
   initAudio(); // pre-warm context as early as possible so resume() has time to complete
   if (!W || phase === 'feedback') return;
-  const i = nearestString(clientX);
+  const localY = clientY - document.getElementById('stage').getBoundingClientRect().top;
+  const i = nearestString(clientX, localY);
   if (i < 0) return;
   // Re-grab a still-ringing string: cancel its decay so it bows fresh
   if (vib[i]) { vibGen[i]++; vib[i] = false; cx[i] = 0; redraw(i); }
@@ -852,20 +1038,31 @@ function onMove(clientX) {
     (clientX - W * xRatio(ptr.idx)) * 1.3));
   redraw(ptr.idx);
 }
-function onUp() {
+function onUp(e) {
   if (!ptr.active) return;
+  // A release landing on the answer buttons isn't a string release. This only
+  // runs when a grab is somehow still active (e.g. a stray/stuck pointer), so
+  // drop it silently instead of letting a button tap fire a phantom pluck.
+  if (e && e.target && e.target.closest && e.target.closest('#answers')) {
+    ptr.active = false; ptr.idx = -1; return;
+  }
   const i = ptr.idx; ptr.active = false; ptr.idx = -1;
   // Tap or pull, a released grab always sounds. Pull strength scales with the
   // bow, floored at a light tap so small drags never land in a silent dead zone.
   pluckString(i, Math.max(Math.abs(cx[i]), bowAmount * TAP_FRAC));
 }
+// Grab interrupted (OS gesture, scroll takeover, focus loss): drop it without
+// sounding, so it can't linger and fire on the next unrelated release.
+function onCancel() { ptr.active = false; ptr.idx = -1; }
 const stage = document.getElementById('stage');
-stage.addEventListener('mousedown',  e => onDown(e.clientX));
-stage.addEventListener('touchstart', e => { e.preventDefault(); onDown(e.touches[0].clientX); }, { passive: false });
+stage.addEventListener('mousedown',  e => onDown(e.clientX, e.clientY));
+stage.addEventListener('touchstart', e => { e.preventDefault(); onDown(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
 window.addEventListener('mousemove',  e => onMove(e.clientX));
 window.addEventListener('mouseup',   onUp);
-window.addEventListener('touchmove',  e => { e.preventDefault(); onMove(e.touches[0].clientX); }, { passive: false });
+window.addEventListener('touchmove',  e => { if (!ptr.active) return; e.preventDefault(); onMove(e.touches[0].clientX); }, { passive: false });
 window.addEventListener('touchend',  onUp);
+window.addEventListener('touchcancel', onCancel);
+window.addEventListener('blur', onCancel);
 window.addEventListener('resize', buildSVG);
 
 // ─────────────────────────────────────────────────────────────
@@ -874,12 +1071,45 @@ window.addEventListener('resize', buildSVG);
 const ROOT = 440, MAX_D = 50, MIN_D = 1;
 const LS_GAME = 'pitch-game-v1';
 let deviation = MAX_D, bestDev = MAX_D, phase = 'play', roundDir = 'sharp';
-let lastCorrect = null, oscillations = 0, history = [];
+let lastCorrect = null, oscillations = 0, history = [], advanceTimer = null;
+// Reference note for the exercise. ROOT (440) is A4; rootSemi 0=C…11=B.
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+let rootSemi = 9, rootOct = 4;   // A4 by default
+let randomNote = true, lastRandSemi = -1;    // RND mode (default): a fresh pitch class each round
+function noteFreq() { return ROOT * Math.pow(2, (rootOct - 4) + (rootSemi - 9) / 12); }
+function pickRandomNote() {
+  let s;
+  do { s = Math.floor(Math.random() * 12); } while (s === lastRandSemi);
+  lastRandSemi = s; rootSemi = s;
+}
+const ANSWER_WORD = { sharp: 'sharp', flat: 'flat', in_tune: 'in tune' };
+const FB_CORRECT = [
+  "Great! Correct", "Yay, you got it!", "Nice ear!", "Spot on!", "Nailed it!",
+  "Yes! Correct", "Well done!", "Perfect!", "That's it!", "Right on!"
+];
+const FB_INCORRECT = [
+  "Oops, it was {ans}", "Uh-oh, it was {ans}", "Nope, that was {ans}", "Not quite — {ans}",
+  "So close! It was {ans}", "Actually, {ans}", "Hmm, {ans}", "Try again — it was {ans}",
+  "Almost! It was {ans}", "Nice try — it was {ans}"
+];
+let lastFbMsg = '';
+function pickMsg(list) {
+  let m;
+  do { m = list[Math.floor(Math.random() * list.length)]; } while (list.length > 1 && m === lastFbMsg);
+  lastFbMsg = m;
+  return m;
+}
 
 function loadGame() {
-  try { const s = JSON.parse(localStorage.getItem(LS_GAME)); if (s?.best != null) bestDev = +s.best; } catch(e) {}
+  try {
+    const s = JSON.parse(localStorage.getItem(LS_GAME));
+    if (s?.best != null) bestDev = +s.best;
+    if (s?.rootSemi != null) rootSemi = +s.rootSemi;
+    if (s?.rootOct  != null) rootOct  = +s.rootOct;
+    if (s?.randomNote != null) randomNote = !!s.randomNote;
+  } catch(e) {}
 }
-function saveGame() { localStorage.setItem(LS_GAME, JSON.stringify({ best: bestDev })); }
+function saveGame() { localStorage.setItem(LS_GAME, JSON.stringify({ best: bestDev, rootSemi, rootOct, randomNote })); }
 function fmt(c) { return c >= 10 ? Math.round(c) : c.toFixed(1); }
 
 function updateHeader() {
@@ -891,16 +1121,47 @@ function updateHeader() {
 function setButtonsReady(ready) {
   document.querySelectorAll('.abtn').forEach(b => ready ? b.classList.add('ready') : b.classList.remove('ready'));
 }
+function setRoundFreqs() {
+  const root = noteFreq();
+  stringFreqs[0] = root;
+  stringFreqs[1] = roundDir === 'sharp'  ? root * Math.pow(2,  deviation / 1200)
+                 : roundDir === 'flat'   ? root * Math.pow(2, -deviation / 1200)
+                 : root;
+}
 function newRound() {
   const inTuneP = 0.1 + 0.2 * (1 - Math.min(deviation, MAX_D) / MAX_D);
   const r = Math.random();
   roundDir = r < inTuneP ? 'in_tune' : Math.random() < 0.5 ? 'sharp' : 'flat';
-  stringFreqs[0] = ROOT;
-  stringFreqs[1] = roundDir === 'sharp'  ? ROOT * Math.pow(2,  deviation / 1200)
-                 : roundDir === 'flat'   ? ROOT * Math.pow(2, -deviation / 1200)
-                 : ROOT;
+  if (randomNote) pickRandomNote();   // fresh pitch class each round in RND mode
+  setRoundFreqs();
   phase = 'play'; hasPlucked = false;
-  clearButtons(); updateHeader();
+  setButtonsReady(false); hideFeedback(); updateHeader();
+}
+const NOTE_CHIP = document.getElementById('noteChip');
+function updateNoteChip() { NOTE_CHIP.textContent = randomNote ? 'RND' : NOTE_NAMES[rootSemi] + rootOct; }
+function cycleNote() {
+  // Cycle C4…B4, then RND, then wrap back to C4.
+  if (randomNote)          { randomNote = false; rootSemi = 0; }
+  else if (rootSemi >= 11) { randomNote = true; pickRandomNote(); }
+  else                     { rootSemi++; }
+  updateNoteChip();
+  setRoundFreqs();                   // retune the current round (fixed note, or the freshly-picked random one)
+  saveGame();
+}
+// Drive the chip from touchend directly (the page's touch-action:none can make the
+// synthesized click flaky on iOS); guard so desktop click doesn't double-fire.
+let chipTouchHandled = false;
+NOTE_CHIP.addEventListener('touchend', e => {
+  e.preventDefault(); chipTouchHandled = true; cycleNote();
+  setTimeout(() => { chipTouchHandled = false; }, 400);
+}, { passive: false });
+NOTE_CHIP.addEventListener('click', () => { if (!chipTouchHandled) cycleNote(); });
+// Soft reset: restart the run at the easiest level and clear the streak, but keep
+// the best score. Triggered by the ↺ next to the cent readout.
+function resetExercise() {
+  clearTimeout(advanceTimer);
+  deviation = MAX_D; history = []; oscillations = 0; lastCorrect = null;
+  newRound(); resetStrings();
 }
 function adjust(correct) {
   if (lastCorrect !== null && lastCorrect !== correct) oscillations = Math.min(oscillations + 1, 10);
@@ -917,26 +1178,92 @@ function adjust(correct) {
 }
 function answer(userAns) {
   if (phase !== 'play' || !hasPlucked) return;
-  phase = 'feedback';
   const correct = userAns === roundDir;
   adjust(correct);
-  history.push(correct); if (history.length > 7) history.shift();
-  flashBody(correct); revealButtons(userAns, correct); updateHeader();
-  setTimeout(newRound, 950);
+  history.push(correct); if (history.length > 5) history.shift();
+  setButtonsReady(false); updateHeader();
+  showFeedback(correct);
+  if (correct) {
+    phase = 'feedback';                       // brief lockout, then auto-advance
+    clearTimeout(advanceTimer);
+    advanceTimer = setTimeout(advance, toastHold);
+  } else {
+    phase = 'review';                         // stay: re-pluck to listen, tap › to move on
+  }
 }
-function revealButtons(userAns, correct) {
-  document.querySelectorAll('.abtn').forEach(b => {
-    b.classList.remove('ready');
-    if (b.dataset.ans === roundDir) b.classList.add('reveal-correct');
-    if (!correct && b.dataset.ans === userAns) b.classList.add('reveal-wrong');
-  });
+function advance() { clearTimeout(advanceTimer); hideFeedback(); newRound(); resetStrings(); }
+function showFeedback(correct) {
+  const fb = document.getElementById('feedback');
+  document.getElementById('fbLabel').textContent = correct
+    ? pickMsg(FB_CORRECT)
+    : pickMsg(FB_INCORRECT).replace('{ans}', ANSWER_WORD[roundDir]);
+  fb.classList.toggle('has-next', !correct);
+  styleFeedback(); positionFeedback();
+  fb.classList.add('show');
 }
-function clearButtons() {
-  document.querySelectorAll('.abtn').forEach(b =>
-    b.classList.remove('ready', 'reveal-correct', 'reveal-wrong'));
+function hideFeedback() { document.getElementById('feedback').classList.remove('show'); }
+function positionFeedback() {
+  const plateBottom = bridgeCY() + 86 * (bridgeW / 220) * 0.42;  // board bottom (svg coords)
+  document.getElementById('feedback').style.top = (plateBottom + vOffset + 26) + 'px';
 }
-document.querySelectorAll('.abtn').forEach(b =>
-  b.addEventListener('click', () => answer(b.dataset.ans)));
+function styleFeedback() {
+  const fb = document.getElementById('feedback');
+  const pill = document.getElementById('fbPill'), lbl = document.getElementById('fbLabel'), nxt = document.getElementById('fbNext');
+  fb.style.transition = `opacity ${toastFade}ms ease`;
+  pill.style.background = toastBg;
+  pill.style.color = toastTextCol;
+  pill.style.setProperty('--tpv', toastPad + 'px');
+  pill.style.setProperty('--tph', (toastPad + 10) + 'px');
+  pill.style.transform = `translateY(${toastY}px) scale(${toastScale / 100})`;
+  pill.style.gap = toastNextGap + 'px';
+  pill.style.fontFamily = fontStack(toastFont);
+  lbl.style.fontSize = toastFontSize + 'px';
+  lbl.style.letterSpacing = (toastTracking / 100) + 'em';
+  lbl.style.textTransform = toastCase;
+  lbl.style.fontWeight = toastWeight;
+  nxt.style.background = toastNextBg;
+  nxt.style.color = toastNextCol;
+  nxt.style.fontSize = (toastFontSize + 4) + 'px';
+  nxt.style.transform = `translateY(${toastNextDY}px)`;
+  nxt.textContent = toastChevron;
+}
+// Static swatch in the panel so toast colours/size can be tuned without playing a round
+function renderToastPreview() {
+  const pill = document.getElementById('toastPrevPill'), nxt = document.getElementById('toastPrevNext');
+  if (!pill) return;
+  pill.style.cssText = `display:inline-flex;align-items:center;gap:${toastNextGap}px;`
+    + `font-family:${fontStack(toastFont)};border-radius:999px;`
+    + `padding:${toastPad}px 8px ${toastPad}px ${toastPad + 10}px;`
+    + `transform:scale(${toastScale / 100});transform-origin:center;`
+    + `background:${toastBg};color:${toastTextCol};font-weight:${toastWeight};`
+    + `font-size:${toastFontSize}px;letter-spacing:${(toastTracking/100)}em;`
+    + `text-transform:${toastCase};`;
+  nxt.style.cssText = `display:inline-flex;align-items:center;justify-content:center;`
+    + `width:24px;height:24px;border-radius:50%;font-style:normal;line-height:1;`
+    + `transform:translateY(${toastNextDY}px);`
+    + `background:${toastNextBg};color:${toastNextCol};font-size:${toastFontSize + 4}px;`;
+  nxt.textContent = toastChevron;
+}
+// Answer buttons: fire from touchend directly (more reliable on iOS than the
+// synthesized click), with a per-button guard so desktop click doesn't double-fire.
+// They're pointer-events:none until ready, so touchend only lands when tappable.
+document.querySelectorAll('.abtn').forEach(b => {
+  let touched = false;
+  b.addEventListener('touchend', e => {
+    e.preventDefault(); touched = true; answer(b.dataset.ans);
+    setTimeout(() => { touched = false; }, 400);
+  }, { passive: false });
+  b.addEventListener('click', () => { if (!touched) answer(b.dataset.ans); });
+});
+// During review the entire pill is the tap target (big hit area), not just the ›.
+const fbPillEl = document.getElementById('fbPill');
+fbPillEl.addEventListener('click', () => {
+  if (document.getElementById('feedback').classList.contains('has-next')) advance();
+});
+// The pill sits inside #stage, so its pointer events bubble to the string-grab
+// handlers. Keep them from propagating (a pill tap must not pluck a string).
+['mousedown', 'touchstart', 'mouseup', 'touchend'].forEach(evt =>
+  fbPillEl.addEventListener(evt, e => e.stopPropagation()));
 
 // ─────────────────────────────────────────────────────────────
 // Settings panel
@@ -949,6 +1276,7 @@ function openPanel()  { panel.classList.add('open'); overlay.classList.add('on')
 function closePanel() { panel.classList.remove('open'); overlay.classList.remove('on'); }
 
 document.getElementById('gear').addEventListener('click', openPanel);
+document.getElementById('reset').addEventListener('click', resetExercise);
 document.getElementById('pClose').addEventListener('click', closePanel);
 overlay.addEventListener('click', closePanel);
 
@@ -962,16 +1290,19 @@ function toggleSec(id) {
 
 function currentVis() {
   return {
-    bg, bgCol2, bgAngle, strCol, holeCol, notchCol2, strW, pinR,
+    bg, bgCol2, bgAngle, strCol, strW, pinR, pinCol, pinHoleR, pinHoleCol,
     stringLen: +stringLen.toFixed(2), spacing,
-    bodyColor, bodyCol2, bodyRadius, bowAmount, vibBlurAmt, vibSustain, grabZone,
-    shadowCol, shadowOp, shadowBlur, shadowDx, shadowDy, shadowHole, shadowNotch,
-    btnColor, btnFontSize, btnTracking, btnPadV, btnRadius, btnBorderW, btnGap, btnAreaPad,
+    bodyColor, bodyCol2, bodyRadius, holePos, bowAmount, vibBlurAmt, vibSustain, grabZone, resetMs,
+    rosetteCol, rosettePoints, rosetteDepth, rosetteRound, rosetteGap, rosetteW,
+    bridgeW, bridgeCol,
+    saddleYOff, saddleWFrac, saddleThick, saddleCol,
+    btnColor, btnFont, btnWeight, btnCase, btnFontSize, btnTracking, btnPadV, btnRadius, btnBorderW, btnGap, btnAreaPad,
     btnMinW, btnMaxW,
-    vOffset,
-    glowCol, glowOp, glowBlur, glowDy, glowThick,
-    ridgeSpacing, ridgeDepth, ridgeCol,
-    shadeAmt, shadeHiPos, edgeCol
+    toastBg, toastTextCol, toastNextBg, toastNextCol, toastFont, toastWeight, toastFontSize, toastTracking, toastHold, toastFade,
+    toastScale, toastPad, toastY, toastCase, toastChevron, toastNextGap, toastNextDY,
+    hdrFont, threshSize, threshCol, threshWeight, bestSize, bestOp, dotSize, dotGap, dotOkCol, dotErrCol,
+    bestGap, histGap, hdrTop,
+    vOffset
   };
 }
 
@@ -981,28 +1312,39 @@ function syncPanel() {
   g('pBgCol2').value   = bgCol2;
   g('pBgAngle').value  = bgAngle;       g('pBgAngleV').textContent   = bgAngle + '°';
   g('pStrCol').value   = strCol;
-  g('pHoleCol').value  = holeCol;
-  g('pNotchCol2').value= notchCol2;
   g('pStrW').value     = strW;          g('pStrWV').textContent      = strW;
   g('pPinR').value     = pinR;          g('pPinRV').textContent      = pinR;
+  g('pPinCol').value   = pinCol;
+  g('pPinHoleR').value = pinHoleR;      g('pPinHoleRV').textContent  = pinHoleR;
+  g('pPinHoleCol').value = pinHoleCol;
   g('pLen').value      = Math.round(stringLen*100);
                                         g('pLenV').textContent       = Math.round(stringLen*100) + '%';
   g('pSpacing').value  = spacing;       g('pSpacingV').textContent   = spacing + 'px';
   g('pBodyCol').value  = bodyColor;
   g('pBodyCol2').value = bodyCol2;
   g('pBodyR').value    = bodyRadius;    g('pBodyRV').textContent     = bodyRadius;
+  g('pBodyY').value    = Math.round(holePos*100); g('pBodyYV').textContent = Math.round(holePos*100) + '%';
+  g('pRosCol').value   = rosetteCol;
+  g('pRosPts').value   = rosettePoints; g('pRosPtsV').textContent   = rosettePoints;
+  g('pRosDepth').value = rosetteDepth;  g('pRosDepthV').textContent = rosetteDepth + 'px';
+  g('pRosRound').value = rosetteRound;  g('pRosRoundV').textContent = rosetteRound + '%';
+  g('pRosGap').value   = rosetteGap;    g('pRosGapV').textContent   = rosetteGap + 'px';
+  g('pRosW').value     = rosetteW;      g('pRosWV').textContent     = rosetteW + 'px';
+  g('pSaddleY').value  = saddleYOff;    g('pSaddleYV').textContent   = saddleYOff + 'px';
+  g('pSaddleW').value  = Math.round(saddleWFrac*100); g('pSaddleWV').textContent = Math.round(saddleWFrac*100) + '%';
+  g('pSaddleThick').value = saddleThick; g('pSaddleThickV').textContent = saddleThick + 'px';
+  g('pSaddleCol').value = saddleCol;
+  g('pBridgeW').value  = bridgeW;       g('pBridgeWV').textContent   = bridgeW + 'px';
+  g('pBridgeCol').value= bridgeCol;
   g('pBow').value      = bowAmount;     g('pBowV').textContent       = bowAmount;
   g('pVibBlur').value  = vibBlurAmt;    g('pVibBlurV').textContent   = vibBlurAmt;
   g('pSustain').value  = vibSustain;    g('pSustainV').textContent   = vibSustain;
   g('pGrab').value     = grabZone;      g('pGrabV').textContent      = grabZone + 'px';
-  g('pShadCol').value  = shadowCol;
-  g('pShadOp').value   = shadowOp;      g('pShadOpV').textContent    = shadowOp + '%';
-  g('pShadBlur').value = shadowBlur;    g('pShadBlurV').textContent  = shadowBlur;
-  g('pShadDx').value   = shadowDx;      g('pShadDxV').textContent    = shadowDx;
-  g('pShadDy').value   = shadowDy;      g('pShadDyV').textContent    = shadowDy;
-  g('pShadHole').checked  = shadowHole;
-  g('pShadNotch').checked = shadowNotch;
+  g('pResetMs').value  = resetMs;       g('pResetMsV').textContent   = resetMs ? resetMs + 'ms' : 'off';
   g('pBtnColor').value = btnColor;
+  g('pBtnFamily').value = btnFont;
+  g('pBtnWeight').value = btnWeight;    g('pBtnWeightV').textContent = btnWeight;
+  g('pBtnCase').value  = btnCase;
   g('pBtnFont').value  = btnFontSize;   g('pBtnFontV').textContent   = btnFontSize + 'px';
   g('pBtnTrack').value = btnTracking;   g('pBtnTrackV').textContent  = (btnTracking/100).toFixed(2) + 'em';
   g('pBtnPad').value   = btnPadV;       g('pBtnPadV').textContent    = btnPadV + 'px';
@@ -1012,18 +1354,38 @@ function syncPanel() {
   g('pBtnAreaPad').value=btnAreaPad;    g('pBtnAreaPadV').textContent= btnAreaPad + 'px';
   g('pBtnMinW').value  = btnMinW;       g('pBtnMinWV').textContent   = btnMinW + 'px';
   g('pBtnMaxW').value  = btnMaxW;       g('pBtnMaxWV').textContent   = btnMaxW + 'px';
+  g('pToastBg').value      = toastBg;
+  g('pToastText').value    = toastTextCol;
+  g('pToastNextBg').value  = toastNextBg;
+  g('pToastNextCol').value = toastNextCol;
+  g('pToastFamily').value  = toastFont;
+  g('pToastWeight').value  = toastWeight;   g('pToastWeightV').textContent = toastWeight;
+  g('pToastFont').value    = toastFontSize; g('pToastFontV').textContent  = toastFontSize + 'px';
+  g('pToastTrack').value   = toastTracking; g('pToastTrackV').textContent = (toastTracking/100).toFixed(2) + 'em';
+  g('pToastScale').value   = toastScale;    g('pToastScaleV').textContent = toastScale + '%';
+  g('pToastPad').value     = toastPad;      g('pToastPadV').textContent   = toastPad + 'px';
+  g('pToastY').value       = toastY;        g('pToastYV').textContent     = toastY + 'px';
+  g('pToastCase').value    = toastCase;
+  g('pToastChevron').value = toastChevron;
+  g('pToastNextGap').value = toastNextGap;  g('pToastNextGapV').textContent = toastNextGap + 'px';
+  g('pToastNextDY').value  = toastNextDY;   g('pToastNextDYV').textContent  = toastNextDY + 'px';
+  g('pToastHold').value    = toastHold;     g('pToastHoldV').textContent  = (toastHold/1000).toFixed(2) + 's';
+  g('pToastFade').value    = toastFade;     g('pToastFadeV').textContent  = toastFade + 'ms';
+  renderToastPreview();
+  g('pHdrFont').value    = hdrFont;
+  g('pThreshSize').value = threshSize;  g('pThreshSizeV').textContent   = threshSize + 'px';
+  g('pThreshCol').value  = threshCol;
+  g('pThreshWeight').value = threshWeight; g('pThreshWeightV').textContent = threshWeight;
+  g('pBestSize').value   = bestSize;    g('pBestSizeV').textContent     = bestSize + 'px';
+  g('pBestOp').value     = bestOp;      g('pBestOpV').textContent       = bestOp + '%';
+  g('pDotSize').value    = dotSize;     g('pDotSizeV').textContent      = dotSize + 'px';
+  g('pDotGap').value     = dotGap;      g('pDotGapV').textContent       = dotGap + 'px';
+  g('pDotOk').value      = dotOkCol;
+  g('pDotErr').value     = dotErrCol;
+  g('pHdrTop').value     = hdrTop;      g('pHdrTopV').textContent       = hdrTop + 'px';
+  g('pBestGap').value    = bestGap;     g('pBestGapV').textContent      = bestGap + 'px';
+  g('pHistGap').value    = histGap;     g('pHistGapV').textContent      = histGap + 'px';
   g('pVOff').value     = vOffset;       g('pVOffV').textContent      = vOffset + 'px';
-  g('pGlowCol').value  = glowCol;
-  g('pGlowOp').value   = glowOp;        g('pGlowOpV').textContent    = glowOp + '%';
-  g('pGlowBlur').value = glowBlur;      g('pGlowBlurV').textContent  = glowBlur;
-  g('pGlowDy').value   = glowDy;        g('pGlowDyV').textContent    = glowDy;
-  g('pGlowThick').value= glowThick;     g('pGlowThickV').textContent = glowThick;
-  g('pRidgeSp').value  = ridgeSpacing;  g('pRidgeSpV').textContent   = ridgeSpacing + 'px';
-  g('pRidgeDepth').value=ridgeDepth;    g('pRidgeDepthV').textContent= ridgeDepth + '%';
-  g('pRidgeCol').value = ridgeCol;
-  g('pShade').value    = shadeAmt;      g('pShadeV').textContent     = shadeAmt + '%';
-  g('pShadeHi').value  = shadeHiPos;    g('pShadeHiV').textContent   = shadeHiPos + '%';
-  g('pEdgeCol').value  = edgeCol;
   g('pJson').value = JSON.stringify(currentVis());
 }
 
@@ -1034,27 +1396,38 @@ function loadVis() {
     if (s.bgCol2      != null) bgCol2      = s.bgCol2;
     if (s.bgAngle     != null) bgAngle     = +s.bgAngle;
     if (s.strCol      != null) strCol      = s.strCol;
-    if (s.holeCol     != null) holeCol     = s.holeCol;
-    if (s.notchCol2   != null) notchCol2   = s.notchCol2;
     if (s.strW        != null) strW        = +s.strW;
     if (s.pinR        != null) pinR        = +s.pinR;
+    if (s.pinCol      != null) pinCol      = s.pinCol;
+    if (s.pinHoleR    != null) pinHoleR    = +s.pinHoleR;
+    if (s.pinHoleCol  != null) pinHoleCol  = s.pinHoleCol;
     if (s.stringLen   != null) stringLen   = +s.stringLen;
     if (s.spacing     != null) spacing     = +s.spacing < 2 ? 85 : +s.spacing;
     if (s.bodyColor   != null) bodyColor   = s.bodyColor;
     if (s.bodyCol2    != null) bodyCol2    = s.bodyCol2;
     if (s.bodyRadius  != null) bodyRadius  = +s.bodyRadius;
+    if (s.holePos     != null) holePos     = +s.holePos;
+    if (s.rosetteCol    != null) rosetteCol    = s.rosetteCol;
+    if (s.rosettePoints != null) rosettePoints = +s.rosettePoints;
+    if (s.rosetteDepth  != null) rosetteDepth  = +s.rosetteDepth;
+    if (s.rosetteRound  != null) rosetteRound  = +s.rosetteRound;
+    if (s.rosetteGap    != null) rosetteGap    = +s.rosetteGap;
+    if (s.rosetteW      != null) rosetteW      = +s.rosetteW;
     if (s.bowAmount   != null) bowAmount   = +s.bowAmount;
     if (s.vibBlurAmt  != null) vibBlurAmt  = +s.vibBlurAmt;
     if (s.vibSustain  != null) vibSustain  = +s.vibSustain;
     if (s.grabZone    != null) grabZone    = +s.grabZone;
-    if (s.shadowCol   != null) shadowCol   = s.shadowCol;
-    if (s.shadowOp    != null) shadowOp    = +s.shadowOp;
-    if (s.shadowBlur  != null) shadowBlur  = +s.shadowBlur;
-    if (s.shadowDx    != null) shadowDx    = +s.shadowDx;
-    if (s.shadowDy    != null) shadowDy    = +s.shadowDy;
-    if (s.shadowHole  != null) shadowHole  = !!s.shadowHole;
-    if (s.shadowNotch != null) shadowNotch = !!s.shadowNotch;
+    if (s.resetMs     != null) resetMs     = +s.resetMs;
+    if (s.saddleYOff  != null) saddleYOff  = +s.saddleYOff;
+    if (s.saddleWFrac != null) saddleWFrac = +s.saddleWFrac;
+    if (s.saddleThick != null) saddleThick = +s.saddleThick;
+    if (s.saddleCol   != null) saddleCol   = s.saddleCol;
+    if (s.bridgeW     != null) bridgeW     = +s.bridgeW;
+    if (s.bridgeCol   != null) bridgeCol   = s.bridgeCol;
     if (s.btnColor    != null) btnColor    = s.btnColor;
+    if (s.btnFont     != null) btnFont     = s.btnFont;
+    if (s.btnWeight   != null) btnWeight   = +s.btnWeight;
+    if (s.btnCase     != null) btnCase     = s.btnCase;
     if (s.btnFontSize != null) btnFontSize = +s.btnFontSize;
     if (s.btnTracking != null) btnTracking = +s.btnTracking;
     if (s.btnPadV     != null) btnPadV     = +s.btnPadV;
@@ -1064,18 +1437,37 @@ function loadVis() {
     if (s.btnAreaPad  != null) btnAreaPad  = +s.btnAreaPad;
     if (s.btnMinW     != null) btnMinW     = +s.btnMinW;
     if (s.btnMaxW     != null) btnMaxW     = +s.btnMaxW;
+    if (s.toastBg       != null) toastBg       = s.toastBg;
+    if (s.toastTextCol  != null) toastTextCol  = s.toastTextCol;
+    if (s.toastNextBg   != null) toastNextBg   = s.toastNextBg;
+    if (s.toastNextCol  != null) toastNextCol  = s.toastNextCol;
+    if (s.toastFontSize != null) toastFontSize = +s.toastFontSize;
+    if (s.toastTracking != null) toastTracking = +s.toastTracking;
+    if (s.toastHold     != null) toastHold     = +s.toastHold;
+    if (s.toastFade     != null) toastFade     = +s.toastFade;
+    if (s.toastScale    != null) toastScale    = +s.toastScale;
+    if (s.toastPad      != null) toastPad      = +s.toastPad;
+    if (s.toastY        != null) toastY        = +s.toastY;
+    if (s.toastCase     != null) toastCase     = s.toastCase;
+    if (s.toastChevron  != null) toastChevron  = s.toastChevron;
+    if (s.toastNextGap  != null) toastNextGap  = +s.toastNextGap;
+    if (s.toastNextDY   != null) toastNextDY   = +s.toastNextDY;
+    if (s.toastFont     != null) toastFont     = s.toastFont;
+    if (s.toastWeight   != null) toastWeight   = +s.toastWeight;
+    if (s.hdrFont       != null) hdrFont       = s.hdrFont;
+    if (s.threshSize    != null) threshSize    = +s.threshSize;
+    if (s.threshCol     != null) threshCol     = s.threshCol;
+    if (s.threshWeight  != null) threshWeight  = +s.threshWeight;
+    if (s.bestSize      != null) bestSize      = +s.bestSize;
+    if (s.bestOp        != null) bestOp        = +s.bestOp;
+    if (s.dotSize       != null) dotSize       = +s.dotSize;
+    if (s.dotGap        != null) dotGap        = +s.dotGap;
+    if (s.dotOkCol      != null) dotOkCol      = s.dotOkCol;
+    if (s.dotErrCol     != null) dotErrCol     = s.dotErrCol;
+    if (s.bestGap       != null) bestGap       = +s.bestGap;
+    if (s.histGap       != null) histGap       = +s.histGap;
+    if (s.hdrTop        != null) hdrTop        = +s.hdrTop;
     if (s.vOffset     != null) vOffset     = +s.vOffset;
-    if (s.glowCol     != null) glowCol     = s.glowCol;
-    if (s.glowOp      != null) glowOp      = +s.glowOp;
-    if (s.glowBlur    != null) glowBlur    = +s.glowBlur;
-    if (s.glowDy      != null) glowDy      = +s.glowDy;
-    if (s.glowThick   != null) glowThick   = +s.glowThick;
-    if (s.ridgeSpacing!= null) ridgeSpacing= +s.ridgeSpacing;
-    if (s.ridgeDepth  != null) ridgeDepth  = +s.ridgeDepth;
-    if (s.ridgeCol    != null) ridgeCol    = s.ridgeCol;
-    if (s.shadeAmt    != null) shadeAmt    = +s.shadeAmt;
-    if (s.shadeHiPos  != null) shadeHiPos  = +s.shadeHiPos;
-    if (s.edgeCol     != null) edgeCol     = s.edgeCol;
   } catch(e) {}
 }
 function saveVis() { localStorage.setItem(LS_VIS, JSON.stringify(currentVis())); }
@@ -1085,27 +1477,38 @@ function applyVisObj(s) {
   if (s.bgCol2      != null) bgCol2      = s.bgCol2;
   if (s.bgAngle     != null) bgAngle     = +s.bgAngle;
   if (s.strCol      != null) strCol      = s.strCol;
-  if (s.holeCol     != null) holeCol     = s.holeCol;
-  if (s.notchCol2   != null) notchCol2   = s.notchCol2;
   if (s.strW        != null) strW        = +s.strW;
   if (s.pinR        != null) pinR        = +s.pinR;
+  if (s.pinCol      != null) pinCol      = s.pinCol;
+  if (s.pinHoleR    != null) pinHoleR    = +s.pinHoleR;
+  if (s.pinHoleCol  != null) pinHoleCol  = s.pinHoleCol;
   if (s.stringLen   != null) stringLen   = +s.stringLen;
   if (s.spacing     != null) spacing     = +s.spacing < 2 ? 85 : +s.spacing;
   if (s.bodyColor   != null) bodyColor   = s.bodyColor;
   if (s.bodyCol2    != null) bodyCol2    = s.bodyCol2;
   if (s.bodyRadius  != null) bodyRadius  = +s.bodyRadius;
+  if (s.holePos     != null) holePos     = +s.holePos;
+  if (s.rosetteCol    != null) rosetteCol    = s.rosetteCol;
+  if (s.rosettePoints != null) rosettePoints = +s.rosettePoints;
+  if (s.rosetteDepth  != null) rosetteDepth  = +s.rosetteDepth;
+  if (s.rosetteRound  != null) rosetteRound  = +s.rosetteRound;
+  if (s.rosetteGap    != null) rosetteGap    = +s.rosetteGap;
+  if (s.rosetteW      != null) rosetteW      = +s.rosetteW;
   if (s.bowAmount   != null) bowAmount   = +s.bowAmount;
   if (s.vibBlurAmt  != null) vibBlurAmt  = +s.vibBlurAmt;
   if (s.vibSustain  != null) vibSustain  = +s.vibSustain;
   if (s.grabZone    != null) grabZone    = +s.grabZone;
-  if (s.shadowCol   != null) shadowCol   = s.shadowCol;
-  if (s.shadowOp    != null) shadowOp    = +s.shadowOp;
-  if (s.shadowBlur  != null) shadowBlur  = +s.shadowBlur;
-  if (s.shadowDx    != null) shadowDx    = +s.shadowDx;
-  if (s.shadowDy    != null) shadowDy    = +s.shadowDy;
-  if (s.shadowHole  != null) shadowHole  = !!s.shadowHole;
-  if (s.shadowNotch != null) shadowNotch = !!s.shadowNotch;
+  if (s.resetMs     != null) resetMs     = +s.resetMs;
+  if (s.saddleYOff  != null) saddleYOff  = +s.saddleYOff;
+  if (s.saddleWFrac != null) saddleWFrac = +s.saddleWFrac;
+  if (s.saddleThick != null) saddleThick = +s.saddleThick;
+  if (s.saddleCol   != null) saddleCol   = s.saddleCol;
+  if (s.bridgeW     != null) bridgeW     = +s.bridgeW;
+  if (s.bridgeCol   != null) bridgeCol   = s.bridgeCol;
   if (s.btnColor    != null) btnColor    = s.btnColor;
+  if (s.btnFont     != null) btnFont     = s.btnFont;
+  if (s.btnWeight   != null) btnWeight   = +s.btnWeight;
+  if (s.btnCase     != null) btnCase     = s.btnCase;
   if (s.btnFontSize != null) btnFontSize = +s.btnFontSize;
   if (s.btnTracking != null) btnTracking = +s.btnTracking;
   if (s.btnPadV     != null) btnPadV     = +s.btnPadV;
@@ -1115,18 +1518,37 @@ function applyVisObj(s) {
   if (s.btnAreaPad  != null) btnAreaPad  = +s.btnAreaPad;
   if (s.btnMinW     != null) btnMinW     = +s.btnMinW;
   if (s.btnMaxW     != null) btnMaxW     = +s.btnMaxW;
+  if (s.toastBg       != null) toastBg       = s.toastBg;
+  if (s.toastTextCol  != null) toastTextCol  = s.toastTextCol;
+  if (s.toastNextBg   != null) toastNextBg   = s.toastNextBg;
+  if (s.toastNextCol  != null) toastNextCol  = s.toastNextCol;
+  if (s.toastFontSize != null) toastFontSize = +s.toastFontSize;
+  if (s.toastTracking != null) toastTracking = +s.toastTracking;
+  if (s.toastHold     != null) toastHold     = +s.toastHold;
+  if (s.toastFade     != null) toastFade     = +s.toastFade;
+  if (s.toastScale    != null) toastScale    = +s.toastScale;
+  if (s.toastPad      != null) toastPad      = +s.toastPad;
+  if (s.toastY        != null) toastY        = +s.toastY;
+  if (s.toastCase     != null) toastCase     = s.toastCase;
+  if (s.toastChevron  != null) toastChevron  = s.toastChevron;
+  if (s.toastNextGap  != null) toastNextGap  = +s.toastNextGap;
+  if (s.toastNextDY   != null) toastNextDY   = +s.toastNextDY;
+  if (s.toastFont     != null) toastFont     = s.toastFont;
+  if (s.toastWeight   != null) toastWeight   = +s.toastWeight;
+  if (s.hdrFont       != null) hdrFont       = s.hdrFont;
+  if (s.threshSize    != null) threshSize    = +s.threshSize;
+  if (s.threshCol     != null) threshCol     = s.threshCol;
+  if (s.threshWeight  != null) threshWeight  = +s.threshWeight;
+  if (s.bestSize      != null) bestSize      = +s.bestSize;
+  if (s.bestOp        != null) bestOp        = +s.bestOp;
+  if (s.dotSize       != null) dotSize       = +s.dotSize;
+  if (s.dotGap        != null) dotGap        = +s.dotGap;
+  if (s.dotOkCol      != null) dotOkCol      = s.dotOkCol;
+  if (s.dotErrCol     != null) dotErrCol     = s.dotErrCol;
+  if (s.bestGap       != null) bestGap       = +s.bestGap;
+  if (s.histGap       != null) histGap       = +s.histGap;
+  if (s.hdrTop        != null) hdrTop        = +s.hdrTop;
   if (s.vOffset     != null) vOffset     = +s.vOffset;
-  if (s.glowCol     != null) glowCol     = s.glowCol;
-  if (s.glowOp      != null) glowOp      = +s.glowOp;
-  if (s.glowBlur    != null) glowBlur    = +s.glowBlur;
-  if (s.glowDy      != null) glowDy      = +s.glowDy;
-  if (s.glowThick   != null) glowThick   = +s.glowThick;
-  if (s.ridgeSpacing!= null) ridgeSpacing= +s.ridgeSpacing;
-  if (s.ridgeDepth  != null) ridgeDepth  = +s.ridgeDepth;
-  if (s.ridgeCol    != null) ridgeCol    = s.ridgeCol;
-  if (s.shadeAmt    != null) shadeAmt    = +s.shadeAmt;
-  if (s.shadeHiPos  != null) shadeHiPos  = +s.shadeHiPos;
-  if (s.edgeCol     != null) edgeCol     = s.edgeCol;
 }
 
 // Live inputs
@@ -1135,27 +1557,38 @@ on('pBg',        e => { bg         = e.target.value; applyBg(); });
 on('pBgCol2',    e => { bgCol2     = e.target.value; applyBg(); });
 on('pBgAngle',   e => { bgAngle    = +e.target.value; document.getElementById('pBgAngleV').textContent = bgAngle+'°'; applyBg(); });
 on('pStrCol',    e => { strCol     = e.target.value; applyColors(); });
-on('pHoleCol',   e => { holeCol    = e.target.value; applyColors(); });
-on('pNotchCol2', e => { notchCol2  = e.target.value; applyNotchGrad(); });
 on('pStrW',      e => { strW       = +e.target.value; document.getElementById('pStrWV').textContent    = strW; applyStringWidth(); });
-on('pPinR',      e => { pinR       = +e.target.value; document.getElementById('pPinRV').textContent    = pinR; buildSVG(); });
+on('pPinR',      e => { pinR       = +e.target.value; document.getElementById('pPinRV').textContent    = pinR; applyPins(); });
+on('pPinCol',    e => { pinCol     = e.target.value; applyPins(); });
+on('pPinHoleR',  e => { pinHoleR   = +e.target.value; document.getElementById('pPinHoleRV').textContent= pinHoleR; applyPins(); });
+on('pPinHoleCol',e => { pinHoleCol = e.target.value; applyPins(); });
 on('pLen',       e => { stringLen  = +e.target.value/100; document.getElementById('pLenV').textContent = e.target.value+'%'; buildSVG(); });
 on('pSpacing',   e => { spacing    = +e.target.value; document.getElementById('pSpacingV').textContent = spacing+'px'; buildSVG(); });
 on('pBodyCol',   e => { bodyColor  = e.target.value; applyBody(); });
 on('pBodyCol2',  e => { bodyCol2   = e.target.value; applyBody(); });
 on('pBodyR',     e => { bodyRadius = +e.target.value; document.getElementById('pBodyRV').textContent   = bodyRadius; applyBody(); });
+on('pBodyY',     e => { holePos    = +e.target.value/100; document.getElementById('pBodyYV').textContent = e.target.value+'%'; buildSVG(); });
+on('pRosCol',    e => { rosetteCol   = e.target.value; applyRosette(); });
+on('pRosPts',    e => { rosettePoints= +e.target.value; document.getElementById('pRosPtsV').textContent  = rosettePoints; applyRosette(); });
+on('pRosDepth',  e => { rosetteDepth = +e.target.value; document.getElementById('pRosDepthV').textContent= rosetteDepth+'px'; applyRosette(); });
+on('pRosRound',  e => { rosetteRound = +e.target.value; document.getElementById('pRosRoundV').textContent= rosetteRound+'%'; applyRosette(); });
+on('pRosGap',    e => { rosetteGap   = +e.target.value; document.getElementById('pRosGapV').textContent  = rosetteGap+'px'; applyRosette(); });
+on('pRosW',      e => { rosetteW     = +e.target.value; document.getElementById('pRosWV').textContent    = rosetteW+'px'; applyRosette(); });
+on('pSaddleY',   e => { saddleYOff = +e.target.value; document.getElementById('pSaddleYV').textContent = saddleYOff+'px'; applySaddle(); });
+on('pSaddleW',   e => { saddleWFrac= +e.target.value/100; document.getElementById('pSaddleWV').textContent = e.target.value+'%'; applySaddle(); });
+on('pSaddleThick',e => { saddleThick= +e.target.value; document.getElementById('pSaddleThickV').textContent= saddleThick+'px'; applySaddle(); });
+on('pSaddleCol', e => { saddleCol  = e.target.value; applySaddle(); });
+on('pBridgeW',   e => { bridgeW    = +e.target.value; document.getElementById('pBridgeWV').textContent = bridgeW+'px'; applyBridge(); applySaddle(); });
+on('pBridgeCol', e => { bridgeCol  = e.target.value; applyBridge(); });
 on('pBow',       e => { bowAmount  = +e.target.value; document.getElementById('pBowV').textContent     = bowAmount; });
 on('pVibBlur',   e => { vibBlurAmt = +e.target.value; document.getElementById('pVibBlurV').textContent = vibBlurAmt; });
 on('pSustain',   e => { vibSustain = +e.target.value; document.getElementById('pSustainV').textContent = vibSustain; });
 on('pGrab',      e => { grabZone   = +e.target.value; document.getElementById('pGrabV').textContent    = grabZone+'px'; });
-on('pShadCol',   e => { shadowCol  = e.target.value; applyDropShadow(); });
-on('pShadOp',    e => { shadowOp   = +e.target.value; document.getElementById('pShadOpV').textContent  = shadowOp+'%'; applyDropShadow(); });
-on('pShadBlur',  e => { shadowBlur = +e.target.value; document.getElementById('pShadBlurV').textContent= shadowBlur; applyDropShadow(); });
-on('pShadDx',    e => { shadowDx   = +e.target.value; document.getElementById('pShadDxV').textContent  = shadowDx; applyDropShadow(); });
-on('pShadDy',    e => { shadowDy   = +e.target.value; document.getElementById('pShadDyV').textContent  = shadowDy; applyDropShadow(); });
-on('pShadHole',  e => { shadowHole = e.target.checked; applyDropShadow(); });
-on('pShadNotch', e => { shadowNotch= e.target.checked; applyDropShadow(); });
+on('pResetMs',   e => { resetMs    = +e.target.value; document.getElementById('pResetMsV').textContent = resetMs ? resetMs+'ms' : 'off'; resetStrings(); });
 on('pBtnColor',  e => { btnColor   = e.target.value; applyButtonStyles(); });
+on('pBtnFamily', e => { btnFont    = e.target.value; applyButtonStyles(); });
+on('pBtnWeight', e => { btnWeight  = +e.target.value; document.getElementById('pBtnWeightV').textContent = btnWeight; applyButtonStyles(); });
+on('pBtnCase',   e => { btnCase    = e.target.value; applyButtonStyles(); });
 on('pBtnFont',   e => { btnFontSize= +e.target.value; document.getElementById('pBtnFontV').textContent = btnFontSize+'px'; applyButtonStyles(); });
 on('pBtnTrack',  e => { btnTracking= +e.target.value; document.getElementById('pBtnTrackV').textContent= (btnTracking/100).toFixed(2)+'em'; applyButtonStyles(); });
 on('pBtnPad',    e => { btnPadV    = +e.target.value; document.getElementById('pBtnPadV').textContent  = btnPadV+'px'; applyButtonStyles(); });
@@ -1165,18 +1598,37 @@ on('pBtnGap',    e => { btnGap     = +e.target.value; document.getElementById('p
 on('pBtnAreaPad',e => { btnAreaPad = +e.target.value; document.getElementById('pBtnAreaPadV').textContent= btnAreaPad+'px'; applyButtonStyles(); });
 on('pBtnMinW',   e => { btnMinW    = +e.target.value; document.getElementById('pBtnMinWV').textContent  = btnMinW+'px'; applyButtonStyles(); });
 on('pBtnMaxW',   e => { btnMaxW    = +e.target.value; document.getElementById('pBtnMaxWV').textContent  = btnMaxW+'px'; applyButtonStyles(); });
+on('pToastBg',     e => { toastBg      = e.target.value; styleFeedback(); renderToastPreview(); });
+on('pToastText',   e => { toastTextCol = e.target.value; styleFeedback(); renderToastPreview(); });
+on('pToastNextBg', e => { toastNextBg  = e.target.value; styleFeedback(); renderToastPreview(); });
+on('pToastNextCol',e => { toastNextCol = e.target.value; styleFeedback(); renderToastPreview(); });
+on('pToastChevron',e => { toastChevron = e.target.value || '›'; styleFeedback(); renderToastPreview(); });
+on('pToastNextGap',e => { toastNextGap = +e.target.value; document.getElementById('pToastNextGapV').textContent = toastNextGap+'px'; styleFeedback(); renderToastPreview(); });
+on('pToastNextDY', e => { toastNextDY  = +e.target.value; document.getElementById('pToastNextDYV').textContent  = toastNextDY+'px'; styleFeedback(); renderToastPreview(); });
+on('pToastCase',   e => { toastCase    = e.target.value; styleFeedback(); renderToastPreview(); });
+on('pToastFamily', e => { toastFont    = e.target.value; styleFeedback(); renderToastPreview(); });
+on('pToastWeight', e => { toastWeight  = +e.target.value; document.getElementById('pToastWeightV').textContent = toastWeight; styleFeedback(); renderToastPreview(); });
+on('pToastFont',   e => { toastFontSize= +e.target.value; document.getElementById('pToastFontV').textContent = toastFontSize+'px'; styleFeedback(); renderToastPreview(); });
+on('pToastTrack',  e => { toastTracking= +e.target.value; document.getElementById('pToastTrackV').textContent= (toastTracking/100).toFixed(2)+'em'; styleFeedback(); renderToastPreview(); });
+on('pToastScale',  e => { toastScale   = +e.target.value; document.getElementById('pToastScaleV').textContent = toastScale+'%'; styleFeedback(); renderToastPreview(); });
+on('pToastPad',    e => { toastPad     = +e.target.value; document.getElementById('pToastPadV').textContent   = toastPad+'px'; styleFeedback(); renderToastPreview(); });
+on('pToastY',      e => { toastY       = +e.target.value; document.getElementById('pToastYV').textContent     = toastY+'px'; styleFeedback(); });
+on('pToastHold',   e => { toastHold    = +e.target.value; document.getElementById('pToastHoldV').textContent = (toastHold/1000).toFixed(2)+'s'; });
+on('pToastFade',   e => { toastFade    = +e.target.value; document.getElementById('pToastFadeV').textContent = toastFade+'ms'; document.getElementById('feedback').style.transition = `opacity ${toastFade}ms ease`; });
+on('pHdrFont',     e => { hdrFont      = e.target.value; applyHeader(); });
+on('pThreshSize',  e => { threshSize   = +e.target.value; document.getElementById('pThreshSizeV').textContent = threshSize+'px'; applyHeader(); });
+on('pThreshCol',   e => { threshCol    = e.target.value; applyHeader(); });
+on('pThreshWeight',e => { threshWeight = +e.target.value; document.getElementById('pThreshWeightV').textContent = threshWeight; applyHeader(); });
+on('pBestSize',    e => { bestSize     = +e.target.value; document.getElementById('pBestSizeV').textContent = bestSize+'px'; applyHeader(); });
+on('pBestOp',      e => { bestOp       = +e.target.value; document.getElementById('pBestOpV').textContent = bestOp+'%'; applyHeader(); });
+on('pDotSize',     e => { dotSize      = +e.target.value; document.getElementById('pDotSizeV').textContent = dotSize+'px'; applyHeader(); });
+on('pDotGap',      e => { dotGap       = +e.target.value; document.getElementById('pDotGapV').textContent = dotGap+'px'; applyHeader(); });
+on('pDotOk',       e => { dotOkCol     = e.target.value; applyHeader(); });
+on('pDotErr',      e => { dotErrCol    = e.target.value; applyHeader(); });
+on('pHdrTop',      e => { hdrTop       = +e.target.value; document.getElementById('pHdrTopV').textContent = hdrTop+'px'; applyHeader(); });
+on('pBestGap',     e => { bestGap      = +e.target.value; document.getElementById('pBestGapV').textContent = bestGap+'px'; applyHeader(); });
+on('pHistGap',     e => { histGap      = +e.target.value; document.getElementById('pHistGapV').textContent = histGap+'px'; applyHeader(); });
 on('pVOff',      e => { vOffset    = +e.target.value; document.getElementById('pVOffV').textContent     = vOffset+'px'; applyVOffset(); });
-on('pGlowCol',   e => { glowCol    = e.target.value; applyHoleGlow(); });
-on('pGlowOp',    e => { glowOp     = +e.target.value; document.getElementById('pGlowOpV').textContent   = glowOp+'%'; applyHoleGlow(); });
-on('pGlowBlur',  e => { glowBlur   = +e.target.value; document.getElementById('pGlowBlurV').textContent = glowBlur; applyHoleGlow(); });
-on('pGlowDy',    e => { glowDy     = +e.target.value; document.getElementById('pGlowDyV').textContent   = glowDy; applyHoleGlow(); });
-on('pGlowThick', e => { glowThick  = +e.target.value; document.getElementById('pGlowThickV').textContent= glowThick; applyHoleGlow(); });
-on('pRidgeSp',   e => { ridgeSpacing=+e.target.value; document.getElementById('pRidgeSpV').textContent  = ridgeSpacing+'px'; applyRidges(); });
-on('pRidgeDepth',e => { ridgeDepth = +e.target.value; document.getElementById('pRidgeDepthV').textContent=ridgeDepth+'%'; applyRidges(); });
-on('pRidgeCol',  e => { ridgeCol   = e.target.value; applyRidges(); });
-on('pShade',     e => { shadeAmt   = +e.target.value; document.getElementById('pShadeV').textContent    = shadeAmt+'%'; applyStringGradient(); });
-on('pShadeHi',   e => { shadeHiPos = +e.target.value; document.getElementById('pShadeHiV').textContent  = shadeHiPos+'%'; applyStringGradient(); });
-on('pEdgeCol',   e => { edgeCol    = e.target.value; applyStringGradient(); });
 
 // Keep textarea live when any slider moves
 document.getElementById('panel-scroll').addEventListener('input',
@@ -1201,7 +1653,7 @@ document.getElementById('pApply').addEventListener('click', () => {
   try {
     applyVisObj(JSON.parse(document.getElementById('pJson').value));
     syncPanel(); applyBg(); applyColors(); applyStringWidth();
-    applyBody(); applyDropShadow(); applyButtonStyles(); buildSVG();
+    applyBody(); applyHeader(); applyButtonStyles(); buildSVG();
   } catch(e) {}
 });
 
@@ -1211,9 +1663,14 @@ document.getElementById('pApply').addEventListener('click', () => {
 loadVis(); loadGame();
 deviation = Math.min(MAX_D, bestDev * 1.5);
 applyBg();
+applyHeader();
+updateNoteChip();
 applyButtonStyles();  // size the buttons first so #answers has its final height…
 buildSVG();           // …then buildSVG measures it correctly for vertical centering
 newRound();
+// Start with every panel section collapsed
+document.querySelectorAll('.psec-body').forEach(b => b.classList.add('collapsed'));
+document.querySelectorAll('.psec-arrow').forEach(a => a.textContent = '▸');
 // Web font (Rubik) loads async and nudges the buttons-bar height — recenter once ready
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(applyVOffset);
 </script>
