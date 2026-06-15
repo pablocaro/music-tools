@@ -22,45 +22,92 @@
       flex-shrink: 0; min-height: 58px;
       /* safe-area clears the notch/status bar; --hdr-top is a manual nudge on top of that */
       padding: calc(env(safe-area-inset-top, 0px) + var(--hdr-top, 0px)) 20px 6px;
-      display: flex; align-items: center; justify-content: space-between;
+      display: flex; align-items: flex-start; justify-content: space-between;
       position: relative; z-index: 5;   /* sits above the strings that run up to the top */
     }
-    #threshold-row { display: flex; align-items: center; gap: 11px; }
-    #threshold { font-size: 22px; letter-spacing: 0.5px; opacity: .85; }
-    #threshold .unit { font-size: 13px; opacity: .45; margin-left: 1px; }
-    #reset {
-      width: 34px; height: 34px; border-radius: 50%; padding: 0;
-      border: 1px solid rgba(235,235,235,.2); background: rgba(235,235,235,.06);
-      color: rgba(235,235,235,.5); font-size: 16px; line-height: 1; cursor: pointer;
-      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-      touch-action: manipulation;
+    /* gear + cent pill share one top-aligned row; best/dots flow below the cent pill */
+    #header-left { display: flex; align-items: flex-start; gap: 10px; flex-shrink: 0; }
+    #cent-col { display: flex; flex-direction: column; }
+    /* Cent readout doubles as the reset button (tap → inline confirm) */
+    #centChip {
+      display: inline-flex; align-items: center; gap: 8px;
+      height: var(--hbtn-size, 34px); padding: 0 14px; border-radius: 999px; cursor: pointer; touch-action: manipulation;
+      border: var(--hbtn-stroke, 1px) solid color-mix(in srgb, var(--hbtn-border, #ebebeb) 22%, transparent);
+      background: rgba(235,235,235,.06);
+      font-family: var(--top-font, 'Rubik', system-ui, sans-serif); font-size: var(--chip-size, 15px);
+      font-weight: 500; letter-spacing: .5px; color: color-mix(in srgb, var(--hbtn-col, #ebebeb) 64%, transparent);
     }
-    #reset:active { background: rgba(235,235,235,.15); color: rgba(235,235,235,.85); }
+    #centChip:active { background: rgba(235,235,235,.12); }
+    #threshold { line-height: 1; }   /* size / weight / colour inherited from #centChip */
+    #threshold .unit { font-size: .72em; opacity: .55; margin-left: 1px; }
+    #centConfirm { display: none; align-items: center; gap: 6px; }   /* font + colour inherited */
+    #centChip.confirming #threshold { display: none; }
+    #centChip.confirming #centConfirm { display: inline-flex; }
+    #resetYes, #resetNo {
+      width: 22px; height: 22px; border-radius: 50%; padding: 0; cursor: pointer; touch-action: manipulation;
+      border: 1px solid color-mix(in srgb, var(--hbtn-border, #ebebeb) 30%, transparent);
+      background: rgba(235,235,235,.08); font-size: 12px; line-height: 1;
+      color: var(--hbtn-col, #ebebeb);
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    #resetYes svg, #resetNo svg { width: 11px; height: 11px; display: block; }
     #best { font-size: 10px; letter-spacing: 2px; opacity: .3; margin-top: 3px; }
-    #header-right { display: flex; align-items: center; gap: 12px; }
-    #history { display: flex; gap: var(--dot-gap, 6px); align-items: center; margin-top: 8px; }
-    .dot { width: var(--dot-size, 7px); height: var(--dot-size, 7px); border-radius: 50%; background: rgba(235,235,235,.14); transition: background .3s; }
-    .dot.ok  { background: color-mix(in srgb, var(--dot-ok, #ebebeb) 75%, transparent); }
-    .dot.err { background: color-mix(in srgb, var(--dot-err, #ff6464) 65%, transparent); }
+    #header-right { display: flex; align-items: center; gap: 8px; min-width: 0; }
     #gear {
-      width: 34px; height: 34px; border-radius: 50%;
-      border: 1px solid rgba(235,235,235,.2); background: rgba(235,235,235,.06);
-      color: rgba(235,235,235,.5); font: 8px 'Courier New', monospace;
-      letter-spacing: 1px; cursor: pointer; flex-shrink: 0; touch-action: manipulation;
+      width: var(--hbtn-size, 34px); height: var(--hbtn-size, 34px); border-radius: 50%; padding: 0;
+      border: var(--hbtn-stroke, 1px) solid color-mix(in srgb, var(--hbtn-border, #ebebeb) 22%, transparent); background: rgba(235,235,235,.06);
+      color: color-mix(in srgb, var(--hbtn-col, #ebebeb) 60%, transparent);
+      cursor: pointer; flex-shrink: 0; touch-action: manipulation;
+      display: inline-flex; align-items: center; justify-content: center;
     }
+    #gear svg { width: 55%; height: 55%; display: block; }
     #gear:active { background: rgba(235,235,235,.15); }
-    #noteChip {
-      min-width: 52px; height: 34px; border-radius: 17px; padding: 0 14px;
-      border: 1px solid rgba(235,235,235,.2); background: rgba(235,235,235,.06);
-      color: rgba(235,235,235,.62); font-family: 'Rubik', system-ui, sans-serif;
-      font-size: 13px; font-weight: 500; letter-spacing: .5px; cursor: pointer;
-      flex-shrink: 0; touch-action: manipulation;
+    /* Single selector button — label adapts, width follows the text */
+    #niWrap { position: relative; display: flex; min-width: 0; }
+    #niBtn {
+      display: inline-flex; align-items: center; gap: 5px; max-width: 58vw; flex-shrink: 1; min-width: 0;
+      height: var(--hbtn-size, 34px); padding: 0 13px; border-radius: 999px; cursor: pointer; touch-action: manipulation;
+      border: var(--hbtn-stroke, 1px) solid color-mix(in srgb, var(--hbtn-border, #ebebeb) 22%, transparent);
+      background: rgba(235,235,235,.06);
+      color: color-mix(in srgb, var(--hbtn-col, #ebebeb) 64%, transparent);
+      font-family: var(--top-font, 'Rubik', system-ui, sans-serif); font-size: var(--chip-size, 15px); font-weight: 500; letter-spacing: .5px;
+      white-space: nowrap;
     }
-    #noteChip:active { background: rgba(235,235,235,.15); color: rgba(235,235,235,.9); }
+    #niBtn:active { background: rgba(235,235,235,.12); }
+    #niLabel { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    .ni-caret { font-size: 10px; opacity: .55; line-height: 1; }
+    /* Custom grid popover */
+    #niPop {
+      position: absolute; top: calc(100% + 6px); right: 0; z-index: 40;
+      display: none; flex-direction: column; gap: 3px; width: max-content;
+      padding: 10px; border-radius: 14px;
+      background: #33231a; border: 1px solid rgba(235,235,235,.12);
+      box-shadow: 0 12px 34px rgba(0,0,0,.4);
+    }
+    #niWrap.open #niPop { display: flex; }
+    /* transparent tap-catcher: closes on outside tap, no dim, swallows the board pluck */
+    #niScrim { position: fixed; inset: 0; z-index: 39; display: none; }
+    #niWrap.open #niScrim { display: block; }
+    .nip-sec { font: 600 9px 'Rubik', system-ui, sans-serif; letter-spacing: 1.5px;
+      color: rgba(235,235,235,.4); margin: 3px 2px 1px; }
+    .nip-grid { display: grid; gap: 5px; }
+    .nip-notes { grid-template-columns: repeat(4, 1fr); }
+    .nip-ints  { grid-template-columns: repeat(5, 1fr); }
+    .nip-wide  { grid-column: 1 / -1; }
+    .nip-cell {
+      min-width: 42px; height: 32px; padding: 0 6px; border-radius: 8px; cursor: pointer; touch-action: manipulation;
+      border: 1px solid rgba(235,235,235,.1); background: rgba(235,235,235,.05);
+      color: rgba(235,235,235,.72); font-family: 'Rubik', system-ui, sans-serif; font-size: 12px; font-weight: 500;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .nip-cell:active { background: rgba(235,235,235,.16); }
+    .nip-cell.sel { background: color-mix(in srgb, var(--hbtn-col, #ebebeb) 90%, transparent); color: #33231a; border-color: transparent; }
 
     /* ── Stage ──────────────────────────────── */
     #stage { flex: 1; position: relative; overflow: visible; }
-    #svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+    /* purely visual; the vOffset transform shifts its box down over the answer buttons,
+       so it must not intercept touches — all interaction is handled on #stage by coords */
+    #svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
     #feedback {
       position: absolute; left: 0; right: 0; text-align: center; z-index: 2;
       opacity: 0; transition: opacity .25s ease; pointer-events: none;
@@ -109,17 +156,12 @@
       color: var(--btn-ready);
       pointer-events: all;
     }
-    .abtn.ready:active { background: rgba(235,235,235,.07); }
+    .abtn.ready:active { background: var(--btn-press, rgba(235,235,235,.12)); }
 
     /* ── Overlay (tap-outside-to-close) ─────── */
-    #overlay {
-      position: fixed; inset: 0; z-index: 24;
-      background: rgba(0,0,0,0); pointer-events: none;
-      transition: background .22s;
-    }
-    #overlay.on { pointer-events: all; background: rgba(0,0,0,.25); }
 
     /* ── Settings panel ─────────────────────── */
+    /* Side drawer — overlays from the right (does NOT push the app), no dim */
     #panel {
       position: fixed; top: 0; right: 0;
       width: min(270px, 84vw); height: 100%;
@@ -139,13 +181,14 @@
     }
     #panel-head h2 { font-size: 10px; letter-spacing: 3px; opacity: .35; font-weight: normal; }
     #pClose {
-      width: 28px; height: 28px; border-radius: 50%;
+      width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%; padding: 0;
+      display: flex; align-items: center; justify-content: center;
       border: 1px solid rgba(235,235,235,.18); background: rgba(235,235,235,.05);
-      color: rgba(235,235,235,.5); font-size: 13px; cursor: pointer;
+      color: rgba(235,235,235,.5); font-size: 13px; cursor: pointer; touch-action: manipulation;
     }
     #pClose:active { background: rgba(235,235,235,.15); }
 
-    #panel-scroll { flex: 1; overflow-y: auto; padding: 6px 18px 24px; }
+    #panel-scroll { flex: 1; overflow-y: auto; padding: 6px 18px calc(24px + env(safe-area-inset-bottom, 0px)); }
 
     /* Collapsible sections */
     .psec-hdr {
@@ -161,20 +204,23 @@
     .psec-body { overflow: hidden; max-height: 1200px; transition: max-height .25s ease; }
     .psec-body.collapsed { max-height: 0; }
 
-    .prow { margin-bottom: 18px; }
-    .prow label { display: flex; justify-content: space-between; margin-bottom: 8px; opacity: .48; }
+    .prow { margin-bottom: 11px; }
+    .prow label { display: flex; justify-content: space-between; margin-bottom: 5px; opacity: .48; }
     .prow .v { opacity: .6; }
-    .prow input[type="range"] { width: 100%; accent-color: #999; }
+    .prow input[type="range"] { width: 100%; accent-color: #999; display: block; }
+    /* Color rows: label left, compact swatch chip right */
+    .prow:has(input[type="color"]) { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .prow:has(input[type="color"]) label { margin-bottom: 0; flex: 1; }
     .prow input[type="color"] {
-      width: 100%; height: 26px; padding: 2px;
-      border: 1px solid rgba(235,235,235,.12); background: none; cursor: pointer;
+      width: 30px; height: 24px; flex-shrink: 0; padding: 2px; border-radius: 6px;
+      border: 1px solid rgba(235,235,235,.18); background: none; cursor: pointer;
     }
-    .prow button, #panel button {
+    .prow button, #panel-scroll button {
       font: 10px 'Courier New', monospace; letter-spacing: 1.5px;
       border: 1px solid rgba(235,235,235,.16); background: rgba(235,235,235,.04);
       color: rgba(235,235,235,.55); padding: 7px 10px; cursor: pointer; width: 100%;
     }
-    .prow button:active, #panel button:active { background: rgba(235,235,235,.12); }
+    .prow button:active, #panel-scroll button:active { background: rgba(235,235,235,.12); }
     #panel textarea {
       width: 100%; font: 10px 'Courier New', monospace;
       background: rgba(235,235,235,.03); color: rgba(235,235,235,.55);
@@ -196,17 +242,44 @@
 <body>
 
 <div id="header">
-  <div>
-    <div id="threshold-row">
-      <div id="threshold">—<span class="unit">¢</span></div>
-      <button id="reset" aria-label="Reset exercise" title="Reset">↺</button>
+  <div id="header-left">
+    <button id="gear" aria-label="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
+    <div id="cent-col">
+      <div id="centChip" aria-label="Threshold; tap to reset">
+        <span id="threshold">—<span class="unit">¢</span></span>
+        <span id="centConfirm">Reset?<button id="resetYes" aria-label="Confirm reset"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg></button><button id="resetNo" aria-label="Cancel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></span>
+      </div>
+      <div id="best"></div>
     </div>
-    <div id="best"></div>
-    <div id="history"></div>
   </div>
   <div id="header-right">
-    <button id="noteChip" aria-label="Test note">A4</button>
-    <button id="gear">SET</button>
+    <div id="niWrap">
+      <button id="niBtn" aria-label="Notes and intervals"><span id="niLabel">All Notes &amp; Ints</span><span class="ni-caret">⌄</span></button>
+      <div id="niScrim"></div>
+      <div id="niPop">
+        <div class="nip-sec">NOTE</div>
+        <div class="nip-grid nip-notes">
+          <button class="nip-cell nip-wide" data-note="rnd">All Notes</button>
+          <button class="nip-cell" data-note="0">C</button><button class="nip-cell" data-note="1">C#</button>
+          <button class="nip-cell" data-note="2">D</button><button class="nip-cell" data-note="3">D#</button>
+          <button class="nip-cell" data-note="4">E</button><button class="nip-cell" data-note="5">F</button>
+          <button class="nip-cell" data-note="6">F#</button><button class="nip-cell" data-note="7">G</button>
+          <button class="nip-cell" data-note="8">G#</button><button class="nip-cell" data-note="9">A</button>
+          <button class="nip-cell" data-note="10">A#</button><button class="nip-cell" data-note="11">B</button>
+        </div>
+        <div class="nip-sec">INTERVAL</div>
+        <div class="nip-grid nip-ints">
+          <button class="nip-cell" data-int="any">All</button>
+          <button class="nip-cell" data-int="0">Uni</button><button class="nip-cell" data-int="5">4th</button>
+          <button class="nip-cell" data-int="7">5th</button><button class="nip-cell" data-int="12">8ve</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -220,7 +293,6 @@
   <button class="abtn" data-ans="sharp">↑ sharp</button>
 </div>
 
-<div id="overlay"></div>
 
 <div id="panel">
   <div id="panel-head">
@@ -236,33 +308,29 @@
     <div class="psec-body" id="sec-hdr">
       <div class="prow"><label>TOP OFFSET <span class="v" id="pHdrTopV"></span></label>
         <input type="range" id="pHdrTop" min="0" max="90" step="1" autocomplete="off"></div>
+      <div class="prow"><label>TOP BTN COLOR</label>
+        <input type="color" id="pHdrBtnCol" autocomplete="off"></div>
+      <div class="prow"><label>TOP BTN BORDER</label>
+        <input type="color" id="pHdrBtnBorder" autocomplete="off"></div>
+      <div class="prow"><label>TOP BTN SIZE <span class="v" id="pHdrBtnSizeV"></span></label>
+        <input type="range" id="pHdrBtnSize" min="26" max="48" step="1" autocomplete="off"></div>
+      <div class="prow"><label>TOP BTN STROKE <span class="v" id="pHdrBtnStrokeV"></span></label>
+        <input type="range" id="pHdrBtnStroke" min="0" max="4" step="0.5" autocomplete="off"></div>
+      <div class="prow"><label>↺ GLYPH SIZE <span class="v" id="pRedoSizeV"></span></label>
+        <input type="range" id="pRedoSize" min="10" max="28" step="1" autocomplete="off"></div>
+      <div class="prow"><label>TOP TEXT SIZE <span class="v" id="pChipSizeV"></span></label>
+        <input type="range" id="pChipSize" min="8" max="20" step="1" autocomplete="off"></div>
       <div class="prow"><label>FONT</label>
         <select id="pHdrFont" autocomplete="off">
           <option value="Rubik">Rubik</option><option value="System">System</option>
           <option value="Serif">Serif</option><option value="Mono">Mono</option>
         </select></div>
-      <div class="prow"><label>CENT SIZE <span class="v" id="pThreshSizeV"></span></label>
-        <input type="range" id="pThreshSize" min="12" max="40" step="1" autocomplete="off"></div>
-      <div class="prow"><label>CENT COLOR</label>
-        <input type="color" id="pThreshCol" autocomplete="off"></div>
-      <div class="prow"><label>CENT WEIGHT <span class="v" id="pThreshWeightV"></span></label>
-        <input type="range" id="pThreshWeight" min="300" max="900" step="100" autocomplete="off"></div>
       <div class="prow"><label>BEST SIZE <span class="v" id="pBestSizeV"></span></label>
         <input type="range" id="pBestSize" min="6" max="20" step="1" autocomplete="off"></div>
       <div class="prow"><label>BEST OPACITY <span class="v" id="pBestOpV"></span></label>
         <input type="range" id="pBestOp" min="0" max="100" step="5" autocomplete="off"></div>
-      <div class="prow"><label>DOT SIZE <span class="v" id="pDotSizeV"></span></label>
-        <input type="range" id="pDotSize" min="3" max="16" step="1" autocomplete="off"></div>
-      <div class="prow"><label>DOT GAP <span class="v" id="pDotGapV"></span></label>
-        <input type="range" id="pDotGap" min="2" max="16" step="1" autocomplete="off"></div>
-      <div class="prow"><label>DOT — CORRECT</label>
-        <input type="color" id="pDotOk" autocomplete="off"></div>
-      <div class="prow"><label>DOT — WRONG</label>
-        <input type="color" id="pDotErr" autocomplete="off"></div>
       <div class="prow"><label>GAP: CENT → BEST <span class="v" id="pBestGapV"></span></label>
         <input type="range" id="pBestGap" min="0" max="40" step="1" autocomplete="off"></div>
-      <div class="prow"><label>GAP: BEST → DOTS <span class="v" id="pHistGapV"></span></label>
-        <input type="range" id="pHistGap" min="0" max="40" step="1" autocomplete="off"></div>
     </div>
 
     <!-- APPEARANCE -->
@@ -288,8 +356,6 @@
         <input type="range" id="pPinHoleR" min="0" max="20" step="1" autocomplete="off"></div>
       <div class="prow"><label>PIN HOLE COLOR</label>
         <input type="color" id="pPinHoleCol" autocomplete="off"></div>
-      <div class="prow"><label>STRING LENGTH <span class="v" id="pLenV"></span></label>
-        <input type="range" id="pLen" min="30" max="100" step="1" autocomplete="off"></div>
       <div class="prow"><label>SPACING <span class="v" id="pSpacingV"></span></label>
         <input type="range" id="pSpacing" min="0" max="200" step="1" autocomplete="off"></div>
       <div class="prow"><label>VERTICAL OFFSET <span class="v" id="pVOffV"></span></label>
@@ -307,8 +373,8 @@
         <input type="color" id="pBodyCol2" autocomplete="off"></div>
       <div class="prow"><label>RADIUS <span class="v" id="pBodyRV"></span></label>
         <input type="range" id="pBodyR" min="0" max="220" step="5" autocomplete="off"></div>
-      <div class="prow"><label>Y POSITION <span class="v" id="pBodyYV"></span></label>
-        <input type="range" id="pBodyY" min="10" max="90" step="1" autocomplete="off"></div>
+      <div class="prow"><label>Y (above pins) <span class="v" id="pBodyYV"></span></label>
+        <input type="range" id="pBodyY" min="0" max="700" step="2" autocomplete="off"></div>
     </div>
 
     <!-- ROSETTE -->
@@ -322,8 +388,10 @@
         <input type="range" id="pRosPts" min="0" max="16" step="1" autocomplete="off"></div>
       <div class="prow"><label>DEPTH <span class="v" id="pRosDepthV"></span></label>
         <input type="range" id="pRosDepth" min="0" max="60" step="1" autocomplete="off"></div>
-      <div class="prow"><label>ROUNDNESS <span class="v" id="pRosRoundV"></span></label>
-        <input type="range" id="pRosRound" min="0" max="50" step="1" autocomplete="off"></div>
+      <div class="prow"><label>ROUNDNESS — OUTER <span class="v" id="pRosRoundOutV"></span></label>
+        <input type="range" id="pRosRoundOut" min="0" max="100" step="1" autocomplete="off"></div>
+      <div class="prow"><label>ROUNDNESS — INNER <span class="v" id="pRosRoundInV"></span></label>
+        <input type="range" id="pRosRoundIn" min="0" max="100" step="1" autocomplete="off"></div>
       <div class="prow"><label>GAP (from hole) <span class="v" id="pRosGapV"></span></label>
         <input type="range" id="pRosGap" min="0" max="80" step="1" autocomplete="off"></div>
       <div class="prow"><label>STROKE <span class="v" id="pRosWV"></span></label>
@@ -371,6 +439,8 @@
         <input type="range" id="pGrab" min="40" max="260" step="5" autocomplete="off"></div>
       <div class="prow"><label>RESET ANIM <span class="v" id="pResetMsV"></span></label>
         <input type="range" id="pResetMs" min="0" max="800" step="25" autocomplete="off"></div>
+      <div class="prow"><label>TAIL <span class="v" id="pTailV"></span></label>
+        <input type="range" id="pTail" min="0.3" max="4" step="0.1" autocomplete="off"></div>
     </div>
 
     <!-- BUTTONS -->
@@ -378,8 +448,12 @@
       <span class="psec-arrow" id="arr-btns">▾</span>BUTTONS
     </div>
     <div class="psec-body" id="sec-btns">
-      <div class="prow"><label>COLOR</label>
+      <div class="prow"><label>READY COLOR</label>
         <input type="color" id="pBtnColor" autocomplete="off"></div>
+      <div class="prow"><label>DIM COLOR</label>
+        <input type="color" id="pBtnDimCol" autocomplete="off"></div>
+      <div class="prow"><label>PRESSED BG</label>
+        <input type="color" id="pBtnPressBg" autocomplete="off"></div>
       <div class="prow"><label>FONT</label>
         <select id="pBtnFamily" autocomplete="off">
           <option value="Rubik">Rubik</option><option value="System">System</option>
@@ -454,8 +528,6 @@
         <input type="range" id="pToastScale" min="60" max="180" step="5" autocomplete="off"></div>
       <div class="prow"><label>PADDING <span class="v" id="pToastPadV"></span></label>
         <input type="range" id="pToastPad" min="0" max="48" step="1" autocomplete="off"></div>
-      <div class="prow"><label>Y PLACEMENT <span class="v" id="pToastYV"></span></label>
-        <input type="range" id="pToastY" min="-200" max="200" step="2" autocomplete="off"></div>
       <div class="prow"><label>HOLD (auto-advance) <span class="v" id="pToastHoldV"></span></label>
         <input type="range" id="pToastHold" min="300" max="3000" step="50" autocomplete="off"></div>
       <div class="prow"><label>FADE <span class="v" id="pToastFadeV"></span></label>
@@ -510,29 +582,31 @@ let bgAngle      = 180;         // background gradient angle (deg)
 let strCol       = '#fff24b';   // yellow string
 let strW         = 5;
 let pinR         = 9;           // grommet outer radius
-let stringLen    = 0.9;
 let spacing      = 72;
 let bodyColor    = '#7b3920';   // soundhole brown (center)
 let bodyCol2     = '#7b3920';   // soundhole brown (edge)
 let bodyRadius   = 80;          // soundhole radius
 let bowAmount    = 90;
 let vibBlurAmt   = 3;
-let vibSustain   = 64;
+let vibSustain   = 29;
 let grabZone     = 40;      // px catch radius around a string for grab/pull
 let resetMs      = 300;     // new-round reset: strings collapse width+fade out, then back (0 = off)
+let soundTail    = 1;       // note tail length in seconds (how long a pluck rings out)
 
 // Button appearance
-let btnColor     = '#ebebeb';
+let btnColor     = '#ebebeb';   // ready (tappable) state colour
+let btnDimCol    = '#ebebeb';   // dim (not-ready) state colour
+let btnPressBg   = '#ebebeb';   // pressed-state background (shown ~14% via color-mix)
 let btnFont      = 'Rubik';  // family key (see FONT_STACKS)
-let btnWeight    = 400;      // font-weight
+let btnWeight    = 500;      // font-weight
 let btnCase      = 'uppercase'; // text-transform: none | uppercase | lowercase
 let btnFontSize  = 14;      // px
 let btnTracking  = 10;      // hundredths of em  (10 → 0.10em)
-let btnPadV      = 11;      // vertical padding px
+let btnPadV      = 9;       // vertical padding px
 let btnRadius    = 22;      // border-radius px
 let btnBorderW   = 2;       // border width px
-let btnGap       = 9;       // gap between buttons px
-let btnAreaPad   = 37;      // padding around button row px
+let btnGap       = 8;       // gap between buttons px
+let btnAreaPad   = 28;      // padding around button row px
 let btnMinW      = 68;      // min-width px
 let btnMaxW      = 120;     // max-width px
 
@@ -543,50 +617,48 @@ let toastFont     = 'Rubik';    // family key (see FONT_STACKS)
 let toastWeight   = 400;        // font-weight
 let toastNextBg   = '#7b3920';  // next-button disc
 let toastNextCol  = '#F7F2E8';  // next-button arrow
-let toastFontSize = 14;         // px
+let toastFontSize = 15;         // px
 let toastTracking = 4;          // hundredths of em (4 → 0.04em)
 let toastHold     = 950;        // ms held before auto-advance on a correct answer
 let toastFade     = 250;        // ms fade in/out
 let toastScale    = 85;         // overall pill size, percent
 let toastPad      = 7;          // pill vertical padding px (horizontal = +10)
-let toastY        = -12;        // vertical nudge px (− up / + down)
 let toastCase     = 'uppercase';// label case: 'none' = sentence (as authored) | 'uppercase' = ALL CAPS
 let toastChevron  = '›';        // glyph shown inside the next button
 let toastNextGap  = 11;         // px gap between the label and the chevron
 let toastNextDY   = 0;          // px vertical nudge of the chevron
 
 // Header ("top") visuals
-let hdrFont      = 'Rubik';   // family key for the cent readout + best line
-let threshSize   = 22;        // px cent readout size
-let threshCol    = '#ebebeb'; // cent readout colour
-let threshWeight = 400;       // cent readout weight
-let bestSize     = 10;        // px best-line size
-let bestOp       = 30;        // best-line opacity %
-let dotSize      = 12;        // px streak-dot diameter
-let dotGap       = 6;         // px gap between streak dots (horizontal)
-let dotOkCol     = '#fff065'; // correct streak dot (shown at 75% via color-mix)
-let dotErrCol    = '#7b3920'; // wrong streak dot (shown at 65% via color-mix)
-let bestGap      = 3;         // px vertical gap: cent readout → best line
-let histGap      = 8;         // px vertical gap: best line → streak dots
-let hdrTop       = 10;        // px manual top nudge for the whole header (added to the safe area)
+let hdrFont      = 'Rubik';   // family key for all top buttons + best line
+let bestSize     = 12;        // px best-line size
+let bestOp       = 75;        // best-line opacity %
+let bestGap      = 8;         // px vertical gap: cent readout → best line
+let hdrTop       = 22;        // px manual top nudge for the whole header (added to the safe area)
+let hdrBtnCol    = '#ebebeb'; // top-button icon/text colour (shown ~56% via color-mix)
+let hdrBtnBorder = '#ebebeb'; // top-button border colour (shown ~22% via color-mix)
+let hdrBtnSize   = 39;        // top-button size px (↺ / note chip / SET)
+let hdrBtnStroke = 2;         // top-button border width px (all three)
+let redoGlyphSize = 16;       // ↺ glyph font-size px
+let chipTextSize = 16;        // px text size shared by every top button
 
 // Layout
-let vOffset      = 60;      // manual vertical nudge px
+let vOffset      = 43;      // manual vertical nudge px
 
 // ── Bridge layout (ukulele) ──────────────────────────────────
-let holePos      = 0.33;    // soundhole center Y (fraction of stage H)
+let holePos      = 242;     // soundhole center Y: px ABOVE the bridge pins (bottom of the strings)
 let bridgePos    = 0.76;    // bridge pin row Y (fraction of stage H)
-let rosetteGap    = 19;     // px gap from hole edge to the rosette's valleys
-let rosetteW      = 5;      // px rosette stroke width
+let rosetteGap    = 26;     // px gap from hole edge to the rosette's valleys
+let rosetteW      = 6;      // px rosette stroke width
 let rosetteCol    = '#7b3920';
 let rosettePoints = 8;      // lobe count (<3 → plain circle ring)
-let rosetteDepth  = 16;     // px the lobes bump out past the valley
-let rosetteRound  = 50;     // corner rounding %: 0 = sharp star … 50 = smooth flower
+let rosetteDepth  = 10;     // px the lobes bump out past the valley
+let rosetteRoundOut = 100;  // roundness % of the OUTER points (lobe tips)
+let rosetteRoundIn  = 27;   // roundness % of the INNER points (valleys)
 let bridgeW      = 210;     // bridge plate width (fixed px)
 let bridgeCol    = '#7B3920';
 let saddleWFrac  = 0.65;    // saddle line width as fraction of the board
 let saddleThick  = 5;       // px saddle line thickness
-let saddleYOff   = 28;      // px the saddle sits above the bridge pin row
+let saddleYOff   = 27;      // px the saddle sits above the bridge pin row
 let saddleCol    = '#F7F2E8';
 let pinCol       = '#F7F2E8';  // grommet outer disc
 let pinHoleR     = 3;          // grommet inner hole radius
@@ -596,7 +668,6 @@ const pillW        = () => pinR * 0.95;
 const pillD        = () => pinR * 1.4;
 const pinMargin    = () => pinR * 0.6;
 const ghostW       = () => Math.max(1.5, strW * 0.35);
-const lengthMargin = () => (H * (1 - stringLen)) / 2;
 const vibDecay     = () => 0.3 + 5.7 * (1 - vibSustain / 100);
 
 // ─────────────────────────────────────────────────────────────
@@ -607,15 +678,17 @@ const cx  = [0, 0];
 const vib = [false, false];
 let mainPath = [], ghostEls = [], blurDev = [], grpEls = [], pinEls = [];
 let bodyCircle = null, rosetteCircle = null, bridgeGrp = null, saddleLine = null;
+let rosetteAngle = 0;            // accumulates one notch per round → the rosette spin
 const BRIDGE_PATH = 'M0.427937 7.39967L8.79791 60.3275C9.06274 62.0021 10.5063 63.2353 12.2017 63.2353C32.4322 63.2353 52.1332 69.0626 70.9013 76.6145C83.2111 81.5676 97.6181 86 109.758 86C121.897 86 136.304 81.5676 148.614 76.6145C167.382 69.0626 187.083 63.2353 207.314 63.2353C209.009 63.2353 210.453 62.0021 210.718 60.3275L219.088 7.39967C219.491 4.85148 219.692 3.57738 219.317 2.58547C218.988 1.71493 218.366 0.98639 217.557 0.525332C216.636 0 215.346 0 212.766 0H6.74938C4.16952 0 2.8796 0 1.95844 0.525332C1.14998 0.98639 0.527602 1.71493 0.198483 2.58547C-0.176517 3.57738 0.0249675 4.85148 0.427937 7.39967Z';
 
 function xRatio(i) { return 0.5 + (i === 0 ? -1 : 1) * spacing / (2 * W); }
-const holeCY   = () => H * holePos;       // soundhole center Y
-const bridgeCY = () => H * bridgePos;     // bridge pin row Y
+const bridgeCY = () => H * bridgePos;     // bridge pin row Y (bottom of the strings)
+const holeCY   = () => bridgeCY() - holePos;  // soundhole/rosette sit holePos px above the pins
 
 // Rosette as a rounded N-point star (Figma-style). Valleys sit `rosetteGap` out
-// from the hole edge; peaks bump out a further `rosetteDepth`. `rosetteRound`
-// (0–50%) fillets each corner: 0 = sharp star, 50 = fully smooth flower.
+// from the hole edge; peaks bump out a further `rosetteDepth`. Roundness is set
+// per vertex type — rosetteRoundOut (lobe tips) and rosetteRoundIn (valleys),
+// 0 = sharp … higher = rounder, bulgier.
 function rosettePath(cx, cy) {
   const n = Math.round(rosettePoints);
   const rv = bodyRadius + rosetteGap;               // valley radius (near the hole)
@@ -625,21 +698,24 @@ function rosettePath(cx, cy) {
          + `a ${rv} ${rv} 0 1 0 ${(-2 * rv).toFixed(2)} 0 Z`;
   }
   const rp = rv + rosetteDepth;                     // peak radius (lobe tips)
-  const t  = Math.max(0, Math.min(0.5, rosetteRound / 100));
+  // Per-vertex handle scale: even index = outer point (peak), odd = inner point (valley).
+  const sOut = (rosetteRoundOut / 100) * 1.3, sIn = (rosetteRoundIn / 100) * 1.3;
+  const sFor = idx => (idx % 2 === 0 ? sOut : sIn);
   const pts = [];
   for (let i = 0; i < 2 * n; i++) {
     const ang = Math.PI * i / n - Math.PI / 2;      // first peak at top
     const r = (i % 2 === 0) ? rp : rv;
     pts.push([cx + r * Math.cos(ang), cy + r * Math.sin(ang)]);
   }
-  let d = '';
+  // Closed Catmull-Rom spline; each vertex's handle is scaled by its own roundness.
   const m = pts.length;
+  let d = `M ${pts[0][0].toFixed(2)} ${pts[0][1].toFixed(2)} `;
   for (let i = 0; i < m; i++) {
-    const cur = pts[i], prev = pts[(i - 1 + m) % m], next = pts[(i + 1) % m];
-    const ex = cur[0] + (prev[0] - cur[0]) * t, ey = cur[1] + (prev[1] - cur[1]) * t;
-    const xx = cur[0] + (next[0] - cur[0]) * t, xy = cur[1] + (next[1] - cur[1]) * t;
-    d += (i === 0 ? 'M' : 'L') + ` ${ex.toFixed(2)} ${ey.toFixed(2)} `
-       + `Q ${cur[0].toFixed(2)} ${cur[1].toFixed(2)} ${xx.toFixed(2)} ${xy.toFixed(2)} `;
+    const p0 = pts[(i - 1 + m) % m], p1 = pts[i], p2 = pts[(i + 1) % m], p3 = pts[(i + 2) % m];
+    const s1 = sFor(i), s2 = sFor(i + 1);
+    const c1x = p1[0] + (p2[0] - p0[0]) * s1 / 6, c1y = p1[1] + (p2[1] - p0[1]) * s1 / 6;
+    const c2x = p2[0] - (p3[0] - p1[0]) * s2 / 6, c2y = p2[1] - (p3[1] - p1[1]) * s2 / 6;
+    d += `C ${c1x.toFixed(2)} ${c1y.toFixed(2)} ${c2x.toFixed(2)} ${c2y.toFixed(2)} ${p2[0].toFixed(2)} ${p2[1].toFixed(2)} `;
   }
   return d + 'Z';
 }
@@ -695,6 +771,9 @@ function buildSVG() {
   rosette.setAttribute('stroke', rosetteCol);
   rosette.setAttribute('stroke-width', rosetteW);
   rosette.setAttribute('stroke-linejoin', 'round');
+  rosette.style.transformBox = 'fill-box';      // rotate around the rosette's own centre (the hole)
+  rosette.style.transformOrigin = 'center';
+  rosette.style.transform = 'rotate(' + rosetteAngle + 'deg)';   // static angle on (re)build; no animation
   svg.appendChild(rosette); rosetteCircle = rosette;
 
   // 2) Bridge plate (scaled panel path) — positioned/sized live by applyBridge
@@ -889,12 +968,15 @@ function applySaddle() {
   saddleLine.setAttribute('stroke-width', saddleThick);
 }
 function applyButtonStyles() {
-  const rgb = hexToRgb(btnColor) || { r:235, g:235, b:235 };
+  const rgb = hexToRgb(btnColor) || { r:235, g:235, b:235 };   // ready (tappable) colour
   const rs = `rgba(${rgb.r},${rgb.g},${rgb.b}`;
+  const dim = hexToRgb(btnDimCol) || { r:235, g:235, b:235 };  // dim (not-ready) colour
+  const ds = `rgba(${dim.r},${dim.g},${dim.b}`;
   document.documentElement.style.setProperty('--btn-ready',        `${rs},.80)`);
-  document.documentElement.style.setProperty('--btn-dim',          `${rs},.18)`);
+  document.documentElement.style.setProperty('--btn-dim',          `${ds},.18)`);
   document.documentElement.style.setProperty('--btn-border-ready', `${rs},.55)`);
-  document.documentElement.style.setProperty('--btn-border-dim',   `${rs},.10)`);
+  document.documentElement.style.setProperty('--btn-border-dim',   `${ds},.10)`);
+  document.documentElement.style.setProperty('--btn-press', `color-mix(in srgb, ${btnPressBg} 14%, transparent)`);
   document.querySelectorAll('.abtn').forEach(b => {
     b.style.fontFamily    = fontStack(btnFont);
     b.style.fontWeight    = btnWeight;
@@ -917,20 +999,20 @@ function applyButtonStyles() {
   styleFeedback();  // keep the feedback label matched to the button font
 }
 function applyHeader() {
-  const th = document.getElementById('threshold'), bs = document.getElementById('best');
+  const bs = document.getElementById('best');
   const ff = fontStack(hdrFont);
-  th.style.fontFamily = ff; th.style.fontSize = threshSize + 'px';
-  th.style.color = threshCol; th.style.fontWeight = threshWeight;
   bs.style.fontFamily = ff; bs.style.fontSize = bestSize + 'px';
   bs.style.opacity = bestOp / 100;
   bs.style.marginTop = bestGap + 'px';
-  document.getElementById('history').style.marginTop = histGap + 'px';
   const r = document.documentElement.style;
+  r.setProperty('--top-font', ff);   // one font for every top button
   r.setProperty('--hdr-top',  hdrTop + 'px');
-  r.setProperty('--dot-size', dotSize + 'px');
-  r.setProperty('--dot-gap',  dotGap + 'px');
-  r.setProperty('--dot-ok',   dotOkCol);
-  r.setProperty('--dot-err',  dotErrCol);
+  r.setProperty('--hbtn-col',    hdrBtnCol);
+  r.setProperty('--hbtn-border', hdrBtnBorder);
+  r.setProperty('--hbtn-size',   hdrBtnSize + 'px');
+  r.setProperty('--hbtn-stroke', hdrBtnStroke + 'px');
+  r.setProperty('--redo-size',   redoGlyphSize + 'px');
+  r.setProperty('--chip-size',   chipTextSize + 'px');
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -968,10 +1050,10 @@ async function playTone(freq, idx) {
   osc.frequency.setValueAtTime(freq, now);                    // no pitch glide
   gain.gain.value = 0; // ensure 0 before any scheduled ramps
   gain.gain.setValueAtTime(0, now);
-  gain.gain.linearRampToValueAtTime(0.34, now + 0.028);       // soft attack
-  gain.gain.exponentialRampToValueAtTime(0.22, now + 0.5);    // gentle decay into the body
-  gain.gain.exponentialRampToValueAtTime(0.0008, now + 4.2);  // long smooth tail — notes ring while you compare
-  osc.start(now); osc.stop(now + 4.3);
+  gain.gain.linearRampToValueAtTime(0.34, now + 0.028);                        // soft attack
+  gain.gain.exponentialRampToValueAtTime(0.22, now + Math.min(0.35, soundTail * 0.3)); // body
+  gain.gain.exponentialRampToValueAtTime(0.0008, now + soundTail);             // tail (tunable)
+  osc.start(now); osc.stop(now + soundTail + 0.08);
   if (idx != null) {
     const note = { osc, gain };
     activeNotes[idx] = note;
@@ -1063,7 +1145,11 @@ window.addEventListener('touchmove',  e => { if (!ptr.active) return; e.preventD
 window.addEventListener('touchend',  onUp);
 window.addEventListener('touchcancel', onCancel);
 window.addEventListener('blur', onCancel);
-window.addEventListener('resize', buildSVG);
+window.addEventListener('resize', () => {
+  buildSVG();
+  // re-centre a visible toast against the freshly re-laid-out board/buttons
+  if (document.getElementById('feedback').classList.contains('show')) positionFeedback();
+});
 
 // ─────────────────────────────────────────────────────────────
 // Game logic
@@ -1071,7 +1157,7 @@ window.addEventListener('resize', buildSVG);
 const ROOT = 440, MAX_D = 50, MIN_D = 1;
 const LS_GAME = 'pitch-game-v1';
 let deviation = MAX_D, bestDev = MAX_D, phase = 'play', roundDir = 'sharp';
-let lastCorrect = null, oscillations = 0, history = [], advanceTimer = null;
+let lastCorrect = null, oscillations = 0, wrongStreak = 0, advanceTimer = null;
 // Reference note for the exercise. ROOT (440) is A4; rootSemi 0=C…11=B.
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 let rootSemi = 9, rootOct = 4;   // A4 by default
@@ -1081,6 +1167,14 @@ function pickRandomNote() {
   let s;
   do { s = Math.floor(Math.random() * 12); } while (s === lastRandSemi);
   lastRandSemi = s; rootSemi = s;
+}
+// Interval between the two strings (semitones above the root). ANY INT draws from the pool.
+const INTERVAL_POOL = [0, 5, 7, 12];   // unison, P4, P5, octave
+let intervalSemi = 0, randomInterval = false, lastRandInt = -1;
+function pickRandomInterval() {
+  let v;
+  do { v = INTERVAL_POOL[Math.floor(Math.random() * INTERVAL_POOL.length)]; } while (v === lastRandInt);
+  lastRandInt = v; intervalSemi = v;
 }
 const ANSWER_WORD = { sharp: 'sharp', flat: 'flat', in_tune: 'in tune' };
 const FB_CORRECT = [
@@ -1101,66 +1195,109 @@ function pickMsg(list) {
 }
 
 function loadGame() {
-  try {
-    const s = JSON.parse(localStorage.getItem(LS_GAME));
-    if (s?.best != null) bestDev = +s.best;
-    if (s?.rootSemi != null) rootSemi = +s.rootSemi;
-    if (s?.rootOct  != null) rootOct  = +s.rootOct;
-    if (s?.randomNote != null) randomNote = !!s.randomNote;
-  } catch(e) {}
+  // Note selection is intentionally NOT persisted — every load starts at RND.
+  try { const s = JSON.parse(localStorage.getItem(LS_GAME)); if (s?.best != null) bestDev = +s.best; } catch(e) {}
 }
-function saveGame() { localStorage.setItem(LS_GAME, JSON.stringify({ best: bestDev, rootSemi, rootOct, randomNote })); }
+function saveGame() { localStorage.setItem(LS_GAME, JSON.stringify({ best: bestDev })); }
 function fmt(c) { return c >= 10 ? Math.round(c) : c.toFixed(1); }
 
 function updateHeader() {
   document.getElementById('threshold').innerHTML = `±${fmt(deviation)}<span class="unit">¢</span>`;
   document.getElementById('best').textContent = bestDev < MAX_D ? `best  ±${fmt(bestDev)}¢` : '';
-  document.getElementById('history').innerHTML =
-    history.map(ok => `<div class="dot ${ok ? 'ok' : 'err'}"></div>`).join('');
 }
 function setButtonsReady(ready) {
   document.querySelectorAll('.abtn').forEach(b => ready ? b.classList.add('ready') : b.classList.remove('ready'));
 }
 function setRoundFreqs() {
   const root = noteFreq();
+  const target = root * Math.pow(2, intervalSemi / 12);   // the chosen interval's in-tune frequency
   stringFreqs[0] = root;
-  stringFreqs[1] = roundDir === 'sharp'  ? root * Math.pow(2,  deviation / 1200)
-                 : roundDir === 'flat'   ? root * Math.pow(2, -deviation / 1200)
-                 : root;
+  stringFreqs[1] = roundDir === 'sharp'  ? target * Math.pow(2,  deviation / 1200)
+                 : roundDir === 'flat'   ? target * Math.pow(2, -deviation / 1200)
+                 : target;
+}
+// Ratchet the rosette one notch (one lobe-step) per round, easing into place.
+function rosetteNotch() { const n = Math.round(rosettePoints); return 360 / (n >= 3 ? n : 8); }
+function bumpRosette() {
+  if (!rosetteCircle) return;
+  rosetteAngle += rosetteNotch();
+  rosetteCircle.style.transition = 'transform .6s cubic-bezier(.34, 1.4, .5, 1)';
+  rosetteCircle.style.transform  = 'rotate(' + rosetteAngle + 'deg)';
 }
 function newRound() {
   const inTuneP = 0.1 + 0.2 * (1 - Math.min(deviation, MAX_D) / MAX_D);
   const r = Math.random();
   roundDir = r < inTuneP ? 'in_tune' : Math.random() < 0.5 ? 'sharp' : 'flat';
-  if (randomNote) pickRandomNote();   // fresh pitch class each round in RND mode
+  if (randomNote) pickRandomNote();         // fresh pitch class each round in ANY NOTE mode
+  if (randomInterval) pickRandomInterval(); // fresh interval each round in ANY INT mode
   setRoundFreqs();
   phase = 'play'; hasPlucked = false;
   setButtonsReady(false); hideFeedback(); updateHeader();
+  bumpRosette();                              // rosette ratchets a notch each round
 }
-const NOTE_CHIP = document.getElementById('noteChip');
-function updateNoteChip() { NOTE_CHIP.textContent = randomNote ? 'RND' : NOTE_NAMES[rootSemi] + rootOct; }
-function cycleNote() {
-  // Cycle C4…B4, then RND, then wrap back to C4.
-  if (randomNote)          { randomNote = false; rootSemi = 0; }
-  else if (rootSemi >= 11) { randomNote = true; pickRandomNote(); }
-  else                     { rootSemi++; }
-  updateNoteChip();
-  setRoundFreqs();                   // retune the current round (fixed note, or the freshly-picked random one)
-  saveGame();
+// ── Notes × intervals selector: one button + custom grid popover ──
+const NI_WRAP  = document.getElementById('niWrap');
+const NI_BTN   = document.getElementById('niBtn');
+const NI_LABEL = document.getElementById('niLabel');
+const NI_POP   = document.getElementById('niPop');
+const NI_SCRIM = document.getElementById('niScrim');
+const INT_NAMES  = { 0: 'Uni', 5: '4th', 7: '5th', 12: '8ve' };
+const INT_PLURAL = { 5: '4ths', 7: '5ths', 12: '8ves' };
+
+// Compact, human-readable label for the current note × interval selection.
+function selLabel() {
+  const isUni = !randomInterval && intervalSemi === 0;
+  if (randomNote && randomInterval) return 'All Notes & Ints';
+  if (randomNote && isUni)          return 'All Notes';
+  if (randomNote)                   return INT_PLURAL[intervalSemi];   // any note, fixed interval → "5ths"
+  const n = NOTE_NAMES[rootSemi];
+  if (randomInterval)               return n + ' · All Ints';
+  if (isUni)                        return n;                          // unison → just the note
+  return n + ' · ' + INT_NAMES[intervalSemi];
 }
-// Drive the chip from touchend directly (the page's touch-action:none can make the
-// synthesized click flaky on iOS); guard so desktop click doesn't double-fire.
-let chipTouchHandled = false;
-NOTE_CHIP.addEventListener('touchend', e => {
-  e.preventDefault(); chipTouchHandled = true; cycleNote();
-  setTimeout(() => { chipTouchHandled = false; }, 400);
-}, { passive: false });
-NOTE_CHIP.addEventListener('click', () => { if (!chipTouchHandled) cycleNote(); });
+// Push state → button label + highlight the live cells in the grid.
+function updateSel() {
+  NI_LABEL.textContent = selLabel();
+  const noteVal = randomNote ? 'rnd' : String(rootSemi);
+  const intVal  = randomInterval ? 'any' : String(intervalSemi);
+  NI_POP.querySelectorAll('[data-note]').forEach(c => c.classList.toggle('sel', c.dataset.note === noteVal));
+  NI_POP.querySelectorAll('[data-int]').forEach(c => c.classList.toggle('sel', c.dataset.int === intVal));
+}
+function selectNote(v) {
+  if (v === 'rnd') { randomNote = true; pickRandomNote(); }
+  else             { randomNote = false; rootSemi = +v; }
+  setRoundFreqs(); updateSel();       // retune the current round to the picked note
+}
+function selectInt(v) {
+  if (v === 'any') { randomInterval = true; pickRandomInterval(); }
+  else             { randomInterval = false; intervalSemi = +v; }
+  setRoundFreqs(); updateSel();       // retune the current round to the picked interval
+}
+
+// Open/close — a transparent full-screen scrim catches the outside tap (no dim,
+// and it swallows the tap so the board doesn't pluck on dismiss).
+function openNiPop()  { NI_WRAP.classList.add('open'); }
+function closeNiPop() { NI_WRAP.classList.remove('open'); }
+NI_BTN.addEventListener('click', () => NI_WRAP.classList.contains('open') ? closeNiPop() : openNiPop());
+NI_SCRIM.addEventListener('click', closeNiPop);
+
+// Cell taps: handle touchend directly and guard the synthesized click (reliable on iOS).
+// Selecting does NOT close the popover — pick a note and an interval, then tap outside.
+let niTouched = false;
+function onCellTap(e) {
+  const cell = e.target.closest('.nip-cell');
+  if (!cell) return;
+  e.preventDefault();
+  if (cell.dataset.note !== undefined)     selectNote(cell.dataset.note);
+  else if (cell.dataset.int !== undefined) selectInt(cell.dataset.int);
+}
+NI_POP.addEventListener('touchend', e => { niTouched = true; onCellTap(e); setTimeout(() => niTouched = false, 400); }, { passive: false });
+NI_POP.addEventListener('click', e => { e.stopPropagation(); if (!niTouched) onCellTap(e); });
 // Soft reset: restart the run at the easiest level and clear the streak, but keep
 // the best score. Triggered by the ↺ next to the cent readout.
 function resetExercise() {
   clearTimeout(advanceTimer);
-  deviation = MAX_D; history = []; oscillations = 0; lastCorrect = null;
+  deviation = MAX_D; wrongStreak = 0; oscillations = 0; lastCorrect = null;
   newRound(); resetStrings();
 }
 function adjust(correct) {
@@ -1171,7 +1308,7 @@ function adjust(correct) {
     deviation = Math.max(MIN_D, deviation * (oscillations > 4 ? 0.90 : 0.75));
     if (deviation < bestDev) { bestDev = deviation; saveGame(); }
   } else {
-    const bigStep  = history.slice(-4).filter(x => !x).length >= 4;
+    const bigStep  = wrongStreak >= 4;
     const tightStep = oscillations > 4;
     deviation = Math.min(MAX_D, deviation * (bigStep ? 1.8 : tightStep ? 1.1 : 1.3));
   }
@@ -1180,7 +1317,7 @@ function answer(userAns) {
   if (phase !== 'play' || !hasPlucked) return;
   const correct = userAns === roundDir;
   adjust(correct);
-  history.push(correct); if (history.length > 5) history.shift();
+  wrongStreak = correct ? 0 : wrongStreak + 1;   // feeds the "4 wrong in a row → bigger step" rule
   setButtonsReady(false); updateHeader();
   showFeedback(correct);
   if (correct) {
@@ -1203,8 +1340,16 @@ function showFeedback(correct) {
 }
 function hideFeedback() { document.getElementById('feedback').classList.remove('show'); }
 function positionFeedback() {
-  const plateBottom = bridgeCY() + 86 * (bridgeW / 220) * 0.42;  // board bottom (svg coords)
-  document.getElementById('feedback').style.top = (plateBottom + vOffset + 26) + 'px';
+  // Dead-centre the toast between the actual bottom of the bridge board and the actual buttons.
+  const fb = document.getElementById('feedback'), pill = document.getElementById('fbPill');
+  const stageR = document.getElementById('stage').getBoundingClientRect();
+  const boardBottom = bridgeGrp ? bridgeGrp.getBoundingClientRect().bottom
+                    : stageR.top + bridgeCY() + 86 * (bridgeW / 220) * 0.42 + vOffset;
+  const btn = document.querySelector('.abtn');
+  const btnTop = btn ? btn.getBoundingClientRect().top
+               : document.getElementById('answers').getBoundingClientRect().top;
+  const midVp = (boardBottom + btnTop) / 2;
+  fb.style.top = (midVp - stageR.top - pill.offsetHeight / 2) + 'px';                 // #feedback top is stage-local
 }
 function styleFeedback() {
   const fb = document.getElementById('feedback');
@@ -1214,7 +1359,7 @@ function styleFeedback() {
   pill.style.color = toastTextCol;
   pill.style.setProperty('--tpv', toastPad + 'px');
   pill.style.setProperty('--tph', (toastPad + 10) + 'px');
-  pill.style.transform = `translateY(${toastY}px) scale(${toastScale / 100})`;
+  pill.style.transform = `scale(${toastScale / 100})`;
   pill.style.gap = toastNextGap + 'px';
   pill.style.fontFamily = fontStack(toastFont);
   lbl.style.fontSize = toastFontSize + 'px';
@@ -1270,15 +1415,26 @@ fbPillEl.addEventListener('click', () => {
 // ─────────────────────────────────────────────────────────────
 const LS_VIS = 'pitch-game-settings-v1';
 const panel  = document.getElementById('panel');
-const overlay = document.getElementById('overlay');
 
-function openPanel()  { panel.classList.add('open'); overlay.classList.add('on'); syncPanel(); }
-function closePanel() { panel.classList.remove('open'); overlay.classList.remove('on'); }
+// Side drawer overlays the app (no push); no overlay, so only the × closes it.
+function openPanel()  { panel.classList.add('open'); syncPanel(); }
+function closePanel() { panel.classList.remove('open'); }
 
 document.getElementById('gear').addEventListener('click', openPanel);
-document.getElementById('reset').addEventListener('click', resetExercise);
 document.getElementById('pClose').addEventListener('click', closePanel);
-overlay.addEventListener('click', closePanel);
+
+// Cent readout doubles as the reset button: tap → inline "RESET? ✓ ✕"
+{
+  const chip = document.getElementById('centChip');
+  const yes = document.getElementById('resetYes'), no = document.getElementById('resetNo');
+  let armed = false, armTimer = 0;
+  const disarm = () => { armed = false; chip.classList.remove('confirming'); clearTimeout(armTimer); };
+  const arm = () => { armed = true; chip.classList.add('confirming'); clearTimeout(armTimer); armTimer = setTimeout(disarm, 5000); };
+  chip.addEventListener('click', e => { if (e.target === yes || e.target === no) return; armed ? disarm() : arm(); });
+  yes.addEventListener('click', e => { e.stopPropagation(); disarm(); resetExercise(); });
+  no.addEventListener('click',  e => { e.stopPropagation(); disarm(); });
+  document.addEventListener('click', e => { if (armed && !chip.contains(e.target)) disarm(); });
+}
 
 // Collapsible sections
 function toggleSec(id) {
@@ -1291,17 +1447,17 @@ function toggleSec(id) {
 function currentVis() {
   return {
     bg, bgCol2, bgAngle, strCol, strW, pinR, pinCol, pinHoleR, pinHoleCol,
-    stringLen: +stringLen.toFixed(2), spacing,
-    bodyColor, bodyCol2, bodyRadius, holePos, bowAmount, vibBlurAmt, vibSustain, grabZone, resetMs,
-    rosetteCol, rosettePoints, rosetteDepth, rosetteRound, rosetteGap, rosetteW,
+    spacing,
+    bodyColor, bodyCol2, bodyRadius, holePos, bowAmount, vibBlurAmt, vibSustain, grabZone, resetMs, soundTail,
+    rosetteCol, rosettePoints, rosetteDepth, rosetteRoundOut, rosetteRoundIn, rosetteGap, rosetteW,
     bridgeW, bridgeCol,
     saddleYOff, saddleWFrac, saddleThick, saddleCol,
-    btnColor, btnFont, btnWeight, btnCase, btnFontSize, btnTracking, btnPadV, btnRadius, btnBorderW, btnGap, btnAreaPad,
+    btnColor, btnDimCol, btnPressBg, btnFont, btnWeight, btnCase, btnFontSize, btnTracking, btnPadV, btnRadius, btnBorderW, btnGap, btnAreaPad,
     btnMinW, btnMaxW,
     toastBg, toastTextCol, toastNextBg, toastNextCol, toastFont, toastWeight, toastFontSize, toastTracking, toastHold, toastFade,
-    toastScale, toastPad, toastY, toastCase, toastChevron, toastNextGap, toastNextDY,
-    hdrFont, threshSize, threshCol, threshWeight, bestSize, bestOp, dotSize, dotGap, dotOkCol, dotErrCol,
-    bestGap, histGap, hdrTop,
+    toastScale, toastPad, toastCase, toastChevron, toastNextGap, toastNextDY,
+    hdrFont, bestSize, bestOp,
+    bestGap, hdrTop, hdrBtnCol, hdrBtnBorder, hdrBtnSize, hdrBtnStroke, redoGlyphSize, chipTextSize,
     vOffset
   };
 }
@@ -1317,17 +1473,16 @@ function syncPanel() {
   g('pPinCol').value   = pinCol;
   g('pPinHoleR').value = pinHoleR;      g('pPinHoleRV').textContent  = pinHoleR;
   g('pPinHoleCol').value = pinHoleCol;
-  g('pLen').value      = Math.round(stringLen*100);
-                                        g('pLenV').textContent       = Math.round(stringLen*100) + '%';
   g('pSpacing').value  = spacing;       g('pSpacingV').textContent   = spacing + 'px';
   g('pBodyCol').value  = bodyColor;
   g('pBodyCol2').value = bodyCol2;
   g('pBodyR').value    = bodyRadius;    g('pBodyRV').textContent     = bodyRadius;
-  g('pBodyY').value    = Math.round(holePos*100); g('pBodyYV').textContent = Math.round(holePos*100) + '%';
+  g('pBodyY').value    = holePos;       g('pBodyYV').textContent     = holePos + 'px';
   g('pRosCol').value   = rosetteCol;
   g('pRosPts').value   = rosettePoints; g('pRosPtsV').textContent   = rosettePoints;
   g('pRosDepth').value = rosetteDepth;  g('pRosDepthV').textContent = rosetteDepth + 'px';
-  g('pRosRound').value = rosetteRound;  g('pRosRoundV').textContent = rosetteRound + '%';
+  g('pRosRoundOut').value = rosetteRoundOut; g('pRosRoundOutV').textContent = rosetteRoundOut + '%';
+  g('pRosRoundIn').value  = rosetteRoundIn;  g('pRosRoundInV').textContent  = rosetteRoundIn + '%';
   g('pRosGap').value   = rosetteGap;    g('pRosGapV').textContent   = rosetteGap + 'px';
   g('pRosW').value     = rosetteW;      g('pRosWV').textContent     = rosetteW + 'px';
   g('pSaddleY').value  = saddleYOff;    g('pSaddleYV').textContent   = saddleYOff + 'px';
@@ -1341,7 +1496,10 @@ function syncPanel() {
   g('pSustain').value  = vibSustain;    g('pSustainV').textContent   = vibSustain;
   g('pGrab').value     = grabZone;      g('pGrabV').textContent      = grabZone + 'px';
   g('pResetMs').value  = resetMs;       g('pResetMsV').textContent   = resetMs ? resetMs + 'ms' : 'off';
+  g('pTail').value     = soundTail;     g('pTailV').textContent      = soundTail.toFixed(1) + 's';
   g('pBtnColor').value = btnColor;
+  g('pBtnDimCol').value = btnDimCol;
+  g('pBtnPressBg').value = btnPressBg;
   g('pBtnFamily').value = btnFont;
   g('pBtnWeight').value = btnWeight;    g('pBtnWeightV').textContent = btnWeight;
   g('pBtnCase').value  = btnCase;
@@ -1364,7 +1522,6 @@ function syncPanel() {
   g('pToastTrack').value   = toastTracking; g('pToastTrackV').textContent = (toastTracking/100).toFixed(2) + 'em';
   g('pToastScale').value   = toastScale;    g('pToastScaleV').textContent = toastScale + '%';
   g('pToastPad').value     = toastPad;      g('pToastPadV').textContent   = toastPad + 'px';
-  g('pToastY').value       = toastY;        g('pToastYV').textContent     = toastY + 'px';
   g('pToastCase').value    = toastCase;
   g('pToastChevron').value = toastChevron;
   g('pToastNextGap').value = toastNextGap;  g('pToastNextGapV').textContent = toastNextGap + 'px';
@@ -1373,18 +1530,16 @@ function syncPanel() {
   g('pToastFade').value    = toastFade;     g('pToastFadeV').textContent  = toastFade + 'ms';
   renderToastPreview();
   g('pHdrFont').value    = hdrFont;
-  g('pThreshSize').value = threshSize;  g('pThreshSizeV').textContent   = threshSize + 'px';
-  g('pThreshCol').value  = threshCol;
-  g('pThreshWeight').value = threshWeight; g('pThreshWeightV').textContent = threshWeight;
   g('pBestSize').value   = bestSize;    g('pBestSizeV').textContent     = bestSize + 'px';
   g('pBestOp').value     = bestOp;      g('pBestOpV').textContent       = bestOp + '%';
-  g('pDotSize').value    = dotSize;     g('pDotSizeV').textContent      = dotSize + 'px';
-  g('pDotGap').value     = dotGap;      g('pDotGapV').textContent       = dotGap + 'px';
-  g('pDotOk').value      = dotOkCol;
-  g('pDotErr').value     = dotErrCol;
   g('pHdrTop').value     = hdrTop;      g('pHdrTopV').textContent       = hdrTop + 'px';
+  g('pHdrBtnCol').value  = hdrBtnCol;
+  g('pHdrBtnBorder').value = hdrBtnBorder;
+  g('pHdrBtnSize').value = hdrBtnSize;  g('pHdrBtnSizeV').textContent   = hdrBtnSize + 'px';
+  g('pHdrBtnStroke').value = hdrBtnStroke; g('pHdrBtnStrokeV').textContent = hdrBtnStroke + 'px';
+  g('pRedoSize').value   = redoGlyphSize; g('pRedoSizeV').textContent     = redoGlyphSize + 'px';
+  g('pChipSize').value   = chipTextSize;  g('pChipSizeV').textContent     = chipTextSize + 'px';
   g('pBestGap').value    = bestGap;     g('pBestGapV').textContent      = bestGap + 'px';
-  g('pHistGap').value    = histGap;     g('pHistGapV').textContent      = histGap + 'px';
   g('pVOff').value     = vOffset;       g('pVOffV').textContent      = vOffset + 'px';
   g('pJson').value = JSON.stringify(currentVis());
 }
@@ -1401,16 +1556,17 @@ function loadVis() {
     if (s.pinCol      != null) pinCol      = s.pinCol;
     if (s.pinHoleR    != null) pinHoleR    = +s.pinHoleR;
     if (s.pinHoleCol  != null) pinHoleCol  = s.pinHoleCol;
-    if (s.stringLen   != null) stringLen   = +s.stringLen;
     if (s.spacing     != null) spacing     = +s.spacing < 2 ? 85 : +s.spacing;
     if (s.bodyColor   != null) bodyColor   = s.bodyColor;
     if (s.bodyCol2    != null) bodyCol2    = s.bodyCol2;
     if (s.bodyRadius  != null) bodyRadius  = +s.bodyRadius;
-    if (s.holePos     != null) holePos     = +s.holePos;
+    if (s.holePos     != null) holePos     = +s.holePos < 2 ? 265 : +s.holePos;  // migrate old fraction → px
     if (s.rosetteCol    != null) rosetteCol    = s.rosetteCol;
     if (s.rosettePoints != null) rosettePoints = +s.rosettePoints;
     if (s.rosetteDepth  != null) rosetteDepth  = +s.rosetteDepth;
-    if (s.rosetteRound  != null) rosetteRound  = +s.rosetteRound;
+    if (s.rosetteRound  != null) rosetteRoundOut = rosetteRoundIn = +s.rosetteRound;   // migrate old single value
+    if (s.rosetteRoundOut != null) rosetteRoundOut = +s.rosetteRoundOut;
+    if (s.rosetteRoundIn  != null) rosetteRoundIn  = +s.rosetteRoundIn;
     if (s.rosetteGap    != null) rosetteGap    = +s.rosetteGap;
     if (s.rosetteW      != null) rosetteW      = +s.rosetteW;
     if (s.bowAmount   != null) bowAmount   = +s.bowAmount;
@@ -1418,6 +1574,7 @@ function loadVis() {
     if (s.vibSustain  != null) vibSustain  = +s.vibSustain;
     if (s.grabZone    != null) grabZone    = +s.grabZone;
     if (s.resetMs     != null) resetMs     = +s.resetMs;
+    if (s.soundTail   != null) soundTail   = +s.soundTail;
     if (s.saddleYOff  != null) saddleYOff  = +s.saddleYOff;
     if (s.saddleWFrac != null) saddleWFrac = +s.saddleWFrac;
     if (s.saddleThick != null) saddleThick = +s.saddleThick;
@@ -1425,6 +1582,8 @@ function loadVis() {
     if (s.bridgeW     != null) bridgeW     = +s.bridgeW;
     if (s.bridgeCol   != null) bridgeCol   = s.bridgeCol;
     if (s.btnColor    != null) btnColor    = s.btnColor;
+    if (s.btnDimCol   != null) btnDimCol   = s.btnDimCol;
+    if (s.btnPressBg  != null) btnPressBg  = s.btnPressBg;
     if (s.btnFont     != null) btnFont     = s.btnFont;
     if (s.btnWeight   != null) btnWeight   = +s.btnWeight;
     if (s.btnCase     != null) btnCase     = s.btnCase;
@@ -1447,7 +1606,6 @@ function loadVis() {
     if (s.toastFade     != null) toastFade     = +s.toastFade;
     if (s.toastScale    != null) toastScale    = +s.toastScale;
     if (s.toastPad      != null) toastPad      = +s.toastPad;
-    if (s.toastY        != null) toastY        = +s.toastY;
     if (s.toastCase     != null) toastCase     = s.toastCase;
     if (s.toastChevron  != null) toastChevron  = s.toastChevron;
     if (s.toastNextGap  != null) toastNextGap  = +s.toastNextGap;
@@ -1455,18 +1613,16 @@ function loadVis() {
     if (s.toastFont     != null) toastFont     = s.toastFont;
     if (s.toastWeight   != null) toastWeight   = +s.toastWeight;
     if (s.hdrFont       != null) hdrFont       = s.hdrFont;
-    if (s.threshSize    != null) threshSize    = +s.threshSize;
-    if (s.threshCol     != null) threshCol     = s.threshCol;
-    if (s.threshWeight  != null) threshWeight  = +s.threshWeight;
     if (s.bestSize      != null) bestSize      = +s.bestSize;
     if (s.bestOp        != null) bestOp        = +s.bestOp;
-    if (s.dotSize       != null) dotSize       = +s.dotSize;
-    if (s.dotGap        != null) dotGap        = +s.dotGap;
-    if (s.dotOkCol      != null) dotOkCol      = s.dotOkCol;
-    if (s.dotErrCol     != null) dotErrCol     = s.dotErrCol;
     if (s.bestGap       != null) bestGap       = +s.bestGap;
-    if (s.histGap       != null) histGap       = +s.histGap;
     if (s.hdrTop        != null) hdrTop        = +s.hdrTop;
+    if (s.hdrBtnCol     != null) hdrBtnCol     = s.hdrBtnCol;
+    if (s.hdrBtnBorder  != null) hdrBtnBorder  = s.hdrBtnBorder;
+    if (s.hdrBtnSize    != null) hdrBtnSize    = +s.hdrBtnSize;
+    if (s.hdrBtnStroke  != null) hdrBtnStroke  = +s.hdrBtnStroke;
+    if (s.redoGlyphSize != null) redoGlyphSize = +s.redoGlyphSize;
+    if (s.chipTextSize  != null) chipTextSize  = +s.chipTextSize;
     if (s.vOffset     != null) vOffset     = +s.vOffset;
   } catch(e) {}
 }
@@ -1482,16 +1638,17 @@ function applyVisObj(s) {
   if (s.pinCol      != null) pinCol      = s.pinCol;
   if (s.pinHoleR    != null) pinHoleR    = +s.pinHoleR;
   if (s.pinHoleCol  != null) pinHoleCol  = s.pinHoleCol;
-  if (s.stringLen   != null) stringLen   = +s.stringLen;
   if (s.spacing     != null) spacing     = +s.spacing < 2 ? 85 : +s.spacing;
   if (s.bodyColor   != null) bodyColor   = s.bodyColor;
   if (s.bodyCol2    != null) bodyCol2    = s.bodyCol2;
   if (s.bodyRadius  != null) bodyRadius  = +s.bodyRadius;
-  if (s.holePos     != null) holePos     = +s.holePos;
+  if (s.holePos     != null) holePos     = +s.holePos < 2 ? 265 : +s.holePos;  // migrate old fraction → px
   if (s.rosetteCol    != null) rosetteCol    = s.rosetteCol;
   if (s.rosettePoints != null) rosettePoints = +s.rosettePoints;
   if (s.rosetteDepth  != null) rosetteDepth  = +s.rosetteDepth;
-  if (s.rosetteRound  != null) rosetteRound  = +s.rosetteRound;
+  if (s.rosetteRound  != null) rosetteRoundOut = rosetteRoundIn = +s.rosetteRound;   // migrate old single value
+  if (s.rosetteRoundOut != null) rosetteRoundOut = +s.rosetteRoundOut;
+  if (s.rosetteRoundIn  != null) rosetteRoundIn  = +s.rosetteRoundIn;
   if (s.rosetteGap    != null) rosetteGap    = +s.rosetteGap;
   if (s.rosetteW      != null) rosetteW      = +s.rosetteW;
   if (s.bowAmount   != null) bowAmount   = +s.bowAmount;
@@ -1499,6 +1656,7 @@ function applyVisObj(s) {
   if (s.vibSustain  != null) vibSustain  = +s.vibSustain;
   if (s.grabZone    != null) grabZone    = +s.grabZone;
   if (s.resetMs     != null) resetMs     = +s.resetMs;
+  if (s.soundTail   != null) soundTail   = +s.soundTail;
   if (s.saddleYOff  != null) saddleYOff  = +s.saddleYOff;
   if (s.saddleWFrac != null) saddleWFrac = +s.saddleWFrac;
   if (s.saddleThick != null) saddleThick = +s.saddleThick;
@@ -1506,6 +1664,8 @@ function applyVisObj(s) {
   if (s.bridgeW     != null) bridgeW     = +s.bridgeW;
   if (s.bridgeCol   != null) bridgeCol   = s.bridgeCol;
   if (s.btnColor    != null) btnColor    = s.btnColor;
+  if (s.btnDimCol   != null) btnDimCol   = s.btnDimCol;
+  if (s.btnPressBg  != null) btnPressBg  = s.btnPressBg;
   if (s.btnFont     != null) btnFont     = s.btnFont;
   if (s.btnWeight   != null) btnWeight   = +s.btnWeight;
   if (s.btnCase     != null) btnCase     = s.btnCase;
@@ -1528,7 +1688,6 @@ function applyVisObj(s) {
   if (s.toastFade     != null) toastFade     = +s.toastFade;
   if (s.toastScale    != null) toastScale    = +s.toastScale;
   if (s.toastPad      != null) toastPad      = +s.toastPad;
-  if (s.toastY        != null) toastY        = +s.toastY;
   if (s.toastCase     != null) toastCase     = s.toastCase;
   if (s.toastChevron  != null) toastChevron  = s.toastChevron;
   if (s.toastNextGap  != null) toastNextGap  = +s.toastNextGap;
@@ -1536,18 +1695,16 @@ function applyVisObj(s) {
   if (s.toastFont     != null) toastFont     = s.toastFont;
   if (s.toastWeight   != null) toastWeight   = +s.toastWeight;
   if (s.hdrFont       != null) hdrFont       = s.hdrFont;
-  if (s.threshSize    != null) threshSize    = +s.threshSize;
-  if (s.threshCol     != null) threshCol     = s.threshCol;
-  if (s.threshWeight  != null) threshWeight  = +s.threshWeight;
   if (s.bestSize      != null) bestSize      = +s.bestSize;
   if (s.bestOp        != null) bestOp        = +s.bestOp;
-  if (s.dotSize       != null) dotSize       = +s.dotSize;
-  if (s.dotGap        != null) dotGap        = +s.dotGap;
-  if (s.dotOkCol      != null) dotOkCol      = s.dotOkCol;
-  if (s.dotErrCol     != null) dotErrCol     = s.dotErrCol;
   if (s.bestGap       != null) bestGap       = +s.bestGap;
-  if (s.histGap       != null) histGap       = +s.histGap;
   if (s.hdrTop        != null) hdrTop        = +s.hdrTop;
+  if (s.hdrBtnCol     != null) hdrBtnCol     = s.hdrBtnCol;
+  if (s.hdrBtnBorder  != null) hdrBtnBorder  = s.hdrBtnBorder;
+  if (s.hdrBtnSize    != null) hdrBtnSize    = +s.hdrBtnSize;
+  if (s.hdrBtnStroke  != null) hdrBtnStroke  = +s.hdrBtnStroke;
+  if (s.redoGlyphSize != null) redoGlyphSize = +s.redoGlyphSize;
+  if (s.chipTextSize  != null) chipTextSize  = +s.chipTextSize;
   if (s.vOffset     != null) vOffset     = +s.vOffset;
 }
 
@@ -1562,16 +1719,16 @@ on('pPinR',      e => { pinR       = +e.target.value; document.getElementById('p
 on('pPinCol',    e => { pinCol     = e.target.value; applyPins(); });
 on('pPinHoleR',  e => { pinHoleR   = +e.target.value; document.getElementById('pPinHoleRV').textContent= pinHoleR; applyPins(); });
 on('pPinHoleCol',e => { pinHoleCol = e.target.value; applyPins(); });
-on('pLen',       e => { stringLen  = +e.target.value/100; document.getElementById('pLenV').textContent = e.target.value+'%'; buildSVG(); });
 on('pSpacing',   e => { spacing    = +e.target.value; document.getElementById('pSpacingV').textContent = spacing+'px'; buildSVG(); });
 on('pBodyCol',   e => { bodyColor  = e.target.value; applyBody(); });
 on('pBodyCol2',  e => { bodyCol2   = e.target.value; applyBody(); });
 on('pBodyR',     e => { bodyRadius = +e.target.value; document.getElementById('pBodyRV').textContent   = bodyRadius; applyBody(); });
-on('pBodyY',     e => { holePos    = +e.target.value/100; document.getElementById('pBodyYV').textContent = e.target.value+'%'; buildSVG(); });
+on('pBodyY',     e => { holePos    = +e.target.value; document.getElementById('pBodyYV').textContent = holePos+'px'; buildSVG(); });
 on('pRosCol',    e => { rosetteCol   = e.target.value; applyRosette(); });
 on('pRosPts',    e => { rosettePoints= +e.target.value; document.getElementById('pRosPtsV').textContent  = rosettePoints; applyRosette(); });
 on('pRosDepth',  e => { rosetteDepth = +e.target.value; document.getElementById('pRosDepthV').textContent= rosetteDepth+'px'; applyRosette(); });
-on('pRosRound',  e => { rosetteRound = +e.target.value; document.getElementById('pRosRoundV').textContent= rosetteRound+'%'; applyRosette(); });
+on('pRosRoundOut', e => { rosetteRoundOut = +e.target.value; document.getElementById('pRosRoundOutV').textContent = rosetteRoundOut+'%'; applyRosette(); });
+on('pRosRoundIn',  e => { rosetteRoundIn  = +e.target.value; document.getElementById('pRosRoundInV').textContent  = rosetteRoundIn+'%';  applyRosette(); });
 on('pRosGap',    e => { rosetteGap   = +e.target.value; document.getElementById('pRosGapV').textContent  = rosetteGap+'px'; applyRosette(); });
 on('pRosW',      e => { rosetteW     = +e.target.value; document.getElementById('pRosWV').textContent    = rosetteW+'px'; applyRosette(); });
 on('pSaddleY',   e => { saddleYOff = +e.target.value; document.getElementById('pSaddleYV').textContent = saddleYOff+'px'; applySaddle(); });
@@ -1585,7 +1742,10 @@ on('pVibBlur',   e => { vibBlurAmt = +e.target.value; document.getElementById('p
 on('pSustain',   e => { vibSustain = +e.target.value; document.getElementById('pSustainV').textContent = vibSustain; });
 on('pGrab',      e => { grabZone   = +e.target.value; document.getElementById('pGrabV').textContent    = grabZone+'px'; });
 on('pResetMs',   e => { resetMs    = +e.target.value; document.getElementById('pResetMsV').textContent = resetMs ? resetMs+'ms' : 'off'; resetStrings(); });
+on('pTail',      e => { soundTail  = +e.target.value; document.getElementById('pTailV').textContent    = soundTail.toFixed(1)+'s'; });
 on('pBtnColor',  e => { btnColor   = e.target.value; applyButtonStyles(); });
+on('pBtnDimCol', e => { btnDimCol  = e.target.value; applyButtonStyles(); });
+on('pBtnPressBg',e => { btnPressBg = e.target.value; applyButtonStyles(); });
 on('pBtnFamily', e => { btnFont    = e.target.value; applyButtonStyles(); });
 on('pBtnWeight', e => { btnWeight  = +e.target.value; document.getElementById('pBtnWeightV').textContent = btnWeight; applyButtonStyles(); });
 on('pBtnCase',   e => { btnCase    = e.target.value; applyButtonStyles(); });
@@ -1612,22 +1772,19 @@ on('pToastFont',   e => { toastFontSize= +e.target.value; document.getElementByI
 on('pToastTrack',  e => { toastTracking= +e.target.value; document.getElementById('pToastTrackV').textContent= (toastTracking/100).toFixed(2)+'em'; styleFeedback(); renderToastPreview(); });
 on('pToastScale',  e => { toastScale   = +e.target.value; document.getElementById('pToastScaleV').textContent = toastScale+'%'; styleFeedback(); renderToastPreview(); });
 on('pToastPad',    e => { toastPad     = +e.target.value; document.getElementById('pToastPadV').textContent   = toastPad+'px'; styleFeedback(); renderToastPreview(); });
-on('pToastY',      e => { toastY       = +e.target.value; document.getElementById('pToastYV').textContent     = toastY+'px'; styleFeedback(); });
 on('pToastHold',   e => { toastHold    = +e.target.value; document.getElementById('pToastHoldV').textContent = (toastHold/1000).toFixed(2)+'s'; });
 on('pToastFade',   e => { toastFade    = +e.target.value; document.getElementById('pToastFadeV').textContent = toastFade+'ms'; document.getElementById('feedback').style.transition = `opacity ${toastFade}ms ease`; });
 on('pHdrFont',     e => { hdrFont      = e.target.value; applyHeader(); });
-on('pThreshSize',  e => { threshSize   = +e.target.value; document.getElementById('pThreshSizeV').textContent = threshSize+'px'; applyHeader(); });
-on('pThreshCol',   e => { threshCol    = e.target.value; applyHeader(); });
-on('pThreshWeight',e => { threshWeight = +e.target.value; document.getElementById('pThreshWeightV').textContent = threshWeight; applyHeader(); });
 on('pBestSize',    e => { bestSize     = +e.target.value; document.getElementById('pBestSizeV').textContent = bestSize+'px'; applyHeader(); });
 on('pBestOp',      e => { bestOp       = +e.target.value; document.getElementById('pBestOpV').textContent = bestOp+'%'; applyHeader(); });
-on('pDotSize',     e => { dotSize      = +e.target.value; document.getElementById('pDotSizeV').textContent = dotSize+'px'; applyHeader(); });
-on('pDotGap',      e => { dotGap       = +e.target.value; document.getElementById('pDotGapV').textContent = dotGap+'px'; applyHeader(); });
-on('pDotOk',       e => { dotOkCol     = e.target.value; applyHeader(); });
-on('pDotErr',      e => { dotErrCol    = e.target.value; applyHeader(); });
 on('pHdrTop',      e => { hdrTop       = +e.target.value; document.getElementById('pHdrTopV').textContent = hdrTop+'px'; applyHeader(); });
+on('pHdrBtnCol',   e => { hdrBtnCol    = e.target.value; applyHeader(); });
+on('pHdrBtnBorder',e => { hdrBtnBorder = e.target.value; applyHeader(); });
+on('pHdrBtnSize',  e => { hdrBtnSize   = +e.target.value; document.getElementById('pHdrBtnSizeV').textContent = hdrBtnSize+'px'; applyHeader(); });
+on('pHdrBtnStroke',e => { hdrBtnStroke = +e.target.value; document.getElementById('pHdrBtnStrokeV').textContent = hdrBtnStroke+'px'; applyHeader(); });
+on('pRedoSize',    e => { redoGlyphSize= +e.target.value; document.getElementById('pRedoSizeV').textContent = redoGlyphSize+'px'; applyHeader(); });
+on('pChipSize',    e => { chipTextSize = +e.target.value; document.getElementById('pChipSizeV').textContent = chipTextSize+'px'; applyHeader(); });
 on('pBestGap',     e => { bestGap      = +e.target.value; document.getElementById('pBestGapV').textContent = bestGap+'px'; applyHeader(); });
-on('pHistGap',     e => { histGap      = +e.target.value; document.getElementById('pHistGapV').textContent = histGap+'px'; applyHeader(); });
 on('pVOff',      e => { vOffset    = +e.target.value; document.getElementById('pVOffV').textContent     = vOffset+'px'; applyVOffset(); });
 
 // Keep textarea live when any slider moves
@@ -1664,7 +1821,7 @@ loadVis(); loadGame();
 deviation = Math.min(MAX_D, bestDev * 1.5);
 applyBg();
 applyHeader();
-updateNoteChip();
+updateSel();
 applyButtonStyles();  // size the buttons first so #answers has its final height…
 buildSVG();           // …then buildSVG measures it correctly for vertical centering
 newRound();
