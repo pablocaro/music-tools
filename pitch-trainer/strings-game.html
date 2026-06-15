@@ -22,63 +22,86 @@
       flex-shrink: 0; min-height: 58px;
       /* safe-area clears the notch/status bar; --hdr-top is a manual nudge on top of that */
       padding: calc(env(safe-area-inset-top, 0px) + var(--hdr-top, 0px)) 20px 6px;
-      display: flex; align-items: center; justify-content: space-between;
+      display: flex; align-items: flex-start; justify-content: space-between;
       position: relative; z-index: 5;   /* sits above the strings that run up to the top */
     }
+    /* gear + cent pill share one top-aligned row; best/dots flow below the cent pill */
+    #header-left { display: flex; align-items: flex-start; gap: 10px; flex-shrink: 0; }
+    #cent-col { display: flex; flex-direction: column; }
     /* Cent readout doubles as the reset button (tap → inline confirm) */
     #centChip {
       display: inline-flex; align-items: center; gap: 8px;
       height: var(--hbtn-size, 34px); padding: 0 14px; border-radius: 999px; cursor: pointer; touch-action: manipulation;
       border: var(--hbtn-stroke, 1px) solid color-mix(in srgb, var(--hbtn-border, #ebebeb) 22%, transparent);
       background: rgba(235,235,235,.06);
+      font-family: var(--top-font, 'Rubik', system-ui, sans-serif); font-size: var(--chip-size, 15px);
+      font-weight: 500; letter-spacing: .5px; color: color-mix(in srgb, var(--hbtn-col, #ebebeb) 64%, transparent);
     }
     #centChip:active { background: rgba(235,235,235,.12); }
-    #threshold { font-size: 22px; letter-spacing: 0.5px; opacity: .85; line-height: 1; }
-    #threshold .unit { font-size: 13px; opacity: .45; margin-left: 1px; }
-    #centConfirm { display: none; align-items: center; gap: 6px;
-      font: 500 12px 'Rubik', system-ui, sans-serif; letter-spacing: .5px;
-      color: color-mix(in srgb, var(--hbtn-col, #ebebeb) 64%, transparent); }
+    #threshold { line-height: 1; }   /* size / weight / colour inherited from #centChip */
+    #threshold .unit { font-size: .72em; opacity: .55; margin-left: 1px; }
+    #centConfirm { display: none; align-items: center; gap: 6px; }   /* font + colour inherited */
     #centChip.confirming #threshold { display: none; }
     #centChip.confirming #centConfirm { display: inline-flex; }
     #resetYes, #resetNo {
       width: 22px; height: 22px; border-radius: 50%; padding: 0; cursor: pointer; touch-action: manipulation;
       border: 1px solid color-mix(in srgb, var(--hbtn-border, #ebebeb) 30%, transparent);
       background: rgba(235,235,235,.08); font-size: 12px; line-height: 1;
+      color: var(--hbtn-col, #ebebeb);
       display: inline-flex; align-items: center; justify-content: center;
     }
-    #resetYes { color: #9bdb8f; }
-    #resetNo  { color: #db8f8f; }
+    #resetYes svg, #resetNo svg { width: 11px; height: 11px; display: block; }
     #best { font-size: 10px; letter-spacing: 2px; opacity: .3; margin-top: 3px; }
-    #header-right { display: flex; align-items: center; gap: 8px; }
-    #history { display: flex; gap: var(--dot-gap, 6px); align-items: center; margin-top: 8px; min-height: var(--dot-size, 12px); }
-    .dot { width: var(--dot-size, 7px); height: var(--dot-size, 7px); border-radius: 50%; background: rgba(235,235,235,.14); transition: background .3s; }
-    .dot.ok  { background: color-mix(in srgb, var(--dot-ok, #ebebeb) 75%, transparent); }
-    .dot.err { background: color-mix(in srgb, var(--dot-err, #ff6464) 65%, transparent); }
+    #header-right { display: flex; align-items: center; gap: 8px; min-width: 0; }
     #gear {
-      width: var(--hbtn-size, 34px); height: var(--hbtn-size, 34px); border-radius: 50%;
+      width: var(--hbtn-size, 34px); height: var(--hbtn-size, 34px); border-radius: 50%; padding: 0;
       border: var(--hbtn-stroke, 1px) solid color-mix(in srgb, var(--hbtn-border, #ebebeb) 22%, transparent); background: rgba(235,235,235,.06);
-      color: color-mix(in srgb, var(--hbtn-col, #ebebeb) 56%, transparent); font: 8px 'Courier New', monospace;
-      letter-spacing: 1px; cursor: pointer; flex-shrink: 0; touch-action: manipulation;
+      color: color-mix(in srgb, var(--hbtn-col, #ebebeb) 60%, transparent);
+      cursor: pointer; flex-shrink: 0; touch-action: manipulation;
+      display: inline-flex; align-items: center; justify-content: center;
     }
+    #gear svg { width: 55%; height: 55%; display: block; }
     #gear:active { background: rgba(235,235,235,.15); }
-    /* The two selects fused into one pill: 'C · 5th' */
-    #niChip {
-      display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0;
-      height: var(--hbtn-size, 34px); padding: 0 8px; border-radius: 999px;
+    /* Single selector button — label adapts, width follows the text */
+    #niWrap { position: relative; display: flex; min-width: 0; }
+    #niBtn {
+      display: inline-flex; align-items: center; gap: 5px; max-width: 58vw; flex-shrink: 1; min-width: 0;
+      height: var(--hbtn-size, 34px); padding: 0 13px; border-radius: 999px; cursor: pointer; touch-action: manipulation;
       border: var(--hbtn-stroke, 1px) solid color-mix(in srgb, var(--hbtn-border, #ebebeb) 22%, transparent);
       background: rgba(235,235,235,.06);
+      color: color-mix(in srgb, var(--hbtn-col, #ebebeb) 64%, transparent);
+      font-family: var(--top-font, 'Rubik', system-ui, sans-serif); font-size: var(--chip-size, 15px); font-weight: 500; letter-spacing: .5px;
+      white-space: nowrap;
     }
-    #niChip:active { background: rgba(235,235,235,.12); }
-    .ni-sep { color: color-mix(in srgb, var(--hbtn-col, #ebebeb) 40%, transparent);
-      font-size: var(--chip-size, 13px); line-height: 1; pointer-events: none; }
-    #noteChip, #intChip {
-      -webkit-appearance: none; appearance: none;
-      height: 100%; border: none; background: none; padding: 0 5px; border-radius: 0;
-      color: color-mix(in srgb, var(--hbtn-col, #ebebeb) 64%, transparent); font-family: 'Rubik', system-ui, sans-serif;
-      font-size: var(--chip-size, 13px); font-weight: 500; letter-spacing: .5px; cursor: pointer;
-      text-align: center; text-align-last: center; touch-action: manipulation;
+    #niBtn:active { background: rgba(235,235,235,.12); }
+    #niLabel { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    .ni-caret { font-size: 10px; opacity: .55; line-height: 1; }
+    /* Custom grid popover */
+    #niPop {
+      position: absolute; top: calc(100% + 6px); right: 0; z-index: 40;
+      display: none; flex-direction: column; gap: 3px; width: max-content;
+      padding: 10px; border-radius: 14px;
+      background: #33231a; border: 1px solid rgba(235,235,235,.12);
+      box-shadow: 0 12px 34px rgba(0,0,0,.4);
     }
-    #noteChip option, #intChip option { color: #1c1c1c; }
+    #niWrap.open #niPop { display: flex; }
+    /* transparent tap-catcher: closes on outside tap, no dim, swallows the board pluck */
+    #niScrim { position: fixed; inset: 0; z-index: 39; display: none; }
+    #niWrap.open #niScrim { display: block; }
+    .nip-sec { font: 600 9px 'Rubik', system-ui, sans-serif; letter-spacing: 1.5px;
+      color: rgba(235,235,235,.4); margin: 3px 2px 1px; }
+    .nip-grid { display: grid; gap: 5px; }
+    .nip-notes { grid-template-columns: repeat(4, 1fr); }
+    .nip-ints  { grid-template-columns: repeat(5, 1fr); }
+    .nip-wide  { grid-column: 1 / -1; }
+    .nip-cell {
+      min-width: 42px; height: 32px; padding: 0 6px; border-radius: 8px; cursor: pointer; touch-action: manipulation;
+      border: 1px solid rgba(235,235,235,.1); background: rgba(235,235,235,.05);
+      color: rgba(235,235,235,.72); font-family: 'Rubik', system-ui, sans-serif; font-size: 12px; font-weight: 500;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .nip-cell:active { background: rgba(235,235,235,.16); }
+    .nip-cell.sel { background: color-mix(in srgb, var(--hbtn-col, #ebebeb) 90%, transparent); color: #33231a; border-color: transparent; }
 
     /* ── Stage ──────────────────────────────── */
     #stage { flex: 1; position: relative; overflow: visible; }
@@ -219,30 +242,44 @@
 <body>
 
 <div id="header">
-  <div>
-    <div id="centChip" aria-label="Threshold; tap to reset">
-      <span id="threshold">—<span class="unit">¢</span></span>
-      <span id="centConfirm">RESET?<button id="resetYes" aria-label="Confirm reset">✓</button><button id="resetNo" aria-label="Cancel">✕</button></span>
+  <div id="header-left">
+    <button id="gear" aria-label="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
+    <div id="cent-col">
+      <div id="centChip" aria-label="Threshold; tap to reset">
+        <span id="threshold">—<span class="unit">¢</span></span>
+        <span id="centConfirm">Reset?<button id="resetYes" aria-label="Confirm reset"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg></button><button id="resetNo" aria-label="Cancel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></span>
+      </div>
+      <div id="best"></div>
     </div>
-    <div id="best"></div>
-    <div id="history"></div>
   </div>
   <div id="header-right">
-    <div id="niChip">
-      <select id="noteChip" aria-label="Root note">
-        <option value="rnd">ANY NOTE</option>
-        <option value="0">C</option><option value="1">C#</option><option value="2">D</option>
-        <option value="3">D#</option><option value="4">E</option><option value="5">F</option>
-        <option value="6">F#</option><option value="7">G</option><option value="8">G#</option>
-        <option value="9">A</option><option value="10">A#</option><option value="11">B</option>
-      </select>
-      <span class="ni-sep">·</span>
-      <select id="intChip" aria-label="Interval">
-        <option value="0">UNI</option><option value="5">4th</option><option value="7">5th</option>
-        <option value="12">8ve</option><option value="any">ANY INT</option>
-      </select>
+    <div id="niWrap">
+      <button id="niBtn" aria-label="Notes and intervals"><span id="niLabel">All Notes &amp; Ints</span><span class="ni-caret">⌄</span></button>
+      <div id="niScrim"></div>
+      <div id="niPop">
+        <div class="nip-sec">NOTE</div>
+        <div class="nip-grid nip-notes">
+          <button class="nip-cell nip-wide" data-note="rnd">All Notes</button>
+          <button class="nip-cell" data-note="0">C</button><button class="nip-cell" data-note="1">C#</button>
+          <button class="nip-cell" data-note="2">D</button><button class="nip-cell" data-note="3">D#</button>
+          <button class="nip-cell" data-note="4">E</button><button class="nip-cell" data-note="5">F</button>
+          <button class="nip-cell" data-note="6">F#</button><button class="nip-cell" data-note="7">G</button>
+          <button class="nip-cell" data-note="8">G#</button><button class="nip-cell" data-note="9">A</button>
+          <button class="nip-cell" data-note="10">A#</button><button class="nip-cell" data-note="11">B</button>
+        </div>
+        <div class="nip-sec">INTERVAL</div>
+        <div class="nip-grid nip-ints">
+          <button class="nip-cell" data-int="any">All</button>
+          <button class="nip-cell" data-int="0">Uni</button><button class="nip-cell" data-int="5">4th</button>
+          <button class="nip-cell" data-int="7">5th</button><button class="nip-cell" data-int="12">8ve</button>
+        </div>
+      </div>
     </div>
-    <button id="gear">SET</button>
   </div>
 </div>
 
@@ -281,35 +318,19 @@
         <input type="range" id="pHdrBtnStroke" min="0" max="4" step="0.5" autocomplete="off"></div>
       <div class="prow"><label>↺ GLYPH SIZE <span class="v" id="pRedoSizeV"></span></label>
         <input type="range" id="pRedoSize" min="10" max="28" step="1" autocomplete="off"></div>
-      <div class="prow"><label>RND TEXT SIZE <span class="v" id="pChipSizeV"></span></label>
+      <div class="prow"><label>TOP TEXT SIZE <span class="v" id="pChipSizeV"></span></label>
         <input type="range" id="pChipSize" min="8" max="20" step="1" autocomplete="off"></div>
       <div class="prow"><label>FONT</label>
         <select id="pHdrFont" autocomplete="off">
           <option value="Rubik">Rubik</option><option value="System">System</option>
           <option value="Serif">Serif</option><option value="Mono">Mono</option>
         </select></div>
-      <div class="prow"><label>CENT SIZE <span class="v" id="pThreshSizeV"></span></label>
-        <input type="range" id="pThreshSize" min="12" max="40" step="1" autocomplete="off"></div>
-      <div class="prow"><label>CENT COLOR</label>
-        <input type="color" id="pThreshCol" autocomplete="off"></div>
-      <div class="prow"><label>CENT WEIGHT <span class="v" id="pThreshWeightV"></span></label>
-        <input type="range" id="pThreshWeight" min="300" max="900" step="100" autocomplete="off"></div>
       <div class="prow"><label>BEST SIZE <span class="v" id="pBestSizeV"></span></label>
         <input type="range" id="pBestSize" min="6" max="20" step="1" autocomplete="off"></div>
       <div class="prow"><label>BEST OPACITY <span class="v" id="pBestOpV"></span></label>
         <input type="range" id="pBestOp" min="0" max="100" step="5" autocomplete="off"></div>
-      <div class="prow"><label>DOT SIZE <span class="v" id="pDotSizeV"></span></label>
-        <input type="range" id="pDotSize" min="3" max="16" step="1" autocomplete="off"></div>
-      <div class="prow"><label>DOT GAP <span class="v" id="pDotGapV"></span></label>
-        <input type="range" id="pDotGap" min="2" max="16" step="1" autocomplete="off"></div>
-      <div class="prow"><label>DOT — CORRECT</label>
-        <input type="color" id="pDotOk" autocomplete="off"></div>
-      <div class="prow"><label>DOT — WRONG</label>
-        <input type="color" id="pDotErr" autocomplete="off"></div>
       <div class="prow"><label>GAP: CENT → BEST <span class="v" id="pBestGapV"></span></label>
         <input type="range" id="pBestGap" min="0" max="40" step="1" autocomplete="off"></div>
-      <div class="prow"><label>GAP: BEST → DOTS <span class="v" id="pHistGapV"></span></label>
-        <input type="range" id="pHistGap" min="0" max="40" step="1" autocomplete="off"></div>
     </div>
 
     <!-- APPEARANCE -->
@@ -567,25 +588,25 @@ let bodyCol2     = '#7b3920';   // soundhole brown (edge)
 let bodyRadius   = 80;          // soundhole radius
 let bowAmount    = 90;
 let vibBlurAmt   = 3;
-let vibSustain   = 64;
+let vibSustain   = 29;
 let grabZone     = 40;      // px catch radius around a string for grab/pull
 let resetMs      = 300;     // new-round reset: strings collapse width+fade out, then back (0 = off)
-let soundTail    = 1.8;     // note tail length in seconds (how long a pluck rings out)
+let soundTail    = 1;       // note tail length in seconds (how long a pluck rings out)
 
 // Button appearance
 let btnColor     = '#ebebeb';   // ready (tappable) state colour
 let btnDimCol    = '#ebebeb';   // dim (not-ready) state colour
 let btnPressBg   = '#ebebeb';   // pressed-state background (shown ~14% via color-mix)
 let btnFont      = 'Rubik';  // family key (see FONT_STACKS)
-let btnWeight    = 400;      // font-weight
+let btnWeight    = 500;      // font-weight
 let btnCase      = 'uppercase'; // text-transform: none | uppercase | lowercase
 let btnFontSize  = 14;      // px
 let btnTracking  = 10;      // hundredths of em  (10 → 0.10em)
-let btnPadV      = 11;      // vertical padding px
+let btnPadV      = 9;       // vertical padding px
 let btnRadius    = 22;      // border-radius px
 let btnBorderW   = 2;       // border width px
-let btnGap       = 9;       // gap between buttons px
-let btnAreaPad   = 37;      // padding around button row px
+let btnGap       = 8;       // gap between buttons px
+let btnAreaPad   = 28;      // padding around button row px
 let btnMinW      = 68;      // min-width px
 let btnMaxW      = 120;     // max-width px
 
@@ -596,7 +617,7 @@ let toastFont     = 'Rubik';    // family key (see FONT_STACKS)
 let toastWeight   = 400;        // font-weight
 let toastNextBg   = '#7b3920';  // next-button disc
 let toastNextCol  = '#F7F2E8';  // next-button arrow
-let toastFontSize = 14;         // px
+let toastFontSize = 15;         // px
 let toastTracking = 4;          // hundredths of em (4 → 0.04em)
 let toastHold     = 950;        // ms held before auto-advance on a correct answer
 let toastFade     = 250;        // ms fade in/out
@@ -608,44 +629,36 @@ let toastNextGap  = 11;         // px gap between the label and the chevron
 let toastNextDY   = 0;          // px vertical nudge of the chevron
 
 // Header ("top") visuals
-let hdrFont      = 'Rubik';   // family key for the cent readout + best line
-let threshSize   = 22;        // px cent readout size
-let threshCol    = '#ebebeb'; // cent readout colour
-let threshWeight = 400;       // cent readout weight
-let bestSize     = 10;        // px best-line size
-let bestOp       = 30;        // best-line opacity %
-let dotSize      = 12;        // px streak-dot diameter
-let dotGap       = 6;         // px gap between streak dots (horizontal)
-let dotOkCol     = '#fff065'; // correct streak dot (shown at 75% via color-mix)
-let dotErrCol    = '#7b3920'; // wrong streak dot (shown at 65% via color-mix)
-let bestGap      = 3;         // px vertical gap: cent readout → best line
-let histGap      = 8;         // px vertical gap: best line → streak dots
-let hdrTop       = 10;        // px manual top nudge for the whole header (added to the safe area)
+let hdrFont      = 'Rubik';   // family key for all top buttons + best line
+let bestSize     = 12;        // px best-line size
+let bestOp       = 75;        // best-line opacity %
+let bestGap      = 8;         // px vertical gap: cent readout → best line
+let hdrTop       = 22;        // px manual top nudge for the whole header (added to the safe area)
 let hdrBtnCol    = '#ebebeb'; // top-button icon/text colour (shown ~56% via color-mix)
 let hdrBtnBorder = '#ebebeb'; // top-button border colour (shown ~22% via color-mix)
-let hdrBtnSize   = 34;        // top-button size px (↺ / note chip / SET)
-let hdrBtnStroke = 1;         // top-button border width px (all three)
+let hdrBtnSize   = 39;        // top-button size px (↺ / note chip / SET)
+let hdrBtnStroke = 2;         // top-button border width px (all three)
 let redoGlyphSize = 16;       // ↺ glyph font-size px
-let chipTextSize = 13;        // RND note-chip text size px
+let chipTextSize = 16;        // px text size shared by every top button
 
 // Layout
-let vOffset      = 60;      // manual vertical nudge px
+let vOffset      = 43;      // manual vertical nudge px
 
 // ── Bridge layout (ukulele) ──────────────────────────────────
-let holePos      = 265;     // soundhole center Y: px ABOVE the bridge pins (bottom of the strings)
+let holePos      = 242;     // soundhole center Y: px ABOVE the bridge pins (bottom of the strings)
 let bridgePos    = 0.76;    // bridge pin row Y (fraction of stage H)
-let rosetteGap    = 19;     // px gap from hole edge to the rosette's valleys
-let rosetteW      = 5;      // px rosette stroke width
+let rosetteGap    = 26;     // px gap from hole edge to the rosette's valleys
+let rosetteW      = 6;      // px rosette stroke width
 let rosetteCol    = '#7b3920';
 let rosettePoints = 8;      // lobe count (<3 → plain circle ring)
-let rosetteDepth  = 16;     // px the lobes bump out past the valley
-let rosetteRoundOut = 80;   // roundness % of the OUTER points (lobe tips)
-let rosetteRoundIn  = 80;   // roundness % of the INNER points (valleys)
+let rosetteDepth  = 10;     // px the lobes bump out past the valley
+let rosetteRoundOut = 100;  // roundness % of the OUTER points (lobe tips)
+let rosetteRoundIn  = 27;   // roundness % of the INNER points (valleys)
 let bridgeW      = 210;     // bridge plate width (fixed px)
 let bridgeCol    = '#7B3920';
 let saddleWFrac  = 0.65;    // saddle line width as fraction of the board
 let saddleThick  = 5;       // px saddle line thickness
-let saddleYOff   = 28;      // px the saddle sits above the bridge pin row
+let saddleYOff   = 27;      // px the saddle sits above the bridge pin row
 let saddleCol    = '#F7F2E8';
 let pinCol       = '#F7F2E8';  // grommet outer disc
 let pinHoleR     = 3;          // grommet inner hole radius
@@ -665,6 +678,7 @@ const cx  = [0, 0];
 const vib = [false, false];
 let mainPath = [], ghostEls = [], blurDev = [], grpEls = [], pinEls = [];
 let bodyCircle = null, rosetteCircle = null, bridgeGrp = null, saddleLine = null;
+let rosetteAngle = 0;            // accumulates one notch per round → the rosette spin
 const BRIDGE_PATH = 'M0.427937 7.39967L8.79791 60.3275C9.06274 62.0021 10.5063 63.2353 12.2017 63.2353C32.4322 63.2353 52.1332 69.0626 70.9013 76.6145C83.2111 81.5676 97.6181 86 109.758 86C121.897 86 136.304 81.5676 148.614 76.6145C167.382 69.0626 187.083 63.2353 207.314 63.2353C209.009 63.2353 210.453 62.0021 210.718 60.3275L219.088 7.39967C219.491 4.85148 219.692 3.57738 219.317 2.58547C218.988 1.71493 218.366 0.98639 217.557 0.525332C216.636 0 215.346 0 212.766 0H6.74938C4.16952 0 2.8796 0 1.95844 0.525332C1.14998 0.98639 0.527602 1.71493 0.198483 2.58547C-0.176517 3.57738 0.0249675 4.85148 0.427937 7.39967Z';
 
 function xRatio(i) { return 0.5 + (i === 0 ? -1 : 1) * spacing / (2 * W); }
@@ -757,6 +771,9 @@ function buildSVG() {
   rosette.setAttribute('stroke', rosetteCol);
   rosette.setAttribute('stroke-width', rosetteW);
   rosette.setAttribute('stroke-linejoin', 'round');
+  rosette.style.transformBox = 'fill-box';      // rotate around the rosette's own centre (the hole)
+  rosette.style.transformOrigin = 'center';
+  rosette.style.transform = 'rotate(' + rosetteAngle + 'deg)';   // static angle on (re)build; no animation
   svg.appendChild(rosette); rosetteCircle = rosette;
 
   // 2) Bridge plate (scaled panel path) — positioned/sized live by applyBridge
@@ -982,15 +999,13 @@ function applyButtonStyles() {
   styleFeedback();  // keep the feedback label matched to the button font
 }
 function applyHeader() {
-  const th = document.getElementById('threshold'), bs = document.getElementById('best');
+  const bs = document.getElementById('best');
   const ff = fontStack(hdrFont);
-  th.style.fontFamily = ff; th.style.fontSize = threshSize + 'px';
-  th.style.color = threshCol; th.style.fontWeight = threshWeight;
   bs.style.fontFamily = ff; bs.style.fontSize = bestSize + 'px';
   bs.style.opacity = bestOp / 100;
   bs.style.marginTop = bestGap + 'px';
-  document.getElementById('history').style.marginTop = histGap + 'px';
   const r = document.documentElement.style;
+  r.setProperty('--top-font', ff);   // one font for every top button
   r.setProperty('--hdr-top',  hdrTop + 'px');
   r.setProperty('--hbtn-col',    hdrBtnCol);
   r.setProperty('--hbtn-border', hdrBtnBorder);
@@ -998,10 +1013,6 @@ function applyHeader() {
   r.setProperty('--hbtn-stroke', hdrBtnStroke + 'px');
   r.setProperty('--redo-size',   redoGlyphSize + 'px');
   r.setProperty('--chip-size',   chipTextSize + 'px');
-  r.setProperty('--dot-size', dotSize + 'px');
-  r.setProperty('--dot-gap',  dotGap + 'px');
-  r.setProperty('--dot-ok',   dotOkCol);
-  r.setProperty('--dot-err',  dotErrCol);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1146,7 +1157,7 @@ window.addEventListener('resize', () => {
 const ROOT = 440, MAX_D = 50, MIN_D = 1;
 const LS_GAME = 'pitch-game-v1';
 let deviation = MAX_D, bestDev = MAX_D, phase = 'play', roundDir = 'sharp';
-let lastCorrect = null, oscillations = 0, history = [], advanceTimer = null;
+let lastCorrect = null, oscillations = 0, wrongStreak = 0, advanceTimer = null;
 // Reference note for the exercise. ROOT (440) is A4; rootSemi 0=C…11=B.
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 let rootSemi = 9, rootOct = 4;   // A4 by default
@@ -1193,8 +1204,6 @@ function fmt(c) { return c >= 10 ? Math.round(c) : c.toFixed(1); }
 function updateHeader() {
   document.getElementById('threshold').innerHTML = `±${fmt(deviation)}<span class="unit">¢</span>`;
   document.getElementById('best').textContent = bestDev < MAX_D ? `best  ±${fmt(bestDev)}¢` : '';
-  document.getElementById('history').innerHTML =
-    history.map(ok => `<div class="dot ${ok ? 'ok' : 'err'}"></div>`).join('');
 }
 function setButtonsReady(ready) {
   document.querySelectorAll('.abtn').forEach(b => ready ? b.classList.add('ready') : b.classList.remove('ready'));
@@ -1207,6 +1216,14 @@ function setRoundFreqs() {
                  : roundDir === 'flat'   ? target * Math.pow(2, -deviation / 1200)
                  : target;
 }
+// Ratchet the rosette one notch (one lobe-step) per round, easing into place.
+function rosetteNotch() { const n = Math.round(rosettePoints); return 360 / (n >= 3 ? n : 8); }
+function bumpRosette() {
+  if (!rosetteCircle) return;
+  rosetteAngle += rosetteNotch();
+  rosetteCircle.style.transition = 'transform .6s cubic-bezier(.34, 1.4, .5, 1)';
+  rosetteCircle.style.transform  = 'rotate(' + rosetteAngle + 'deg)';
+}
 function newRound() {
   const inTuneP = 0.1 + 0.2 * (1 - Math.min(deviation, MAX_D) / MAX_D);
   const r = Math.random();
@@ -1216,29 +1233,71 @@ function newRound() {
   setRoundFreqs();
   phase = 'play'; hasPlucked = false;
   setButtonsReady(false); hideFeedback(); updateHeader();
+  bumpRosette();                              // rosette ratchets a notch each round
 }
-const NOTE_CHIP = document.getElementById('noteChip');
-// Reflect the current mode in the dropdown (RND, or the chosen semitone).
-function updateNoteChip() { NOTE_CHIP.value = randomNote ? 'rnd' : String(rootSemi); }
-NOTE_CHIP.addEventListener('change', () => {
-  const v = NOTE_CHIP.value;
+// ── Notes × intervals selector: one button + custom grid popover ──
+const NI_WRAP  = document.getElementById('niWrap');
+const NI_BTN   = document.getElementById('niBtn');
+const NI_LABEL = document.getElementById('niLabel');
+const NI_POP   = document.getElementById('niPop');
+const NI_SCRIM = document.getElementById('niScrim');
+const INT_NAMES  = { 0: 'Uni', 5: '4th', 7: '5th', 12: '8ve' };
+const INT_PLURAL = { 5: '4ths', 7: '5ths', 12: '8ves' };
+
+// Compact, human-readable label for the current note × interval selection.
+function selLabel() {
+  const isUni = !randomInterval && intervalSemi === 0;
+  if (randomNote && randomInterval) return 'All Notes & Ints';
+  if (randomNote && isUni)          return 'All Notes';
+  if (randomNote)                   return INT_PLURAL[intervalSemi];   // any note, fixed interval → "5ths"
+  const n = NOTE_NAMES[rootSemi];
+  if (randomInterval)               return n + ' · All Ints';
+  if (isUni)                        return n;                          // unison → just the note
+  return n + ' · ' + INT_NAMES[intervalSemi];
+}
+// Push state → button label + highlight the live cells in the grid.
+function updateSel() {
+  NI_LABEL.textContent = selLabel();
+  const noteVal = randomNote ? 'rnd' : String(rootSemi);
+  const intVal  = randomInterval ? 'any' : String(intervalSemi);
+  NI_POP.querySelectorAll('[data-note]').forEach(c => c.classList.toggle('sel', c.dataset.note === noteVal));
+  NI_POP.querySelectorAll('[data-int]').forEach(c => c.classList.toggle('sel', c.dataset.int === intVal));
+}
+function selectNote(v) {
   if (v === 'rnd') { randomNote = true; pickRandomNote(); }
   else             { randomNote = false; rootSemi = +v; }
-  setRoundFreqs();                   // retune the current round to the picked note
-});
-const INT_CHIP = document.getElementById('intChip');
-function updateIntChip() { INT_CHIP.value = randomInterval ? 'any' : String(intervalSemi); }
-INT_CHIP.addEventListener('change', () => {
-  const v = INT_CHIP.value;
+  setRoundFreqs(); updateSel();       // retune the current round to the picked note
+}
+function selectInt(v) {
   if (v === 'any') { randomInterval = true; pickRandomInterval(); }
   else             { randomInterval = false; intervalSemi = +v; }
-  setRoundFreqs();                   // retune the current round to the picked interval
-});
+  setRoundFreqs(); updateSel();       // retune the current round to the picked interval
+}
+
+// Open/close — a transparent full-screen scrim catches the outside tap (no dim,
+// and it swallows the tap so the board doesn't pluck on dismiss).
+function openNiPop()  { NI_WRAP.classList.add('open'); }
+function closeNiPop() { NI_WRAP.classList.remove('open'); }
+NI_BTN.addEventListener('click', () => NI_WRAP.classList.contains('open') ? closeNiPop() : openNiPop());
+NI_SCRIM.addEventListener('click', closeNiPop);
+
+// Cell taps: handle touchend directly and guard the synthesized click (reliable on iOS).
+// Selecting does NOT close the popover — pick a note and an interval, then tap outside.
+let niTouched = false;
+function onCellTap(e) {
+  const cell = e.target.closest('.nip-cell');
+  if (!cell) return;
+  e.preventDefault();
+  if (cell.dataset.note !== undefined)     selectNote(cell.dataset.note);
+  else if (cell.dataset.int !== undefined) selectInt(cell.dataset.int);
+}
+NI_POP.addEventListener('touchend', e => { niTouched = true; onCellTap(e); setTimeout(() => niTouched = false, 400); }, { passive: false });
+NI_POP.addEventListener('click', e => { e.stopPropagation(); if (!niTouched) onCellTap(e); });
 // Soft reset: restart the run at the easiest level and clear the streak, but keep
 // the best score. Triggered by the ↺ next to the cent readout.
 function resetExercise() {
   clearTimeout(advanceTimer);
-  deviation = MAX_D; history = []; oscillations = 0; lastCorrect = null;
+  deviation = MAX_D; wrongStreak = 0; oscillations = 0; lastCorrect = null;
   newRound(); resetStrings();
 }
 function adjust(correct) {
@@ -1249,7 +1308,7 @@ function adjust(correct) {
     deviation = Math.max(MIN_D, deviation * (oscillations > 4 ? 0.90 : 0.75));
     if (deviation < bestDev) { bestDev = deviation; saveGame(); }
   } else {
-    const bigStep  = history.slice(-4).filter(x => !x).length >= 4;
+    const bigStep  = wrongStreak >= 4;
     const tightStep = oscillations > 4;
     deviation = Math.min(MAX_D, deviation * (bigStep ? 1.8 : tightStep ? 1.1 : 1.3));
   }
@@ -1258,7 +1317,7 @@ function answer(userAns) {
   if (phase !== 'play' || !hasPlucked) return;
   const correct = userAns === roundDir;
   adjust(correct);
-  history.push(correct); if (history.length > 5) history.shift();
+  wrongStreak = correct ? 0 : wrongStreak + 1;   // feeds the "4 wrong in a row → bigger step" rule
   setButtonsReady(false); updateHeader();
   showFeedback(correct);
   if (correct) {
@@ -1397,8 +1456,8 @@ function currentVis() {
     btnMinW, btnMaxW,
     toastBg, toastTextCol, toastNextBg, toastNextCol, toastFont, toastWeight, toastFontSize, toastTracking, toastHold, toastFade,
     toastScale, toastPad, toastCase, toastChevron, toastNextGap, toastNextDY,
-    hdrFont, threshSize, threshCol, threshWeight, bestSize, bestOp, dotSize, dotGap, dotOkCol, dotErrCol,
-    bestGap, histGap, hdrTop, hdrBtnCol, hdrBtnBorder, hdrBtnSize, hdrBtnStroke, redoGlyphSize, chipTextSize,
+    hdrFont, bestSize, bestOp,
+    bestGap, hdrTop, hdrBtnCol, hdrBtnBorder, hdrBtnSize, hdrBtnStroke, redoGlyphSize, chipTextSize,
     vOffset
   };
 }
@@ -1471,15 +1530,8 @@ function syncPanel() {
   g('pToastFade').value    = toastFade;     g('pToastFadeV').textContent  = toastFade + 'ms';
   renderToastPreview();
   g('pHdrFont').value    = hdrFont;
-  g('pThreshSize').value = threshSize;  g('pThreshSizeV').textContent   = threshSize + 'px';
-  g('pThreshCol').value  = threshCol;
-  g('pThreshWeight').value = threshWeight; g('pThreshWeightV').textContent = threshWeight;
   g('pBestSize').value   = bestSize;    g('pBestSizeV').textContent     = bestSize + 'px';
   g('pBestOp').value     = bestOp;      g('pBestOpV').textContent       = bestOp + '%';
-  g('pDotSize').value    = dotSize;     g('pDotSizeV').textContent      = dotSize + 'px';
-  g('pDotGap').value     = dotGap;      g('pDotGapV').textContent       = dotGap + 'px';
-  g('pDotOk').value      = dotOkCol;
-  g('pDotErr').value     = dotErrCol;
   g('pHdrTop').value     = hdrTop;      g('pHdrTopV').textContent       = hdrTop + 'px';
   g('pHdrBtnCol').value  = hdrBtnCol;
   g('pHdrBtnBorder').value = hdrBtnBorder;
@@ -1488,7 +1540,6 @@ function syncPanel() {
   g('pRedoSize').value   = redoGlyphSize; g('pRedoSizeV').textContent     = redoGlyphSize + 'px';
   g('pChipSize').value   = chipTextSize;  g('pChipSizeV').textContent     = chipTextSize + 'px';
   g('pBestGap').value    = bestGap;     g('pBestGapV').textContent      = bestGap + 'px';
-  g('pHistGap').value    = histGap;     g('pHistGapV').textContent      = histGap + 'px';
   g('pVOff').value     = vOffset;       g('pVOffV').textContent      = vOffset + 'px';
   g('pJson').value = JSON.stringify(currentVis());
 }
@@ -1562,17 +1613,9 @@ function loadVis() {
     if (s.toastFont     != null) toastFont     = s.toastFont;
     if (s.toastWeight   != null) toastWeight   = +s.toastWeight;
     if (s.hdrFont       != null) hdrFont       = s.hdrFont;
-    if (s.threshSize    != null) threshSize    = +s.threshSize;
-    if (s.threshCol     != null) threshCol     = s.threshCol;
-    if (s.threshWeight  != null) threshWeight  = +s.threshWeight;
     if (s.bestSize      != null) bestSize      = +s.bestSize;
     if (s.bestOp        != null) bestOp        = +s.bestOp;
-    if (s.dotSize       != null) dotSize       = +s.dotSize;
-    if (s.dotGap        != null) dotGap        = +s.dotGap;
-    if (s.dotOkCol      != null) dotOkCol      = s.dotOkCol;
-    if (s.dotErrCol     != null) dotErrCol     = s.dotErrCol;
     if (s.bestGap       != null) bestGap       = +s.bestGap;
-    if (s.histGap       != null) histGap       = +s.histGap;
     if (s.hdrTop        != null) hdrTop        = +s.hdrTop;
     if (s.hdrBtnCol     != null) hdrBtnCol     = s.hdrBtnCol;
     if (s.hdrBtnBorder  != null) hdrBtnBorder  = s.hdrBtnBorder;
@@ -1652,17 +1695,9 @@ function applyVisObj(s) {
   if (s.toastFont     != null) toastFont     = s.toastFont;
   if (s.toastWeight   != null) toastWeight   = +s.toastWeight;
   if (s.hdrFont       != null) hdrFont       = s.hdrFont;
-  if (s.threshSize    != null) threshSize    = +s.threshSize;
-  if (s.threshCol     != null) threshCol     = s.threshCol;
-  if (s.threshWeight  != null) threshWeight  = +s.threshWeight;
   if (s.bestSize      != null) bestSize      = +s.bestSize;
   if (s.bestOp        != null) bestOp        = +s.bestOp;
-  if (s.dotSize       != null) dotSize       = +s.dotSize;
-  if (s.dotGap        != null) dotGap        = +s.dotGap;
-  if (s.dotOkCol      != null) dotOkCol      = s.dotOkCol;
-  if (s.dotErrCol     != null) dotErrCol     = s.dotErrCol;
   if (s.bestGap       != null) bestGap       = +s.bestGap;
-  if (s.histGap       != null) histGap       = +s.histGap;
   if (s.hdrTop        != null) hdrTop        = +s.hdrTop;
   if (s.hdrBtnCol     != null) hdrBtnCol     = s.hdrBtnCol;
   if (s.hdrBtnBorder  != null) hdrBtnBorder  = s.hdrBtnBorder;
@@ -1740,15 +1775,8 @@ on('pToastPad',    e => { toastPad     = +e.target.value; document.getElementByI
 on('pToastHold',   e => { toastHold    = +e.target.value; document.getElementById('pToastHoldV').textContent = (toastHold/1000).toFixed(2)+'s'; });
 on('pToastFade',   e => { toastFade    = +e.target.value; document.getElementById('pToastFadeV').textContent = toastFade+'ms'; document.getElementById('feedback').style.transition = `opacity ${toastFade}ms ease`; });
 on('pHdrFont',     e => { hdrFont      = e.target.value; applyHeader(); });
-on('pThreshSize',  e => { threshSize   = +e.target.value; document.getElementById('pThreshSizeV').textContent = threshSize+'px'; applyHeader(); });
-on('pThreshCol',   e => { threshCol    = e.target.value; applyHeader(); });
-on('pThreshWeight',e => { threshWeight = +e.target.value; document.getElementById('pThreshWeightV').textContent = threshWeight; applyHeader(); });
 on('pBestSize',    e => { bestSize     = +e.target.value; document.getElementById('pBestSizeV').textContent = bestSize+'px'; applyHeader(); });
 on('pBestOp',      e => { bestOp       = +e.target.value; document.getElementById('pBestOpV').textContent = bestOp+'%'; applyHeader(); });
-on('pDotSize',     e => { dotSize      = +e.target.value; document.getElementById('pDotSizeV').textContent = dotSize+'px'; applyHeader(); });
-on('pDotGap',      e => { dotGap       = +e.target.value; document.getElementById('pDotGapV').textContent = dotGap+'px'; applyHeader(); });
-on('pDotOk',       e => { dotOkCol     = e.target.value; applyHeader(); });
-on('pDotErr',      e => { dotErrCol    = e.target.value; applyHeader(); });
 on('pHdrTop',      e => { hdrTop       = +e.target.value; document.getElementById('pHdrTopV').textContent = hdrTop+'px'; applyHeader(); });
 on('pHdrBtnCol',   e => { hdrBtnCol    = e.target.value; applyHeader(); });
 on('pHdrBtnBorder',e => { hdrBtnBorder = e.target.value; applyHeader(); });
@@ -1757,7 +1785,6 @@ on('pHdrBtnStroke',e => { hdrBtnStroke = +e.target.value; document.getElementByI
 on('pRedoSize',    e => { redoGlyphSize= +e.target.value; document.getElementById('pRedoSizeV').textContent = redoGlyphSize+'px'; applyHeader(); });
 on('pChipSize',    e => { chipTextSize = +e.target.value; document.getElementById('pChipSizeV').textContent = chipTextSize+'px'; applyHeader(); });
 on('pBestGap',     e => { bestGap      = +e.target.value; document.getElementById('pBestGapV').textContent = bestGap+'px'; applyHeader(); });
-on('pHistGap',     e => { histGap      = +e.target.value; document.getElementById('pHistGapV').textContent = histGap+'px'; applyHeader(); });
 on('pVOff',      e => { vOffset    = +e.target.value; document.getElementById('pVOffV').textContent     = vOffset+'px'; applyVOffset(); });
 
 // Keep textarea live when any slider moves
@@ -1794,8 +1821,7 @@ loadVis(); loadGame();
 deviation = Math.min(MAX_D, bestDev * 1.5);
 applyBg();
 applyHeader();
-updateNoteChip();
-updateIntChip();
+updateSel();
 applyButtonStyles();  // size the buttons first so #answers has its final height…
 buildSVG();           // …then buildSVG measures it correctly for vertical centering
 newRound();
