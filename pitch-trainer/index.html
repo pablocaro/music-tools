@@ -128,6 +128,15 @@
       border: none; font-family: inherit; line-height: 1; padding: 0;
     }
     #feedback.has-next #fbNext { display: inline-flex; }
+    /* In-tune review toggle: same disc as ›, ghost when off, filled (lit) when on */
+    #fbTune {
+      display: none; align-items: center; justify-content: center;
+      width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%;
+      pointer-events: auto; cursor: pointer;
+      border: 1.5px solid; background: transparent;
+      font-family: inherit; line-height: 1; padding: 0;
+    }
+    #feedback.has-next #fbTune { display: inline-flex; }
     #toastPrev { display: flex; justify-content: center; padding: 4px 0; }
 
     /* ── Answer buttons ─────────────────────── */
@@ -284,7 +293,7 @@
 </div>
 
 <div id="stage"><svg id="svg"></svg>
-  <div id="feedback"><div id="fbPill"><span id="fbLabel"></span><button id="fbNext" aria-label="Next round">›</button></div></div>
+  <div id="feedback"><div id="fbPill"><span id="fbLabel"></span><button id="fbTune" aria-label="Toggle in-tune reference">≈</button><button id="fbNext" aria-label="Next round">›</button></div></div>
 </div>
 
 <div id="answers">
@@ -389,13 +398,29 @@
       <div class="prow"><label>DEPTH <span class="v" id="pRosDepthV"></span></label>
         <input type="range" id="pRosDepth" min="0" max="60" step="1" autocomplete="off"></div>
       <div class="prow"><label>ROUNDNESS — OUTER <span class="v" id="pRosRoundOutV"></span></label>
-        <input type="range" id="pRosRoundOut" min="0" max="100" step="1" autocomplete="off"></div>
+        <input type="range" id="pRosRoundOut" min="0" max="130" step="1" autocomplete="off"></div>
       <div class="prow"><label>ROUNDNESS — INNER <span class="v" id="pRosRoundInV"></span></label>
-        <input type="range" id="pRosRoundIn" min="0" max="100" step="1" autocomplete="off"></div>
+        <input type="range" id="pRosRoundIn" min="0" max="130" step="1" autocomplete="off"></div>
       <div class="prow"><label>GAP (from hole) <span class="v" id="pRosGapV"></span></label>
         <input type="range" id="pRosGap" min="0" max="80" step="1" autocomplete="off"></div>
-      <div class="prow"><label>STROKE <span class="v" id="pRosWV"></span></label>
+      <div class="prow"><label>STROKE (inner ring) <span class="v" id="pRosWV"></span></label>
         <input type="range" id="pRosW" min="0" max="20" step="1" autocomplete="off"></div>
+      <div class="prow"><label>RING COUNT <span class="v" id="pRingCountV"></span></label>
+        <input type="range" id="pRingCount" min="1" max="6" step="1" autocomplete="off"></div>
+      <div class="prow"><label>RING SPACING <span class="v" id="pRingSpacingV"></span></label>
+        <input type="range" id="pRingSpacing" min="2" max="40" step="1" autocomplete="off"></div>
+      <div class="prow"><label>WIDTH TAPER <span class="v" id="pRingTaperV"></span></label>
+        <input type="range" id="pRingTaper" min="30" max="100" step="5" autocomplete="off"></div>
+      <div class="prow check"><label><input type="checkbox" id="pInnerBand" autocomplete="off"> INNER BAND</label></div>
+      <div class="prow"><label>INNER OFFSET <span class="v" id="pInnerBandGapV"></span></label>
+        <input type="range" id="pInnerBandGap" min="0" max="40" step="1" autocomplete="off"></div>
+      <div class="prow check"><label><input type="checkbox" id="pOuterBand" autocomplete="off"> OUTER BAND</label></div>
+      <div class="prow"><label>OUTER OFFSET <span class="v" id="pOuterBandGapV"></span></label>
+        <input type="range" id="pOuterBandGap" min="0" max="40" step="1" autocomplete="off"></div>
+      <div class="prow"><label>BAND STROKE <span class="v" id="pBandWV"></span></label>
+        <input type="range" id="pBandW" min="1" max="8" step="0.5" autocomplete="off"></div>
+      <div class="prow"><label>BAND COLOR</label>
+        <input type="color" id="pBandCol" autocomplete="off"></div>
     </div>
 
     <!-- SADDLE -->
@@ -647,13 +672,22 @@ let vOffset      = 43;      // manual vertical nudge px
 // ── Bridge layout (ukulele) ──────────────────────────────────
 let holePos      = 242;     // soundhole center Y: px ABOVE the bridge pins (bottom of the strings)
 let bridgePos    = 0.76;    // bridge pin row Y (fraction of stage H)
-let rosetteGap    = 26;     // px gap from hole edge to the rosette's valleys
-let rosetteW      = 6;      // px rosette stroke width
+let rosetteGap    = 18;     // px gap from hole edge to the rosette's valleys
+let rosetteW      = 3;      // px stroke width of the innermost ring
 let rosetteCol    = '#7b3920';
 let rosettePoints = 8;      // lobe count (<3 → plain circle ring)
-let rosetteDepth  = 10;     // px the lobes bump out past the valley
-let rosetteRoundOut = 100;  // roundness % of the OUTER points (lobe tips)
-let rosetteRoundIn  = 27;   // roundness % of the INNER points (valleys)
+let rosetteDepth  = 15;     // px the lobes bump out past the valley
+let rosetteRoundOut = 130;  // roundness % of the OUTER points (lobe tips)
+let rosetteRoundIn  = 6;    // roundness % of the INNER points (valleys)
+let ringCount     = 3;      // concentric flower rings (the rosette stack)
+let ringSpacing   = 8;      // px between rings
+let ringTaper     = 50;     // % stroke width of each ring vs the one inside it
+let innerBand     = false;  // thin circle just outside the hole
+let innerBandGap  = 0;      // px from hole edge to the inner band
+let outerBand     = false;  // thin circle outside the outer ring
+let outerBandGap  = 0;      // px from the outer lobe tips to the outer band
+let bandW         = 1;      // band stroke px
+let bandCol       = '#7b3920';
 let bridgeW      = 210;     // bridge plate width (fixed px)
 let bridgeCol    = '#7B3920';
 let saddleWFrac  = 0.65;    // saddle line width as fraction of the board
@@ -677,8 +711,10 @@ let W = 0, H = 0;
 const cx  = [0, 0];
 const vib = [false, false];
 let mainPath = [], ghostEls = [], blurDev = [], grpEls = [], pinEls = [];
-let bodyCircle = null, rosetteCircle = null, bridgeGrp = null, saddleLine = null;
+let bodyCircle = null, rosetteGrp = null, rosetteBands = [], bridgeGrp = null, saddleLine = null;
 let rosetteAngle = 0;            // accumulates one notch per round → the rosette spin
+// Whole-UI scale, stepped by viewport width (like Cmd +). Phones stay 1.0.
+function uiScale() { const w = window.innerWidth; return w >= 1000 ? 1.30 : w >= 600 ? 1.15 : 1.0; }
 const BRIDGE_PATH = 'M0.427937 7.39967L8.79791 60.3275C9.06274 62.0021 10.5063 63.2353 12.2017 63.2353C32.4322 63.2353 52.1332 69.0626 70.9013 76.6145C83.2111 81.5676 97.6181 86 109.758 86C121.897 86 136.304 81.5676 148.614 76.6145C167.382 69.0626 187.083 63.2353 207.314 63.2353C209.009 63.2353 210.453 62.0021 210.718 60.3275L219.088 7.39967C219.491 4.85148 219.692 3.57738 219.317 2.58547C218.988 1.71493 218.366 0.98639 217.557 0.525332C216.636 0 215.346 0 212.766 0H6.74938C4.16952 0 2.8796 0 1.95844 0.525332C1.14998 0.98639 0.527602 1.71493 0.198483 2.58547C-0.176517 3.57738 0.0249675 4.85148 0.427937 7.39967Z';
 
 function xRatio(i) { return 0.5 + (i === 0 ? -1 : 1) * spacing / (2 * W); }
@@ -689,9 +725,8 @@ const holeCY   = () => bridgeCY() - holePos;  // soundhole/rosette sit holePos p
 // from the hole edge; peaks bump out a further `rosetteDepth`. Roundness is set
 // per vertex type — rosetteRoundOut (lobe tips) and rosetteRoundIn (valleys),
 // 0 = sharp … higher = rounder, bulgier.
-function rosettePath(cx, cy) {
+function rosettePath(cx, cy, rv) {                   // rv = this ring's valley radius
   const n = Math.round(rosettePoints);
-  const rv = bodyRadius + rosetteGap;               // valley radius (near the hole)
   if (n < 3 || rosetteDepth <= 0) {                 // degenerate → plain circle ring
     return `M ${(cx - rv).toFixed(2)} ${cy.toFixed(2)} `
          + `a ${rv} ${rv} 0 1 0 ${(2 * rv).toFixed(2)} 0 `
@@ -719,6 +754,38 @@ function rosettePath(cx, cy) {
   }
   return d + 'Z';
 }
+// Build the rosette: a spinning GROUP of concentric flower rings, flanked by fixed
+// circle bands. Inserts before the bridge so layering stays right on a live rebuild.
+function mkBandCircle(cx, cy, r) {
+  const c = document.createElementNS(SVGNS, 'circle');
+  c.setAttribute('cx', cx); c.setAttribute('cy', cy); c.setAttribute('r', r);
+  c.setAttribute('fill', 'none'); c.setAttribute('stroke', bandCol); c.setAttribute('stroke-width', bandW);
+  return c;
+}
+function drawRosette() {
+  if (!W) return;
+  const svg = document.getElementById('svg');
+  if (rosetteGrp) rosetteGrp.remove();
+  rosetteBands.forEach(c => c.remove()); rosetteBands = []; rosetteGrp = null;
+  const cx = W / 2, cy = holeCY();
+  const rv0 = bodyRadius + rosetteGap, ringN = Math.max(1, Math.round(ringCount));
+  const peakOuter = rv0 + (ringN - 1) * ringSpacing + rosetteDepth;
+  const before = bridgeGrp;   // null during buildSVG → append; the bridge during a live rebuild → insert before it
+  if (innerBand) { const c = mkBandCircle(cx, cy, bodyRadius + innerBandGap); svg.insertBefore(c, before); rosetteBands.push(c); }
+  const fg = document.createElementNS(SVGNS, 'g');
+  fg.style.transformBox = 'fill-box'; fg.style.transformOrigin = 'center';   // spin about the hole centre
+  fg.style.transform = 'rotate(' + rosetteAngle + 'deg)';                    // static on (re)build; no animation
+  for (let k = 0; k < ringN; k++) {
+    const p = document.createElementNS(SVGNS, 'path');
+    p.setAttribute('d', rosettePath(cx, cy, rv0 + k * ringSpacing));
+    p.setAttribute('fill', 'none'); p.setAttribute('stroke', rosetteCol);
+    p.setAttribute('stroke-width', (rosetteW * Math.pow(ringTaper / 100, k)).toFixed(2));
+    p.setAttribute('stroke-linejoin', 'round');
+    fg.appendChild(p);
+  }
+  svg.insertBefore(fg, before); rosetteGrp = fg;
+  if (outerBand) { const c = mkBandCircle(cx, cy, peakOuter + outerBandGap); svg.insertBefore(c, before); rosetteBands.push(c); }
+}
 function strTopY() { return -H * 0.5; }   // run well above the stage; body clips at the screen top
 function strBotY() { return bridgeCY(); } // anchor at the bridge pin
 
@@ -738,7 +805,9 @@ function ghostOpacity(k, env) {
 function buildSVG() {
   const svg = document.getElementById('svg');
   const rect = document.getElementById('stage').getBoundingClientRect();
-  W = rect.width; H = rect.height;
+  const S = uiScale();
+  W = rect.width / S; H = rect.height / S;          // draw in logical units…
+  document.getElementById('svg').setAttribute('viewBox', `0 0 ${W} ${H}`);   // …viewBox scales the whole board by S
   applyVOffset();
   const hcy = holeCY(), bcy = bridgeCY();
 
@@ -757,7 +826,7 @@ function buildSVG() {
   defs += '</defs>';
   svg.innerHTML = defs;
   mainPath = []; ghostEls = []; blurDev = []; grpEls = []; pinEls = [];
-  bodyCircle = null; rosetteCircle = null; bridgeGrp = null; saddleLine = null;
+  bodyCircle = null; rosetteGrp = null; rosetteBands = []; bridgeGrp = null; saddleLine = null;
 
   // 1) Soundhole (filled) + rosette ring
   const body = document.createElementNS(SVGNS, 'circle');
@@ -765,16 +834,7 @@ function buildSVG() {
   body.setAttribute('r', bodyRadius); body.setAttribute('fill', 'url(#bodyGrad)');
   svg.appendChild(body); bodyCircle = body;
 
-  const rosette = document.createElementNS(SVGNS, 'path');
-  rosette.setAttribute('d', rosettePath(W / 2, hcy));
-  rosette.setAttribute('fill', 'none');
-  rosette.setAttribute('stroke', rosetteCol);
-  rosette.setAttribute('stroke-width', rosetteW);
-  rosette.setAttribute('stroke-linejoin', 'round');
-  rosette.style.transformBox = 'fill-box';      // rotate around the rosette's own centre (the hole)
-  rosette.style.transformOrigin = 'center';
-  rosette.style.transform = 'rotate(' + rosetteAngle + 'deg)';   // static angle on (re)build; no animation
-  svg.appendChild(rosette); rosetteCircle = rosette;
+  drawRosette();   // flower rings (spinning group) + fixed circle bands
 
   // 2) Bridge plate (scaled panel path) — positioned/sized live by applyBridge
   const bgrp = document.createElementNS(SVGNS, 'g');
@@ -893,7 +953,7 @@ function resetStrings() {
   const lens = mainPath.map(p => p ? p.getTotalLength() : 0);
   // The string runs well above the viewport; only map the redraw to the on-screen
   // length (pin → top of stage) so the visible draw spans the whole phase.
-  const offTop = Math.max(0, H * 0.5 - vOffset);
+  const offTop = Math.max(0, H * 0.5 - vOffset / uiScale());
   (function frame() {
     if (myGen !== resetGen) return;              // a newer reset superseded this one
     const t = performance.now() - t0;
@@ -952,10 +1012,7 @@ function applyBody() {
   applyRosette();                                    // rosette valleys track the hole radius
 }
 function applyRosette() {
-  if (!rosetteCircle) return;
-  rosetteCircle.setAttribute('d', rosettePath(W / 2, holeCY()));
-  rosetteCircle.setAttribute('stroke', rosetteCol);
-  rosetteCircle.setAttribute('stroke-width', rosetteW);
+  drawRosette();   // rebuild the ring stack + bands in place (guards on !W internally)
 }
 function applySaddle() {
   if (!saddleLine) return;
@@ -968,6 +1025,7 @@ function applySaddle() {
   saddleLine.setAttribute('stroke-width', saddleThick);
 }
 function applyButtonStyles() {
+  const S = uiScale();
   const rgb = hexToRgb(btnColor) || { r:235, g:235, b:235 };   // ready (tappable) colour
   const rs = `rgba(${rgb.r},${rgb.g},${rgb.b}`;
   const dim = hexToRgb(btnDimCol) || { r:235, g:235, b:235 };  // dim (not-ready) colour
@@ -981,38 +1039,39 @@ function applyButtonStyles() {
     b.style.fontFamily    = fontStack(btnFont);
     b.style.fontWeight    = btnWeight;
     b.style.textTransform = btnCase;
-    b.style.fontSize      = btnFontSize + 'px';
+    b.style.fontSize      = btnFontSize * S + 'px';
     b.style.letterSpacing = (btnTracking / 100) + 'em';
-    b.style.paddingTop    = btnPadV + 'px';
-    b.style.paddingBottom = btnPadV + 'px';
-    b.style.borderRadius  = btnRadius + 'px';
-    b.style.borderWidth   = btnBorderW + 'px';
-    b.style.minWidth      = btnMinW + 'px';
-    b.style.maxWidth      = btnMaxW + 'px';
+    b.style.paddingTop    = btnPadV * S + 'px';
+    b.style.paddingBottom = btnPadV * S + 'px';
+    b.style.borderRadius  = btnRadius * S + 'px';
+    b.style.borderWidth   = btnBorderW * S + 'px';
+    b.style.minWidth      = btnMinW * S + 'px';
+    b.style.maxWidth      = btnMaxW * S + 'px';
     b.style.borderStyle   = 'solid';
   });
   const ans = document.getElementById('answers');
-  ans.style.gap     = btnGap + 'px';
-  ans.style.padding = btnAreaPad + 'px';
+  ans.style.gap     = btnGap * S + 'px';
+  ans.style.padding = btnAreaPad * S + 'px';
   // keep the button row clear of the home indicator on edge-to-edge devices
-  ans.style.paddingBottom = `calc(${btnAreaPad}px + env(safe-area-inset-bottom, 0px))`;
+  ans.style.paddingBottom = `calc(${btnAreaPad * S}px + env(safe-area-inset-bottom, 0px))`;
   styleFeedback();  // keep the feedback label matched to the button font
 }
 function applyHeader() {
+  const S = uiScale();
   const bs = document.getElementById('best');
   const ff = fontStack(hdrFont);
-  bs.style.fontFamily = ff; bs.style.fontSize = bestSize + 'px';
+  bs.style.fontFamily = ff; bs.style.fontSize = bestSize * S + 'px';
   bs.style.opacity = bestOp / 100;
-  bs.style.marginTop = bestGap + 'px';
+  bs.style.marginTop = bestGap * S + 'px';
   const r = document.documentElement.style;
   r.setProperty('--top-font', ff);   // one font for every top button
-  r.setProperty('--hdr-top',  hdrTop + 'px');
+  r.setProperty('--hdr-top',  hdrTop * S + 'px');
   r.setProperty('--hbtn-col',    hdrBtnCol);
   r.setProperty('--hbtn-border', hdrBtnBorder);
-  r.setProperty('--hbtn-size',   hdrBtnSize + 'px');
-  r.setProperty('--hbtn-stroke', hdrBtnStroke + 'px');
-  r.setProperty('--redo-size',   redoGlyphSize + 'px');
-  r.setProperty('--chip-size',   chipTextSize + 'px');
+  r.setProperty('--hbtn-size',   hdrBtnSize * S + 'px');
+  r.setProperty('--hbtn-stroke', hdrBtnStroke * S + 'px');
+  r.setProperty('--redo-size',   redoGlyphSize * S + 'px');
+  r.setProperty('--chip-size',   chipTextSize * S + 'px');
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1095,7 +1154,10 @@ function nearestString(clientX, localY) {
   // Ignore grabs below that line (bridge body, toast, button band) — otherwise
   // the string's hit area would span the whole stage height. (SVG is shifted by
   // vOffset, so the pin sits at strBotY() + vOffset in stage-local coords.)
-  if (localY != null && localY > strBotY() + vOffset + pinR) return -1;
+  // Geometry is logical (viewBox scales by uiScale) — map the touch coords in.
+  const S = uiScale();
+  clientX /= S;
+  if (localY != null && localY / S > strBotY() + vOffset / S + pinR) return -1;
   let best = -1, dist = Infinity;
   for (let i = 0; i < NUM_STRINGS; i++) {
     const d = Math.abs(clientX - W * xRatio(i));
@@ -1117,7 +1179,7 @@ function onMove(clientX) {
   if (!ptr.active) return;
   if (Math.abs(clientX - ptr.startX) > 4) ptr.moved = true;
   cx[ptr.idx] = Math.max(-bowAmount, Math.min(bowAmount,
-    (clientX - W * xRatio(ptr.idx)) * 1.3));
+    (clientX / uiScale() - W * xRatio(ptr.idx)) * 1.3));
   redraw(ptr.idx);
 }
 function onUp(e) {
@@ -1146,6 +1208,7 @@ window.addEventListener('touchend',  onUp);
 window.addEventListener('touchcancel', onCancel);
 window.addEventListener('blur', onCancel);
 window.addEventListener('resize', () => {
+  applyHeader(); applyButtonStyles();   // re-scale the chrome when the viewport tier changes
   buildSVG();
   // re-centre a visible toast against the freshly re-laid-out board/buttons
   if (document.getElementById('feedback').classList.contains('show')) positionFeedback();
@@ -1157,6 +1220,7 @@ window.addEventListener('resize', () => {
 const ROOT = 440, MAX_D = 50, MIN_D = 1;
 const LS_GAME = 'pitch-game-v1';
 let deviation = MAX_D, bestDev = MAX_D, phase = 'play', roundDir = 'sharp';
+let compareInTune = false, compareChallengeFreq = 0;   // wrong-answer review: snap the target string in/out of tune
 let lastCorrect = null, oscillations = 0, wrongStreak = 0, advanceTimer = null;
 // Reference note for the exercise. ROOT (440) is A4; rootSemi 0=C…11=B.
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -1219,10 +1283,10 @@ function setRoundFreqs() {
 // Ratchet the rosette one notch (one lobe-step) per round, easing into place.
 function rosetteNotch() { const n = Math.round(rosettePoints); return 360 / (n >= 3 ? n : 8); }
 function bumpRosette() {
-  if (!rosetteCircle) return;
+  if (!rosetteGrp) return;
   rosetteAngle += rosetteNotch();
-  rosetteCircle.style.transition = 'transform .6s cubic-bezier(.34, 1.4, .5, 1)';
-  rosetteCircle.style.transform  = 'rotate(' + rosetteAngle + 'deg)';
+  rosetteGrp.style.transition = 'transform .7s cubic-bezier(.16, 1, .3, 1)';   // heavy ease-out (easeOutExpo)
+  rosetteGrp.style.transform  = 'rotate(' + rosetteAngle + 'deg)';
 }
 function newRound() {
   const inTuneP = 0.1 + 0.2 * (1 - Math.min(deviation, MAX_D) / MAX_D);
@@ -1335,6 +1399,8 @@ function showFeedback(correct) {
     ? pickMsg(FB_CORRECT)
     : pickMsg(FB_INCORRECT).replace('{ans}', ANSWER_WORD[roundDir]);
   fb.classList.toggle('has-next', !correct);
+  // Wrong answer → arm the in-tune review: remember the challenge tuning, start toggled off.
+  if (!correct) { compareInTune = false; compareChallengeFreq = stringFreqs[1]; }
   styleFeedback(); positionFeedback();
   fb.classList.add('show');
 }
@@ -1349,7 +1415,7 @@ function positionFeedback() {
   const btnTop = btn ? btn.getBoundingClientRect().top
                : document.getElementById('answers').getBoundingClientRect().top;
   const midVp = (boardBottom + btnTop) / 2;
-  fb.style.top = (midVp - stageR.top - pill.offsetHeight / 2) + 'px';                 // #feedback top is stage-local
+  fb.style.top = (midVp - stageR.top - pill.getBoundingClientRect().height / 2) + 'px'; // rendered height → centred at any scale
 }
 function styleFeedback() {
   const fb = document.getElementById('feedback');
@@ -1359,7 +1425,7 @@ function styleFeedback() {
   pill.style.color = toastTextCol;
   pill.style.setProperty('--tpv', toastPad + 'px');
   pill.style.setProperty('--tph', (toastPad + 10) + 'px');
-  pill.style.transform = `scale(${toastScale / 100})`;
+  pill.style.transform = `scale(${toastScale / 100 * uiScale()})`;
   pill.style.gap = toastNextGap + 'px';
   pill.style.fontFamily = fontStack(toastFont);
   lbl.style.fontSize = toastFontSize + 'px';
@@ -1371,6 +1437,24 @@ function styleFeedback() {
   nxt.style.fontSize = (toastFontSize + 4) + 'px';
   nxt.style.transform = `translateY(${toastNextDY}px)`;
   nxt.textContent = toastChevron;
+  const tune = document.getElementById('fbTune');
+  tune.style.fontSize = (toastFontSize + 2) + 'px';
+  tune.style.borderColor = toastNextBg;
+  paintTune();
+}
+// In-tune review toggle: silently re-tune the target string to perfect (on) or back to
+// the challenge (off). No sound on tap — the player plucks the strings to compare.
+function paintTune() {
+  const t = document.getElementById('fbTune');
+  if (compareInTune) { t.style.background = toastNextBg; t.style.color = toastNextCol; }
+  else               { t.style.background = 'transparent'; t.style.color = toastNextBg; }
+}
+function toggleCompare() {
+  compareInTune = !compareInTune;
+  stringFreqs[1] = compareInTune
+    ? noteFreq() * Math.pow(2, intervalSemi / 12)   // perfect target (root unchanged)
+    : compareChallengeFreq;                          // back to exactly what played
+  paintTune();
 }
 // Static swatch in the panel so toast colours/size can be tuned without playing a round
 function renderToastPreview() {
@@ -1410,6 +1494,19 @@ fbPillEl.addEventListener('click', () => {
 ['mousedown', 'touchstart', 'mouseup', 'touchend'].forEach(evt =>
   fbPillEl.addEventListener(evt, e => e.stopPropagation()));
 
+// The ≈ toggle handles its own taps (flip the target in/out of tune) and must NOT
+// advance — so stop the tap from reaching the pill's advance handler. touchend-first
+// for iOS, with a guard so desktop click doesn't double-fire.
+{
+  const tuneBtn = document.getElementById('fbTune');
+  let tuneTouched = false;
+  tuneBtn.addEventListener('touchend', e => {
+    e.preventDefault(); e.stopPropagation(); tuneTouched = true; toggleCompare();
+    setTimeout(() => { tuneTouched = false; }, 400);
+  }, { passive: false });
+  tuneBtn.addEventListener('click', e => { e.stopPropagation(); if (!tuneTouched) toggleCompare(); });
+}
+
 // ─────────────────────────────────────────────────────────────
 // Settings panel
 // ─────────────────────────────────────────────────────────────
@@ -1448,8 +1545,9 @@ function currentVis() {
   return {
     bg, bgCol2, bgAngle, strCol, strW, pinR, pinCol, pinHoleR, pinHoleCol,
     spacing,
-    bodyColor, bodyCol2, bodyRadius, holePos, bowAmount, vibBlurAmt, vibSustain, grabZone, resetMs, soundTail,
+    bodyColor, bodyCol2, bodyRadius, holePos, bowAmount, vibBlurAmt, vibSustain, resetMs, soundTail,
     rosetteCol, rosettePoints, rosetteDepth, rosetteRoundOut, rosetteRoundIn, rosetteGap, rosetteW,
+    ringCount, ringSpacing, ringTaper, innerBand, innerBandGap, outerBand, outerBandGap, bandW, bandCol,
     bridgeW, bridgeCol,
     saddleYOff, saddleWFrac, saddleThick, saddleCol,
     btnColor, btnDimCol, btnPressBg, btnFont, btnWeight, btnCase, btnFontSize, btnTracking, btnPadV, btnRadius, btnBorderW, btnGap, btnAreaPad,
@@ -1485,6 +1583,15 @@ function syncPanel() {
   g('pRosRoundIn').value  = rosetteRoundIn;  g('pRosRoundInV').textContent  = rosetteRoundIn + '%';
   g('pRosGap').value   = rosetteGap;    g('pRosGapV').textContent   = rosetteGap + 'px';
   g('pRosW').value     = rosetteW;      g('pRosWV').textContent     = rosetteW + 'px';
+  g('pRingCount').value   = ringCount;   g('pRingCountV').textContent   = ringCount;
+  g('pRingSpacing').value = ringSpacing; g('pRingSpacingV').textContent = ringSpacing + 'px';
+  g('pRingTaper').value   = ringTaper;   g('pRingTaperV').textContent   = ringTaper + '%';
+  g('pInnerBand').checked = innerBand;
+  g('pInnerBandGap').value = innerBandGap; g('pInnerBandGapV').textContent = innerBandGap + 'px';
+  g('pOuterBand').checked = outerBand;
+  g('pOuterBandGap').value = outerBandGap; g('pOuterBandGapV').textContent = outerBandGap + 'px';
+  g('pBandW').value    = bandW;         g('pBandWV').textContent    = bandW + 'px';
+  g('pBandCol').value  = bandCol;
   g('pSaddleY').value  = saddleYOff;    g('pSaddleYV').textContent   = saddleYOff + 'px';
   g('pSaddleW').value  = Math.round(saddleWFrac*100); g('pSaddleWV').textContent = Math.round(saddleWFrac*100) + '%';
   g('pSaddleThick').value = saddleThick; g('pSaddleThickV').textContent = saddleThick + 'px';
@@ -1569,10 +1676,18 @@ function loadVis() {
     if (s.rosetteRoundIn  != null) rosetteRoundIn  = +s.rosetteRoundIn;
     if (s.rosetteGap    != null) rosetteGap    = +s.rosetteGap;
     if (s.rosetteW      != null) rosetteW      = +s.rosetteW;
+    if (s.ringCount     != null) ringCount     = +s.ringCount;
+    if (s.ringSpacing   != null) ringSpacing   = +s.ringSpacing;
+    if (s.ringTaper     != null) ringTaper     = +s.ringTaper;
+    if (s.innerBand     != null) innerBand     = !!s.innerBand;
+    if (s.innerBandGap  != null) innerBandGap  = +s.innerBandGap;
+    if (s.outerBand     != null) outerBand     = !!s.outerBand;
+    if (s.outerBandGap  != null) outerBandGap  = +s.outerBandGap;
+    if (s.bandW         != null) bandW         = +s.bandW;
+    if (s.bandCol       != null) bandCol       = s.bandCol;
     if (s.bowAmount   != null) bowAmount   = +s.bowAmount;
     if (s.vibBlurAmt  != null) vibBlurAmt  = +s.vibBlurAmt;
     if (s.vibSustain  != null) vibSustain  = +s.vibSustain;
-    if (s.grabZone    != null) grabZone    = +s.grabZone;
     if (s.resetMs     != null) resetMs     = +s.resetMs;
     if (s.soundTail   != null) soundTail   = +s.soundTail;
     if (s.saddleYOff  != null) saddleYOff  = +s.saddleYOff;
@@ -1651,10 +1766,18 @@ function applyVisObj(s) {
   if (s.rosetteRoundIn  != null) rosetteRoundIn  = +s.rosetteRoundIn;
   if (s.rosetteGap    != null) rosetteGap    = +s.rosetteGap;
   if (s.rosetteW      != null) rosetteW      = +s.rosetteW;
+  if (s.ringCount     != null) ringCount     = +s.ringCount;
+  if (s.ringSpacing   != null) ringSpacing   = +s.ringSpacing;
+  if (s.ringTaper     != null) ringTaper     = +s.ringTaper;
+  if (s.innerBand     != null) innerBand     = !!s.innerBand;
+  if (s.innerBandGap  != null) innerBandGap  = +s.innerBandGap;
+  if (s.outerBand     != null) outerBand     = !!s.outerBand;
+  if (s.outerBandGap  != null) outerBandGap  = +s.outerBandGap;
+  if (s.bandW         != null) bandW         = +s.bandW;
+  if (s.bandCol       != null) bandCol       = s.bandCol;
   if (s.bowAmount   != null) bowAmount   = +s.bowAmount;
   if (s.vibBlurAmt  != null) vibBlurAmt  = +s.vibBlurAmt;
   if (s.vibSustain  != null) vibSustain  = +s.vibSustain;
-  if (s.grabZone    != null) grabZone    = +s.grabZone;
   if (s.resetMs     != null) resetMs     = +s.resetMs;
   if (s.soundTail   != null) soundTail   = +s.soundTail;
   if (s.saddleYOff  != null) saddleYOff  = +s.saddleYOff;
@@ -1731,6 +1854,15 @@ on('pRosRoundOut', e => { rosetteRoundOut = +e.target.value; document.getElement
 on('pRosRoundIn',  e => { rosetteRoundIn  = +e.target.value; document.getElementById('pRosRoundInV').textContent  = rosetteRoundIn+'%';  applyRosette(); });
 on('pRosGap',    e => { rosetteGap   = +e.target.value; document.getElementById('pRosGapV').textContent  = rosetteGap+'px'; applyRosette(); });
 on('pRosW',      e => { rosetteW     = +e.target.value; document.getElementById('pRosWV').textContent    = rosetteW+'px'; applyRosette(); });
+on('pRingCount',   e => { ringCount    = +e.target.value; document.getElementById('pRingCountV').textContent   = ringCount; applyRosette(); });
+on('pRingSpacing', e => { ringSpacing  = +e.target.value; document.getElementById('pRingSpacingV').textContent = ringSpacing+'px'; applyRosette(); });
+on('pRingTaper',   e => { ringTaper    = +e.target.value; document.getElementById('pRingTaperV').textContent   = ringTaper+'%'; applyRosette(); });
+on('pInnerBand',   e => { innerBand    = e.target.checked; applyRosette(); });
+on('pInnerBandGap',e => { innerBandGap = +e.target.value; document.getElementById('pInnerBandGapV').textContent = innerBandGap+'px'; applyRosette(); });
+on('pOuterBand',   e => { outerBand    = e.target.checked; applyRosette(); });
+on('pOuterBandGap',e => { outerBandGap = +e.target.value; document.getElementById('pOuterBandGapV').textContent = outerBandGap+'px'; applyRosette(); });
+on('pBandW',       e => { bandW        = +e.target.value; document.getElementById('pBandWV').textContent       = bandW+'px'; applyRosette(); });
+on('pBandCol',     e => { bandCol      = e.target.value; applyRosette(); });
 on('pSaddleY',   e => { saddleYOff = +e.target.value; document.getElementById('pSaddleYV').textContent = saddleYOff+'px'; applySaddle(); });
 on('pSaddleW',   e => { saddleWFrac= +e.target.value/100; document.getElementById('pSaddleWV').textContent = e.target.value+'%'; applySaddle(); });
 on('pSaddleThick',e => { saddleThick= +e.target.value; document.getElementById('pSaddleThickV').textContent= saddleThick+'px'; applySaddle(); });
