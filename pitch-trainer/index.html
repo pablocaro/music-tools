@@ -32,10 +32,10 @@
     #centChip {
       display: inline-flex; align-items: center; gap: 8px;
       height: var(--hbtn-size, 34px); padding: 0 14px; border-radius: 999px; cursor: pointer; touch-action: manipulation;
-      border: var(--hbtn-stroke, 1px) solid color-mix(in srgb, var(--hbtn-border, #ebebeb) 22%, transparent);
+      border: var(--hbtn-stroke, 1px) solid color-mix(in srgb, var(--hbtn-border, #ebebeb) 42%, transparent);
       background: rgba(235,235,235,.06);
       font-family: var(--top-font, 'Rubik', system-ui, sans-serif); font-size: var(--chip-size, 15px);
-      font-weight: 500; letter-spacing: .5px; color: color-mix(in srgb, var(--hbtn-col, #ebebeb) 64%, transparent);
+      font-weight: 500; letter-spacing: .5px; color: color-mix(in srgb, var(--hbtn-col, #ebebeb) 90%, transparent);
     }
     #centChip:active { background: rgba(235,235,235,.12); }
     #threshold { line-height: 1; }   /* size / weight / colour inherited from #centChip */
@@ -55,8 +55,8 @@
     #header-right { display: flex; align-items: center; gap: 8px; min-width: 0; }
     #gear {
       width: var(--hbtn-size, 34px); height: var(--hbtn-size, 34px); border-radius: 50%; padding: 0;
-      border: var(--hbtn-stroke, 1px) solid color-mix(in srgb, var(--hbtn-border, #ebebeb) 22%, transparent); background: rgba(235,235,235,.06);
-      color: color-mix(in srgb, var(--hbtn-col, #ebebeb) 60%, transparent);
+      border: var(--hbtn-stroke, 1px) solid color-mix(in srgb, var(--hbtn-border, #ebebeb) 42%, transparent); background: rgba(235,235,235,.06);
+      color: color-mix(in srgb, var(--hbtn-col, #ebebeb) 90%, transparent);
       cursor: pointer; flex-shrink: 0; touch-action: manipulation;
       display: inline-flex; align-items: center; justify-content: center;
     }
@@ -67,9 +67,9 @@
     #niBtn {
       display: inline-flex; align-items: center; gap: 5px; max-width: 58vw; flex-shrink: 1; min-width: 0;
       height: var(--hbtn-size, 34px); padding: 0 13px; border-radius: 999px; cursor: pointer; touch-action: manipulation;
-      border: var(--hbtn-stroke, 1px) solid color-mix(in srgb, var(--hbtn-border, #ebebeb) 22%, transparent);
+      border: var(--hbtn-stroke, 1px) solid color-mix(in srgb, var(--hbtn-border, #ebebeb) 42%, transparent);
       background: rgba(235,235,235,.06);
-      color: color-mix(in srgb, var(--hbtn-col, #ebebeb) 64%, transparent);
+      color: color-mix(in srgb, var(--hbtn-col, #ebebeb) 90%, transparent);
       font-family: var(--top-font, 'Rubik', system-ui, sans-serif); font-size: var(--chip-size, 15px); font-weight: 500; letter-spacing: .5px;
       white-space: nowrap;
     }
@@ -357,6 +357,14 @@
         <input type="color" id="pStrCol" autocomplete="off"></div>
       <div class="prow"><label>THICKNESS <span class="v" id="pStrWV"></span></label>
         <input type="range" id="pStrW" min="2" max="20" step="1" autocomplete="off"></div>
+      <div class="prow"><label>MUTED COLOR</label>
+        <input type="color" id="pMutedCol" autocomplete="off"></div>
+      <div class="prow"><label>MUTED OPACITY <span class="v" id="pMutedOpacityV"></span></label>
+        <input type="range" id="pMutedOpacity" min="0" max="100" step="5" autocomplete="off"></div>
+      <div class="prow"><label>MUTED BLEND</label>
+        <select id="pMutedBlend" autocomplete="off">
+          <option value="normal">Normal</option><option value="multiply">Multiply</option><option value="screen">Screen</option>
+        </select></div>
       <div class="prow"><label>PIN SIZE <span class="v" id="pPinRV"></span></label>
         <input type="range" id="pPinR" min="8" max="28" step="1" autocomplete="off"></div>
       <div class="prow"><label>PIN COLOR</label>
@@ -606,6 +614,9 @@ let bgCol2       = '#f98a57';   // soundboard end (flat by default)
 let bgAngle      = 180;         // background gradient angle (deg)
 let strCol       = '#fff24b';   // yellow string
 let strW         = 5;
+let mutedCol     = '#fff24a'; // target string colour while muted (awaiting the reference)
+let mutedOpacity = 45;        // muted string opacity %
+let mutedBlend   = 'normal';  // muted string blend: normal | multiply | screen
 let pinR         = 9;           // grommet outer radius
 let spacing      = 72;
 let bodyColor    = '#7b3920';   // soundhole brown (center)
@@ -710,6 +721,7 @@ const vibDecay     = () => 0.3 + 5.7 * (1 - vibSustain / 100);
 let W = 0, H = 0;
 const cx  = [0, 0];
 const vib = [false, false];
+const grabY = [null, null];   // logical y where each string was last grabbed (null → bow at hole centre)
 let mainPath = [], ghostEls = [], blurDev = [], grpEls = [], pinEls = [];
 let bodyCircle = null, rosetteGrp = null, rosetteBands = [], bridgeGrp = null, saddleLine = null;
 let rosetteAngle = 0;            // accumulates one notch per round → the rosette spin
@@ -791,7 +803,8 @@ function strBotY() { return bridgeCY(); } // anchor at the bridge pin
 
 function stringD(i, offset) {
   const x = W * xRatio(i), top = strTopY(), bot = strBotY();
-  return `M ${x} ${top} Q ${x + offset} ${holeCY()} ${x} ${bot}`;  // bow bulges over the soundhole
+  const bowY = grabY[i] == null ? holeCY() : grabY[i];   // the bend bulges where the string was grabbed
+  return `M ${x} ${top} Q ${x + offset} ${bowY} ${x} ${bot}`;
 }
 function ghostD(i, k) {
   const frac = NUM_GHOSTS > 1 ? (k / (NUM_GHOSTS - 1)) * 2 - 1 : 0;
@@ -887,6 +900,7 @@ function buildSVG() {
     pinEls.push([outer, inner]);
   }
   for (let i = 0; i < NUM_STRINGS; i++) redraw(i);
+  applyMute();                                 // re-assert the target's muted state after a rebuild
 }
 
 function redraw(i) {
@@ -924,6 +938,7 @@ function applyColors() {
     if (mainPath[i]) mainPath[i].setAttribute('stroke', strCol);
     if (ghostEls[i]) ghostEls[i].forEach(g => g.setAttribute('stroke', strCol));
   }
+  applyMute();   // keep the muted target's look after a colour change
 }
 function applyStringWidth() {
   const gw = ghostW();
@@ -1124,11 +1139,15 @@ async function playTone(freq, idx) {
 // Pluck
 // ─────────────────────────────────────────────────────────────
 let hasPlucked = false;
+const played = [false, false];                 // which strings have been plucked this round
+const bothPlayed = () => played[0] && played[1];
 const vibGen = [0, 0]; // per-string token; bumping it cancels a running decay tick
 
 function pluckString(idx, amp0) {
   playTone(stringFreqs[idx], idx);
-  if (!hasPlucked) { hasPlucked = true; setButtonsReady(true); }
+  hasPlucked = true; played[idx] = true;
+  if (idx === 0) applyMute();                  // reference played → reveal the target
+  if (bothPlayed()) setButtonsReady(true);     // both heard → answer buttons unlock
   vib[idx] = true;
   const myGen = ++vibGen[idx];   // supersede any prior decay tick for this string
   const decay = vibDecay(), t0 = performance.now();
@@ -1171,6 +1190,8 @@ function onDown(clientX, clientY) {
   const localY = clientY - document.getElementById('stage').getBoundingClientRect().top;
   const i = nearestString(clientX, localY);
   if (i < 0) return;
+  if (i === 1 && !played[0]) return;           // target stays muted until the reference is played
+  grabY[i] = (localY - vOffset) / uiScale();   // logical y of the grab → the bow originates here
   // Re-grab a still-ringing string: cancel its decay so it bows fresh
   if (vib[i]) { vibGen[i]++; vib[i] = false; cx[i] = 0; redraw(i); }
   ptr.active = true; ptr.idx = i; ptr.startX = clientX; ptr.moved = false;
@@ -1199,8 +1220,14 @@ function onUp(e) {
 // sounding, so it can't linger and fire on the next unrelated release.
 function onCancel() { ptr.active = false; ptr.idx = -1; }
 const stage = document.getElementById('stage');
-stage.addEventListener('mousedown',  e => onDown(e.clientX, e.clientY));
-stage.addEventListener('touchstart', e => { e.preventDefault(); onDown(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+// Strings run up behind the (transparent) header, so accept grabs there too — the
+// header's buttons stopPropagation below so they still capture their own taps.
+[stage, document.getElementById('header')].forEach(el => {
+  el.addEventListener('mousedown',  e => onDown(e.clientX, e.clientY));
+  el.addEventListener('touchstart', e => { e.preventDefault(); onDown(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+});
+['gear', 'centChip', 'niWrap'].forEach(id => ['mousedown', 'touchstart'].forEach(evt =>
+  document.getElementById(id).addEventListener(evt, e => e.stopPropagation())));
 window.addEventListener('mousemove',  e => onMove(e.clientX));
 window.addEventListener('mouseup',   onUp);
 window.addEventListener('touchmove',  e => { if (!ptr.active) return; e.preventDefault(); onMove(e.touches[0].clientX); }, { passive: false });
@@ -1269,6 +1296,19 @@ function updateHeader() {
   document.getElementById('threshold').innerHTML = `±${fmt(deviation)}<span class="unit">¢</span>`;
   document.getElementById('best').textContent = bestDev < MAX_D ? `best  ±${fmt(bestDev)}¢` : '';
 }
+// The target (right) string stays dimmed + unpluckable until the reference (left) is played.
+function applyMute() {
+  if (!mainPath[1]) return;
+  const el = mainPath[1], s = el.style;   // style overrides the attribute stroke; pin stays opaque
+  if (!played[0]) {              // muted — snap (transition off → set → reflow → re-arm) so round-starts don't smear
+    s.transition = 'none';
+    s.stroke = mutedCol; s.strokeOpacity = mutedOpacity / 100; s.mixBlendMode = mutedBlend;
+    void el.getBoundingClientRect();
+    s.transition = 'stroke .45s ease, stroke-opacity .45s ease';
+  } else {                       // revealed — the armed transition eases the string up to full yellow
+    s.stroke = strCol; s.strokeOpacity = '1'; s.mixBlendMode = 'normal';
+  }
+}
 function setButtonsReady(ready) {
   document.querySelectorAll('.abtn').forEach(b => ready ? b.classList.add('ready') : b.classList.remove('ready'));
 }
@@ -1295,9 +1335,10 @@ function newRound() {
   if (randomNote) pickRandomNote();         // fresh pitch class each round in ANY NOTE mode
   if (randomInterval) pickRandomInterval(); // fresh interval each round in ANY INT mode
   setRoundFreqs();
-  phase = 'play'; hasPlucked = false;
+  phase = 'play'; hasPlucked = false; played[0] = played[1] = false;
   setButtonsReady(false); hideFeedback(); updateHeader();
   bumpRosette();                              // rosette ratchets a notch each round
+  applyMute();                                // target muted again until the reference is played
 }
 // ── Notes × intervals selector: one button + custom grid popover ──
 const NI_WRAP  = document.getElementById('niWrap');
@@ -1378,7 +1419,7 @@ function adjust(correct) {
   }
 }
 function answer(userAns) {
-  if (phase !== 'play' || !hasPlucked) return;
+  if (phase !== 'play' || !bothPlayed()) return;   // must hear reference + target before answering
   const correct = userAns === roundDir;
   adjust(correct);
   wrongStreak = correct ? 0 : wrongStreak + 1;   // feeds the "4 wrong in a row → bigger step" rule
@@ -1543,7 +1584,7 @@ function toggleSec(id) {
 
 function currentVis() {
   return {
-    bg, bgCol2, bgAngle, strCol, strW, pinR, pinCol, pinHoleR, pinHoleCol,
+    bg, bgCol2, bgAngle, strCol, strW, mutedCol, mutedOpacity, mutedBlend, pinR, pinCol, pinHoleR, pinHoleCol,
     spacing,
     bodyColor, bodyCol2, bodyRadius, holePos, bowAmount, vibBlurAmt, vibSustain, resetMs, soundTail,
     rosetteCol, rosettePoints, rosetteDepth, rosetteRoundOut, rosetteRoundIn, rosetteGap, rosetteW,
@@ -1567,6 +1608,9 @@ function syncPanel() {
   g('pBgAngle').value  = bgAngle;       g('pBgAngleV').textContent   = bgAngle + '°';
   g('pStrCol').value   = strCol;
   g('pStrW').value     = strW;          g('pStrWV').textContent      = strW;
+  g('pMutedCol').value = mutedCol;
+  g('pMutedOpacity').value = mutedOpacity; g('pMutedOpacityV').textContent = mutedOpacity + '%';
+  g('pMutedBlend').value = mutedBlend;
   g('pPinR').value     = pinR;          g('pPinRV').textContent      = pinR;
   g('pPinCol').value   = pinCol;
   g('pPinHoleR').value = pinHoleR;      g('pPinHoleRV').textContent  = pinHoleR;
@@ -1658,6 +1702,9 @@ function loadVis() {
     if (s.bgCol2      != null) bgCol2      = s.bgCol2;
     if (s.bgAngle     != null) bgAngle     = +s.bgAngle;
     if (s.strCol      != null) strCol      = s.strCol;
+    if (s.mutedCol    != null) mutedCol    = s.mutedCol;
+    if (s.mutedOpacity!= null) mutedOpacity= +s.mutedOpacity;
+    if (s.mutedBlend  != null) mutedBlend  = s.mutedBlend;
     if (s.strW        != null) strW        = +s.strW;
     if (s.pinR        != null) pinR        = +s.pinR;
     if (s.pinCol      != null) pinCol      = s.pinCol;
@@ -1748,6 +1795,9 @@ function applyVisObj(s) {
   if (s.bgCol2      != null) bgCol2      = s.bgCol2;
   if (s.bgAngle     != null) bgAngle     = +s.bgAngle;
   if (s.strCol      != null) strCol      = s.strCol;
+  if (s.mutedCol    != null) mutedCol    = s.mutedCol;
+  if (s.mutedOpacity!= null) mutedOpacity= +s.mutedOpacity;
+  if (s.mutedBlend  != null) mutedBlend  = s.mutedBlend;
   if (s.strW        != null) strW        = +s.strW;
   if (s.pinR        != null) pinR        = +s.pinR;
   if (s.pinCol      != null) pinCol      = s.pinCol;
@@ -1838,6 +1888,9 @@ on('pBgCol2',    e => { bgCol2     = e.target.value; applyBg(); });
 on('pBgAngle',   e => { bgAngle    = +e.target.value; document.getElementById('pBgAngleV').textContent = bgAngle+'°'; applyBg(); });
 on('pStrCol',    e => { strCol     = e.target.value; applyColors(); });
 on('pStrW',      e => { strW       = +e.target.value; document.getElementById('pStrWV').textContent    = strW; applyStringWidth(); });
+on('pMutedCol',  e => { mutedCol   = e.target.value; applyMute(); });
+on('pMutedOpacity', e => { mutedOpacity = +e.target.value; document.getElementById('pMutedOpacityV').textContent = mutedOpacity+'%'; applyMute(); });
+on('pMutedBlend', e => { mutedBlend = e.target.value; applyMute(); });
 on('pPinR',      e => { pinR       = +e.target.value; document.getElementById('pPinRV').textContent    = pinR; applyPins(); });
 on('pPinCol',    e => { pinCol     = e.target.value; applyPins(); });
 on('pPinHoleR',  e => { pinHoleR   = +e.target.value; document.getElementById('pPinHoleRV').textContent= pinHoleR; applyPins(); });
