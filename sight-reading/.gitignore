@@ -6,3 +6,6 @@
 *.swp
 .idea/
 .vscode/
+
+# personal notes — never published (handoff docs, scratch, etc.)
+_private/
