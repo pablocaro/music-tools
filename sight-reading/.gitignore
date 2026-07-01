@@ -1,0 +1,11 @@
+# macOS
+.DS_Store
+
+# logs / editor cruft
+*.log
+*.swp
+.idea/
+.vscode/
+
+# personal notes — never published (handoff docs, scratch, etc.)
+_private/

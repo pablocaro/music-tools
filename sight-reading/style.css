@@ -1,0 +1,664 @@
+/* Rubik, self-hosted (variable, latin) so it works offline via file:// */
+@font-face {
+  font-family: "Rubik";
+  src: url("fonts/rubik.woff2") format("woff2");
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --paper: #ffffff;
+  --paper-dim: #f5f5f5;
+  --ink: #1a1a1a;
+  --muted: #8e8e93;
+  --scale: #5a7a93;
+  --chord: #b06a3b;
+  --line: #e5e5e5;
+  --music-max: 1040px;   /* the music column never grows wider than this — wide
+                            viewports just gain negative space on the sides */
+  --music-min: 640px;    /* …and never shrinks narrower than this */
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Rubik", -apple-system, "SF Pro Text", BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  background: var(--paper);
+  color: var(--ink);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.layout {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  position: relative;
+}
+
+/* The music + tray region. It's whatever space is left beside the sidebar: full
+   width when the drawer is closed or overlaid, narrower when the drawer reserves
+   space on a wide window. The music and tray both center within it, so they stay
+   aligned in every state. */
+.content {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Persistent control bar — a centered, floating row of rounded icon buttons */
+.controlbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 14px 16px 22px;
+  background: transparent;
+}
+
+.controlbar button {
+  background: var(--paper-dim);
+  color: var(--ink);
+  border: none;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.controlbar button:hover { background: #e7e7ec; opacity: 1; }
+.controlbar button:active { transform: scale(0.94); opacity: 1; }
+
+.controlbar .cb-icon { width: 58px; height: 58px; }
+.controlbar #play { width: 156px; height: 58px; }
+.controlbar svg { width: 25px; height: 25px; display: block; }
+
+/* Collapsible settings: the sidebar shows only when the layout is .panel-open */
+.layout:not(.panel-open) .sidebar { display: none; }
+
+/* Sidebar — by default an overlay drawer that floats over the music (the narrow
+   fallback, and the during-play behaviour). On a wide enough window the rule
+   below pulls it back into the flow so it reserves space and pushes the music. */
+.sidebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 320px;
+  z-index: 100;
+  background: var(--paper-dim);
+  border-right: 1px solid var(--line);
+  box-shadow: 3px 0 22px rgba(0, 0, 0, 0.16);
+  padding: 26px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  overflow-y: auto;
+}
+
+/* Wide window (room to push without shrinking the music past its floor): the
+   drawer rejoins the flow, reserving space so the music reflows into the region
+   beside it instead of being covered. 1040 = sidebar 320 + gutters 80 + music
+   floor 640. */
+@media (min-width: 1040px) {
+  .layout.panel-open .sidebar {
+    position: relative;
+    top: auto;
+    left: auto;
+    bottom: auto;
+    z-index: auto;
+    box-shadow: none;
+    flex-shrink: 0;
+  }
+}
+
+.sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar h1 {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+/* Close button — same rounded-icon family as the control bar, sized for the
+   panel header and set in paper so it reads against the dim sidebar. */
+#panel-close {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+#panel-close:hover { background: #e7e7ec; opacity: 1; }
+#panel-close:active { transform: scale(0.94); opacity: 1; }
+#panel-close svg { width: 18px; height: 18px; display: block; }
+
+section {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.toggle-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Collapsible groups */
+.group > summary {
+  list-style: none;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+}
+
+.group > summary::-webkit-details-marker { display: none; }
+
+.group > summary::after {
+  content: "›";
+  font-size: 15px;
+  line-height: 1;
+  transition: transform 0.15s;
+  transform: rotate(90deg);
+}
+
+.group:not([open]) > summary::after { transform: rotate(0deg); }
+.group > summary:hover { color: var(--ink); }
+
+.group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 12px;
+}
+
+label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+select {
+  width: 100%;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  border-radius: 6px;
+  padding: 7px 9px;
+  font-size: 13px;
+  font-family: inherit;
+  appearance: none;
+  cursor: pointer;
+  outline: none;
+}
+
+select:focus { border-color: var(--chord); }
+
+.key-row { display: flex; gap: 8px; }
+.key-row #key-tonic { flex: 0 0 34%; }
+.key-row #key-mode { flex: 1; }
+
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--chord);
+  cursor: pointer;
+}
+
+input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--chord);
+  cursor: pointer;
+}
+
+button {
+  padding: 11px 14px;
+  border: none;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--ink);
+  color: var(--paper);
+  transition: opacity 0.15s;
+}
+
+button:hover { opacity: 0.85; }
+button:active { opacity: 0.7; }
+
+button.secondary {
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+/* Preset pills */
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.pill .upd,
+.pill .del {
+  font-size: 12px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.pill .upd:hover,
+.pill .del:hover { color: var(--ink); }
+
+.pill.active {
+  border-color: var(--chord);
+  background: #fff;
+}
+
+.pill.save {
+  border-style: dashed;
+  color: var(--muted);
+}
+
+/* Alphabet matrix */
+.matrix-head,
+.matrix-row {
+  display: grid;
+  grid-template-columns: 64px 1fr 1fr;
+  gap: 6px 10px;
+  align-items: center;
+}
+
+.matrix-head {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.matrix {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.matrix-row .row-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cell input[type="range"] { flex: 1; }
+
+.cell .ro {
+  font-size: 11px;
+  color: var(--muted);
+  min-width: 8px;
+  text-align: right;
+}
+
+/* Rhythm figures: a flat grid of notation cells toggled on/off, name on hover */
+.fig-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));
+  gap: 6px;
+}
+
+.fig-cell {
+  position: relative;
+  height: 50px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.fig-cell:hover { border-color: var(--muted); }
+
+.fig-cell.on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.fig-svg { width: 42px; height: 27px; display: block; }
+
+/* hover tooltip with the figure name */
+.fig-cell::after {
+  content: attr(data-name);
+  position: absolute;
+  bottom: calc(100% + 5px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+  padding: 3px 7px;
+  border-radius: 5px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s;
+  z-index: 60;
+}
+
+.fig-cell:hover::after { opacity: 1; }
+
+/* Legend */
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.legend-item { display: flex; align-items: center; gap: 8px; }
+
+.swatch {
+  width: 18px;
+  height: 3px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.swatch-scale { background: var(--scale); }
+.swatch-chord { background: var(--chord); }
+
+.error {
+  color: #b03b3b;
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+/* Sheet area: fixed header + a scrolling stage that auto-scrolls during play */
+.sheet-area {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--paper);
+  padding: 48px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;           /* center the music column in the window */
+  position: relative;            /* containing block for the page covers */
+}
+
+/* The header row and the scrolling stage are one centered column, capped and
+   floored in width. Everything horizontal (title, pill, tray) keys off this. */
+#sheet-top,
+#sheet-stage {
+  width: 100%;
+  max-width: var(--music-max);
+  min-width: var(--music-min);
+}
+
+#sheet-stage {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow-y: auto;
+}
+
+#sheet {
+  position: relative;
+  padding: 10px 0 48px;          /* keep top/bottom lines off the clip edges */
+}
+#sheet svg { max-width: none; }
+
+/* Paper covers that mask the partial lines at the viewport edges, so only whole
+   lines ever show. JS positions/sizes them over the stage. */
+#cover-top, #cover-bot {
+  position: absolute;
+  background: var(--paper);
+  z-index: 4;
+  pointer-events: none;
+}
+
+/* Header row: summary on the left, tempo stepper pill on the right */
+#sheet-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+#sheet-head { min-width: 0; }
+#sh-title { font-size: 26px; font-weight: 700; color: var(--ink); letter-spacing: 0.2px; }
+#sh-sub   { font-size: 15px; font-weight: 500; color: var(--muted); margin-top: 6px; }
+#sh-notes { font-size: 15px; font-weight: 500; color: var(--muted); margin-top: 2px; }
+
+/* Tempo / metronome pill. Tapping the ♩ toggles the metronome: OFF is flat and
+   muted; ON gets a bold outline and the steppers light up. */
+#tempo-pill {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 7px 5px 14px;
+  border: 2.5px solid transparent;       /* OFF: no outline */
+  border-radius: 999px;
+  background: #ececf0;
+}
+#tempo-pill.metro-on { border-color: var(--ink); }
+
+#metro-toggle {
+  background: none;
+  border: none;
+  padding: 4px 6px;   /* generous tap target around the ♩ glyph */
+  margin: -4px -6px;  /* offset so the pill's own padding is preserved */
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+#metro-toggle:hover { opacity: 1; }
+
+#tempo-pill-val {
+  font-size: 18px; font-weight: 700; white-space: nowrap;
+  color: var(--muted);                   /* OFF: muted */
+  transition: color 0.15s;
+}
+#tempo-pill.metro-on #tempo-pill-val { color: var(--ink); }   /* ON: solid */
+
+.tp-btn {
+  width: 30px; height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.07);      /* OFF: visible container, muted */
+  color: var(--muted);
+  font-size: 19px; font-weight: 600; line-height: 1;
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background 0.15s, transform 0.1s, color 0.15s, box-shadow 0.15s;
+}
+#tempo-pill.metro-on .tp-btn {          /* ON: white, raised, dark glyphs */
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+.tp-btn:hover { opacity: 1; }
+#tempo-pill.metro-on .tp-btn:hover { background: #f4f4f6; }
+.tp-btn:active { transform: scale(0.92); opacity: 1; }
+#tempo-pill:not(.metro-on) .tp-btn { pointer-events: none; }   /* OFF: steppers inert */
+
+#chunk-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+/* Count-in countdown number */
+#countdown {
+  position: fixed;
+  top: 50%;
+  left: 50%;                     /* music is centered in the window now */
+  transform: translate(-50%, -50%);
+  font-size: 160px;
+  font-weight: 600;
+  color: var(--ink);
+  opacity: 0.12;
+  pointer-events: none;
+  z-index: 50;
+}
+
+#countdown[hidden] { display: none; }
+
+/* Cursor blink during the count-in (overrides the cursor's faint resting alpha) */
+@keyframes srBlink { 0%, 100% { opacity: 0.55; } 50% { opacity: 0.05; } }
+.sr-cursor-blink { animation: srBlink 0.5s ease-in-out infinite; }
+
+/* Note range grid */
+#range-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 4px;
+}
+
+.note-row {
+  display: grid;
+  grid-template-columns: 24px repeat(7, 1fr);
+  gap: 3px;
+  align-items: center;
+}
+
+.note-col-hdr {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.note-row-lbl {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--muted);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  letter-spacing: 0.2px;
+  transition: color 0.1s;
+}
+
+.note-row-lbl:hover { color: var(--ink); }
+
+.note-cell {
+  height: 18px;
+  width: 100%;
+  border-radius: 3px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  cursor: pointer;
+  padding: 0;
+  display: block;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.note-cell.on {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.note-cell:hover:not(.on) {
+  background: var(--paper-dim);
+  border-color: var(--muted);
+}
+
+/* Mobile: widen the drawer, trim the gutters, and let the music column shrink
+   below its desktop floor so narrow screens reflow instead of clipping. */
+@media (max-width: 720px) {
+  .sidebar {
+    width: 88%;
+    max-width: 360px;
+    box-shadow: 3px 0 22px rgba(0, 0, 0, 0.22);
+    padding: 18px 16px;
+  }
+  .sheet-area { padding: 18px 14px; }
+  #sheet-top, #sheet-stage { min-width: 0; }   /* let it shrink to fit the phone */
+  #countdown { font-size: 96px; }
+  .controlbar #play { max-width: none; }
+}
