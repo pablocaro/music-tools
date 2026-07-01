@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rosette Lab</title>
+<style>
+  :root { --ink:#e8e2da; --panel:#241a14; --muted:#a78d7c; --line:#4a382c; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, sans-serif; background:#1a120d; color:var(--ink); -webkit-text-size-adjust:100%; }
+  #wrap { max-width: 760px; margin: 0 auto; padding: 16px calc(16px + env(safe-area-inset-right)) 40px calc(16px + env(safe-area-inset-left)); }
+  h1 { font-size: 13px; font-weight: 700; letter-spacing: 2px; opacity:.6; margin: 4px 0 14px; }
+  #preview { border-radius: 20px; aspect-ratio: 1/1; max-width: 420px; margin: 0 auto 14px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  #ros { width: 100%; height: 100%; overflow: visible; }
+  #actions { display:flex; gap:10px; margin:0 auto 16px; max-width:420px; }
+  button { flex:1; background:#f98a57; color:#3a2417; border:none; border-radius:999px; padding:11px 12px; font-size:13px; font-weight:700; cursor:pointer; touch-action:manipulation; }
+  button.ghost { background:transparent; color:var(--ink); border:1px solid var(--line); }
+  button.ghost.on { background:#f98a57; color:#3a2417; border-color:#f98a57; }
+  #controls { display:grid; grid-template-columns: 1fr 1fr; gap: 11px 22px; background:var(--panel); border-radius:14px; padding:14px 16px; }
+  .grp { grid-column: 1 / -1; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-top:6px; border-top:1px solid var(--line); padding-top:10px; }
+  .grp:first-child { border-top:none; padding-top:0; margin-top:0; }
+  .row { display:flex; align-items:center; gap:10px; font-size:13px; }
+  .row label { color:#cbb9aa; white-space:nowrap; flex:0 0 92px; }
+  .row input[type=range] { flex:1; min-width:0; accent-color:#f98a57; }
+  .row .v { flex:0 0 38px; text-align:right; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .row.chk { justify-content:flex-start; }
+  .row input[type=checkbox] { accent-color:#f98a57; width:18px; height:18px; }
+  .row input[type=color] { width:36px; height:26px; border:none; background:none; padding:0; border-radius:6px; }
+  #config { margin-top:14px; background:#120c08; border-radius:10px; padding:12px; font:12px/1.55 ui-monospace, "SF Mono", monospace; color:#9fd0a0; white-space:pre-wrap; word-break:break-all; user-select:all; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <h1>ROSETTE LAB</h1>
+  <div id="preview"><svg id="ros" viewBox="0 0 400 400"></svg></div>
+  <div id="actions">
+    <button id="spin">Spin a notch</button>
+    <button id="auto" class="ghost">Auto-spin</button>
+    <button id="copy" class="ghost">Copy config</button>
+  </div>
+  <div id="controls"></div>
+  <div class="grp" style="margin-top:16px;border:none;padding:0">Config — paste this back to port it</div>
+  <pre id="config"></pre>
+</div>
+<script>
+const C = {
+  rosettePoints: 8, rosetteDepth: 10, rosetteRoundOut: 100, rosetteRoundIn: 27,
+  rosetteGap: 26, bodyRadius: 80, rosetteW: 6,
+  ringCount: 1, ringSpacing: 16, ringTaper: 100,
+  innerBand: false, innerBandGap: 12, outerBand: false, outerBandGap: 12, bandW: 2,
+  bodyCol: '#f98a57', woodCol: '#7b3920', bandCol: '#7b3920', strings: true
+};
+const SPEC = [
+  ['grp','Flower shape'],
+  ['rosettePoints','Points',3,16,1], ['rosetteDepth','Lobe depth',0,40,1],
+  ['rosetteRoundOut','Round outer',0,130,1], ['rosetteRoundIn','Round inner',0,130,1],
+  ['rosetteGap','Hole gap',0,60,1], ['bodyRadius','Hole radius',40,120,1],
+  ['rosetteW','Stroke',1,16,0.5],
+  ['grp','Rings'],
+  ['ringCount','Ring count',1,5,1], ['ringSpacing','Ring spacing',4,40,1],
+  ['ringTaper','Width taper %',40,100,5],
+  ['grp','Circle bands'],
+  ['innerBand','Inner band','check'], ['innerBandGap','Inner offset',0,40,1],
+  ['outerBand','Outer band','check'], ['outerBandGap','Outer offset',0,40,1],
+  ['bandW','Band stroke',1,8,0.5],
+  ['grp','Colour'],
+  ['bodyCol','Body','color'], ['woodCol','Wood','color'], ['bandCol','Band','color'],
+  ['strings','Show strings','check']
+];
+
+const CX = 200, CY = 200;
+let angle = 0;
+
+function rpath(cx, cy, rv, depth, n, rOut, rIn) {
+  const rp = rv + depth, sOut = (rOut/100)*1.3, sIn = (rIn/100)*1.3;
+  const sFor = i => (i % 2 === 0 ? sOut : sIn), pts = [];
+  for (let i = 0; i < 2*n; i++) { const a = Math.PI*i/n - Math.PI/2, r = (i%2===0)?rp:rv; pts.push([cx+r*Math.cos(a), cy+r*Math.sin(a)]); }
+  const m = pts.length; let d = 'M ' + pts[0][0].toFixed(2) + ' ' + pts[0][1].toFixed(2) + ' ';
+  for (let i = 0; i < m; i++) {
+    const p0 = pts[(i-1+m)%m], p1 = pts[i], p2 = pts[(i+1)%m], p3 = pts[(i+2)%m], s1 = sFor(i), s2 = sFor(i+1);
+    const c1x = p1[0]+(p2[0]-p0[0])*s1/6, c1y = p1[1]+(p2[1]-p0[1])*s1/6;
+    const c2x = p2[0]-(p3[0]-p1[0])*s2/6, c2y = p2[1]-(p3[1]-p1[1])*s2/6;
+    d += 'C ' + c1x.toFixed(2) + ' ' + c1y.toFixed(2) + ' ' + c2x.toFixed(2) + ' ' + c2y.toFixed(2) + ' ' + p2[0].toFixed(2) + ' ' + p2[1].toFixed(2) + ' ';
+  }
+  return d + 'Z';
+}
+
+function render() {
+  const n = Math.round(C.rosettePoints), rv0 = C.bodyRadius + C.rosetteGap;
+  let rings = '';
+  for (let k = 0; k < Math.round(C.ringCount); k++) {
+    const rv = rv0 + k * C.ringSpacing;
+    const w = C.rosetteW * Math.pow(C.ringTaper/100, k);
+    rings += '<path d="' + rpath(CX, CY, rv, C.rosetteDepth, n, C.rosetteRoundOut, C.rosetteRoundIn) + '" fill="none" stroke="' + C.woodCol + '" stroke-width="' + w.toFixed(2) + '" stroke-linejoin="round"/>';
+  }
+  const peakOuter = rv0 + (Math.round(C.ringCount)-1) * C.ringSpacing + C.rosetteDepth;
+  let bands = '';
+  if (C.innerBand) bands += '<circle cx="' + CX + '" cy="' + CY + '" r="' + (C.bodyRadius + C.innerBandGap) + '" fill="none" stroke="' + C.bandCol + '" stroke-width="' + C.bandW + '"/>';
+  if (C.outerBand) bands += '<circle cx="' + CX + '" cy="' + CY + '" r="' + (peakOuter + C.outerBandGap) + '" fill="none" stroke="' + C.bandCol + '" stroke-width="' + C.bandW + '"/>';
+  let strings = '';
+  if (C.strings) { const sp = 36; for (const dx of [-sp, sp]) strings += '<line x1="' + (CX+dx) + '" y1="0" x2="' + (CX+dx) + '" y2="400" stroke="#fff24b" stroke-width="5"/>'; }
+  document.getElementById('ros').innerHTML =
+    '<circle cx="' + CX + '" cy="' + CY + '" r="' + C.bodyRadius + '" fill="' + C.woodCol + '"/>' +
+    bands +
+    '<g id="flowerG" style="transform-box:fill-box;transform-origin:center;transform:rotate(' + angle + 'deg)">' + rings + '</g>' +
+    strings;
+  document.getElementById('preview').style.background = C.bodyCol;
+  document.getElementById('config').textContent = JSON.stringify(C);
+}
+
+function spin() {
+  angle += 360 / Math.round(C.rosettePoints);
+  const g = document.getElementById('flowerG');
+  if (g) { g.style.transition = 'transform .7s cubic-bezier(.16,1,.3,1)'; g.style.transform = 'rotate(' + angle + 'deg)'; }
+}
+
+const ctr = document.getElementById('controls');
+for (const s of SPEC) {
+  if (s[0] === 'grp') { const g = document.createElement('div'); g.className = 'grp'; g.textContent = s[1]; ctr.appendChild(g); continue; }
+  const [key, label, a, b, step] = s;
+  const row = document.createElement('div'); row.className = 'row';
+  if (a === 'check') {
+    row.className = 'row chk';
+    row.innerHTML = '<input type="checkbox" id="c_' + key + '"' + (C[key] ? ' checked' : '') + '><label for="c_' + key + '">' + label + '</label>';
+    row.querySelector('input').addEventListener('change', e => { C[key] = e.target.checked; render(); });
+  } else if (a === 'color') {
+    row.innerHTML = '<label>' + label + '</label><input type="color" value="' + C[key] + '">';
+    row.querySelector('input').addEventListener('input', e => { C[key] = e.target.value; render(); });
+  } else {
+    row.innerHTML = '<label>' + label + '</label><input type="range" min="' + a + '" max="' + b + '" step="' + step + '" value="' + C[key] + '"><span class="v"></span>';
+    const inp = row.querySelector('input'), v = row.querySelector('.v'); v.textContent = C[key];
+    inp.addEventListener('input', e => { C[key] = +e.target.value; v.textContent = e.target.value; render(); });
+  }
+  ctr.appendChild(row);
+}
+
+document.getElementById('spin').addEventListener('click', spin);
+let autoId = null;
+document.getElementById('auto').addEventListener('click', e => {
+  if (autoId) { clearInterval(autoId); autoId = null; e.target.classList.remove('on'); }
+  else { autoId = setInterval(spin, 1600); e.target.classList.add('on'); spin(); }
+});
+document.getElementById('copy').addEventListener('click', e => {
+  navigator.clipboard.writeText(JSON.stringify(C)).then(() => { e.target.textContent = 'Copied'; setTimeout(() => e.target.textContent = 'Copy config', 1200); });
+});
+
+render();
+</script>
+</body>
+</html>

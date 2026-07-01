@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Vibration Compare</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      background: #fff;
+      color: #000;
+      font-family: 'Courier New', Courier, monospace;
+      width: 100vw;
+      height: 100dvh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 22px 0;
+      flex-shrink: 0;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      opacity: 0.5;
+    }
+
+    #stage { flex: 1; position: relative; width: 100%; min-height: 0; }
+    #svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+
+    #bottom { flex-shrink: 0; padding: 12px 16px 28px; display: flex; gap: 10px; }
+    .btn {
+      flex: 1;
+      padding: 16px 4px;
+      background: transparent;
+      border: 1px solid rgba(0,0,0,0.5);
+      color: rgba(0,0,0,0.8);
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+    .btn:active { background: rgba(0,0,0,0.07); }
+
+    #controls {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 10px 18px 0;
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      opacity: 0.7;
+    }
+    .ctl-row { display: flex; align-items: center; gap: 14px; }
+    .ctl-row label { white-space: nowrap; width: 92px; }
+    .ctl-row input[type=range] {
+      flex: 1;
+      -webkit-appearance: none; appearance: none;
+      height: 1px; background: rgba(0,0,0,0.4); outline: none;
+    }
+    .ctl-row input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 16px; height: 16px; border-radius: 50%; background: #000; cursor: pointer;
+    }
+    .ctl-row input[type=range]::-moz-range-thumb {
+      width: 16px; height: 16px; border: none; border-radius: 50%; background: #000; cursor: pointer;
+    }
+    .ctl-val { width: 28px; text-align: right; }
+  </style>
+</head>
+<body>
+
+<div id="topbar">
+  <span>VIBRATION COMPARE</span>
+  <span>DRAG A STRING &nbsp;·&nbsp; OR PLUCK ALL</span>
+</div>
+
+<div id="stage"><svg id="svg"></svg></div>
+
+<div id="controls">
+  <div class="ctl-row">
+    <label>Tension</label>
+    <input type="range" id="tension" min="0" max="100" value="50" autocomplete="off">
+    <span class="ctl-val" id="tensionval">50</span>
+  </div>
+  <div class="ctl-row">
+    <label>Sustain</label>
+    <input type="range" id="osc" min="0" max="100" value="65" autocomplete="off">
+    <span class="ctl-val" id="oscval">65</span>
+  </div>
+  <div class="ctl-row">
+    <label>Blur</label>
+    <input type="range" id="blur" min="0" max="100" value="50" autocomplete="off">
+    <span class="ctl-val" id="blurval">50</span>
+  </div>
+</div>
+
+<div id="bottom">
+  <button class="btn" id="btn-all">Pluck All</button>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+//  Layout / geometry  (sockets reused from strings-lab)
+// ══════════════════════════════════════════════════════════════
+const SVGNS = 'http://www.w3.org/2000/svg';
+const STRING_W = 10, GHOST_W = 3.5, NUM_GHOSTS = 12;
+const PIN_R = 20, PILL_W = 19, PILL_D = 28, PIN_MARGIN = 12;
+
+const STRINGS = [
+  { name: 'HYBRID',   xr: 0.2, model: 'hybrid'   },
+  { name: 'BLUR',     xr: 0.5, model: 'blur'     },
+  { name: 'PHYSICAL', xr: 0.8, model: 'physical' },
+];
+
+let W = 0, H = 0;
+
+// TENSION slider → vibration speed (frequency). Higher = faster wiggle.
+let tensionAmount = 0.5;
+function freqScale() { return 0.4 + tensionAmount * 1.2; }   // 0→0.4×, 0.5→1×, 1→1.6×
+// SUSTAIN slider → how long it rings. Higher = lower decay = more swings.
+let oscAmount = 0.65;
+function curDecay() { return 4.5 - oscAmount * 4.0; }   // 0→4.5 snappy, 1→0.5 long
+// BLUR slider → horizontal motion-blur strength (scales with the swing → fades to rest).
+let blurAmount = 0.5;
+
+function pinTopY() { return PIN_R + PIN_MARGIN; }
+function pinBotY() { return H - PIN_R - PIN_MARGIN; }
+// concentric with notch arc → even gap
+function strTopY() { return pinTopY() + PIN_R - PILL_D + PILL_W / 2; }
+function strBotY() { return pinBotY() - PIN_R + PILL_D - PILL_W / 2; }
+
+// single-belly quadratic (models hybrid + blur)
+function quadD(x, offset) {
+  const top = strTopY(), bot = strBotY(), mid = (top + bot) / 2;
+  return `M ${x} ${top} Q ${x + offset} ${mid} ${x} ${bot}`;
+}
+// modal polyline (physical): sum of standing-wave modes
+function modalD(x, amp, pluck, t, d1, f1) {
+  const top = strTopY(), bot = strBotY(), L = bot - top;
+  const MODES = 3;
+  // initial modal amplitudes for a pluck at `pluck`, normalized so the
+  // grab point starts displaced by `amp`.
+  let norm = 0;
+  for (let n = 1; n <= MODES; n++) norm += Math.pow(Math.sin(n*Math.PI*pluck), 2) / (n*n);
+  const scale = norm > 0 ? amp / norm : 0;
+  const PTS = 40;
+  let d = '';
+  for (let i = 0; i <= PTS; i++) {
+    const s = i / PTS;
+    let off = 0;
+    for (let n = 1; n <= MODES; n++) {
+      const An = scale * Math.sin(n*Math.PI*pluck) / (n*n);
+      const fn = n * f1;
+      const dn = d1 * (1 + 0.7*(n-1));         // higher modes decay faster
+      off += An * Math.sin(n*Math.PI*s) * Math.cos(2*Math.PI*fn*t) * Math.exp(-dn*t);
+    }
+    d += (i === 0 ? 'M ' : 'L ') + (x + off).toFixed(2) + ' ' + (top + L*s).toFixed(2) + ' ';
+  }
+  return d;
+}
+
+function ghostOpacity(k, env) {
+  const frac = NUM_GHOSTS > 1 ? k / (NUM_GHOSTS - 1) : 0.5;
+  const edge = Math.abs(frac * 2 - 1);
+  return (0.12 + edge * 0.30) * Math.min(env * 2, 1);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Per-string runtime state
+// ══════════════════════════════════════════════════════════════
+const S = STRINGS.map(() => ({
+  start: null,        // performance.now() when plucked, else null
+  amp: 0, pluck: 0.3,
+  dragOffset: 0,      // live offset while dragging
+  trail: [],          // recent `d` strings for physical motion-blur
+  els: null,
+}));
+
+// ══════════════════════════════════════════════════════════════
+//  Build SVG
+// ══════════════════════════════════════════════════════════════
+function buildSVG() {
+  const svg = document.getElementById('svg');
+  const rect = document.getElementById('stage').getBoundingClientRect();
+  W = rect.width; H = rect.height;
+
+  const topY = pinTopY(), botY = pinBotY();
+  let defs = '<defs>';
+  STRINGS.forEach((st, i) => {
+    const x = W * st.xr, px = x - PILL_W / 2, rxv = PILL_W / 2;
+    defs += `
+      <filter id="fblur-${i}" filterUnits="userSpaceOnUse" x="${x - 160}" y="0" width="320" height="${H}">
+        <feGaussianBlur id="fdev-${i}" stdDeviation="0 0"/>
+      </filter>
+      <mask id="mt-${i}">
+        <circle cx="${x}" cy="${topY}" r="${PIN_R}" fill="white"/>
+        <rect x="${px}" y="${topY + PIN_R - PILL_D}" width="${PILL_W}" height="${PILL_D + PIN_R}" rx="${rxv}" ry="${rxv}" fill="black"/>
+      </mask>
+      <mask id="mb-${i}">
+        <circle cx="${x}" cy="${botY}" r="${PIN_R}" fill="white"/>
+        <rect x="${px}" y="${botY - 2*PIN_R}" width="${PILL_W}" height="${PILL_D + PIN_R}" rx="${rxv}" ry="${rxv}" fill="black"/>
+      </mask>`;
+  });
+  defs += '</defs>';
+  svg.innerHTML = defs;
+
+  STRINGS.forEach((st, i) => {
+    const x = W * st.xr;
+    const g = { ghosts: [], trail: [] };
+
+    const label = document.createElementNS(SVGNS, 'text');
+    label.setAttribute('x', x); label.setAttribute('y', topY - PIN_R - 8);
+    label.setAttribute('text-anchor', 'middle'); label.setAttribute('fill', '#000');
+    label.setAttribute('font-family', 'Courier New, monospace');
+    label.setAttribute('font-size', '9'); label.setAttribute('letter-spacing', '2');
+    label.setAttribute('opacity', 0.5); label.textContent = st.name;
+    svg.appendChild(label);
+
+    // blurred group: trail + ghost fan share one horizontal motion-blur filter
+    // (filter toggled on only while vibrating — see setBlur / hideGhosts)
+    const blurGroup = document.createElementNS(SVGNS, 'g');
+    svg.appendChild(blurGroup);
+    g.blurGroup = blurGroup;
+    g.blurDev = document.getElementById(`fdev-${i}`);
+
+    // motion-blur trail (physical) — drawn under the main path
+    for (let k = 0; k < 6; k++) {
+      const tp = document.createElementNS(SVGNS, 'path');
+      tp.setAttribute('stroke', '#000'); tp.setAttribute('stroke-width', GHOST_W);
+      tp.setAttribute('fill', 'none'); tp.setAttribute('stroke-linecap', 'round');
+      tp.setAttribute('opacity', '0');
+      blurGroup.appendChild(tp); g.trail.push(tp);
+    }
+    // symmetric ghost fan (hybrid + blur)
+    for (let k = 0; k < NUM_GHOSTS; k++) {
+      const gp = document.createElementNS(SVGNS, 'path');
+      gp.setAttribute('stroke', '#000'); gp.setAttribute('stroke-width', GHOST_W);
+      gp.setAttribute('fill', 'none'); gp.setAttribute('stroke-linecap', 'round');
+      gp.setAttribute('opacity', '0');
+      blurGroup.appendChild(gp); g.ghosts.push(gp);
+    }
+    // main string — inside the blur group (last = on top) so it smears too;
+    // at rest stdDeviation is 0 0, so it stays crisp.
+    const main = document.createElementNS(SVGNS, 'path');
+    main.setAttribute('d', quadD(x, 0)); main.setAttribute('stroke', '#000');
+    main.setAttribute('stroke-width', STRING_W); main.setAttribute('fill', 'none');
+    main.setAttribute('stroke-linecap', 'round');
+    blurGroup.appendChild(main); g.main = main;
+
+    // pins on top
+    const pinTop = document.createElementNS(SVGNS, 'circle');
+    pinTop.setAttribute('cx', x); pinTop.setAttribute('cy', topY);
+    pinTop.setAttribute('r', PIN_R); pinTop.setAttribute('fill', '#000');
+    pinTop.setAttribute('mask', `url(#mt-${i})`); svg.appendChild(pinTop);
+    const pinBot = document.createElementNS(SVGNS, 'circle');
+    pinBot.setAttribute('cx', x); pinBot.setAttribute('cy', botY);
+    pinBot.setAttribute('r', PIN_R); pinBot.setAttribute('fill', '#000');
+    pinBot.setAttribute('mask', `url(#mb-${i})`); svg.appendChild(pinBot);
+
+    S[i].els = g;
+    drawRest(i);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Drawing
+// ══════════════════════════════════════════════════════════════
+function hideGhosts(i) {
+  const g = S[i].els;
+  g.ghosts.forEach(e => e.setAttribute('opacity', '0'));
+  g.trail.forEach(e => e.setAttribute('opacity', '0'));
+  if (g.blurDev) g.blurDev.setAttribute('stdDeviation', '0 0');
+  // filter OFF at rest — a vertical line's zero-width bbox would be erased by it
+  if (g.blurGroup) g.blurGroup.setAttribute('filter', 'none');
+}
+// horizontal motion blur: strength is linear in the swing envelope, so it
+// fades smoothly to zero as the string comes to rest.
+function setBlur(i, env) {
+  S[i].els.blurGroup.setAttribute('filter', `url(#fblur-${i})`);
+  const bx = blurAmount * 18 * Math.min(env, 1);
+  S[i].els.blurDev.setAttribute('stdDeviation', bx.toFixed(2) + ' 0');
+}
+function drawRest(i) {
+  const x = W * STRINGS[i].xr;
+  S[i].els.main.setAttribute('d', quadD(x, 0));
+  hideGhosts(i);
+}
+function drawDrag(i) {
+  const x = W * STRINGS[i].xr;
+  S[i].els.main.setAttribute('d', quadD(x, S[i].dragOffset));   // centered belly
+  hideGhosts(i);
+}
+
+// fan renderer for single-belly models
+function drawFan(i, disp, blurHalf, fanOpacityScale) {
+  const x = W * STRINGS[i].xr, g = S[i].els;
+  g.main.setAttribute('d', quadD(x, disp));
+  const env = Math.min(blurHalf / 90, 1);
+  for (let k = 0; k < NUM_GHOSTS; k++) {
+    const frac = (k / (NUM_GHOSTS - 1)) * 2 - 1;
+    g.ghosts[k].setAttribute('d', quadD(x, blurHalf * frac));
+    g.ghosts[k].setAttribute('opacity', (ghostOpacity(k, env) * fanOpacityScale).toFixed(3));
+  }
+  setBlur(i, env);
+}
+
+// ── Models ────────────────────────────────────────────────────
+// Each returns false when finished.
+function stepHybrid(i, t) {
+  const { amp } = S[i];
+  const w = 2*Math.PI*8*freqScale(), d = curDecay();
+  const env = Math.exp(-d*t);
+  if (env < 0.004) return false;
+  const disp = amp * Math.cos(w*t) * env;     // cos → starts at full amp
+  drawFan(i, disp, amp*env, 1);               // lens width = current envelope
+  return true;
+}
+function stepBlur(i, t) {
+  const { amp } = S[i];
+  const d = curDecay();
+  const env = Math.exp(-d*t);
+  if (env < 0.004) return false;
+  // string stays centered; only the blur lens collapses
+  drawFan(i, 0, amp*env, 1);
+  return true;
+}
+function stepPhysical(i, t) {
+  const { amp, pluck } = S[i];
+  const els = S[i].els;
+  const x = W * STRINGS[i].xr, d1 = curDecay();
+  const env = Math.exp(-d1*t);
+  if (env < 0.004) return false;
+  const d = modalD(x, amp, pluck, t, d1, 7 * freqScale());
+  // history of recent shapes → motion-blur trail (state array, not DOM)
+  const hist = S[i].trail;
+  hist.unshift(d);
+  if (hist.length > els.trail.length + 1) hist.pop();
+  // trail element k shows history frame k+1 (frame 0 is the live `main`)
+  els.trail.forEach((tp, k) => {
+    const td = hist[k + 1];
+    if (td) {
+      tp.setAttribute('d', td);
+      tp.setAttribute('opacity', (0.16 * (1 - k / els.trail.length)).toFixed(3));
+    } else {
+      tp.setAttribute('opacity', '0');
+    }
+  });
+  els.main.setAttribute('d', d);
+  els.ghosts.forEach(e => e.setAttribute('opacity', '0'));
+  setBlur(i, Math.min(amp * env / 90, 1));
+  return true;
+}
+const STEP = { hybrid: stepHybrid, blur: stepBlur, physical: stepPhysical };
+
+// ══════════════════════════════════════════════════════════════
+//  Animation loop (drives all active strings)
+// ══════════════════════════════════════════════════════════════
+let rafId = null;
+function loop() {
+  const now = performance.now();
+  let anyActive = false;
+  for (let i = 0; i < STRINGS.length; i++) {
+    if (S[i].start == null) continue;
+    const t = (now - S[i].start) / 1000;
+    const alive = STEP[STRINGS[i].model](i, t);
+    if (alive) { anyActive = true; }
+    else { S[i].start = null; S[i].trail.length = 0; drawRest(i); }
+  }
+  rafId = anyActive ? requestAnimationFrame(loop) : null;
+}
+function ensureLoop() { if (rafId == null) rafId = requestAnimationFrame(loop); }
+
+function pluck(i, amp, pluck) {
+  S[i].amp = Math.max(0, Math.min(90, amp));
+  S[i].pluck = pluck;
+  S[i].start = performance.now();
+  S[i].trail.length = 0;
+  ensureLoop();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Interaction
+// ══════════════════════════════════════════════════════════════
+const drag = { active: false, idx: -1 };
+function startDrag(cx, cy) {
+  if (!W) return;
+  const dists = STRINGS.map(s => Math.abs(cx - W * s.xr));
+  const idx = dists.indexOf(Math.min(...dists));
+  if (dists[idx] > 70) return;
+  drag.active = true; drag.idx = idx;
+  S[idx].start = null;                          // halt any running anim
+  S[idx].pluck = 0.5;                           // always pluck from center
+  S[idx].dragOffset = 0;
+  drawDrag(idx);
+}
+function moveDrag(cx, cy) {
+  if (!drag.active) return;
+  const i = drag.idx, x0 = W * STRINGS[i].xr;
+  S[i].dragOffset = Math.max(-80, Math.min(80, (cx - x0)));
+  drawDrag(i);
+}
+function endDrag() {
+  if (!drag.active) return;
+  const i = drag.idx; drag.active = false; drag.idx = -1;
+  if (Math.abs(S[i].dragOffset) < 8) { drawRest(i); return; }
+  pluck(i, Math.abs(S[i].dragOffset), S[i].pluck);
+}
+
+const stage = document.getElementById('stage');
+stage.addEventListener('mousedown',  e => startDrag(e.clientX, e.clientY));
+stage.addEventListener('touchstart', e => { e.preventDefault(); startDrag(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+window.addEventListener('mousemove', e => moveDrag(e.clientX, e.clientY));
+window.addEventListener('mouseup',   endDrag);
+window.addEventListener('touchmove', e => { e.preventDefault(); moveDrag(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+window.addEventListener('touchend',  endDrag);
+window.addEventListener('resize', buildSVG);
+
+document.getElementById('btn-all').addEventListener('click', e => {
+  e.stopPropagation();
+  for (let i = 0; i < STRINGS.length; i++) pluck(i, 70, 0.5);
+});
+
+const tensionEl = document.getElementById('tension');
+const tensionValEl = document.getElementById('tensionval');
+tensionEl.value = Math.round(tensionAmount * 100);
+tensionValEl.textContent = tensionEl.value;
+tensionEl.addEventListener('input', () => {
+  tensionAmount = +tensionEl.value / 100;
+  tensionValEl.textContent = tensionEl.value;
+});
+
+const oscEl = document.getElementById('osc');
+const oscValEl = document.getElementById('oscval');
+// authoritative init from the JS default (immune to browser form restoration)
+oscEl.value = Math.round(oscAmount * 100);
+oscValEl.textContent = oscEl.value;
+oscEl.addEventListener('input', () => {
+  oscAmount = +oscEl.value / 100;
+  oscValEl.textContent = oscEl.value;
+});
+
+const blurEl = document.getElementById('blur');
+const blurValEl = document.getElementById('blurval');
+blurEl.value = Math.round(blurAmount * 100);
+blurValEl.textContent = blurEl.value;
+blurEl.addEventListener('input', () => {
+  blurAmount = +blurEl.value / 100;
+  blurValEl.textContent = blurEl.value;
+});
+
+buildSVG();
+</script>
+</body>
+</html>
