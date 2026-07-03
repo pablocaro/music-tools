@@ -108,39 +108,38 @@
     /* purely visual; the vOffset transform shifts its box down over the answer buttons,
        so it must not intercept touches — all interaction is handled on #stage by coords */
     #svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
-    #feedback {
-      position: absolute; left: 0; right: 0; text-align: center; z-index: 2;
-      opacity: 0; transition: opacity .25s ease; pointer-events: none;
+    /* ── Bottom bar ───────────────────────────
+       One region, three states. #answers stays in normal flow and defines the
+       bar's height; #prompt and #feedback overlay it (absolute) so switching
+       states never changes the bar height — the board above never jumps. */
+    #bottom { flex-shrink: 0; position: relative; padding-bottom: env(safe-area-inset-bottom, 0px); }
+    #answers { display: flex; justify-content: center; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .18s ease; }
+    #answers.active { opacity: 1; visibility: visible; pointer-events: auto; }
+    #prompt, #feedback {
+      position: absolute; inset: 0; z-index: 2;
+      display: flex; align-items: center; justify-content: center; text-align: center;
+      opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .2s ease;
     }
-    #feedback.show { opacity: 1; }
+    #prompt.active { opacity: 1; visibility: visible; }
+    #feedback.active { opacity: 1; visibility: visible; pointer-events: auto; }
+    /* Feedback: plain cream text (no pill), matching the answer-button label */
     #fbPill {
-      display: inline-flex; align-items: center; gap: 10px;
+      display: inline-flex; align-items: center; gap: 12px;
       font-family: 'Rubik', system-ui, sans-serif;
-      border-radius: 999px; padding: var(--tpv, 12px) var(--tph, 22px);
       transform-origin: center; touch-action: manipulation;
     }
-    /* During review the whole pill is the tap target (advance), not just the › */
-    #feedback.has-next #fbPill { padding-right: 8px; pointer-events: auto; cursor: pointer; }
-    #fbNext {
+    /* Two ghost circle buttons: ♪ (in-tune toggle) and › (continue). ♪ fills when lit. */
+    #fbNext, #fbTune {
       display: none; align-items: center; justify-content: center;
-      width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%;
-      pointer-events: none;
-      border: none; font-family: inherit; line-height: 1; padding: 0;
+      width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%; padding: 0;
+      border: 1.5px solid var(--btn-border-ready); background: transparent;
+      color: var(--btn-ready); font-family: inherit; line-height: 1;
+      cursor: pointer; touch-action: manipulation;
     }
-    #feedback.has-next #fbNext { display: inline-flex; }
-    /* In-tune review toggle: same disc as ›, ghost when off, filled (lit) when on */
-    #fbTune {
-      display: none; align-items: center; justify-content: center;
-      width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%;
-      pointer-events: auto; cursor: pointer;
-      border: 1.5px solid; background: transparent;
-      font-family: inherit; line-height: 1; padding: 0;
-    }
-    #feedback.has-next #fbTune { display: inline-flex; }
+    #feedback.has-next #fbNext, #feedback.has-next #fbTune { display: inline-flex; }
+    /* Material Symbols glyphs (music_note / chevron) inherit the button colour */
+    #fbTune svg, #fbNext svg { width: 64%; height: 64%; display: block; }
     #toastPrev { display: flex; justify-content: center; padding: 4px 0; }
-
-    /* ── Answer buttons ─────────────────────── */
-    #answers { flex-shrink: 0; display: flex; justify-content: center; }
 
     :root {
       --btn-ready:        rgba(235,235,235, .80);
@@ -292,14 +291,16 @@
   </div>
 </div>
 
-<div id="stage"><svg id="svg"></svg>
-  <div id="feedback"><div id="fbPill"><span id="fbLabel"></span><button id="fbTune" aria-label="Toggle in-tune reference">≈</button><button id="fbNext" aria-label="Next round">›</button></div></div>
-</div>
+<div id="stage"><svg id="svg"></svg></div>
 
-<div id="answers">
-  <button class="abtn" data-ans="flat">↓ flat</button>
-  <button class="abtn" data-ans="in_tune">≈ in tune</button>
-  <button class="abtn" data-ans="sharp">↑ sharp</button>
+<div id="bottom">
+  <div id="prompt"></div>
+  <div id="answers">
+    <button class="abtn" data-ans="flat">↓ flat</button>
+    <button class="abtn" data-ans="in_tune">≈ in tune</button>
+    <button class="abtn" data-ans="sharp">↑ sharp</button>
+  </div>
+  <div id="feedback"><div id="fbPill"><span id="fbLabel"></span><button id="fbTune" aria-label="Compare in tune"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg></button><button id="fbNext" aria-label="Next round"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button></div></div>
 </div>
 
 
@@ -406,7 +407,7 @@
       <div class="prow"><label>DEPTH <span class="v" id="pRosDepthV"></span></label>
         <input type="range" id="pRosDepth" min="0" max="60" step="1" autocomplete="off"></div>
       <div class="prow"><label>ROUNDNESS — OUTER <span class="v" id="pRosRoundOutV"></span></label>
-        <input type="range" id="pRosRoundOut" min="0" max="130" step="1" autocomplete="off"></div>
+        <input type="range" id="pRosRoundOut" min="0" max="260" step="1" autocomplete="off"></div>
       <div class="prow"><label>ROUNDNESS — INNER <span class="v" id="pRosRoundInV"></span></label>
         <input type="range" id="pRosRoundIn" min="0" max="130" step="1" autocomplete="off"></div>
       <div class="prow"><label>GAP (from hole) <span class="v" id="pRosGapV"></span></label>
@@ -429,6 +430,9 @@
         <input type="range" id="pBandW" min="1" max="8" step="0.5" autocomplete="off"></div>
       <div class="prow"><label>BAND COLOR</label>
         <input type="color" id="pBandCol" autocomplete="off"></div>
+      <div class="prow check"><label><input type="checkbox" id="pBandFill" autocomplete="off"> BAND FILL</label></div>
+      <div class="prow"><label>FILL COLOR</label>
+        <input type="color" id="pBandFillCol" autocomplete="off"></div>
     </div>
 
     <!-- SADDLE -->
@@ -682,23 +686,25 @@ let vOffset      = 43;      // manual vertical nudge px
 
 // ── Bridge layout (ukulele) ──────────────────────────────────
 let holePos      = 242;     // soundhole center Y: px ABOVE the bridge pins (bottom of the strings)
-let bridgePos    = 0.76;    // bridge pin row Y (fraction of stage H)
-let rosetteGap    = 18;     // px gap from hole edge to the rosette's valleys
+let bridgePos    = 0.84;    // bridge pin row Y (fraction of stage H) — sits just above the bottom bar
+let rosetteGap    = 11;     // px gap from hole edge to the rosette's valleys
 let rosetteW      = 3;      // px stroke width of the innermost ring
 let rosetteCol    = '#7b3920';
-let rosettePoints = 8;      // lobe count (<3 → plain circle ring)
-let rosetteDepth  = 15;     // px the lobes bump out past the valley
-let rosetteRoundOut = 130;  // roundness % of the OUTER points (lobe tips)
-let rosetteRoundIn  = 6;    // roundness % of the INNER points (valleys)
+let rosettePoints = 9;      // lobe count (<3 → plain circle ring)
+let rosetteDepth  = 19;     // px the lobes bump out past the valley
+let rosetteRoundOut = 107;  // roundness % of the OUTER points (lobe tips)
+let rosetteRoundIn  = 24;   // roundness % of the INNER points (valleys)
 let ringCount     = 3;      // concentric flower rings (the rosette stack)
 let ringSpacing   = 8;      // px between rings
-let ringTaper     = 50;     // % stroke width of each ring vs the one inside it
-let innerBand     = false;  // thin circle just outside the hole
-let innerBandGap  = 0;      // px from hole edge to the inner band
-let outerBand     = false;  // thin circle outside the outer ring
-let outerBandGap  = 0;      // px from the outer lobe tips to the outer band
-let bandW         = 1;      // band stroke px
+let ringTaper     = 55;     // % stroke width of each ring vs the one inside it
+let innerBand     = true;   // thin circle just outside the hole
+let innerBandGap  = 6;      // px from hole edge to the inner band
+let outerBand     = true;   // thin circle outside the outer ring
+let outerBandGap  = 3;      // px from the outer lobe tips to the outer band
+let bandW         = 2.5;    // band stroke px
 let bandCol       = '#7b3920';
+let bandFill      = false;  // fill the annulus between the inner & outer band radii
+let bandFillCol   = '#eb7c48';  // that fill colour
 let bridgeW      = 210;     // bridge plate width (fixed px)
 let bridgeCol    = '#7B3920';
 let saddleWFrac  = 0.65;    // saddle line width as fraction of the board
@@ -783,6 +789,17 @@ function drawRosette() {
   const rv0 = bodyRadius + rosetteGap, ringN = Math.max(1, Math.round(ringCount));
   const peakOuter = rv0 + (ringN - 1) * ringSpacing + rosetteDepth;
   const before = bridgeGrp;   // null during buildSVG → append; the bridge during a live rebuild → insert before it
+  // Filled backing between the inner- and outer-band radii — inserted first, so it
+  // sits under the rings and both band circles. Drawn as a fat-stroked ring.
+  if (bandFill) {
+    const innerR = bodyRadius + innerBandGap, outerR = peakOuter + outerBandGap, thick = outerR - innerR;
+    if (thick > 0) {
+      const f = document.createElementNS(SVGNS, 'circle');
+      f.setAttribute('cx', cx); f.setAttribute('cy', cy); f.setAttribute('r', (innerR + outerR) / 2);
+      f.setAttribute('fill', 'none'); f.setAttribute('stroke', bandFillCol); f.setAttribute('stroke-width', thick);
+      svg.insertBefore(f, before); rosetteBands.push(f);
+    }
+  }
   if (innerBand) { const c = mkBandCircle(cx, cy, bodyRadius + innerBandGap); svg.insertBefore(c, before); rosetteBands.push(c); }
   const fg = document.createElementNS(SVGNS, 'g');
   fg.style.transformBox = 'fill-box'; fg.style.transformOrigin = 'center';   // spin about the hole centre
@@ -1066,9 +1083,14 @@ function applyButtonStyles() {
   });
   const ans = document.getElementById('answers');
   ans.style.gap     = btnGap * S + 'px';
-  ans.style.padding = btnAreaPad * S + 'px';
-  // keep the button row clear of the home indicator on edge-to-edge devices
-  ans.style.paddingBottom = `calc(${btnAreaPad * S}px + env(safe-area-inset-bottom, 0px))`;
+  ans.style.padding = btnAreaPad * S + 'px';   // (home-indicator clearance is on #bottom)
+  // The prompt ("Play strings" / "Ready") mirrors the ready-button label typography
+  const pr = document.getElementById('prompt');
+  if (pr) {
+    pr.style.fontFamily = fontStack(btnFont); pr.style.fontWeight = btnWeight;
+    pr.style.textTransform = btnCase;         pr.style.fontSize = btnFontSize * S + 'px';
+    pr.style.letterSpacing = (btnTracking / 100) + 'em'; pr.style.color = 'var(--btn-ready)';
+  }
   styleFeedback();  // keep the feedback label matched to the button font
 }
 function applyHeader() {
@@ -1147,7 +1169,7 @@ function pluckString(idx, amp0) {
   playTone(stringFreqs[idx], idx);
   hasPlucked = true; played[idx] = true;
   if (idx === 0) applyMute();                  // reference played → reveal the target
-  if (bothPlayed()) setButtonsReady(true);     // both heard → answer buttons unlock
+  if (phase === 'play' && bothPlayed()) { setButtonsReady(true); setBottom('answers'); taughtPlay = true; }  // both heard → answer buttons (not during review re-plucks)
   vib[idx] = true;
   const myGen = ++vibGen[idx];   // supersede any prior decay tick for this string
   const decay = vibDecay(), t0 = performance.now();
@@ -1237,14 +1259,13 @@ window.addEventListener('blur', onCancel);
 window.addEventListener('resize', () => {
   applyHeader(); applyButtonStyles();   // re-scale the chrome when the viewport tier changes
   buildSVG();
-  // re-centre a visible toast against the freshly re-laid-out board/buttons
-  if (document.getElementById('feedback').classList.contains('show')) positionFeedback();
 });
 
 // ─────────────────────────────────────────────────────────────
 // Game logic
 // ─────────────────────────────────────────────────────────────
 const ROOT = 440, MAX_D = 50, MIN_D = 1;
+const START_DEV = 20;   // fixed easy warm-up each session (ignores best; staircase ratchets down from here)
 const LS_GAME = 'pitch-game-v1';
 let deviation = MAX_D, bestDev = MAX_D, phase = 'play', roundDir = 'sharp';
 let compareInTune = false, compareChallengeFreq = 0;   // wrong-answer review: snap the target string in/out of tune
@@ -1312,6 +1333,20 @@ function applyMute() {
 function setButtonsReady(ready) {
   document.querySelectorAll('.abtn').forEach(b => ready ? b.classList.add('ready') : b.classList.remove('ready'));
 }
+// The bottom bar shows exactly one region at a time: the prompt, the answer
+// buttons, or the feedback pill.
+function setBottom(state) {   // 'prompt' | 'answers' | 'feedback'
+  document.getElementById('prompt').classList.toggle('active',   state === 'prompt');
+  document.getElementById('answers').classList.toggle('active',  state === 'answers');
+  document.getElementById('feedback').classList.toggle('active', state === 'feedback');
+}
+// "Play strings" is the teaching prompt — shown only on the first round of the
+// session. Once the player has completed a round, it drops to the terser "Ready".
+let taughtPlay = false;
+function showPrompt() {
+  document.getElementById('prompt').textContent = taughtPlay ? 'Ready' : 'Play strings';
+  setBottom('prompt');
+}
 function setRoundFreqs() {
   const root = noteFreq();
   const target = root * Math.pow(2, intervalSemi / 12);   // the chosen interval's in-tune frequency
@@ -1336,7 +1371,7 @@ function newRound() {
   if (randomInterval) pickRandomInterval(); // fresh interval each round in ANY INT mode
   setRoundFreqs();
   phase = 'play'; hasPlucked = false; played[0] = played[1] = false;
-  setButtonsReady(false); hideFeedback(); updateHeader();
+  setButtonsReady(false); showPrompt(); updateHeader();
   bumpRosette();                              // rosette ratchets a notch each round
   applyMute();                                // target muted again until the reference is played
 }
@@ -1442,53 +1477,33 @@ function showFeedback(correct) {
   fb.classList.toggle('has-next', !correct);
   // Wrong answer → arm the in-tune review: remember the challenge tuning, start toggled off.
   if (!correct) { compareInTune = false; compareChallengeFreq = stringFreqs[1]; }
-  styleFeedback(); positionFeedback();
-  fb.classList.add('show');
+  styleFeedback();
+  setBottom('feedback');
 }
-function hideFeedback() { document.getElementById('feedback').classList.remove('show'); }
-function positionFeedback() {
-  // Dead-centre the toast between the actual bottom of the bridge board and the actual buttons.
-  const fb = document.getElementById('feedback'), pill = document.getElementById('fbPill');
-  const stageR = document.getElementById('stage').getBoundingClientRect();
-  const boardBottom = bridgeGrp ? bridgeGrp.getBoundingClientRect().bottom
-                    : stageR.top + bridgeCY() + 86 * (bridgeW / 220) * 0.42 + vOffset;
-  const btn = document.querySelector('.abtn');
-  const btnTop = btn ? btn.getBoundingClientRect().top
-               : document.getElementById('answers').getBoundingClientRect().top;
-  const midVp = (boardBottom + btnTop) / 2;
-  fb.style.top = (midVp - stageR.top - pill.getBoundingClientRect().height / 2) + 'px'; // rendered height → centred at any scale
-}
+function hideFeedback() { document.getElementById('feedback').classList.remove('active'); }
 function styleFeedback() {
   const fb = document.getElementById('feedback');
   const pill = document.getElementById('fbPill'), lbl = document.getElementById('fbLabel'), nxt = document.getElementById('fbNext');
   fb.style.transition = `opacity ${toastFade}ms ease`;
-  pill.style.background = toastBg;
-  pill.style.color = toastTextCol;
-  pill.style.setProperty('--tpv', toastPad + 'px');
-  pill.style.setProperty('--tph', (toastPad + 10) + 'px');
-  pill.style.transform = `scale(${toastScale / 100 * uiScale()})`;
-  pill.style.gap = toastNextGap + 'px';
-  pill.style.fontFamily = fontStack(toastFont);
-  lbl.style.fontSize = toastFontSize + 'px';
-  lbl.style.letterSpacing = (toastTracking / 100) + 'em';
-  lbl.style.textTransform = toastCase;
-  lbl.style.fontWeight = toastWeight;
-  nxt.style.background = toastNextBg;
-  nxt.style.color = toastNextCol;
-  nxt.style.fontSize = (toastFontSize + 4) + 'px';
-  nxt.style.transform = `translateY(${toastNextDY}px)`;
-  nxt.textContent = toastChevron;
-  const tune = document.getElementById('fbTune');
-  tune.style.fontSize = (toastFontSize + 2) + 'px';
-  tune.style.borderColor = toastNextBg;
+  // No pill — the message is plain cream text in the answer-button label style.
+  pill.style.background = 'transparent';
+  pill.style.transform = `scale(${uiScale()})`;
+  pill.style.gap = '12px';
+  pill.style.fontFamily = fontStack(btnFont);
+  lbl.style.color = 'var(--btn-ready)';
+  lbl.style.fontSize = btnFontSize + 'px';
+  lbl.style.letterSpacing = (btnTracking / 100) + 'em';
+  lbl.style.textTransform = btnCase;
+  lbl.style.fontWeight = btnWeight;
+  nxt.style.transform = `translateY(${toastNextDY}px)`;   // chevron colour/border come from CSS vars
   paintTune();
 }
 // In-tune review toggle: silently re-tune the target string to perfect (on) or back to
 // the challenge (off). No sound on tap — the player plucks the strings to compare.
 function paintTune() {
   const t = document.getElementById('fbTune');
-  if (compareInTune) { t.style.background = toastNextBg; t.style.color = toastNextCol; }
-  else               { t.style.background = 'transparent'; t.style.color = toastNextBg; }
+  if (compareInTune) { t.style.background = 'var(--btn-ready)'; t.style.color = bodyColor; }   // lit: in-tune tuning active
+  else               { t.style.background = 'transparent'; t.style.color = 'var(--btn-ready)'; } // ghost: question's tuning
 }
 function toggleCompare() {
   compareInTune = !compareInTune;
@@ -1525,15 +1540,18 @@ document.querySelectorAll('.abtn').forEach(b => {
   }, { passive: false });
   b.addEventListener('click', () => { if (!touched) answer(b.dataset.ans); });
 });
-// During review the entire pill is the tap target (big hit area), not just the ›.
-const fbPillEl = document.getElementById('fbPill');
-fbPillEl.addEventListener('click', () => {
-  if (document.getElementById('feedback').classList.contains('has-next')) advance();
-});
-// The pill sits inside #stage, so its pointer events bubble to the string-grab
-// handlers. Keep them from propagating (a pill tap must not pluck a string).
-['mousedown', 'touchstart', 'mouseup', 'touchend'].forEach(evt =>
-  fbPillEl.addEventListener(evt, e => e.stopPropagation()));
+// After a wrong answer, ONLY the › chevron advances — the message stays put while
+// you toggle ♪ and re-pluck as much as you like. touchend-first for iOS, guarded
+// so desktop click doesn't double-fire.
+{
+  const nextBtn = document.getElementById('fbNext');
+  let nextTouched = false;
+  nextBtn.addEventListener('touchend', e => {
+    e.preventDefault(); e.stopPropagation(); nextTouched = true; advance();
+    setTimeout(() => { nextTouched = false; }, 400);
+  }, { passive: false });
+  nextBtn.addEventListener('click', e => { e.stopPropagation(); if (!nextTouched) advance(); });
+}
 
 // The ≈ toggle handles its own taps (flip the target in/out of tune) and must NOT
 // advance — so stop the tap from reaching the pill's advance handler. touchend-first
@@ -1588,7 +1606,7 @@ function currentVis() {
     spacing,
     bodyColor, bodyCol2, bodyRadius, holePos, bowAmount, vibBlurAmt, vibSustain, resetMs, soundTail,
     rosetteCol, rosettePoints, rosetteDepth, rosetteRoundOut, rosetteRoundIn, rosetteGap, rosetteW,
-    ringCount, ringSpacing, ringTaper, innerBand, innerBandGap, outerBand, outerBandGap, bandW, bandCol,
+    ringCount, ringSpacing, ringTaper, innerBand, innerBandGap, outerBand, outerBandGap, bandW, bandCol, bandFill, bandFillCol,
     bridgeW, bridgeCol,
     saddleYOff, saddleWFrac, saddleThick, saddleCol,
     btnColor, btnDimCol, btnPressBg, btnFont, btnWeight, btnCase, btnFontSize, btnTracking, btnPadV, btnRadius, btnBorderW, btnGap, btnAreaPad,
@@ -1636,6 +1654,8 @@ function syncPanel() {
   g('pOuterBandGap').value = outerBandGap; g('pOuterBandGapV').textContent = outerBandGap + 'px';
   g('pBandW').value    = bandW;         g('pBandWV').textContent    = bandW + 'px';
   g('pBandCol').value  = bandCol;
+  g('pBandFill').checked = bandFill;
+  g('pBandFillCol').value = bandFillCol;
   g('pSaddleY').value  = saddleYOff;    g('pSaddleYV').textContent   = saddleYOff + 'px';
   g('pSaddleW').value  = Math.round(saddleWFrac*100); g('pSaddleWV').textContent = Math.round(saddleWFrac*100) + '%';
   g('pSaddleThick').value = saddleThick; g('pSaddleThickV').textContent = saddleThick + 'px';
@@ -1732,6 +1752,8 @@ function loadVis() {
     if (s.outerBandGap  != null) outerBandGap  = +s.outerBandGap;
     if (s.bandW         != null) bandW         = +s.bandW;
     if (s.bandCol       != null) bandCol       = s.bandCol;
+    if (s.bandFill      != null) bandFill      = !!s.bandFill;
+    if (s.bandFillCol   != null) bandFillCol   = s.bandFillCol;
     if (s.bowAmount   != null) bowAmount   = +s.bowAmount;
     if (s.vibBlurAmt  != null) vibBlurAmt  = +s.vibBlurAmt;
     if (s.vibSustain  != null) vibSustain  = +s.vibSustain;
@@ -1825,6 +1847,8 @@ function applyVisObj(s) {
   if (s.outerBandGap  != null) outerBandGap  = +s.outerBandGap;
   if (s.bandW         != null) bandW         = +s.bandW;
   if (s.bandCol       != null) bandCol       = s.bandCol;
+  if (s.bandFill      != null) bandFill      = !!s.bandFill;
+  if (s.bandFillCol   != null) bandFillCol   = s.bandFillCol;
   if (s.bowAmount   != null) bowAmount   = +s.bowAmount;
   if (s.vibBlurAmt  != null) vibBlurAmt  = +s.vibBlurAmt;
   if (s.vibSustain  != null) vibSustain  = +s.vibSustain;
@@ -1916,6 +1940,8 @@ on('pOuterBand',   e => { outerBand    = e.target.checked; applyRosette(); });
 on('pOuterBandGap',e => { outerBandGap = +e.target.value; document.getElementById('pOuterBandGapV').textContent = outerBandGap+'px'; applyRosette(); });
 on('pBandW',       e => { bandW        = +e.target.value; document.getElementById('pBandWV').textContent       = bandW+'px'; applyRosette(); });
 on('pBandCol',     e => { bandCol      = e.target.value; applyRosette(); });
+on('pBandFill',    e => { bandFill     = e.target.checked; applyRosette(); });
+on('pBandFillCol', e => { bandFillCol  = e.target.value; applyRosette(); });
 on('pSaddleY',   e => { saddleYOff = +e.target.value; document.getElementById('pSaddleYV').textContent = saddleYOff+'px'; applySaddle(); });
 on('pSaddleW',   e => { saddleWFrac= +e.target.value/100; document.getElementById('pSaddleWV').textContent = e.target.value+'%'; applySaddle(); });
 on('pSaddleThick',e => { saddleThick= +e.target.value; document.getElementById('pSaddleThickV').textContent= saddleThick+'px'; applySaddle(); });
@@ -2003,7 +2029,7 @@ document.getElementById('pApply').addEventListener('click', () => {
 // Init
 // ─────────────────────────────────────────────────────────────
 loadVis(); loadGame();
-deviation = Math.min(MAX_D, bestDev * 1.5);
+deviation = START_DEV;   // always begin at the fixed easy step, regardless of best
 applyBg();
 applyHeader();
 updateSel();
