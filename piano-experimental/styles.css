@@ -423,9 +423,6 @@ body {
 .power-button:active .pwr-c1 {
     fill: var(--press-power-fill, #2a3a55);
 }
-.power-button:active .pwr-c2 {
-    fill: var(--press-power-c2-fill, #1a4a2c);
-}
 
 /* Picker letters — scale the GROUP, color the text */
 .key-picker-note {

@@ -89,6 +89,10 @@ function stripRotation(state) {
 
 const POWER_BTN_MARGIN_PT = 18;
 
+// Power on/off glyph — Material Symbols "mode_off_on" (0 -960 960 960 grid),
+// inlined so it needs no icon font. Flat fill: grey when off, green when on.
+const POWER_GLYPH_PATH = 'M480-480q-17 0-28.5-11.5T440-520v-320q0-17 11.5-28.5T480-880q17 0 28.5 11.5T520-840v320q0 17-11.5 28.5T480-480Zm0 360q-75 0-140.5-28.5t-114-77q-48.5-48.5-77-114T120-480q0-61 20-118.5T198-704q11-14 28-13.5t30 13.5q11 11 10 27t-11 30q-27 36-41 79t-14 88q0 117 81.5 198.5T480-200q117 0 198.5-81.5T760-480q0-46-13.5-89.5T704-649q-10-13-11-28.5t10-26.5q12-12 29-12.5t28 12.5q39 48 59.5 105T840-480q0 75-28.5 140.5t-77 114q-48.5 48.5-114 77T480-120Z';
+
 const INITIAL_STATE = {
     sliceCount: 32,
     slicePartialFrac: 1.0,
@@ -207,7 +211,6 @@ const INITIAL_STATE = {
     pressPillFill:   '#444648',
     pressPowerScale:     0.93, // power button on press
     pressPowerFill:  '#232323', // C1 (outer body) fill on press
-    pressPowerC2Fill:'#444444', // C2 (central sphere) fill on press
     pressLetterScale:    0.84, // picker letters on press
     pressLetterFill: '#7d8080',
     // Power button
@@ -228,34 +231,15 @@ const INITIAL_STATE = {
     c1InnerColor:      '#ffffff',
     c1InnerBlur:       1.46, c1InnerOpacity: 4,
     c1InnerDx:         0,    c1InnerDy:      1.46,
-    // Circle 2 — sphere (full off/on gradient sets)
-    c2SizeRatio:          0.3,
-    c2GradFromOff:        '#7a7a7a',
-    c2GradToOff:          '#606060',
-    c2GradTypeOff:        'radial',
-    c2GradAngleOff:       272,
-    c2GradFocalOffsetOff: 50,
-    c2GradStop0Off: 0, c2GradStop1Off: 100,
-    c2GradFromOn:         '#00ff00',
-    c2GradToOn:           '#19bb13',
-    c2GradTypeOn:         'radial',
-    c2GradAngleOn:        268,
-    c2GradFocalOffsetOn:  65,
-    c2GradStop0On: 25, c2GradStop1On: 100,
-    c2Stroke:             '#151515',
-    c2StrokeWidth:        1.5,
-    c2DropColor:          '#ffffff',
-    c2DropBlur:           2.44, c2DropOpacity: 9,
-    c2DropDx:             0,    c2DropDy:      1.95,
-    c2InnerColor:         '#000000',
-    c2InnerBlur:          0,  c2InnerOpacity: 0,
-    c2InnerDx:            0,  c2InnerDy:      0,
-    // Circle 2 — glow (visible when audio is on)
+    // On/off glyph (Material Symbols "mode_off_on")
+    powerGlyphSize:  1.35,       // glyph 960-box size as a multiple of the button radius
+    powerGlyphOff:   '#6f6f6f',  // fill when audio is off
+    powerGlyphOn:    '#2ad11e',  // fill when audio is on
+    // Glow — shape-following bloom behind the glyph when audio is on
     c2GlowColor:     '#00ff00',
-    c2GlowBlur:      3.9,
-    c2GlowOpacity:   29,
-    c2GlowSpread:    1.22,
-    c2GlowBlendMode: 'screen',
+    c2GlowBlur:      1.8,
+    c2GlowOpacity:   19,
+    c2GlowSpread:    2.0,
 };
 
 // ============================================
@@ -663,8 +647,8 @@ class RenderEngine {
         this.keyPickerOpen = false;
         this._hubRAnimId = null;
         this.powerButton = null;
-        this.pwrC2       = null;
-        this.pwrGlow     = null;
+        this.pwrGlyph    = null;
+        this.pwrGlyphGroup = null;
         this.hubCircleOn = null;
     }
 
@@ -1420,10 +1404,11 @@ class RenderEngine {
         const margin    = POWER_BTN_MARGIN_PT * scale;
         const cx        = width - r - margin;
         const cy        = r + margin;
-        const c2r       = r * this.state.get('c2SizeRatio');
+        const glyphBox  = r * this.state.get('powerGlyphSize');
+        const gk        = glyphBox / 960;   // maps the glyph's 960-space to button px
 
         const defs = this.createDefs();
-        this._renderPowerBtnDefs(defs, cx, cy, r, c2r);
+        this._renderPowerBtnDefs(defs, cx, cy, r, gk);
 
         const group = document.createElementNS(SVG_NS, 'g');
         group.setAttribute('class', 'power-button');
@@ -1448,39 +1433,28 @@ class RenderEngine {
         c1s.setAttribute('stroke-width', this.state.get('c1StrokeWidth'));
         group.appendChild(c1s);
 
-        const c2 = document.createElementNS(SVG_NS, 'circle');
-        c2.setAttribute('class', 'pwr-c2');
-        c2.setAttribute('cx', cx); c2.setAttribute('cy', cy); c2.setAttribute('r', c2r);
-        c2.setAttribute('fill',   this.audioActive ? 'url(#pwrC2GradOn)' : 'url(#pwrC2GradOff)');
-        c2.setAttribute('stroke', 'none');
-        c2.setAttribute('filter', 'url(#pwrC2Filter)');
-        group.appendChild(c2);
-        this.pwrC2 = c2;
-
-        const c2s = document.createElementNS(SVG_NS, 'circle');
-        c2s.setAttribute('cx', cx); c2s.setAttribute('cy', cy); c2s.setAttribute('r', c2r);
-        c2s.setAttribute('fill',         'none');
-        c2s.setAttribute('stroke',       this.state.get('c2Stroke'));
-        c2s.setAttribute('stroke-width', this.state.get('c2StrokeWidth'));
-        group.appendChild(c2s);
-
-        const glow = document.createElementNS(SVG_NS, 'circle');
-        const glowR = c2r + this.state.get('c2GlowSpread') * scale;
-        glow.setAttribute('cx', cx); glow.setAttribute('cy', cy); glow.setAttribute('r', glowR);
-        glow.setAttribute('fill',    this.state.get('c2GlowColor'));
-        glow.setAttribute('opacity', this.audioActive ? this.state.get('c2GlowOpacity') / 100 : 0);
-        glow.setAttribute('filter',  'url(#pwrC2GlowFilter)');
-        glow.style.mixBlendMode  = this.state.get('c2GlowBlendMode');
-        glow.style.pointerEvents = 'none';
-        group.appendChild(glow);
-        this.pwrGlow = glow;
+        // On/off glyph (Material Symbols "mode_off_on") — flat fill, grey → green.
+        // When on, a shape-following glow filter (see _renderPowerBtnDefs) blooms a
+        // blurred green copy of the glyph itself behind the sharp symbol.
+        const glyph = document.createElementNS(SVG_NS, 'g');
+        glyph.setAttribute('class', 'pwr-glyph');
+        glyph.setAttribute('transform',
+            `translate(${cx - glyphBox / 2} ${cy - glyphBox / 2}) scale(${gk}) translate(0 960)`);
+        if (this.audioActive) glyph.setAttribute('filter', 'url(#pwrGlyphGlow)');
+        const gpath = document.createElementNS(SVG_NS, 'path');
+        gpath.setAttribute('d', POWER_GLYPH_PATH);
+        gpath.setAttribute('fill', this.audioActive ? this.state.get('powerGlyphOn') : this.state.get('powerGlyphOff'));
+        glyph.appendChild(gpath);
+        group.appendChild(glyph);
+        this.pwrGlyph = gpath;
+        this.pwrGlyphGroup = glyph;
 
         this.svg.appendChild(group);
         this.powerButton = group;
     }
 
-    _renderPowerBtnDefs(defs, cx, cy, r, c2r) {
-        ['pwrC1Grad','pwrC2GradOff','pwrC2GradOn','pwrC1Filter','pwrC2Filter','pwrC2GlowFilter'].forEach(id => {
+    _renderPowerBtnDefs(defs, cx, cy, r, gk) {
+        ['pwrC1Grad','pwrC1Filter','pwrGlyphGlow'].forEach(id => {
             defs.querySelector(`#${id}`)?.remove();
         });
 
@@ -1522,16 +1496,6 @@ class RenderEngine {
             s.get('c1GradType'), s.get('c1GradAngle'), s.get('c1GradFocalOffset'),
             cx, cy, r, s.get('c1GradStop0'), s.get('c1GradStop1'));
 
-        makeGrad('pwrC2GradOff',
-            s.get('c2GradFromOff'), s.get('c2GradToOff'),
-            s.get('c2GradTypeOff'), s.get('c2GradAngleOff'), s.get('c2GradFocalOffsetOff'),
-            cx, cy, c2r, s.get('c2GradStop0Off'), s.get('c2GradStop1Off'));
-
-        makeGrad('pwrC2GradOn',
-            s.get('c2GradFromOn'), s.get('c2GradToOn'),
-            s.get('c2GradTypeOn'), s.get('c2GradAngleOn'), s.get('c2GradFocalOffsetOn'),
-            cx, cy, c2r, s.get('c2GradStop0On'), s.get('c2GradStop1On'));
-
         const makeFilter = (id,
             dropBlur, dropOpacity, dropColor, dropDx, dropDy,
             innerBlur, innerOpacity, innerColor, innerDx, innerDy) => {
@@ -1571,18 +1535,30 @@ class RenderEngine {
         makeFilter('pwrC1Filter',
             s.get('c1DropBlur'),  s.get('c1DropOpacity'),  s.get('c1DropColor'),  s.get('c1DropDx'),  s.get('c1DropDy'),
             s.get('c1InnerBlur'), s.get('c1InnerOpacity'), s.get('c1InnerColor'), s.get('c1InnerDx'), s.get('c1InnerDy'));
-        makeFilter('pwrC2Filter',
-            s.get('c2DropBlur'),  s.get('c2DropOpacity'),  s.get('c2DropColor'),  s.get('c2DropDx'),  s.get('c2DropDy'),
-            s.get('c2InnerBlur'), s.get('c2InnerOpacity'), s.get('c2InnerColor'), s.get('c2InnerDx'), s.get('c2InnerDy'));
 
+        // Shape-following glow (applied to the glyph when audio is on): dilate + blur
+        // the glyph's own alpha, flood it with the glow colour, then paint the sharp
+        // glyph back on top. This traces the power symbol instead of a round halo.
+        const mkEl = (tag, attrs) => {
+            const e = document.createElementNS(SVG_NS, tag);
+            Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v));
+            return e;
+        };
         const glowF = document.createElementNS(SVG_NS, 'filter');
-        glowF.setAttribute('id', 'pwrC2GlowFilter');
-        glowF.setAttribute('x', '-200%'); glowF.setAttribute('y', '-200%');
-        glowF.setAttribute('width', '500%'); glowF.setAttribute('height', '500%');
-        const glowBlur = document.createElementNS(SVG_NS, 'feGaussianBlur');
-        glowBlur.setAttribute('stdDeviation', s.get('c2GlowBlur'));
-        glowBlur.setAttribute('result', 'glow');
-        glowF.appendChild(glowBlur);
+        glowF.setAttribute('id', 'pwrGlyphGlow');
+        glowF.setAttribute('x', '-120%'); glowF.setAttribute('y', '-120%');
+        glowF.setAttribute('width', '340%'); glowF.setAttribute('height', '340%');
+        // The filter runs in the glyph's local 960-space, so convert px → local units (÷ gk).
+        const glowSpread = s.get('c2GlowSpread') / gk;
+        const glowBlur   = s.get('c2GlowBlur')   / gk;
+        if (glowSpread > 0) glowF.appendChild(mkEl('feMorphology', { in: 'SourceAlpha', operator: 'dilate', radius: glowSpread.toFixed(1), result: 'sp' }));
+        glowF.appendChild(mkEl('feGaussianBlur', { in: glowSpread > 0 ? 'sp' : 'SourceAlpha', stdDeviation: glowBlur.toFixed(1), result: 'bl' }));
+        glowF.appendChild(mkEl('feFlood', { 'flood-color': s.get('c2GlowColor'), 'flood-opacity': s.get('c2GlowOpacity') / 100, result: 'fl' }));
+        glowF.appendChild(mkEl('feComposite', { in: 'fl', in2: 'bl', operator: 'in', result: 'glow' }));
+        const glowMerge = mkEl('feMerge', {});
+        glowMerge.appendChild(mkEl('feMergeNode', { in: 'glow' }));
+        glowMerge.appendChild(mkEl('feMergeNode', { in: 'SourceGraphic' }));
+        glowF.appendChild(glowMerge);
         defs.appendChild(glowF);
     }
 
@@ -1603,13 +1579,13 @@ class RenderEngine {
         // We fade OUT the dim when turning audio ON (was off, now on).
         const fadingOut = active && !wasActive;
 
-        // Power button sphere — instant gradient swap
-        if (this.pwrC2) {
-            this.pwrC2.setAttribute('fill', active ? 'url(#pwrC2GradOn)' : 'url(#pwrC2GradOff)');
+        // Power button glyph — instant colour swap + glow filter toggle (render() rebuilds too)
+        if (this.pwrGlyph) {
+            this.pwrGlyph.setAttribute('fill', active ? this.state.get('powerGlyphOn') : this.state.get('powerGlyphOff'));
         }
-        // Glow — show only when active
-        if (this.pwrGlow) {
-            this.pwrGlow.setAttribute('opacity', active ? this.state.get('c2GlowOpacity') / 100 : 0);
+        if (this.pwrGlyphGroup) {
+            if (active) this.pwrGlyphGroup.setAttribute('filter', 'url(#pwrGlyphGlow)');
+            else        this.pwrGlyphGroup.removeAttribute('filter');
         }
 
         // Re-render to show/hide key label and update toggle
@@ -3230,7 +3206,6 @@ class ControlsManager {
             pressPowerScaleSlider:       document.getElementById('pressPowerScaleSlider'),
             pressPowerScaleValue:        document.getElementById('pressPowerScaleValue'),
             pressPowerFill:              document.getElementById('pressPowerFill'),
-            pressPowerC2Fill:            document.getElementById('pressPowerC2Fill'),
             pressLetterScaleSlider:      document.getElementById('pressLetterScaleSlider'),
             pressLetterScaleValue:       document.getElementById('pressLetterScaleValue'),
             pressLetterFill:             document.getElementById('pressLetterFill'),
@@ -3315,47 +3290,17 @@ class ControlsManager {
             c1InnerBlurValue:        document.getElementById('c1InnerBlurValue'),
             c1InnerOpacitySlider:    document.getElementById('c1InnerOpacitySlider'),
             c1InnerOpacityValue:     document.getElementById('c1InnerOpacityValue'),
-            c2GradFromOff:              document.getElementById('c2GradFromOff'),
-            c2GradToOff:                document.getElementById('c2GradToOff'),
-            c2GradTypeOff:              document.getElementById('c2GradTypeOff'),
-            c2GradAngleOffSlider:       document.getElementById('c2GradAngleOffSlider'),
-            c2GradAngleOffValue:        document.getElementById('c2GradAngleOffValue'),
-            c2GradFocalOffsetOffSlider: document.getElementById('c2GradFocalOffsetOffSlider'),
-            c2GradFocalOffsetOffValue:  document.getElementById('c2GradFocalOffsetOffValue'),
-            c2GradStop0OffSlider:       document.getElementById('c2GradStop0OffSlider'),
-            c2GradStop0OffValue:        document.getElementById('c2GradStop0OffValue'),
-            c2GradStop1OffSlider:       document.getElementById('c2GradStop1OffSlider'),
-            c2GradStop1OffValue:        document.getElementById('c2GradStop1OffValue'),
-            c2GradFromOn:               document.getElementById('c2GradFromOn'),
-            c2GradToOn:                 document.getElementById('c2GradToOn'),
-            c2GradTypeOn:               document.getElementById('c2GradTypeOn'),
-            c2GradAngleOnSlider:        document.getElementById('c2GradAngleOnSlider'),
-            c2GradAngleOnValue:         document.getElementById('c2GradAngleOnValue'),
-            c2GradFocalOffsetOnSlider:  document.getElementById('c2GradFocalOffsetOnSlider'),
-            c2GradFocalOffsetOnValue:   document.getElementById('c2GradFocalOffsetOnValue'),
-            c2GradStop0OnSlider:        document.getElementById('c2GradStop0OnSlider'),
-            c2GradStop0OnValue:         document.getElementById('c2GradStop0OnValue'),
-            c2GradStop1OnSlider:        document.getElementById('c2GradStop1OnSlider'),
-            c2GradStop1OnValue:         document.getElementById('c2GradStop1OnValue'),
-            c2Stroke:                document.getElementById('c2Stroke'),
-            c2StrokeWidthSlider:     document.getElementById('c2StrokeWidthSlider'),
-            c2StrokeWidthValue:      document.getElementById('c2StrokeWidthValue'),
-            c2DropColor:             document.getElementById('c2DropColor'),
-            c2DropBlurSlider:        document.getElementById('c2DropBlurSlider'),
-            c2DropBlurValue:         document.getElementById('c2DropBlurValue'),
-            c2DropOpacitySlider:     document.getElementById('c2DropOpacitySlider'),
-            c2DropOpacityValue:      document.getElementById('c2DropOpacityValue'),
-            c2InnerColor:            document.getElementById('c2InnerColor'),
-            c2InnerBlurSlider:       document.getElementById('c2InnerBlurSlider'),
-            c2InnerBlurValue:        document.getElementById('c2InnerBlurValue'),
-            c2InnerOpacitySlider:    document.getElementById('c2InnerOpacitySlider'),
-            c2InnerOpacityValue:     document.getElementById('c2InnerOpacityValue'),
-            c2InnerDxSlider:         document.getElementById('c2InnerDxSlider'),
-            c2InnerDxValue:          document.getElementById('c2InnerDxValue'),
-            c2InnerDySlider:         document.getElementById('c2InnerDySlider'),
-            c2InnerDyValue:          document.getElementById('c2InnerDyValue'),
-            c2SizeRatioSlider:       document.getElementById('c2SizeRatioSlider'),
-            c2SizeRatioValue:        document.getElementById('c2SizeRatioValue'),
+            powerGlyphSizeSlider:    document.getElementById('powerGlyphSizeSlider'),
+            powerGlyphSizeValue:     document.getElementById('powerGlyphSizeValue'),
+            powerGlyphOff:           document.getElementById('powerGlyphOff'),
+            powerGlyphOn:            document.getElementById('powerGlyphOn'),
+            c2GlowColor:             document.getElementById('c2GlowColor'),
+            c2GlowOpacitySlider:     document.getElementById('c2GlowOpacitySlider'),
+            c2GlowOpacityValue:      document.getElementById('c2GlowOpacityValue'),
+            c2GlowBlurSlider:        document.getElementById('c2GlowBlurSlider'),
+            c2GlowBlurValue:         document.getElementById('c2GlowBlurValue'),
+            c2GlowSpreadSlider:      document.getElementById('c2GlowSpreadSlider'),
+            c2GlowSpreadValue:       document.getElementById('c2GlowSpreadValue'),
             // Save slot buttons
             presetNameInput: document.getElementById('presetNameInput'),
             savePresetBtn: document.getElementById('savePresetBtn'),
@@ -3479,7 +3424,6 @@ class ControlsManager {
         this.setupColorInput('pressPillFill',        'pressPillFill',    pressSync);
         this.setupSlider('pressPowerScaleSlider',    'pressPowerScale',  'pressPowerScaleValue',  '×', pressSync);
         this.setupColorInput('pressPowerFill',       'pressPowerFill',   pressSync);
-        this.setupColorInput('pressPowerC2Fill',     'pressPowerC2Fill', pressSync);
         this.setupSlider('pressLetterScaleSlider',   'pressLetterScale', 'pressLetterScaleValue', '×', pressSync);
         this.setupColorInput('pressLetterFill',      'pressLetterFill',  pressSync);
         this.setupSlider('keyLabelFontSizeSlider', 'keyLabelFontSize', 'keyLabelFontSizeValue', 'pt', (v) => {
@@ -3546,39 +3490,15 @@ class ControlsManager {
         this.setupColorInput('c1InnerColor', 'c1InnerColor', reRender);
         this.setupSlider('c1InnerBlurSlider',    'c1InnerBlur',    'c1InnerBlurValue',    'px', reRender);
         this.setupSlider('c1InnerOpacitySlider', 'c1InnerOpacity', 'c1InnerOpacityValue', '%',  reRender);
-        this.setupColorInput('c2GradFromOff', 'c2GradFromOff', reRender);
-        this.setupColorInput('c2GradToOff',   'c2GradToOff',   reRender);
-        this.setupDropdown('c2GradTypeOff', 'c2GradTypeOff', (v) => {
-            const row = document.getElementById('c2FocalOffRow');
-            if (row) row.style.display = (v === 'radial') ? 'flex' : 'none';
-            reRender();
-        });
-        this.setupSlider('c2GradAngleOffSlider',       'c2GradAngleOff',       'c2GradAngleOffValue',       '°', reRender);
-        this.setupSlider('c2GradFocalOffsetOffSlider', 'c2GradFocalOffsetOff', 'c2GradFocalOffsetOffValue', '%', reRender);
-        this.setupSlider('c2GradStop0OffSlider', 'c2GradStop0Off', 'c2GradStop0OffValue', '%', reRender);
-        this.setupSlider('c2GradStop1OffSlider', 'c2GradStop1Off', 'c2GradStop1OffValue', '%', reRender);
-        this.setupColorInput('c2GradFromOn', 'c2GradFromOn', reRender);
-        this.setupColorInput('c2GradToOn',   'c2GradToOn',   reRender);
-        this.setupDropdown('c2GradTypeOn', 'c2GradTypeOn', (v) => {
-            const row = document.getElementById('c2FocalOnRow');
-            if (row) row.style.display = (v === 'radial') ? 'flex' : 'none';
-            reRender();
-        });
-        this.setupSlider('c2GradAngleOnSlider',       'c2GradAngleOn',       'c2GradAngleOnValue',       '°', reRender);
-        this.setupSlider('c2GradFocalOffsetOnSlider', 'c2GradFocalOffsetOn', 'c2GradFocalOffsetOnValue', '%', reRender);
-        this.setupSlider('c2GradStop0OnSlider', 'c2GradStop0On', 'c2GradStop0OnValue', '%', reRender);
-        this.setupSlider('c2GradStop1OnSlider', 'c2GradStop1On', 'c2GradStop1OnValue', '%', reRender);
-        this.setupColorInput('c2Stroke',      'c2Stroke',      reRender);
-        this.setupSlider('c2StrokeWidthSlider',  'c2StrokeWidth',  'c2StrokeWidthValue',  'px', reRender);
-        this.setupColorInput('c2DropColor',  'c2DropColor',  reRender);
-        this.setupSlider('c2DropBlurSlider',     'c2DropBlur',     'c2DropBlurValue',     'px', reRender);
-        this.setupSlider('c2DropOpacitySlider',  'c2DropOpacity',  'c2DropOpacityValue',  '%',  reRender);
-        this.setupColorInput('c2InnerColor', 'c2InnerColor', reRender);
-        this.setupSlider('c2InnerBlurSlider',    'c2InnerBlur',    'c2InnerBlurValue',    'px', reRender);
-        this.setupSlider('c2InnerOpacitySlider', 'c2InnerOpacity', 'c2InnerOpacityValue', '%',  reRender);
-        this.setupSlider('c2InnerDxSlider',      'c2InnerDx',      'c2InnerDxValue',      'px', reRender);
-        this.setupSlider('c2InnerDySlider',      'c2InnerDy',      'c2InnerDyValue',      'px', reRender);
-        this.setupSlider('c2SizeRatioSlider', 'c2SizeRatio', 'c2SizeRatioValue', '', reRender);
+        // Glyph (units live statically in the labels, so suffix is empty)
+        this.setupSlider('powerGlyphSizeSlider', 'powerGlyphSize', 'powerGlyphSizeValue', '', reRender);
+        this.setupColorInput('powerGlyphOff', 'powerGlyphOff', reRender);
+        this.setupColorInput('powerGlyphOn',  'powerGlyphOn',  reRender);
+        // Glow
+        this.setupColorInput('c2GlowColor', 'c2GlowColor', reRender);
+        this.setupSlider('c2GlowOpacitySlider', 'c2GlowOpacity', 'c2GlowOpacityValue', '', reRender);
+        this.setupSlider('c2GlowBlurSlider',    'c2GlowBlur',    'c2GlowBlurValue',    '', reRender);
+        this.setupSlider('c2GlowSpreadSlider',  'c2GlowSpread',  'c2GlowSpreadValue',  '', reRender);
 
         // Gradient controls
         this.setupColorInput('keyColorInput',        'keyColor',        () => this.renderer.render());
@@ -3804,7 +3724,6 @@ class ControlsManager {
         r.setProperty('--press-pill-fill',    s.get('pressPillFill'));
         r.setProperty('--press-power-scale',   s.get('pressPowerScale'));
         r.setProperty('--press-power-fill',    s.get('pressPowerFill'));
-        r.setProperty('--press-power-c2-fill', s.get('pressPowerC2Fill'));
         r.setProperty('--press-letter-scale', s.get('pressLetterScale'));
         r.setProperty('--press-letter-fill',  s.get('pressLetterFill'));
     }

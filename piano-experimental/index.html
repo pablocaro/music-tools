@@ -515,102 +515,42 @@
                         </div>
                     </div>
 
-                    <!-- C2 -->
-                    <p class="circle-sub-label">Circle 2 — Sphere</p>
+                    <!-- On/off glyph -->
+                    <p class="circle-sub-label">On/off glyph</p>
                     <div class="compact-slider">
-                        <label>Size <span class="range-value" id="c2SizeRatioValue">0.3</span>×</label>
-                        <input type="range" id="c2SizeRatioSlider" min="0.1" max="0.95" step="0.05" value="0.3">
+                        <label>Size <span class="range-value" id="powerGlyphSizeValue">1.35</span>×</label>
+                        <input type="range" id="powerGlyphSizeSlider" min="0.8" max="2.6" step="0.05" value="1.35">
                     </div>
-
-                    <p class="circle-sub-label" style="margin-top:8px">Off Gradient</p>
                     <div class="grad-header">
-                        <select id="c2GradTypeOff" class="grad-type-select">
-                            <option value="radial" selected>Radial</option>
-                            <option value="linear">Linear</option>
-                        </select>
                         <div class="color-swatch-mini">
-                            <input type="color" id="c2GradFromOff" value="#7a7a7a">
-                            <label for="c2GradFromOff">From</label>
+                            <input type="color" id="powerGlyphOff" value="#6f6f6f">
+                            <label for="powerGlyphOff">Off</label>
                         </div>
                         <div class="color-swatch-mini">
-                            <input type="color" id="c2GradToOff" value="#606060">
-                            <label for="c2GradToOff">To</label>
+                            <input type="color" id="powerGlyphOn" value="#2ad11e">
+                            <label for="powerGlyphOn">On</label>
                         </div>
-                    </div>
-                    <div class="compact-slider">
-                        <label>Angle <span class="range-value" id="c2GradAngleOffValue">272</span>°</label>
-                        <input type="range" id="c2GradAngleOffSlider" min="0" max="359" step="1" value="272">
-                    </div>
-                    <div class="compact-slider" id="c2FocalOffRow">
-                        <label>Focal <span class="range-value" id="c2GradFocalOffsetOffValue">50</span>%</label>
-                        <input type="range" id="c2GradFocalOffsetOffSlider" min="0" max="100" step="5" value="50">
-                    </div>
-                    <div class="compact-slider">
-                        <label>Start <span class="range-value" id="c2GradStop0OffValue">0</span>%</label>
-                        <input type="range" id="c2GradStop0OffSlider" min="0" max="100" step="5" value="0">
-                    </div>
-                    <div class="compact-slider">
-                        <label>End <span class="range-value" id="c2GradStop1OffValue">100</span>%</label>
-                        <input type="range" id="c2GradStop1OffSlider" min="0" max="100" step="5" value="100">
                     </div>
 
-                    <p class="circle-sub-label" style="margin-top:8px">On Gradient</p>
+                    <!-- Glow (visible when on) -->
+                    <p class="circle-sub-label" style="margin-top:8px">Glow (when on)</p>
                     <div class="grad-header">
-                        <select id="c2GradTypeOn" class="grad-type-select">
-                            <option value="radial" selected>Radial</option>
-                            <option value="linear">Linear</option>
-                        </select>
                         <div class="color-swatch-mini">
-                            <input type="color" id="c2GradFromOn" value="#00ff00">
-                            <label for="c2GradFromOn">From</label>
-                        </div>
-                        <div class="color-swatch-mini">
-                            <input type="color" id="c2GradToOn" value="#19bb13">
-                            <label for="c2GradToOn">To</label>
+                            <input type="color" id="c2GlowColor" value="#00ff00">
+                            <label for="c2GlowColor">Color</label>
                         </div>
                     </div>
                     <div class="compact-slider">
-                        <label>Angle <span class="range-value" id="c2GradAngleOnValue">268</span>°</label>
-                        <input type="range" id="c2GradAngleOnSlider" min="0" max="359" step="1" value="268">
-                    </div>
-                    <div class="compact-slider" id="c2FocalOnRow">
-                        <label>Focal <span class="range-value" id="c2GradFocalOffsetOnValue">65</span>%</label>
-                        <input type="range" id="c2GradFocalOffsetOnSlider" min="0" max="100" step="5" value="65">
+                        <label>Opacity <span class="range-value" id="c2GlowOpacityValue">19</span>%</label>
+                        <input type="range" id="c2GlowOpacitySlider" min="0" max="100" step="1" value="19">
                     </div>
                     <div class="compact-slider">
-                        <label>Start <span class="range-value" id="c2GradStop0OnValue">25</span>%</label>
-                        <input type="range" id="c2GradStop0OnSlider" min="0" max="100" step="5" value="25">
+                        <label>Blur <span class="range-value" id="c2GlowBlurValue">1.8</span>px</label>
+                        <input type="range" id="c2GlowBlurSlider" min="0" max="20" step="0.1" value="1.8">
                     </div>
                     <div class="compact-slider">
-                        <label>End <span class="range-value" id="c2GradStop1OnValue">100</span>%</label>
-                        <input type="range" id="c2GradStop1OnSlider" min="0" max="100" step="5" value="100">
-                    </div>
-
-                    <div class="compact-slider">
-                        <label><input type="color" id="c2Stroke" value="#151515" class="inline-color"> Stroke <span class="range-value" id="c2StrokeWidthValue">1.5</span>px</label>
-                        <input type="range" id="c2StrokeWidthSlider" min="0" max="6" step="0.5" value="1.5">
-                    </div>
-                    <div class="shadow-row">
-                        <div class="shadow-col">
-                            <div class="shadow-header"><input type="color" id="c2DropColor" value="#ffffff" class="inline-color"> Drop</div>
-                            <div class="compact-slider"><label>Blur <span class="range-value" id="c2DropBlurValue">2.44</span></label><input type="range" id="c2DropBlurSlider" min="0" max="20" step="0.01" value="2.44"></div>
-                            <div class="compact-slider"><label>Opac <span class="range-value" id="c2DropOpacityValue">9</span></label><input type="range" id="c2DropOpacitySlider" min="0" max="100" step="5" value="9"></div>
-                        </div>
-                        <div class="shadow-col">
-                            <div class="shadow-header"><input type="color" id="c2InnerColor" value="#000000" class="inline-color"> Inner</div>
-                            <div class="compact-slider"><label>Blur <span class="range-value" id="c2InnerBlurValue">0</span></label><input type="range" id="c2InnerBlurSlider" min="0" max="20" step="0.01" value="0"></div>
-                            <div class="compact-slider"><label>Opac <span class="range-value" id="c2InnerOpacityValue">0</span></label><input type="range" id="c2InnerOpacitySlider" min="0" max="100" step="5" value="0"></div>
-                        </div>
-                    </div>
-                    <div class="pwr-2col">
-                        <div class="compact-slider">
-                            <label>Inner Dx <span class="range-value" id="c2InnerDxValue">0</span></label>
-                            <input type="range" id="c2InnerDxSlider" min="-20" max="20" step="0.01" value="0">
-                        </div>
-                        <div class="compact-slider">
-                            <label>Inner Dy <span class="range-value" id="c2InnerDyValue">0</span></label>
-                            <input type="range" id="c2InnerDySlider" min="-20" max="20" step="0.01" value="0">
-                        </div>
+                        <label>Spread <span class="range-value" id="c2GlowSpreadValue">2.0</span>px</label>
+                        <input type="range" id="c2GlowSpreadSlider" min="0" max="30" step="0.1" value="2.0">
                     </div>
 
                 </div>
@@ -745,11 +685,7 @@
                     <div class="color-row">
                         <div class="color-swatch-group">
                             <input type="color" id="pressPowerFill" value="#232323">
-                            <label for="pressPowerFill">Outer (C1)</label>
-                        </div>
-                        <div class="color-swatch-group">
-                            <input type="color" id="pressPowerC2Fill" value="#444444">
-                            <label for="pressPowerC2Fill">Sphere (C2)</label>
+                            <label for="pressPowerFill">Body fill</label>
                         </div>
                     </div>
 
