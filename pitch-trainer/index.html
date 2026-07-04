@@ -139,7 +139,6 @@
     #feedback.has-next #fbNext, #feedback.has-next #fbTune { display: inline-flex; }
     /* Material Symbols glyphs (music_note / chevron) inherit the button colour */
     #fbTune svg, #fbNext svg { width: 64%; height: 64%; display: block; }
-    #toastPrev { display: flex; justify-content: center; padding: 4px 0; }
 
     :root {
       --btn-ready:        rgba(235,235,235, .80);
@@ -244,7 +243,6 @@
       background: rgba(235,235,235,.03); color: rgba(235,235,235,.7);
       border: 1px solid rgba(235,235,235,.12); padding: 7px 8px; cursor: pointer;
     }
-    #pToastChevron { text-align: center; font-size: 15px; letter-spacing: 0; }
   </style>
 </head>
 <body>
@@ -523,48 +521,11 @@
         <input type="range" id="pBtnMaxW" min="80" max="400" step="8" autocomplete="off"></div>
     </div>
 
-    <!-- TOASTS -->
+    <!-- FEEDBACK -->
     <div class="psec-hdr" onclick="toggleSec('toast')">
-      <span class="psec-arrow" id="arr-toast">▾</span>TOASTS
+      <span class="psec-arrow" id="arr-toast">▾</span>FEEDBACK
     </div>
     <div class="psec-body" id="sec-toast">
-      <div class="prow"><label>PREVIEW</label>
-        <div id="toastPrev"><span id="toastPrevPill">Great! Correct <b id="toastPrevNext">›</b></span></div></div>
-      <div class="prow"><label>BG COLOR</label>
-        <input type="color" id="pToastBg" autocomplete="off"></div>
-      <div class="prow"><label>TEXT COLOR</label>
-        <input type="color" id="pToastText" autocomplete="off"></div>
-      <div class="prow"><label>NEXT BG</label>
-        <input type="color" id="pToastNextBg" autocomplete="off"></div>
-      <div class="prow"><label>NEXT ARROW</label>
-        <input type="color" id="pToastNextCol" autocomplete="off"></div>
-      <div class="prow"><label>NEXT SYMBOL</label>
-        <input type="text" id="pToastChevron" maxlength="3" autocomplete="off"></div>
-      <div class="prow"><label>NEXT GAP <span class="v" id="pToastNextGapV"></span></label>
-        <input type="range" id="pToastNextGap" min="0" max="30" step="1" autocomplete="off"></div>
-      <div class="prow"><label>NEXT Y <span class="v" id="pToastNextDYV"></span></label>
-        <input type="range" id="pToastNextDY" min="-12" max="12" step="1" autocomplete="off"></div>
-      <div class="prow"><label>CASE</label>
-        <select id="pToastCase" autocomplete="off">
-          <option value="none">Sentence</option>
-          <option value="uppercase">ALL CAPS</option>
-          <option value="lowercase">lower</option>
-        </select></div>
-      <div class="prow"><label>FONT</label>
-        <select id="pToastFamily" autocomplete="off">
-          <option value="Rubik">Rubik</option><option value="System">System</option>
-          <option value="Serif">Serif</option><option value="Mono">Mono</option>
-        </select></div>
-      <div class="prow"><label>WEIGHT <span class="v" id="pToastWeightV"></span></label>
-        <input type="range" id="pToastWeight" min="300" max="900" step="100" autocomplete="off"></div>
-      <div class="prow"><label>FONT SIZE <span class="v" id="pToastFontV"></span></label>
-        <input type="range" id="pToastFont" min="8" max="22" step="1" autocomplete="off"></div>
-      <div class="prow"><label>TRACKING <span class="v" id="pToastTrackV"></span></label>
-        <input type="range" id="pToastTrack" min="0" max="60" step="2" autocomplete="off"></div>
-      <div class="prow"><label>SIZE <span class="v" id="pToastScaleV"></span></label>
-        <input type="range" id="pToastScale" min="60" max="180" step="5" autocomplete="off"></div>
-      <div class="prow"><label>PADDING <span class="v" id="pToastPadV"></span></label>
-        <input type="range" id="pToastPad" min="0" max="48" step="1" autocomplete="off"></div>
       <div class="prow"><label>HOLD (auto-advance) <span class="v" id="pToastHoldV"></span></label>
         <input type="range" id="pToastHold" min="300" max="3000" step="50" autocomplete="off"></div>
       <div class="prow"><label>FADE <span class="v" id="pToastFadeV"></span></label>
@@ -650,23 +611,9 @@ let btnAreaPad   = 28;      // padding around button row px
 let btnMinW      = 68;      // min-width px
 let btnMaxW      = 120;     // max-width px
 
-// Feedback toast (pill) — independent of the string/bridge palette
-let toastBg       = '#ffe44e';  // pill background
-let toastTextCol  = '#7b3920';  // pill label text
-let toastFont     = 'Rubik';    // family key (see FONT_STACKS)
-let toastWeight   = 400;        // font-weight
-let toastNextBg   = '#7b3920';  // next-button disc
-let toastNextCol  = '#F7F2E8';  // next-button arrow
-let toastFontSize = 15;         // px
-let toastTracking = 4;          // hundredths of em (4 → 0.04em)
+// Feedback timing (the message renders as plain text in the button-label style)
 let toastHold     = 950;        // ms held before auto-advance on a correct answer
-let toastFade     = 250;        // ms fade in/out
-let toastScale    = 85;         // overall pill size, percent
-let toastPad      = 7;          // pill vertical padding px (horizontal = +10)
-let toastCase     = 'uppercase';// label case: 'none' = sentence (as authored) | 'uppercase' = ALL CAPS
-let toastChevron  = '›';        // glyph shown inside the next button
-let toastNextGap  = 11;         // px gap between the label and the chevron
-let toastNextDY   = 0;          // px vertical nudge of the chevron
+let toastFade     = 250;        // ms fade in/out of the feedback message
 
 // Header ("top") visuals
 let hdrFont      = 'Rubik';   // family key for all top buttons + best line
@@ -802,7 +749,10 @@ function drawRosette() {
   }
   if (innerBand) { const c = mkBandCircle(cx, cy, bodyRadius + innerBandGap); svg.insertBefore(c, before); rosetteBands.push(c); }
   const fg = document.createElementNS(SVGNS, 'g');
-  fg.style.transformBox = 'fill-box'; fg.style.transformOrigin = 'center';   // spin about the hole centre
+  // Spin about the TRUE hole centre (cx, cy). fill-box would use the paths' bounding-box
+  // centre, which for an odd lobe count isn't the geometric centre — so any rotation would
+  // drift the flower off-centre from the hole and bands. view-box origin fixes that.
+  fg.style.transformBox = 'view-box'; fg.style.transformOrigin = `${cx}px ${cy}px`;
   fg.style.transform = 'rotate(' + rosetteAngle + 'deg)';                    // static on (re)build; no animation
   for (let k = 0; k < ringN; k++) {
     const p = document.createElementNS(SVGNS, 'path');
@@ -1483,20 +1433,20 @@ function showFeedback(correct) {
 function hideFeedback() { document.getElementById('feedback').classList.remove('active'); }
 function styleFeedback() {
   const fb = document.getElementById('feedback');
-  const pill = document.getElementById('fbPill'), lbl = document.getElementById('fbLabel'), nxt = document.getElementById('fbNext');
+  const pill = document.getElementById('fbPill'), lbl = document.getElementById('fbLabel');
   fb.style.transition = `opacity ${toastFade}ms ease`;
   // No pill — the message is plain cream text in the answer-button label style.
   pill.style.background = 'transparent';
   pill.style.transform = `scale(${uiScale()})`;
   pill.style.gap = '12px';
   pill.style.fontFamily = fontStack(btnFont);
-  lbl.style.color = 'var(--btn-ready)';
+  // Correct answers glow in the string yellow; wrong answers stay cream.
+  lbl.style.color = document.getElementById('feedback').classList.contains('has-next') ? 'var(--btn-ready)' : strCol;
   lbl.style.fontSize = btnFontSize + 'px';
   lbl.style.letterSpacing = (btnTracking / 100) + 'em';
   lbl.style.textTransform = btnCase;
   lbl.style.fontWeight = btnWeight;
-  nxt.style.transform = `translateY(${toastNextDY}px)`;   // chevron colour/border come from CSS vars
-  paintTune();
+  paintTune();   // ♪/› colour + border come from CSS vars
 }
 // In-tune review toggle: silently re-tune the target string to perfect (on) or back to
 // the challenge (off). No sound on tap — the player plucks the strings to compare.
@@ -1511,23 +1461,6 @@ function toggleCompare() {
     ? noteFreq() * Math.pow(2, intervalSemi / 12)   // perfect target (root unchanged)
     : compareChallengeFreq;                          // back to exactly what played
   paintTune();
-}
-// Static swatch in the panel so toast colours/size can be tuned without playing a round
-function renderToastPreview() {
-  const pill = document.getElementById('toastPrevPill'), nxt = document.getElementById('toastPrevNext');
-  if (!pill) return;
-  pill.style.cssText = `display:inline-flex;align-items:center;gap:${toastNextGap}px;`
-    + `font-family:${fontStack(toastFont)};border-radius:999px;`
-    + `padding:${toastPad}px 8px ${toastPad}px ${toastPad + 10}px;`
-    + `transform:scale(${toastScale / 100});transform-origin:center;`
-    + `background:${toastBg};color:${toastTextCol};font-weight:${toastWeight};`
-    + `font-size:${toastFontSize}px;letter-spacing:${(toastTracking/100)}em;`
-    + `text-transform:${toastCase};`;
-  nxt.style.cssText = `display:inline-flex;align-items:center;justify-content:center;`
-    + `width:24px;height:24px;border-radius:50%;font-style:normal;line-height:1;`
-    + `transform:translateY(${toastNextDY}px);`
-    + `background:${toastNextBg};color:${toastNextCol};font-size:${toastFontSize + 4}px;`;
-  nxt.textContent = toastChevron;
 }
 // Answer buttons: fire from touchend directly (more reliable on iOS than the
 // synthesized click), with a per-button guard so desktop click doesn't double-fire.
@@ -1611,8 +1544,7 @@ function currentVis() {
     saddleYOff, saddleWFrac, saddleThick, saddleCol,
     btnColor, btnDimCol, btnPressBg, btnFont, btnWeight, btnCase, btnFontSize, btnTracking, btnPadV, btnRadius, btnBorderW, btnGap, btnAreaPad,
     btnMinW, btnMaxW,
-    toastBg, toastTextCol, toastNextBg, toastNextCol, toastFont, toastWeight, toastFontSize, toastTracking, toastHold, toastFade,
-    toastScale, toastPad, toastCase, toastChevron, toastNextGap, toastNextDY,
+    toastHold, toastFade,
     hdrFont, bestSize, bestOp,
     bestGap, hdrTop, hdrBtnCol, hdrBtnBorder, hdrBtnSize, hdrBtnStroke, redoGlyphSize, chipTextSize,
     vOffset
@@ -1683,23 +1615,8 @@ function syncPanel() {
   g('pBtnAreaPad').value=btnAreaPad;    g('pBtnAreaPadV').textContent= btnAreaPad + 'px';
   g('pBtnMinW').value  = btnMinW;       g('pBtnMinWV').textContent   = btnMinW + 'px';
   g('pBtnMaxW').value  = btnMaxW;       g('pBtnMaxWV').textContent   = btnMaxW + 'px';
-  g('pToastBg').value      = toastBg;
-  g('pToastText').value    = toastTextCol;
-  g('pToastNextBg').value  = toastNextBg;
-  g('pToastNextCol').value = toastNextCol;
-  g('pToastFamily').value  = toastFont;
-  g('pToastWeight').value  = toastWeight;   g('pToastWeightV').textContent = toastWeight;
-  g('pToastFont').value    = toastFontSize; g('pToastFontV').textContent  = toastFontSize + 'px';
-  g('pToastTrack').value   = toastTracking; g('pToastTrackV').textContent = (toastTracking/100).toFixed(2) + 'em';
-  g('pToastScale').value   = toastScale;    g('pToastScaleV').textContent = toastScale + '%';
-  g('pToastPad').value     = toastPad;      g('pToastPadV').textContent   = toastPad + 'px';
-  g('pToastCase').value    = toastCase;
-  g('pToastChevron').value = toastChevron;
-  g('pToastNextGap').value = toastNextGap;  g('pToastNextGapV').textContent = toastNextGap + 'px';
-  g('pToastNextDY').value  = toastNextDY;   g('pToastNextDYV').textContent  = toastNextDY + 'px';
   g('pToastHold').value    = toastHold;     g('pToastHoldV').textContent  = (toastHold/1000).toFixed(2) + 's';
   g('pToastFade').value    = toastFade;     g('pToastFadeV').textContent  = toastFade + 'ms';
-  renderToastPreview();
   g('pHdrFont').value    = hdrFont;
   g('pBestSize').value   = bestSize;    g('pBestSizeV').textContent     = bestSize + 'px';
   g('pBestOp').value     = bestOp;      g('pBestOpV').textContent       = bestOp + '%';
@@ -1780,22 +1697,8 @@ function loadVis() {
     if (s.btnAreaPad  != null) btnAreaPad  = +s.btnAreaPad;
     if (s.btnMinW     != null) btnMinW     = +s.btnMinW;
     if (s.btnMaxW     != null) btnMaxW     = +s.btnMaxW;
-    if (s.toastBg       != null) toastBg       = s.toastBg;
-    if (s.toastTextCol  != null) toastTextCol  = s.toastTextCol;
-    if (s.toastNextBg   != null) toastNextBg   = s.toastNextBg;
-    if (s.toastNextCol  != null) toastNextCol  = s.toastNextCol;
-    if (s.toastFontSize != null) toastFontSize = +s.toastFontSize;
-    if (s.toastTracking != null) toastTracking = +s.toastTracking;
     if (s.toastHold     != null) toastHold     = +s.toastHold;
     if (s.toastFade     != null) toastFade     = +s.toastFade;
-    if (s.toastScale    != null) toastScale    = +s.toastScale;
-    if (s.toastPad      != null) toastPad      = +s.toastPad;
-    if (s.toastCase     != null) toastCase     = s.toastCase;
-    if (s.toastChevron  != null) toastChevron  = s.toastChevron;
-    if (s.toastNextGap  != null) toastNextGap  = +s.toastNextGap;
-    if (s.toastNextDY   != null) toastNextDY   = +s.toastNextDY;
-    if (s.toastFont     != null) toastFont     = s.toastFont;
-    if (s.toastWeight   != null) toastWeight   = +s.toastWeight;
     if (s.hdrFont       != null) hdrFont       = s.hdrFont;
     if (s.bestSize      != null) bestSize      = +s.bestSize;
     if (s.bestOp        != null) bestOp        = +s.bestOp;
@@ -1875,22 +1778,8 @@ function applyVisObj(s) {
   if (s.btnAreaPad  != null) btnAreaPad  = +s.btnAreaPad;
   if (s.btnMinW     != null) btnMinW     = +s.btnMinW;
   if (s.btnMaxW     != null) btnMaxW     = +s.btnMaxW;
-  if (s.toastBg       != null) toastBg       = s.toastBg;
-  if (s.toastTextCol  != null) toastTextCol  = s.toastTextCol;
-  if (s.toastNextBg   != null) toastNextBg   = s.toastNextBg;
-  if (s.toastNextCol  != null) toastNextCol  = s.toastNextCol;
-  if (s.toastFontSize != null) toastFontSize = +s.toastFontSize;
-  if (s.toastTracking != null) toastTracking = +s.toastTracking;
   if (s.toastHold     != null) toastHold     = +s.toastHold;
   if (s.toastFade     != null) toastFade     = +s.toastFade;
-  if (s.toastScale    != null) toastScale    = +s.toastScale;
-  if (s.toastPad      != null) toastPad      = +s.toastPad;
-  if (s.toastCase     != null) toastCase     = s.toastCase;
-  if (s.toastChevron  != null) toastChevron  = s.toastChevron;
-  if (s.toastNextGap  != null) toastNextGap  = +s.toastNextGap;
-  if (s.toastNextDY   != null) toastNextDY   = +s.toastNextDY;
-  if (s.toastFont     != null) toastFont     = s.toastFont;
-  if (s.toastWeight   != null) toastWeight   = +s.toastWeight;
   if (s.hdrFont       != null) hdrFont       = s.hdrFont;
   if (s.bestSize      != null) bestSize      = +s.bestSize;
   if (s.bestOp        != null) bestOp        = +s.bestOp;
@@ -1969,20 +1858,6 @@ on('pBtnGap',    e => { btnGap     = +e.target.value; document.getElementById('p
 on('pBtnAreaPad',e => { btnAreaPad = +e.target.value; document.getElementById('pBtnAreaPadV').textContent= btnAreaPad+'px'; applyButtonStyles(); });
 on('pBtnMinW',   e => { btnMinW    = +e.target.value; document.getElementById('pBtnMinWV').textContent  = btnMinW+'px'; applyButtonStyles(); });
 on('pBtnMaxW',   e => { btnMaxW    = +e.target.value; document.getElementById('pBtnMaxWV').textContent  = btnMaxW+'px'; applyButtonStyles(); });
-on('pToastBg',     e => { toastBg      = e.target.value; styleFeedback(); renderToastPreview(); });
-on('pToastText',   e => { toastTextCol = e.target.value; styleFeedback(); renderToastPreview(); });
-on('pToastNextBg', e => { toastNextBg  = e.target.value; styleFeedback(); renderToastPreview(); });
-on('pToastNextCol',e => { toastNextCol = e.target.value; styleFeedback(); renderToastPreview(); });
-on('pToastChevron',e => { toastChevron = e.target.value || '›'; styleFeedback(); renderToastPreview(); });
-on('pToastNextGap',e => { toastNextGap = +e.target.value; document.getElementById('pToastNextGapV').textContent = toastNextGap+'px'; styleFeedback(); renderToastPreview(); });
-on('pToastNextDY', e => { toastNextDY  = +e.target.value; document.getElementById('pToastNextDYV').textContent  = toastNextDY+'px'; styleFeedback(); renderToastPreview(); });
-on('pToastCase',   e => { toastCase    = e.target.value; styleFeedback(); renderToastPreview(); });
-on('pToastFamily', e => { toastFont    = e.target.value; styleFeedback(); renderToastPreview(); });
-on('pToastWeight', e => { toastWeight  = +e.target.value; document.getElementById('pToastWeightV').textContent = toastWeight; styleFeedback(); renderToastPreview(); });
-on('pToastFont',   e => { toastFontSize= +e.target.value; document.getElementById('pToastFontV').textContent = toastFontSize+'px'; styleFeedback(); renderToastPreview(); });
-on('pToastTrack',  e => { toastTracking= +e.target.value; document.getElementById('pToastTrackV').textContent= (toastTracking/100).toFixed(2)+'em'; styleFeedback(); renderToastPreview(); });
-on('pToastScale',  e => { toastScale   = +e.target.value; document.getElementById('pToastScaleV').textContent = toastScale+'%'; styleFeedback(); renderToastPreview(); });
-on('pToastPad',    e => { toastPad     = +e.target.value; document.getElementById('pToastPadV').textContent   = toastPad+'px'; styleFeedback(); renderToastPreview(); });
 on('pToastHold',   e => { toastHold    = +e.target.value; document.getElementById('pToastHoldV').textContent = (toastHold/1000).toFixed(2)+'s'; });
 on('pToastFade',   e => { toastFade    = +e.target.value; document.getElementById('pToastFadeV').textContent = toastFade+'ms'; document.getElementById('feedback').style.transition = `opacity ${toastFade}ms ease`; });
 on('pHdrFont',     e => { hdrFont      = e.target.value; applyHeader(); });
