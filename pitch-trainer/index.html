@@ -35,7 +35,7 @@
       border: var(--hbtn-stroke, 1px) solid color-mix(in srgb, var(--hbtn-border, #ebebeb) 42%, transparent);
       background: rgba(235,235,235,.06);
       font-family: var(--top-font, 'Rubik', system-ui, sans-serif); font-size: var(--chip-size, 15px);
-      font-weight: 500; letter-spacing: .5px; color: color-mix(in srgb, var(--hbtn-col, #ebebeb) 90%, transparent);
+      font-weight: var(--weight-standard); letter-spacing: .5px; color: color-mix(in srgb, var(--hbtn-col, #ebebeb) 90%, transparent);
     }
     #centChip:active { background: rgba(235,235,235,.12); }
     #threshold { line-height: 1; }   /* size / weight / colour inherited from #centChip */
@@ -70,7 +70,7 @@
       border: var(--hbtn-stroke, 1px) solid color-mix(in srgb, var(--hbtn-border, #ebebeb) 42%, transparent);
       background: rgba(235,235,235,.06);
       color: color-mix(in srgb, var(--hbtn-col, #ebebeb) 90%, transparent);
-      font-family: var(--top-font, 'Rubik', system-ui, sans-serif); font-size: var(--chip-size, 15px); font-weight: 500; letter-spacing: .5px;
+      font-family: var(--top-font, 'Rubik', system-ui, sans-serif); font-size: var(--chip-size, 15px); font-weight: var(--weight-standard); letter-spacing: .5px;
       white-space: nowrap;
     }
     #niBtn:active { background: rgba(235,235,235,.12); }
@@ -88,7 +88,7 @@
     /* transparent tap-catcher: closes on outside tap, no dim, swallows the board pluck */
     #niScrim { position: fixed; inset: 0; z-index: 39; display: none; }
     #niWrap.open #niScrim { display: block; }
-    .nip-sec { font: 600 9px 'Rubik', system-ui, sans-serif; letter-spacing: 1.5px;
+    .nip-sec { font: var(--weight-standard) var(--type-caption) 'Rubik', system-ui, sans-serif; letter-spacing: 1.5px;
       color: rgba(235,235,235,.4); margin: 3px 2px 1px; }
     .nip-grid { display: grid; gap: 5px; }
     .nip-notes { grid-template-columns: repeat(4, 1fr); }
@@ -97,7 +97,7 @@
     .nip-cell {
       min-width: 42px; height: 32px; padding: 0 6px; border-radius: 8px; cursor: pointer; touch-action: manipulation;
       border: 1px solid rgba(235,235,235,.1); background: rgba(235,235,235,.05);
-      color: rgba(235,235,235,.72); font-family: 'Rubik', system-ui, sans-serif; font-size: 12px; font-weight: 500;
+      color: rgba(235,235,235,.72); font-family: 'Rubik', system-ui, sans-serif; font-size: var(--type-label); font-weight: var(--weight-standard);
       display: inline-flex; align-items: center; justify-content: center;
     }
     .nip-cell:active { background: rgba(235,235,235,.16); }
@@ -145,6 +145,18 @@
       --btn-dim:          rgba(235,235,235, .18);
       --btn-border-ready: rgba(235,235,235, .55);
       --btn-border-dim:   rgba(235,235,235, .10);
+      /* ── Type system ───────────────────────────
+         Ruler (raw sizes) → Jobs (generic roles). Named by job, not by app part,
+         so the block lifts into a shared tokens file for the other apps unchanged. */
+      --fs-1: 11px;   /* caption */
+      --fs-2: 14px;   /* label   */
+      --fs-3: 16px;   /* title   */
+      --type-caption: var(--fs-1);   /* best line · popover section headers */
+      --type-label:   var(--fs-2);   /* answer buttons · picker cells */
+      --type-title:   var(--fs-3);   /* cent readout · top chips · feedback · prompt */
+      /* weight variants */
+      --weight-standard:  500;   /* everything, for now */
+      --weight-prominent: 600;   /* reserved — not used yet */
     }
     .abtn {
       flex: 1;
@@ -471,7 +483,7 @@
       <div class="prow"><label>SUSTAIN <span class="v" id="pSustainV"></span></label>
         <input type="range" id="pSustain" min="1" max="100" step="1" autocomplete="off"></div>
       <div class="prow"><label>GRAB ZONE <span class="v" id="pGrabV"></span></label>
-        <input type="range" id="pGrab" min="40" max="260" step="5" autocomplete="off"></div>
+        <input type="range" id="pGrab" min="8" max="80" step="1" autocomplete="off"></div>
       <div class="prow"><label>RESET ANIM <span class="v" id="pResetMsV"></span></label>
         <input type="range" id="pResetMs" min="0" max="800" step="25" autocomplete="off"></div>
       <div class="prow"><label>TAIL <span class="v" id="pTailV"></span></label>
@@ -587,10 +599,12 @@ let spacing      = 72;
 let bodyColor    = '#7b3920';   // soundhole brown (center)
 let bodyCol2     = '#7b3920';   // soundhole brown (edge)
 let bodyRadius   = 80;          // soundhole radius
-let bowAmount    = 90;
-let vibBlurAmt   = 3;
-let vibSustain   = 29;
-let grabZone     = 40;      // px catch radius around a string for grab/pull
+let bowAmount    = 60;
+let vibBlurAmt   = 6;
+let vibSustain   = 42;
+let grabZone     = 34;      // px tap tolerance for the INITIAL touch (generous; taps don't yank the string)
+let strumSlip    = 0.6;     // fraction of the string spacing a string is dragged before it slips off (strum)
+let kinkSpread   = 90;      // px the finger-bend bulge spreads along the string (bigger = softer, smaller = sharper)
 let resetMs      = 300;     // new-round reset: strings collapse width+fade out, then back (0 = off)
 let soundTail    = 1;       // note tail length in seconds (how long a pluck rings out)
 
@@ -770,8 +784,12 @@ function strBotY() { return bridgeCY(); } // anchor at the bridge pin
 
 function stringD(i, offset) {
   const x = W * xRatio(i), top = strTopY(), bot = strBotY();
-  const bowY = grabY[i] == null ? holeCY() : grabY[i];   // the bend bulges where the string was grabbed
-  return `M ${x} ${top} Q ${x + offset} ${bowY} ${x} ${bot}`;
+  const bowY = grabY[i] == null ? holeCY() : grabY[i];   // bulge peaks where the finger holds the string
+  // Soft localized pull: a cubic whose two controls sit at the finger's x, spread
+  // ±kinkSpread in y. The peak lands at the fingertip (the 1.333 undoes the Bézier's
+  // pull-back) but rounds off instead of a hard kink; kinkSpread tunes the softness.
+  const cxp = x + offset * 1.333;
+  return `M ${x} ${top} C ${cxp.toFixed(2)} ${(bowY - kinkSpread).toFixed(2)} ${cxp.toFixed(2)} ${(bowY + kinkSpread).toFixed(2)} ${x} ${bot}`;
 }
 function ghostD(i, k) {
   const frac = NUM_GHOSTS > 1 ? (k / (NUM_GHOSTS - 1)) * 2 - 1 : 0;
@@ -1019,9 +1037,9 @@ function applyButtonStyles() {
   document.documentElement.style.setProperty('--btn-press', `color-mix(in srgb, ${btnPressBg} 14%, transparent)`);
   document.querySelectorAll('.abtn').forEach(b => {
     b.style.fontFamily    = fontStack(btnFont);
-    b.style.fontWeight    = btnWeight;
+    b.style.fontWeight = 'var(--weight-standard)';
     b.style.textTransform = btnCase;
-    b.style.fontSize      = btnFontSize * S + 'px';
+    b.style.fontSize      = `calc(var(--type-label) * ${S})`;
     b.style.letterSpacing = (btnTracking / 100) + 'em';
     b.style.paddingTop    = btnPadV * S + 'px';
     b.style.paddingBottom = btnPadV * S + 'px';
@@ -1037,8 +1055,8 @@ function applyButtonStyles() {
   // The prompt ("Play strings" / "Ready") mirrors the ready-button label typography
   const pr = document.getElementById('prompt');
   if (pr) {
-    pr.style.fontFamily = fontStack(btnFont); pr.style.fontWeight = btnWeight;
-    pr.style.textTransform = btnCase;         pr.style.fontSize = btnFontSize * S + 'px';
+    pr.style.fontFamily = fontStack(btnFont); pr.style.fontWeight = 'var(--weight-standard)';
+    pr.style.textTransform = btnCase;         pr.style.fontSize = `calc(var(--type-title) * ${S})`;   // message tier, matches feedback
     pr.style.letterSpacing = (btnTracking / 100) + 'em'; pr.style.color = 'var(--btn-ready)';
   }
   styleFeedback();  // keep the feedback label matched to the button font
@@ -1047,7 +1065,8 @@ function applyHeader() {
   const S = uiScale();
   const bs = document.getElementById('best');
   const ff = fontStack(hdrFont);
-  bs.style.fontFamily = ff; bs.style.fontSize = bestSize * S + 'px';
+  bs.style.fontFamily = ff; bs.style.fontSize = `calc(var(--type-caption) * ${S})`;
+  bs.style.fontWeight = 'var(--weight-standard)';
   bs.style.opacity = bestOp / 100;
   bs.style.marginTop = bestGap * S + 'px';
   const r = document.documentElement.style;
@@ -1058,7 +1077,7 @@ function applyHeader() {
   r.setProperty('--hbtn-size',   hdrBtnSize * S + 'px');
   r.setProperty('--hbtn-stroke', hdrBtnStroke * S + 'px');
   r.setProperty('--redo-size',   redoGlyphSize * S + 'px');
-  r.setProperty('--chip-size',   chipTextSize * S + 'px');
+  r.setProperty('--chip-size', `calc(var(--type-title) * ${S})`);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1139,7 +1158,29 @@ function pulseBody() {
 // ─────────────────────────────────────────────────────────────
 // Interaction
 // ─────────────────────────────────────────────────────────────
-const ptr = { active: false, idx: -1, startX: 0, moved: false };
+// ptr.idx = string currently held (-1 = none); ptr.skip = a string that just slipped
+// off, locked out of re-catching until the finger leaves its grab zone.
+// grabFx = the finger x where the current string was caught, so the bend measures drag
+// FROM that point — a tap/near-miss doesn't yank the string, it starts at rest.
+const ptr = { active: false, idx: -1, skip: -1, grabFx: 0, startX: 0, lastFx: 0, lastY: 0, stageTop: 0, moved: false };
+const stringX     = i => W * xRatio(i);
+const strumSlipPx = () => strumSlip * spacing;      // drag distance before a held string slips off
+const canCatch    = j => !(j === 1 && !played[0]);  // target stays locked until the reference has sounded
+const belowBoard  = localY => localY / uiScale() > strBotY() + vOffset / uiScale() + pinR;
+function bendHeld(fx) {                               // bend follows the drag FROM the contact point (no snap)
+  cx[ptr.idx] = Math.max(-bowAmount, Math.min(bowAmount, fx - ptr.grabFx));
+  redraw(ptr.idx);
+}
+function grabString(j, fx, localY) {                 // catch string j at the finger
+  grabY[j] = (localY - vOffset) / uiScale();
+  if (vib[j]) { vibGen[j]++; vib[j] = false; cx[j] = 0; redraw(j); }   // silence a still-ringing string
+  ptr.idx = j; ptr.grabFx = fx; bendHeld(fx);        // grabFx = contact point → starts at rest, no yank
+}
+function slipHeld() {                                 // the held string slips off the finger → it sounds
+  const i = ptr.idx;
+  pluckString(i, Math.max(Math.abs(cx[i]), bowAmount * TAP_FRAC));
+  ptr.idx = -1; ptr.skip = i;
+}
 function nearestString(clientX, localY) {
   // A string only exists from the top of the board down to its bridge pin.
   // Ignore grabs below that line (bridge body, toast, button band) — otherwise
@@ -1159,38 +1200,62 @@ function nearestString(clientX, localY) {
 function onDown(clientX, clientY) {
   initAudio(); // pre-warm context as early as possible so resume() has time to complete
   if (!W || phase === 'feedback') return;
-  const localY = clientY - document.getElementById('stage').getBoundingClientRect().top;
+  ptr.stageTop = document.getElementById('stage').getBoundingClientRect().top;
+  const localY = clientY - ptr.stageTop;
+  if (belowBoard(localY)) return;              // presses below the strings don't start a gesture
+  ptr.active = true; ptr.idx = -1; ptr.skip = -1;
+  ptr.startX = clientX; ptr.lastFx = clientX / uiScale(); ptr.lastY = localY; ptr.moved = false;
+  // Grab a string right under the finger (tap/pull); otherwise the drag stays free to
+  // catch strings as it sweeps across them.
   const i = nearestString(clientX, localY);
-  if (i < 0) return;
-  if (i === 1 && !played[0]) return;           // target stays muted until the reference is played
-  grabY[i] = (localY - vOffset) / uiScale();   // logical y of the grab → the bow originates here
-  // Re-grab a still-ringing string: cancel its decay so it bows fresh
-  if (vib[i]) { vibGen[i]++; vib[i] = false; cx[i] = 0; redraw(i); }
-  ptr.active = true; ptr.idx = i; ptr.startX = clientX; ptr.moved = false;
+  if (i >= 0 && canCatch(i)) grabString(i, clientX / uiScale(), localY);
 }
-function onMove(clientX) {
+function onMove(clientX, clientY) {
   if (!ptr.active) return;
+  const fx = clientX / uiScale();
+  const localY = clientY != null ? clientY - ptr.stageTop : ptr.lastY;
+  ptr.lastY = localY;
   if (Math.abs(clientX - ptr.startX) > 4) ptr.moved = true;
-  cx[ptr.idx] = Math.max(-bowAmount, Math.min(bowAmount,
-    (clientX / uiScale() - W * xRatio(ptr.idx)) * 1.3));
-  redraw(ptr.idx);
+  // Holding a string: apex follows the finger's y, bend follows its x, and it slips
+  // off once dragged far enough.
+  if (ptr.idx >= 0) {
+    grabY[ptr.idx] = Math.min(strBotY() - 4, (localY - vOffset) / uiScale());   // bend where the finger is
+    bendHeld(fx);
+    if (Math.abs(fx - ptr.grabFx) >= strumSlipPx()) slipHeld();                 // slipped once dragged far enough
+  }
+  // Free hand: catch a string as the finger reaches/crosses its line. A pull that
+  // continues all the way to the other string strums it; a short pluck (which never
+  // reaches it) doesn't. Tight tolerance + crossing = no magnet, no accidental catch.
+  if (ptr.idx < 0 && !belowBoard(localY)) {
+    const touch = Math.max(strW * 2, 10);
+    let pick = -1, pd = Infinity;
+    for (let j = 0; j < NUM_STRINGS; j++) {
+      if (j === ptr.skip || !canCatch(j)) continue;
+      const xj = stringX(j), d = Math.abs(fx - xj);
+      const crossed = (xj - ptr.lastFx) * (xj - fx) <= 0;   // finger swept over the string this move
+      if ((crossed || d <= touch) && d < pd) { pick = j; pd = d; }
+    }
+    if (pick >= 0) grabString(pick, fx, localY);
+    // Release the skip lock once the finger has moved off the just-slipped string.
+    if (ptr.skip >= 0 && Math.abs(fx - stringX(ptr.skip)) > Math.max(strW * 2, 10)) ptr.skip = -1;
+  }
+  ptr.lastFx = fx;
 }
 function onUp(e) {
   if (!ptr.active) return;
-  // A release landing on the answer buttons isn't a string release. This only
-  // runs when a grab is somehow still active (e.g. a stray/stuck pointer), so
-  // drop it silently instead of letting a button tap fire a phantom pluck.
+  // A release landing on the answer buttons isn't a string release. Drop it
+  // silently instead of letting a button tap fire a phantom pluck.
   if (e && e.target && e.target.closest && e.target.closest('#answers')) {
-    ptr.active = false; ptr.idx = -1; return;
+    ptr.active = false; ptr.idx = -1; ptr.skip = -1; return;
   }
-  const i = ptr.idx; ptr.active = false; ptr.idx = -1;
-  // Tap or pull, a released grab always sounds. Pull strength scales with the
-  // bow, floored at a light tap so small drags never land in a silent dead zone.
-  pluckString(i, Math.max(Math.abs(cx[i]), bowAmount * TAP_FRAC));
+  const i = ptr.idx; ptr.active = false; ptr.idx = -1; ptr.skip = -1;
+  // Lift while holding a string → it sounds. Strength scales with the bow, floored
+  // at a light tap so small drags never land in a silent dead zone. Free hand → nothing.
+  if (i >= 0) pluckString(i, Math.max(Math.abs(cx[i]), bowAmount * TAP_FRAC));
 }
-// Grab interrupted (OS gesture, scroll takeover, focus loss): drop it without
+// Gesture interrupted (OS gesture, scroll takeover, focus loss): drop it without
 // sounding, so it can't linger and fire on the next unrelated release.
-function onCancel() { ptr.active = false; ptr.idx = -1; }
+function onCancel() { ptr.active = false; ptr.idx = -1; ptr.skip = -1; }
 const stage = document.getElementById('stage');
 // Strings run up behind the (transparent) header, so accept grabs there too — the
 // header's buttons stopPropagation below so they still capture their own taps.
@@ -1200,9 +1265,9 @@ const stage = document.getElementById('stage');
 });
 ['gear', 'centChip', 'niWrap'].forEach(id => ['mousedown', 'touchstart'].forEach(evt =>
   document.getElementById(id).addEventListener(evt, e => e.stopPropagation())));
-window.addEventListener('mousemove',  e => onMove(e.clientX));
+window.addEventListener('mousemove',  e => onMove(e.clientX, e.clientY));
 window.addEventListener('mouseup',   onUp);
-window.addEventListener('touchmove',  e => { if (!ptr.active) return; e.preventDefault(); onMove(e.touches[0].clientX); }, { passive: false });
+window.addEventListener('touchmove',  e => { if (!ptr.active) return; e.preventDefault(); onMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
 window.addEventListener('touchend',  onUp);
 window.addEventListener('touchcancel', onCancel);
 window.addEventListener('blur', onCancel);
@@ -1442,10 +1507,10 @@ function styleFeedback() {
   pill.style.fontFamily = fontStack(btnFont);
   // Correct answers glow in the string yellow; wrong answers stay cream.
   lbl.style.color = document.getElementById('feedback').classList.contains('has-next') ? 'var(--btn-ready)' : strCol;
-  lbl.style.fontSize = btnFontSize + 'px';
+  lbl.style.fontSize = 'var(--type-title)';   // type token — decoupled from the button size
   lbl.style.letterSpacing = (btnTracking / 100) + 'em';
   lbl.style.textTransform = btnCase;
-  lbl.style.fontWeight = btnWeight;
+  lbl.style.fontWeight = 'var(--weight-standard)';
   paintTune();   // ♪/› colour + border come from CSS vars
 }
 // In-tune review toggle: silently re-tune the target string to perfect (on) or back to
