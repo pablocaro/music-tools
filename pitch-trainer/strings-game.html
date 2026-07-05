@@ -11,7 +11,7 @@
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body {
       width: 100vw; height: 100dvh; overflow: hidden;
-      background: #444444; color: #ebebeb;
+      background: #444444; color: #f7f2e8;
       font-family: 'Rubik', system-ui, sans-serif;
       touch-action: none; user-select: none; -webkit-user-select: none;
       display: flex; flex-direction: column;
@@ -32,12 +32,12 @@
     #centChip {
       display: inline-flex; align-items: center; gap: 8px;
       height: var(--hbtn-size, 34px); padding: 0 14px; border-radius: 999px; cursor: pointer; touch-action: manipulation;
-      border: var(--hbtn-stroke, 1px) solid color-mix(in srgb, var(--hbtn-border, #ebebeb) 42%, transparent);
-      background: rgba(235,235,235,.06);
+      border: var(--hbtn-stroke, 1px) solid color-mix(in srgb, var(--hbtn-border, #f7f2e8) 42%, transparent);
+      background: rgba(247,242,232,.06);
       font-family: var(--top-font, 'Rubik', system-ui, sans-serif); font-size: var(--chip-size, 15px);
-      font-weight: var(--weight-standard); letter-spacing: .5px; color: color-mix(in srgb, var(--hbtn-col, #ebebeb) 90%, transparent);
+      font-weight: var(--weight-standard); letter-spacing: .5px; color: color-mix(in srgb, var(--hbtn-col, #f7f2e8) 90%, transparent);
     }
-    #centChip:active { background: rgba(235,235,235,.12); }
+    #centChip:active { background: rgba(247,242,232,.12); }
     #threshold { line-height: 1; }   /* size / weight / colour inherited from #centChip */
     #threshold .unit { font-size: .72em; opacity: .55; margin-left: 1px; }
     #centConfirm { display: none; align-items: center; gap: 6px; }   /* font + colour inherited */
@@ -45,9 +45,9 @@
     #centChip.confirming #centConfirm { display: inline-flex; }
     #resetYes, #resetNo {
       width: 22px; height: 22px; border-radius: 50%; padding: 0; cursor: pointer; touch-action: manipulation;
-      border: 1px solid color-mix(in srgb, var(--hbtn-border, #ebebeb) 30%, transparent);
-      background: rgba(235,235,235,.08); font-size: 12px; line-height: 1;
-      color: var(--hbtn-col, #ebebeb);
+      border: 1px solid color-mix(in srgb, var(--hbtn-border, #f7f2e8) 30%, transparent);
+      background: rgba(247,242,232,.08); font-size: 12px; line-height: 1;
+      color: var(--hbtn-col, #f7f2e8);
       display: inline-flex; align-items: center; justify-content: center;
     }
     #resetYes svg, #resetNo svg { width: 11px; height: 11px; display: block; }
@@ -55,25 +55,25 @@
     #header-right { display: flex; align-items: center; gap: 8px; min-width: 0; }
     #gear {
       width: var(--hbtn-size, 34px); height: var(--hbtn-size, 34px); border-radius: 50%; padding: 0;
-      border: var(--hbtn-stroke, 1px) solid color-mix(in srgb, var(--hbtn-border, #ebebeb) 42%, transparent); background: rgba(235,235,235,.06);
-      color: color-mix(in srgb, var(--hbtn-col, #ebebeb) 90%, transparent);
+      border: var(--hbtn-stroke, 1px) solid color-mix(in srgb, var(--hbtn-border, #f7f2e8) 42%, transparent); background: rgba(247,242,232,.06);
+      color: color-mix(in srgb, var(--hbtn-col, #f7f2e8) 90%, transparent);
       cursor: pointer; flex-shrink: 0; touch-action: manipulation;
       display: inline-flex; align-items: center; justify-content: center;
     }
     #gear svg { width: 55%; height: 55%; display: block; }
-    #gear:active { background: rgba(235,235,235,.15); }
+    #gear:active { background: rgba(247,242,232,.15); }
     /* Single selector button — label adapts, width follows the text */
     #niWrap { position: relative; display: flex; min-width: 0; }
     #niBtn {
       display: inline-flex; align-items: center; gap: 5px; max-width: 58vw; flex-shrink: 1; min-width: 0;
       height: var(--hbtn-size, 34px); padding: 0 13px; border-radius: 999px; cursor: pointer; touch-action: manipulation;
-      border: var(--hbtn-stroke, 1px) solid color-mix(in srgb, var(--hbtn-border, #ebebeb) 42%, transparent);
-      background: rgba(235,235,235,.06);
-      color: color-mix(in srgb, var(--hbtn-col, #ebebeb) 90%, transparent);
+      border: var(--hbtn-stroke, 1px) solid color-mix(in srgb, var(--hbtn-border, #f7f2e8) 42%, transparent);
+      background: rgba(247,242,232,.06);
+      color: color-mix(in srgb, var(--hbtn-col, #f7f2e8) 90%, transparent);
       font-family: var(--top-font, 'Rubik', system-ui, sans-serif); font-size: var(--chip-size, 15px); font-weight: var(--weight-standard); letter-spacing: .5px;
       white-space: nowrap;
     }
-    #niBtn:active { background: rgba(235,235,235,.12); }
+    #niBtn:active { background: rgba(247,242,232,.12); }
     #niLabel { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
     .ni-caret { font-size: 10px; opacity: .55; line-height: 1; }
     /* Custom grid popover */
@@ -81,7 +81,7 @@
       position: absolute; top: calc(100% + 6px); right: 0; z-index: 40;
       display: none; flex-direction: column; gap: 3px; width: max-content;
       padding: 10px; border-radius: 14px;
-      background: #33231a; border: 1px solid rgba(235,235,235,.12);
+      background: #33231a; border: 1px solid rgba(247,242,232,.12);
       box-shadow: 0 12px 34px rgba(0,0,0,.4);
     }
     #niWrap.open #niPop { display: flex; }
@@ -89,19 +89,19 @@
     #niScrim { position: fixed; inset: 0; z-index: 39; display: none; }
     #niWrap.open #niScrim { display: block; }
     .nip-sec { font: var(--weight-standard) var(--type-caption) 'Rubik', system-ui, sans-serif; letter-spacing: 1.5px;
-      color: rgba(235,235,235,.4); margin: 3px 2px 1px; }
+      color: rgba(247,242,232,.4); margin: 3px 2px 1px; }
     .nip-grid { display: grid; gap: 5px; }
     .nip-notes { grid-template-columns: repeat(4, 1fr); }
     .nip-ints  { grid-template-columns: repeat(5, 1fr); }
     .nip-wide  { grid-column: 1 / -1; }
     .nip-cell {
       min-width: 42px; height: 32px; padding: 0 6px; border-radius: 8px; cursor: pointer; touch-action: manipulation;
-      border: 1px solid rgba(235,235,235,.1); background: rgba(235,235,235,.05);
-      color: rgba(235,235,235,.72); font-family: 'Rubik', system-ui, sans-serif; font-size: var(--type-label); font-weight: var(--weight-standard);
+      border: 1px solid rgba(247,242,232,.1); background: rgba(247,242,232,.05);
+      color: rgba(247,242,232,.72); font-family: 'Rubik', system-ui, sans-serif; font-size: var(--type-label); font-weight: var(--weight-standard);
       display: inline-flex; align-items: center; justify-content: center;
     }
-    .nip-cell:active { background: rgba(235,235,235,.16); }
-    .nip-cell.sel { background: color-mix(in srgb, var(--hbtn-col, #ebebeb) 90%, transparent); color: #33231a; border-color: transparent; }
+    .nip-cell:active { background: rgba(247,242,232,.16); }
+    .nip-cell.sel { background: color-mix(in srgb, var(--hbtn-col, #f7f2e8) 90%, transparent); color: #33231a; border-color: transparent; }
 
     /* ── Stage ──────────────────────────────── */
     #stage { flex: 1; position: relative; overflow: visible; }
@@ -141,10 +141,10 @@
     #fbTune svg, #fbNext svg { width: 64%; height: 64%; display: block; }
 
     :root {
-      --btn-ready:        rgba(235,235,235, .80);
-      --btn-dim:          rgba(235,235,235, .18);
-      --btn-border-ready: rgba(235,235,235, .55);
-      --btn-border-dim:   rgba(235,235,235, .10);
+      --btn-ready:        rgba(247,242,232, .80);
+      --btn-dim:          rgba(247,242,232, .18);
+      --btn-border-ready: rgba(247,242,232, .55);
+      --btn-border-dim:   rgba(247,242,232, .10);
       /* ── Type system ───────────────────────────
          Ruler (raw sizes) → Jobs (generic roles). Named by job, not by app part,
          so the block lifts into a shared tokens file for the other apps unchanged. */
@@ -175,7 +175,7 @@
       color: var(--btn-ready);
       pointer-events: all;
     }
-    .abtn.ready:active { background: var(--btn-press, rgba(235,235,235,.12)); }
+    .abtn.ready:active { background: var(--btn-press, rgba(247,242,232,.12)); }
 
     /* ── Overlay (tap-outside-to-close) ─────── */
 
@@ -184,8 +184,8 @@
     #panel {
       position: fixed; top: 0; right: 0;
       width: min(270px, 84vw); height: 100%;
-      background: rgba(36,36,34,.98); color: #ebebeb;
-      border-left: 1px solid rgba(235,235,235,.08);
+      background: rgba(36,36,34,.98); color: #f7f2e8;
+      border-left: 1px solid rgba(247,242,232,.08);
       box-shadow: -10px 0 30px rgba(0,0,0,.35);
       transform: translateX(100%); transition: transform .22s ease;
       z-index: 25; font-size: 10px; letter-spacing: 1.5px;
@@ -196,16 +196,16 @@
     #panel-head {
       flex-shrink: 0; padding: 18px 18px 14px;
       display: flex; align-items: center; justify-content: space-between;
-      border-bottom: 1px solid rgba(235,235,235,.07);
+      border-bottom: 1px solid rgba(247,242,232,.07);
     }
     #panel-head h2 { font-size: 10px; letter-spacing: 3px; opacity: .35; font-weight: normal; }
     #pClose {
       width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%; padding: 0;
       display: flex; align-items: center; justify-content: center;
-      border: 1px solid rgba(235,235,235,.18); background: rgba(235,235,235,.05);
-      color: rgba(235,235,235,.5); font-size: 13px; cursor: pointer; touch-action: manipulation;
+      border: 1px solid rgba(247,242,232,.18); background: rgba(247,242,232,.05);
+      color: rgba(247,242,232,.5); font-size: 13px; cursor: pointer; touch-action: manipulation;
     }
-    #pClose:active { background: rgba(235,235,235,.15); }
+    #pClose:active { background: rgba(247,242,232,.15); }
 
     #panel-scroll { flex: 1; overflow-y: auto; padding: 6px 18px calc(24px + env(safe-area-inset-bottom, 0px)); }
 
@@ -213,7 +213,7 @@
     .psec-hdr {
       font-size: 9px; letter-spacing: 3px; opacity: .32; cursor: pointer;
       padding: 14px 0 10px;
-      border-top: 1px solid rgba(235,235,235,.07);
+      border-top: 1px solid rgba(247,242,232,.07);
       display: flex; align-items: center; gap: 7px;
       user-select: none; -webkit-user-select: none;
     }
@@ -232,18 +232,18 @@
     .prow:has(input[type="color"]) label { margin-bottom: 0; flex: 1; }
     .prow input[type="color"] {
       width: 30px; height: 24px; flex-shrink: 0; padding: 2px; border-radius: 6px;
-      border: 1px solid rgba(235,235,235,.18); background: none; cursor: pointer;
+      border: 1px solid rgba(247,242,232,.18); background: none; cursor: pointer;
     }
     .prow button, #panel-scroll button {
       font: 10px 'Courier New', monospace; letter-spacing: 1.5px;
-      border: 1px solid rgba(235,235,235,.16); background: rgba(235,235,235,.04);
-      color: rgba(235,235,235,.55); padding: 7px 10px; cursor: pointer; width: 100%;
+      border: 1px solid rgba(247,242,232,.16); background: rgba(247,242,232,.04);
+      color: rgba(247,242,232,.55); padding: 7px 10px; cursor: pointer; width: 100%;
     }
-    .prow button:active, #panel-scroll button:active { background: rgba(235,235,235,.12); }
+    .prow button:active, #panel-scroll button:active { background: rgba(247,242,232,.12); }
     #panel textarea {
       width: 100%; font: 10px 'Courier New', monospace;
-      background: rgba(235,235,235,.03); color: rgba(235,235,235,.55);
-      border: 1px solid rgba(235,235,235,.1); padding: 8px;
+      background: rgba(247,242,232,.03); color: rgba(247,242,232,.55);
+      border: 1px solid rgba(247,242,232,.1); padding: 8px;
       resize: none; line-height: 1.5; margin-top: 10px;
     }
     .pbtn-row { display: flex; gap: 8px; margin-top: 8px; }
@@ -252,8 +252,8 @@
     .prow.check input[type="checkbox"] { width: 15px; height: 15px; accent-color: #999; cursor: pointer; }
     .prow input[type="text"], .prow select {
       width: 100%; font: 11px 'Courier New', monospace; letter-spacing: 1px;
-      background: rgba(235,235,235,.03); color: rgba(235,235,235,.7);
-      border: 1px solid rgba(235,235,235,.12); padding: 7px 8px; cursor: pointer;
+      background: rgba(247,242,232,.03); color: rgba(247,242,232,.7);
+      border: 1px solid rgba(247,242,232,.12); padding: 7px 8px; cursor: pointer;
     }
   </style>
 </head>
@@ -585,19 +585,31 @@ const FONT_STACKS = {
 };
 const fontStack = k => FONT_STACKS[k] || FONT_STACKS.Rubik;
 
+// ── Palette ─────────────────────────────────────────────────
+// The app's colours live here once; the state below just names the roles that
+// use them. Colours are this app's identity (warm ukulele), so — unlike type —
+// they're app-specific, not a shared/portable set.
+const PALETTE = {
+  orange: '#f98a57',   // soundboard / background
+  brown:  '#7b3920',   // soundhole · rosette · bands · bridge
+  hole:   '#6b3a22',   // grommet pin-holes
+  yellow: '#fff24b',   // strings
+  cream:  '#f7f2e8',   // pins · saddle · all UI text & chrome
+};
+
 // SVG / visual
-let bg           = '#f98a57';   // orange soundboard
-let bgCol2       = '#f98a57';   // soundboard end (flat by default)
+let bg           = PALETTE.orange;   // orange soundboard
+let bgCol2       = PALETTE.orange;   // soundboard end (flat by default)
 let bgAngle      = 180;         // background gradient angle (deg)
-let strCol       = '#fff24b';   // yellow string
+let strCol       = PALETTE.yellow;   // yellow string
 let strW         = 5;
-let mutedCol     = '#fff24a'; // target string colour while muted (awaiting the reference)
+let mutedCol     = PALETTE.yellow; // target string colour while muted (awaiting the reference)
 let mutedOpacity = 45;        // muted string opacity %
 let mutedBlend   = 'normal';  // muted string blend: normal | multiply | screen
 let pinR         = 9;           // grommet outer radius
 let spacing      = 72;
-let bodyColor    = '#7b3920';   // soundhole brown (center)
-let bodyCol2     = '#7b3920';   // soundhole brown (edge)
+let bodyColor    = PALETTE.brown;   // soundhole brown (center)
+let bodyCol2     = PALETTE.brown;   // soundhole brown (edge)
 let bodyRadius   = 80;          // soundhole radius
 let bowAmount    = 60;
 let vibBlurAmt   = 6;
@@ -609,9 +621,9 @@ let resetMs      = 300;     // new-round reset: strings collapse width+fade out,
 let soundTail    = 1;       // note tail length in seconds (how long a pluck rings out)
 
 // Button appearance
-let btnColor     = '#ebebeb';   // ready (tappable) state colour
-let btnDimCol    = '#ebebeb';   // dim (not-ready) state colour
-let btnPressBg   = '#ebebeb';   // pressed-state background (shown ~14% via color-mix)
+let btnColor     = PALETTE.cream;   // ready (tappable) state colour
+let btnDimCol    = PALETTE.cream;   // dim (not-ready) state colour
+let btnPressBg   = PALETTE.cream;   // pressed-state background (shown ~14% via color-mix)
 let btnFont      = 'Rubik';  // family key (see FONT_STACKS)
 let btnWeight    = 500;      // font-weight
 let btnCase      = 'uppercase'; // text-transform: none | uppercase | lowercase
@@ -635,8 +647,8 @@ let bestSize     = 12;        // px best-line size
 let bestOp       = 75;        // best-line opacity %
 let bestGap      = 8;         // px vertical gap: cent readout → best line
 let hdrTop       = 22;        // px manual top nudge for the whole header (added to the safe area)
-let hdrBtnCol    = '#ebebeb'; // top-button icon/text colour (shown ~56% via color-mix)
-let hdrBtnBorder = '#ebebeb'; // top-button border colour (shown ~22% via color-mix)
+let hdrBtnCol    = PALETTE.cream; // top-button icon/text colour (shown ~56% via color-mix)
+let hdrBtnBorder = PALETTE.cream; // top-button border colour (shown ~22% via color-mix)
 let hdrBtnSize   = 39;        // top-button size px (↺ / note chip / SET)
 let hdrBtnStroke = 2;         // top-button border width px (all three)
 let redoGlyphSize = 16;       // ↺ glyph font-size px
@@ -650,7 +662,7 @@ let holePos      = 242;     // soundhole center Y: px ABOVE the bridge pins (bot
 let bridgePos    = 0.84;    // bridge pin row Y (fraction of stage H) — sits just above the bottom bar
 let rosetteGap    = 11;     // px gap from hole edge to the rosette's valleys
 let rosetteW      = 3;      // px stroke width of the innermost ring
-let rosetteCol    = '#7b3920';
+let rosetteCol    = PALETTE.brown;
 let rosettePoints = 9;      // lobe count (<3 → plain circle ring)
 let rosetteDepth  = 19;     // px the lobes bump out past the valley
 let rosetteRoundOut = 107;  // roundness % of the OUTER points (lobe tips)
@@ -663,18 +675,18 @@ let innerBandGap  = 6;      // px from hole edge to the inner band
 let outerBand     = true;   // thin circle outside the outer ring
 let outerBandGap  = 3;      // px from the outer lobe tips to the outer band
 let bandW         = 2.5;    // band stroke px
-let bandCol       = '#7b3920';
+let bandCol       = PALETTE.brown;
 let bandFill      = false;  // fill the annulus between the inner & outer band radii
 let bandFillCol   = '#eb7c48';  // that fill colour
 let bridgeW      = 210;     // bridge plate width (fixed px)
-let bridgeCol    = '#7B3920';
+let bridgeCol    = PALETTE.brown;
 let saddleWFrac  = 0.65;    // saddle line width as fraction of the board
 let saddleThick  = 5;       // px saddle line thickness
 let saddleYOff   = 27;      // px the saddle sits above the bridge pin row
-let saddleCol    = '#F7F2E8';
-let pinCol       = '#F7F2E8';  // grommet outer disc
+let saddleCol    = PALETTE.cream;
+let pinCol       = PALETTE.cream;  // grommet outer disc
 let pinHoleR     = 3;          // grommet inner hole radius
-let pinHoleCol   = '#6B3A22';  // grommet inner hole
+let pinHoleCol   = PALETTE.hole;  // grommet inner hole
 
 const pillW        = () => pinR * 0.95;
 const pillD        = () => pinR * 1.4;
@@ -778,6 +790,36 @@ function drawRosette() {
   }
   svg.insertBefore(fg, before); rosetteGrp = fg;
   if (outerBand) { const c = mkBandCircle(cx, cy, peakOuter + outerBandGap); svg.insertBefore(c, before); rosetteBands.push(c); }
+}
+// Correct-answer celebration: emit a couple of ghost copies of a SINGLE flower ring (not the
+// whole multi-ring rosette) that ripple outward — each is born at the innermost-ring radius,
+// travels out past the outer edge, and fades. A quick brown "ripple". Pure add-on ghosts: the
+// real rosette and BOTH band circles are never touched, so nothing shifts. Fits the feedback window.
+function celebrateRosette() {
+  if (!W || !rosetteGrp) return;
+  const svg = document.getElementById('svg');
+  const cx = W / 2, cy = holeCY();
+  const rv0 = bodyRadius + rosetteGap;             // innermost ring's valley radius — where each ripple is born
+  const d = rosettePath(cx, cy, rv0);              // one flower ring at the inner radius
+  const RIPPLES = 2, GAP = 150, DUR = 560, EXPAND = 2.0, START_OP = 0.6;
+  for (let n = 0; n < RIPPLES; n++) {
+    setTimeout(() => {
+      if (!W) return;
+      const g = document.createElementNS(SVGNS, 'g');       // scaler wrapper, spun about the hole
+      g.style.transformBox = 'view-box'; g.style.transformOrigin = `${cx}px ${cy}px`;
+      g.style.pointerEvents = 'none';
+      const p = document.createElementNS(SVGNS, 'path');
+      p.setAttribute('d', d); p.setAttribute('fill', 'none');
+      p.setAttribute('stroke', rosetteCol);                 // subtle brown, on-palette
+      p.setAttribute('stroke-width', rosetteW); p.setAttribute('stroke-linejoin', 'round');
+      g.appendChild(p);
+      svg.insertBefore(g, bridgeGrp);                        // same layer as the rosette (behind bridge/strings)
+      g.animate(
+        [ { transform: 'scale(1)', opacity: START_OP }, { transform: `scale(${EXPAND})`, opacity: 0 } ],
+        { duration: DUR, easing: 'cubic-bezier(.22,1,.36,1)' }
+      ).onfinish = () => g.remove();
+    }, n * GAP);
+  }
 }
 function strTopY() { return -H * 0.5; }   // run well above the stage; body clips at the screen top
 function strBotY() { return bridgeCY(); } // anchor at the bridge pin
@@ -1477,6 +1519,7 @@ function answer(userAns) {
   showFeedback(correct);
   if (correct) {
     phase = 'feedback';                       // brief lockout, then auto-advance
+    celebrateRosette();                       // quick brown ripple out of the soundhole
     clearTimeout(advanceTimer);
     advanceTimer = setTimeout(advance, toastHold);
   } else {
