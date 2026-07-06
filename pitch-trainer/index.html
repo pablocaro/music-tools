@@ -32,12 +32,10 @@
     #centChip {
       display: inline-flex; align-items: center; gap: 8px;
       height: var(--hbtn-size, 34px); padding: 0 14px; border-radius: 999px; cursor: pointer; touch-action: manipulation;
-      border: var(--hbtn-stroke, 1px) solid color-mix(in srgb, var(--hbtn-border, #f7f2e8) 42%, transparent);
-      background: rgba(247,242,232,.06);
+      border: var(--ctl-stroke, 2px) solid var(--ctl-edge);
       font-family: var(--top-font, 'Rubik', system-ui, sans-serif); font-size: var(--chip-size, 15px);
-      font-weight: var(--weight-standard); letter-spacing: .5px; color: color-mix(in srgb, var(--hbtn-col, #f7f2e8) 90%, transparent);
+      font-weight: var(--weight-standard); letter-spacing: .5px; color: var(--ctl-ink);
     }
-    #centChip:active { background: rgba(247,242,232,.12); }
     #threshold { line-height: 1; }   /* size / weight / colour inherited from #centChip */
     #threshold .unit { font-size: .72em; opacity: .55; margin-left: 1px; }
     #centConfirm { display: none; align-items: center; gap: 6px; }   /* font + colour inherited */
@@ -45,9 +43,9 @@
     #centChip.confirming #centConfirm { display: inline-flex; }
     #resetYes, #resetNo {
       width: 22px; height: 22px; border-radius: 50%; padding: 0; cursor: pointer; touch-action: manipulation;
-      border: 1px solid color-mix(in srgb, var(--hbtn-border, #f7f2e8) 30%, transparent);
-      background: rgba(247,242,232,.08); font-size: 12px; line-height: 1;
-      color: var(--hbtn-col, #f7f2e8);
+      border: var(--ctl-stroke, 2px) solid var(--ctl-edge);
+      background: transparent; font-size: 12px; line-height: 1;
+      color: var(--ctl-ink);
       display: inline-flex; align-items: center; justify-content: center;
     }
     #resetYes svg, #resetNo svg { width: 11px; height: 11px; display: block; }
@@ -55,25 +53,22 @@
     #header-right { display: flex; align-items: center; gap: 8px; min-width: 0; }
     #gear {
       width: var(--hbtn-size, 34px); height: var(--hbtn-size, 34px); border-radius: 50%; padding: 0;
-      border: var(--hbtn-stroke, 1px) solid color-mix(in srgb, var(--hbtn-border, #f7f2e8) 42%, transparent); background: rgba(247,242,232,.06);
-      color: color-mix(in srgb, var(--hbtn-col, #f7f2e8) 90%, transparent);
+      border: var(--ctl-stroke, 2px) solid var(--ctl-edge); background: transparent;
+      color: var(--ctl-ink);
       cursor: pointer; flex-shrink: 0; touch-action: manipulation;
       display: inline-flex; align-items: center; justify-content: center;
     }
     #gear svg { width: 55%; height: 55%; display: block; }
-    #gear:active { background: rgba(247,242,232,.15); }
     /* Single selector button — label adapts, width follows the text */
     #niWrap { position: relative; display: flex; min-width: 0; }
     #niBtn {
       display: inline-flex; align-items: center; gap: 5px; max-width: 58vw; flex-shrink: 1; min-width: 0;
       height: var(--hbtn-size, 34px); padding: 0 13px; border-radius: 999px; cursor: pointer; touch-action: manipulation;
-      border: var(--hbtn-stroke, 1px) solid color-mix(in srgb, var(--hbtn-border, #f7f2e8) 42%, transparent);
-      background: rgba(247,242,232,.06);
-      color: color-mix(in srgb, var(--hbtn-col, #f7f2e8) 90%, transparent);
+      border: var(--ctl-stroke, 2px) solid var(--ctl-edge); background: transparent;
+      color: var(--ctl-ink);
       font-family: var(--top-font, 'Rubik', system-ui, sans-serif); font-size: var(--chip-size, 15px); font-weight: var(--weight-standard); letter-spacing: .5px;
       white-space: nowrap;
     }
-    #niBtn:active { background: rgba(247,242,232,.12); }
     #niLabel { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
     .ni-caret { font-size: 10px; opacity: .55; line-height: 1; }
     /* Custom grid popover */
@@ -96,12 +91,16 @@
     .nip-wide  { grid-column: 1 / -1; }
     .nip-cell {
       min-width: 42px; height: 32px; padding: 0 6px; border-radius: 8px; cursor: pointer; touch-action: manipulation;
-      border: 1px solid rgba(247,242,232,.1); background: rgba(247,242,232,.05);
-      color: rgba(247,242,232,.72); font-family: 'Rubik', system-ui, sans-serif; font-size: var(--type-label); font-weight: var(--weight-standard);
+      border: var(--ctl-stroke, 2px) solid var(--ctl-edge); background: transparent;
+      color: var(--ctl-ink); font-family: 'Rubik', system-ui, sans-serif; font-size: var(--type-label); font-weight: var(--weight-standard);
       display: inline-flex; align-items: center; justify-content: center;
     }
-    .nip-cell:active { background: rgba(247,242,232,.16); }
-    .nip-cell.sel { background: color-mix(in srgb, var(--hbtn-col, #f7f2e8) 90%, transparent); color: #33231a; border-color: transparent; }
+    /* Shared pressed state — every button gets the same brief fill on tap */
+    #gear:active, #centChip:active, #niBtn:active,
+    .abtn.ready:active, .nip-cell:active,
+    #fbNext:active, #fbTune:active,
+    #resetYes:active, #resetNo:active { background: var(--ctl-press); }
+    .nip-cell.sel { background: var(--ctl-sel); color: var(--ctl-sel-fg); border-color: transparent; }
 
     /* ── Stage ──────────────────────────────── */
     #stage { flex: 1; position: relative; overflow: visible; }
@@ -132,8 +131,8 @@
     #fbNext, #fbTune {
       display: none; align-items: center; justify-content: center;
       width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%; padding: 0;
-      border: 1.5px solid var(--btn-border-ready); background: transparent;
-      color: var(--btn-ready); font-family: inherit; line-height: 1;
+      border: var(--ctl-stroke, 2px) solid var(--ctl-edge); background: transparent;
+      color: var(--ctl-ink); font-family: inherit; line-height: 1;
       cursor: pointer; touch-action: manipulation;
     }
     #feedback.has-next #fbNext, #feedback.has-next #fbTune { display: inline-flex; }
@@ -141,9 +140,17 @@
     #fbTune svg, #fbNext svg { width: 64%; height: 64%; display: block; }
 
     :root {
-      --btn-ready:        rgba(247,242,232, .80);
+      /* Shared control ink/edge — ONE source for header chips + answer buttons, so their
+         "active" text and stroke stay locked together (was 90/80 text, 42/55 stroke). */
+      --ctl-ink:    rgba(247,242,232, .88);   /* rest text / icon colour */
+      --ctl-edge:   rgba(247,242,232, .50);   /* rest stroke colour      */
+      --ctl-stroke: 2px;                      /* stroke width — set live (×uiScale) in JS */
+      --ctl-press:  rgba(247,242,232, .14);   /* pressed fill  — shared by every button */
+      --ctl-sel:    rgba(247,242,232, .90);   /* selected / on fill */
+      --ctl-sel-fg: #7b3920;                  /* selected / on text · icon (brown) */
+      --btn-ready:        var(--ctl-ink);
       --btn-dim:          rgba(247,242,232, .18);
-      --btn-border-ready: rgba(247,242,232, .55);
+      --btn-border-ready: var(--ctl-edge);
       --btn-border-dim:   rgba(247,242,232, .10);
       /* ── Type system ───────────────────────────
          Ruler (raw sizes) → Jobs (generic roles). Named by job, not by app part,
@@ -162,7 +169,7 @@
       flex: 1;
       touch-action: manipulation;
       background: transparent;
-      border: 1px solid var(--btn-border-dim);
+      border: var(--ctl-stroke, 2px) solid var(--btn-border-dim);
       color: var(--btn-dim);
       font-family: 'Rubik', system-ui, sans-serif;
       font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
@@ -175,7 +182,6 @@
       color: var(--btn-ready);
       pointer-events: all;
     }
-    .abtn.ready:active { background: var(--btn-press, rgba(247,242,232,.12)); }
 
     /* ── Overlay (tap-outside-to-close) ─────── */
 
@@ -1072,11 +1078,11 @@ function applyButtonStyles() {
   const rs = `rgba(${rgb.r},${rgb.g},${rgb.b}`;
   const dim = hexToRgb(btnDimCol) || { r:235, g:235, b:235 };  // dim (not-ready) colour
   const ds = `rgba(${dim.r},${dim.g},${dim.b}`;
-  document.documentElement.style.setProperty('--btn-ready',        `${rs},.80)`);
+  document.documentElement.style.setProperty('--ctl-ink',          `${rs},.88)`);   // active label (header + answer)
   document.documentElement.style.setProperty('--btn-dim',          `${ds},.18)`);
-  document.documentElement.style.setProperty('--btn-border-ready', `${rs},.55)`);
+  document.documentElement.style.setProperty('--ctl-edge',         `${rs},.5)`);    // active stroke (header + answer)
   document.documentElement.style.setProperty('--btn-border-dim',   `${ds},.10)`);
-  document.documentElement.style.setProperty('--btn-press', `color-mix(in srgb, ${btnPressBg} 14%, transparent)`);
+  document.documentElement.style.setProperty('--ctl-stroke', btnBorderW * S + 'px');  // active stroke width (header + answer)
   document.querySelectorAll('.abtn').forEach(b => {
     b.style.fontFamily    = fontStack(btnFont);
     b.style.fontWeight = 'var(--weight-standard)';
@@ -1086,8 +1092,7 @@ function applyButtonStyles() {
     b.style.paddingTop    = btnPadV * S + 'px';
     b.style.paddingBottom = btnPadV * S + 'px';
     b.style.borderRadius  = btnRadius * S + 'px';
-    b.style.borderWidth   = btnBorderW * S + 'px';
-    b.style.minWidth      = btnMinW * S + 'px';
+    b.style.minWidth      = btnMinW * S + 'px';   // width comes from --ctl-stroke on .abtn
     b.style.maxWidth      = btnMaxW * S + 'px';
     b.style.borderStyle   = 'solid';
   });
@@ -1117,7 +1122,6 @@ function applyHeader() {
   r.setProperty('--hbtn-col',    hdrBtnCol);
   r.setProperty('--hbtn-border', hdrBtnBorder);
   r.setProperty('--hbtn-size',   hdrBtnSize * S + 'px');
-  r.setProperty('--hbtn-stroke', hdrBtnStroke * S + 'px');
   r.setProperty('--redo-size',   redoGlyphSize * S + 'px');
   r.setProperty('--chip-size', `calc(var(--type-title) * ${S})`);
 }
@@ -1560,8 +1564,8 @@ function styleFeedback() {
 // the challenge (off). No sound on tap — the player plucks the strings to compare.
 function paintTune() {
   const t = document.getElementById('fbTune');
-  if (compareInTune) { t.style.background = 'var(--btn-ready)'; t.style.color = bodyColor; }   // lit: in-tune tuning active
-  else               { t.style.background = 'transparent'; t.style.color = 'var(--btn-ready)'; } // ghost: question's tuning
+  if (compareInTune) { t.style.background = 'var(--ctl-sel)'; t.style.color = 'var(--ctl-sel-fg)'; }   // lit: in-tune tuning active (shared selected state)
+  else               { t.style.background = 'transparent'; t.style.color = 'var(--ctl-ink)'; }        // ghost: question's tuning
 }
 function toggleCompare() {
   compareInTune = !compareInTune;
