@@ -21,8 +21,8 @@
   var XMLSourceExporter        = O.XMLSourceExporter;
 
   // ---- config ----
-  var COLOR_SCALE = "#5a7a93";   // cool — stepwise motion
-  var COLOR_CHORD = "#b06a3b";   // warm — leaps / arpeggios
+  var COLOR_SCALE = "#9aa0a8";   // neutral grey — stepwise motion
+  var COLOR_CHORD = "#0a84ff";   // iOS blue — leaps / arpeggios
   var WEIGHT_MAX = 4;            // max per-interval slider weight
   var MEASURES_PER_LINE = 6;     // cap on a wide screen
   var MIN_PER_LINE = 2;          // never fewer than this; shrink to fit if needed
@@ -571,7 +571,7 @@
 
   function generate(after) {
     clearError();
-    if (playing && !advancing) stopPlay();   // manual regen stops playback; auto-advance keeps it
+    if ((playing || paused) && !advancing) resetTop();   // manual regen stops playback; auto-advance keeps it
     try {
       var plugin = new ExampleSourceGenerator(buildOptions());
       currentSheet = plugin.generate();
@@ -638,7 +638,7 @@
   }
 
   function updateTempoPill() {
-    if (tempoPillValEl) tempoPillValEl.textContent = "♩ " + tempoEl.value;
+    if (tempoPillValEl) tempoPillValEl.textContent = tempoEl.value;
   }
 
   function updateHeader() {
@@ -934,18 +934,20 @@
   var countdownEl  = document.getElementById("countdown");
   var playBtn      = document.getElementById("play");
 
-  // Play / Stop icons swapped into the control-bar button by state.
+  // Play / Pause icons swapped into the control-bar button by state.
   var ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5v14l12-7z"/></svg>';
-  var ICON_STOP = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>';
+  var ICON_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="5" width="4" height="14" rx="1.3"/><rect x="13.5" y="5" width="4" height="14" rx="1.3"/></svg>';
   function setPlayIcon(playingNow) {
-    playBtn.innerHTML = playingNow ? ICON_STOP : ICON_PLAY;
-    playBtn.setAttribute("aria-label", playingNow ? "Stop" : "Play");
+    playBtn.innerHTML = playingNow ? ICON_PAUSE : ICON_PLAY;
+    playBtn.setAttribute("aria-label", playingNow ? "Pause" : "Play");
   }
 
   var BEATS_PER_BAR = 4;        // 4/4, fixed
   var playing = false;
+  var paused = false;           // frozen mid-line, resumable from the same beat
   var advancing = false;        // mid auto-advance regen (keeps playback alive)
   var rafId = null;
+  var session = null;           // live play state (onsets, cursor position, elapsed beats)
   var audioCtx = null;
   var playVoices = [];          // scheduled play-along oscillators, killed on stop
 
@@ -1219,22 +1221,39 @@
     }
   }
 
-  function stopPlay() {
-    playing = false;
-    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+  // Full reset to the top: stop, hide the cursor, rewind to the first note.
+  function resetTop() {
+    playing = false; paused = false;
+    if (session && session.rafId) cancelAnimationFrame(session.rafId);
+    session = null; rafId = null;
     setPlayIcon(false);
     blinkCursor(false);
     try { osmd.cursor.hide(); osmd.cursor.reset(); } catch (e) {}
     hideCountdown();
     showAllInk();
     stopVoices();
+    scrollSheetTop();
+  }
+
+  // Freeze in place: stop the loop and voices but keep the cursor and elapsed-beat
+  // position, so Play resumes from exactly here instead of the top.
+  function pausePlay() {
+    if (!playing) return;
+    playing = false; paused = true;
+    if (session && session.rafId) cancelAnimationFrame(session.rafId);
+    rafId = null;
+    stopVoices();
+    blinkCursor(false);
+    hideCountdown();
+    setPlayIcon(false);
   }
 
   // A line finished while playing: tear down its timers/cursor but keep the
   // playing flag set, generate a fresh line, and play it with a fresh count-in
-  // so every new line gets its own countdown, until the user hits Stop.
+  // so every new line gets its own countdown, until the user pauses or resets.
   function advanceAndPlay() {
-    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    if (session && session.rafId) cancelAnimationFrame(session.rafId);
+    rafId = null;
     try { osmd.cursor.hide(); osmd.cursor.reset(); } catch (e) {}
     showAllInk();
     stopVoices();
@@ -1286,66 +1305,87 @@
       sheetEl.querySelectorAll(".vf-measure"),
       function (g) { return g.querySelectorAll(INK_SEL); }
     );
-    var hideState = -1;
     showAllInk();
 
-    var bms = 60000 / (+tempoEl.value);
     var countIn = noCountIn ? 0 : BEATS_PER_BAR;     // 1-bar count-in, skipped on auto-advance
-    var t0 = performance.now() + countIn * bms;      // downbeat
-    var nextBeat = -countIn;                         // count-in beats are negative
-    var cursorIdx = 0;
+    session = {
+      cur: cur, measureFirst: measureFirst, melody: melody, beatNote: beatNote,
+      measureInk: measureInk, totalBeats: totalBeats,
+      elapsed: -countIn,       // count-in beats are negative
+      nextBeat: -countIn,
+      cursorIdx: 0,
+      hideState: -1,
+      rafId: null
+    };
+    runSession(true);          // fresh start: run the count-in, schedule play-along from the top
+  }
 
-    blinkCursor(countIn > 0 && cursorModeEl.value !== "off", bms);
+  // Anchor the animation clock so curBeat continues from session.elapsed, (re)schedule
+  // the play-along voice for the notes still ahead, and start the rAF loop. Shared by a
+  // fresh startPlay and a resume-from-pause.
+  function runSession(fresh) {
+    var s = session;
+    if (!s) return;
+    ensureAudio();
+    var bms = 60000 / (+tempoEl.value);
+    s.bms = bms;
+    s.t0 = performance.now() - s.elapsed * bms;      // curBeat == s.elapsed at 'now'
 
-    // Play-along: schedule the whole melody on the audio clock up front. The
-    // downbeat lands countIn beats from now, so map beats → audio seconds there.
+    blinkCursor(fresh && s.elapsed < 0 && cursorModeEl.value !== "off", bms);
+
     stopVoices();
     if (playAlongEl.checked && audioCtx) {
       var secPerBeat = bms / 1000;
-      var audioDownbeat = audioCtx.currentTime + countIn * secPerBeat;
-      melody.forEach(function (n) {
-        var s = audioDownbeat + n.onset * secPerBeat;
-        scheduleNote(n.freq, s, s + n.dur * secPerBeat);
+      s.melody.forEach(function (n) {
+        if (n.onset + n.dur <= s.elapsed) return;    // already finished
+        var startBeat = Math.max(n.onset, s.elapsed);
+        var st = audioCtx.currentTime + (startBeat - s.elapsed) * secPerBeat;
+        var en = audioCtx.currentTime + (n.onset + n.dur - s.elapsed) * secPerBeat;
+        scheduleNote(n.freq, st, en);
       });
     }
 
-    playing = true;
+    playing = true; paused = false;
     setPlayIcon(true);
+    s.rafId = rafId = requestAnimationFrame(frame);
+  }
 
-    function frame(now) {
-      if (!playing) return;
-      var curBeat = (now - t0) / bms;
+  function resumePlay() {
+    if (!paused || !session) { startPlay(); return; }
+    runSession(false);
+  }
 
-      while (nextBeat <= Math.floor(curBeat) && nextBeat < totalBeats) {
-        if (nextBeat < 0) {                          // count-in
-          if (clickOnEl.checked) tick(COUNTIN_FREQ);
-          showCountdown(-nextBeat);
-        } else {                                     // playing
-          if (clickOnEl.checked) tick(PLAY_FREQ);
-          var target = (cursorModeEl.value === "measure")
-            ? measureFirst[Math.min(Math.floor(nextBeat / BEATS_PER_BAR), measureFirst.length - 1)]
-            : beatNote[Math.min(nextBeat, beatNote.length - 1)];
-          while (cursorIdx < target) { try { cur.next(); } catch (e) {} cursorIdx++; }
-        }
-        nextBeat++;
-      }
-      if (curBeat >= 0) { hideCountdown(); blinkCursor(false); }   // downbeat: solid, counting done
-      if (cur.cursorElement) cur.cursorElement.style.display = (cursorModeEl.value === "off") ? "none" : "";
+  function frame(now) {
+    if (!playing || !session) return;
+    var s = session, cur = s.cur;
+    var curBeat = (now - s.t0) / s.bms;
+    s.elapsed = curBeat;
 
-      if (curBeat >= 0) {
-        var hideCount = hideBehindEl.checked
-          ? Math.floor((curBeat + (+hideLeadEl.value)) / BEATS_PER_BAR)
-          : 0;
-        if (hideCount !== hideState) { hideMeasures(measureInk, hideCount); hideState = hideCount; }
-        followCursor();   // scroll once the cursor reaches the last visible line
+    while (s.nextBeat <= Math.floor(curBeat) && s.nextBeat < s.totalBeats) {
+      if (s.nextBeat < 0) {                          // count-in
+        if (clickOnEl.checked) tick(COUNTIN_FREQ);
+        showCountdown(-s.nextBeat);
+      } else {                                       // playing
+        if (clickOnEl.checked) tick(PLAY_FREQ);
+        var target = (cursorModeEl.value === "measure")
+          ? s.measureFirst[Math.min(Math.floor(s.nextBeat / BEATS_PER_BAR), s.measureFirst.length - 1)]
+          : s.beatNote[Math.min(s.nextBeat, s.beatNote.length - 1)];
+        while (s.cursorIdx < target) { try { cur.next(); } catch (e) {} s.cursorIdx++; }
       }
-      if (curBeat >= totalBeats) {                    // line done — keep practicing
-        if (playing) advanceAndPlay();
-        return;
-      }
-      rafId = requestAnimationFrame(frame);
+      s.nextBeat++;
     }
-    rafId = requestAnimationFrame(frame);
+    if (curBeat >= 0) { hideCountdown(); blinkCursor(false); }   // downbeat: solid, counting done
+    if (cur.cursorElement) cur.cursorElement.style.display = (cursorModeEl.value === "off") ? "none" : "";
+
+    if (curBeat >= 0) {
+      var hideCount = hideBehindEl.checked
+        ? Math.floor((curBeat + (+hideLeadEl.value)) / BEATS_PER_BAR)
+        : 0;
+      if (hideCount !== s.hideState) { hideMeasures(s.measureInk, hideCount); s.hideState = hideCount; }
+      followCursor();   // scroll once the cursor reaches the last visible line
+    }
+    if (curBeat >= s.totalBeats) { if (playing) advanceAndPlay(); return; }  // line done — keep practicing
+    s.rafId = rafId = requestAnimationFrame(frame);
   }
 
   // ===========================================================================
@@ -1358,7 +1398,12 @@
   musicalityEl.addEventListener("input", function () { musicalityValEl.textContent = musicalityEl.value; });
   showChunksEl.addEventListener("change", drawOverlay);
   generateBtn.addEventListener("click", function () { generate(); });
-  playBtn.addEventListener("click", function () { playing ? stopPlay() : startPlay(); });
+  playBtn.addEventListener("click", function () {
+    if (playing) pausePlay();
+    else if (paused) resumePlay();
+    else startPlay();
+  });
+  document.getElementById("from-top").addEventListener("click", resetTop);
   setPlayIcon(false);
 
   // Tempo stepper pill (kept in sync with the sidebar slider). The steppers only
@@ -1395,10 +1440,8 @@
   document.getElementById("settings-toggle").addEventListener("click", function () {
     setPanel(!layoutEl.classList.contains("panel-open"));
   });
-  document.getElementById("panel-close").addEventListener("click", function () { setPanel(false); });
-  document.querySelector(".sheet-area").addEventListener("click", function () {
-    if (window.innerWidth <= 720) setPanel(false);   // tap sheet to close drawer on mobile
-  });
+  var scrimEl = document.getElementById("scrim");
+  if (scrimEl) scrimEl.addEventListener("click", function () { setPanel(false); });
 
   // Unlock audio on the very first interaction anywhere, so it's primed well
   // before Play (Safari especially).
