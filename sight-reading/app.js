@@ -956,6 +956,7 @@
   var advancing = false;        // mid auto-advance regen (keeps playback alive)
   var rafId = null;
   var session = null;           // live play state (onsets, cursor position, elapsed beats)
+  var pinTop = false;           // during an auto-advance transition, hold the view at the top
   var audioCtx = null;
   var playVoices = [];          // scheduled play-along oscillators, killed on stop
 
@@ -1231,7 +1232,7 @@
 
   // Full reset to the top: stop, hide the cursor, rewind to the first note.
   function resetTop() {
-    playing = false; paused = false;
+    playing = false; paused = false; pinTop = false;
     if (session && session.rafId) cancelAnimationFrame(session.rafId);
     session = null; rafId = null;
     setPlayIcon(false);
@@ -1247,7 +1248,7 @@
   // position, so Play resumes from exactly here instead of the top.
   function pausePlay() {
     if (!playing) return;
-    playing = false; paused = true;
+    playing = false; paused = true; pinTop = false;
     if (session && session.rafId) cancelAnimationFrame(session.rafId);
     rafId = null;
     stopVoices();
@@ -1262,6 +1263,7 @@
   function advanceAndPlay() {
     if (session && session.rafId) cancelAnimationFrame(session.rafId);
     rafId = null;
+    pinTop = true;   // hold the top through the re-render + count-in of the fresh line
     // Kill the last line's in-flight smooth scroll-to-end NOW (synchronously, before the
     // async re-render) so it can't animate on through and fight the reset-to-top.
     var st = sheetEl.parentNode; st.scrollTo(0, 0); st.scrollTop = 0;
@@ -1279,6 +1281,7 @@
     if (!currentSheet) return;
     var cur = osmd.cursor;
     if (!cur) { showError("Cursor unavailable."); return; }
+    pinTop = true;   // hold the top until the new line's downbeat (released in frame)
 
     ensureAudio();
 
@@ -1407,7 +1410,7 @@
       }
       s.nextBeat++;
     }
-    if (curBeat >= 0) { hideCountdown(); blinkCursor(false); }   // downbeat: solid, counting done
+    if (curBeat >= 0) { hideCountdown(); blinkCursor(false); pinTop = false; }   // downbeat: counting done; release the top-pin
     if (cur.cursorElement) cur.cursorElement.style.display = (cursorModeEl.value === "off") ? "none" : "";
 
     if (curBeat >= 0) {
@@ -1529,6 +1532,17 @@
 
   // Keep the page covers aligned as the stage scrolls (idle or smooth auto-scroll).
   sheetEl.parentNode.addEventListener("scroll", updateGap);
+
+  // While pinned (auto-advance → the new line's downbeat), force the view back to the top on
+  // every scroll event a stale smooth auto-scroll fires — it can't win. iPad Safari lets that
+  // animation run on through the re-render and count-in; this defeats it deterministically.
+  // A real scroll gesture releases the pin so the user is never trapped.
+  sheetEl.parentNode.addEventListener("scroll", function () {
+    if (pinTop && sheetEl.parentNode.scrollTop !== 0) sheetEl.parentNode.scrollTop = 0;
+  }, { passive: true });
+  ["touchstart", "wheel"].forEach(function (ev) {
+    sheetEl.parentNode.addEventListener(ev, function () { pinTop = false; }, { passive: true });
+  });
 
   initRangeState();
   buildRangeGrid();
