@@ -691,7 +691,10 @@
   var coverBotEl = document.getElementById("cover-bot");
 
   function scrollSheetTop() {
-    sheetEl.parentNode.scrollTop = 0;
+    var st = sheetEl.parentNode;
+    st.scrollTo({ top: 0, behavior: "auto" });   // instant — also cancels an in-flight smooth auto-scroll
+    st.scrollTop = 0;                             // belt-and-suspenders for older iPadOS Safari
+    requestAnimationFrame(function () { st.scrollTop = 0; });   // re-assert once layout settles
     lastScrollTarget = -1;
     updateGap();
   }
@@ -951,7 +954,7 @@
   var audioCtx = null;
   var playVoices = [];          // scheduled play-along oscillators, killed on stop
 
-  tempoEl.addEventListener("input", function () { tempoValEl.textContent = tempoEl.value; updateHeader(); });
+  tempoEl.addEventListener("input", function () { tempoValEl.textContent = tempoEl.value; updateHeader(); retempo(); });
   hideLeadEl.addEventListener("input", function () { hideLeadValEl.textContent = hideLeadEl.value; });
   volumeEl.addEventListener("input", function () {
     volumeValEl.textContent = volumeEl.value;
@@ -1353,6 +1356,28 @@
   function resumePlay() {
     if (!paused || !session) { startPlay(); return; }
     runSession(false);
+  }
+
+  // Live tempo change during playback: re-anchor the clock to the new rate at the
+  // current beat and reschedule the play-along voice ahead. (Paused/idle simply pick
+  // up the new tempo on the next runSession.)
+  function retempo() {
+    var s = session;
+    if (!s || !playing) return;
+    var now = performance.now();
+    s.elapsed = (now - s.t0) / s.bms;      // exact current beat under the old rate
+    s.bms = 60000 / (+tempoEl.value);
+    s.t0 = now - s.elapsed * s.bms;         // same beat, new rate
+    if (playAlongEl.checked && audioCtx) {
+      stopVoices();
+      var secPerBeat = s.bms / 1000;
+      s.melody.forEach(function (n) {
+        if (n.onset + n.dur <= s.elapsed) return;
+        var startBeat = Math.max(n.onset, s.elapsed);
+        scheduleNote(n.freq, audioCtx.currentTime + (startBeat - s.elapsed) * secPerBeat,
+                             audioCtx.currentTime + (n.onset + n.dur - s.elapsed) * secPerBeat);
+      });
+    }
   }
 
   function frame(now) {
