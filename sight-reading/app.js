@@ -671,8 +671,8 @@
     drawOverlay();
     updateHeader();
     computeLines();
-    if (playing) { lastScrollTarget = -1; followCursor(); }   // keep the cursor in view on a mid-play reflow
-    else scrollSheetTop();
+    if (playing && !advancing) { lastScrollTarget = -1; followCursor(); }  // keep the cursor in view on a mid-play reflow
+    else scrollSheetTop();                                                  // …but an auto-advanced fresh line resets to the top
     alignHeader();
   }
 
@@ -692,10 +692,15 @@
 
   function scrollSheetTop() {
     var st = sheetEl.parentNode;
-    st.scrollTo({ top: 0, behavior: "auto" });   // instant — also cancels an in-flight smooth auto-scroll
-    st.scrollTop = 0;                             // belt-and-suspenders for older iPadOS Safari
-    requestAnimationFrame(function () { st.scrollTop = 0; });   // re-assert once layout settles
     lastScrollTarget = -1;
+    // Chrome cancels an in-flight smooth auto-scroll the moment we reset; iPad Safari
+    // lets it keep animating through the re-render and the next count-in, so it lands
+    // back at the bottom. Force instant and re-assert the top across the animation's
+    // lifetime so the stale scroll can't win. (The count-in gives us a quiet window.)
+    function top() { st.scrollTo(0, 0); st.scrollTop = 0; }
+    top();
+    requestAnimationFrame(top);
+    [80, 250, 500, 800].forEach(function (ms) { setTimeout(top, ms); });
     updateGap();
   }
 
@@ -1257,6 +1262,9 @@
   function advanceAndPlay() {
     if (session && session.rafId) cancelAnimationFrame(session.rafId);
     rafId = null;
+    // Kill the last line's in-flight smooth scroll-to-end NOW (synchronously, before the
+    // async re-render) so it can't animate on through and fight the reset-to-top.
+    var st = sheetEl.parentNode; st.scrollTo(0, 0); st.scrollTop = 0;
     try { osmd.cursor.hide(); osmd.cursor.reset(); } catch (e) {}
     showAllInk();
     stopVoices();
