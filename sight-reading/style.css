@@ -36,6 +36,10 @@
   padding: 0;
 }
 
+/* iOS/iPadOS: stop a tap on a control from triggering double-tap-to-zoom
+   (keeps pinch-zoom on the music itself). */
+button, select, input, label, summary, #tempo-pill { touch-action: manipulation; }
+
 body {
   font-family: "Rubik", -apple-system, "SF Pro Text", BlinkMacSystemFont, sans-serif;
   font-size: 14px;

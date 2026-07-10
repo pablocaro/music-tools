@@ -147,7 +147,7 @@
     if (p.musicality != null) { musicalityEl.value = p.musicality; musicalityValEl.textContent = p.musicality; }
     if (p.tempo != null) { tempoEl.value = p.tempo; tempoValEl.textContent = p.tempo; }
     if (p.cursor != null) cursorModeEl.value = p.cursor;
-    if (p.metronome != null) clickOnEl.checked = p.metronome;
+    // metronome is intentionally NOT restored — it always starts off each load
     if (p.playAlong != null) playAlongEl.checked = p.playAlong;
     if (p.instrument != null) instrumentEl.value = p.instrument;
     if (p.volume != null) { volumeEl.value = p.volume; volumeValEl.textContent = p.volume; }
