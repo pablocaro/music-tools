@@ -291,10 +291,8 @@
   var generateBtn  = document.getElementById("generate");
   var errorEl      = document.getElementById("error-msg");
   var sheetEl      = document.getElementById("sheet");
-  var sheetHeadEl  = document.getElementById("sheet-head");
   var shTitleEl    = document.getElementById("sh-title");
   var shSubEl      = document.getElementById("sh-sub");
-  var shNotesEl    = document.getElementById("sh-notes");
 
   // ===========================================================================
   // Note range grid
@@ -596,61 +594,21 @@
   }
 
   // ===========================================================================
-  // Summary header — title / digest / notes, reflecting the current settings
+  // Summary header — the drill's name + key/length digest
   // ===========================================================================
-  var MODE_SHORT = { major: "maj", minor: "min", harmonic: "harm", melodic: "mel" };
+  var MODE_FULL = { major: "Major", minor: "Minor", harmonic: "Harmonic Minor", melodic: "Melodic Minor" };
 
   function titleCase(s) {
     return String(s).replace(/\b\w/g, function (c) { return c.toUpperCase(); });
   }
 
-  // "{n} Rhythms" — the count of selected beat figures.
-  function rhythmSummary() {
-    var n = readBeatIds().length;
-    return n ? n + " Rhythm" + (n !== 1 ? "s" : "") : "";
-  }
-
-  // The selected pitches: a span ("C4–B5") when contiguous, an explicit list
-  // ("A5,B5,D6,G6") when a few are scattered, else a count.
-  function noteSummary() {
-    var sel = [];
-    RANGE_OCTAVES.forEach(function (oct) {
-      NOTE_COLS.forEach(function (nc, ci) {
-        if (rangeState[oct] && rangeState[oct][ci]) {
-          sel.push({ oct: oct, ci: ci, name: nc.name + oct, h: oct * 12 + nc.semi });
-        }
-      });
-    });
-    if (!sel.length) return "no notes";
-    sel.sort(function (a, b) { return a.h - b.h; });
-    var lo = sel[0], hi = sel[sel.length - 1];
-    if (sel.length === 1) return lo.name;
-    var between = 0;
-    RANGE_OCTAVES.forEach(function (oct) {
-      NOTE_COLS.forEach(function (nc) {
-        var h = oct * 12 + nc.semi;
-        if (h >= lo.h && h <= hi.h) between++;
-      });
-    });
-    if (between === sel.length) return lo.name + "–" + hi.name;     // contiguous block
-    if (sel.length <= 8) return sel.map(function (s) { return s.name; }).join(",");
-    return sel.length + " notes";
-  }
-
-  function updateTempoPill() {
-    if (tempoPillValEl) tempoPillValEl.textContent = tempoEl.value;
-  }
-
+  // The top bar: drill name, then "Key Mode – N Bars".
   function updateHeader() {
     var tonic = keyTonicEl.options[keyTonicEl.selectedIndex].textContent;
-    var mode = MODE_SHORT[keyModeEl.value] || "";
-    if (mode) mode = mode.charAt(0).toUpperCase() + mode.slice(1);
-    shTitleEl.textContent = titleCase(activePreset || "Custom") + " · " + tonic + " " + mode;
-    shSubEl.textContent = measuresEl.value + " Bars, " + noteSummary();
-    var r = rhythmSummary();
-    if (+musicalityEl.value > 0) r += (r ? ", " : "") + "Musical";
-    shNotesEl.textContent = r;
-    updateTempoPill();
+    var mode = MODE_FULL[keyModeEl.value] || "";
+    shTitleEl.textContent = titleCase(activePreset || "Custom");
+    shSubEl.textContent = tonic + " " + mode + " – " + measuresEl.value + " Bars";
+    syncTransport();
   }
 
   // Reflow to fit the width: pick a measures-per-line target (never below
@@ -673,7 +631,6 @@
     computeLines();
     if (playing && !advancing) { lastScrollTarget = -1; followCursor(); }  // keep the cursor in view on a mid-play reflow
     else scrollSheetTop();                                                  // …but an auto-advanced fresh line resets to the top
-    alignHeader();
   }
 
   // ===========================================================================
@@ -795,26 +752,14 @@
     updateGap();
   }
 
-  // Inset the header row so the title lines up with the music's left edge and the
-  // tempo pill lines up with its right edge.
-  function alignHeader() {
-    var ms = sheetEl.querySelectorAll(".vf-measure");
-    if (!ms.length || !sheetTopEl) return;
-    var topRect = sheetTopEl.getBoundingClientRect();
-    var left = Infinity, right = -Infinity;
-    Array.prototype.forEach.call(ms, function (m) {
-      var r = m.getBoundingClientRect();
-      if (r.left < left) left = r.left;
-      if (r.right > right) right = r.right;
-    });
-    sheetTopEl.style.paddingLeft = Math.max(0, left - topRect.left) + "px";
-    sheetTopEl.style.paddingRight = Math.max(0, topRect.right - right) + "px";
-  }
-
-  // Reflect the metronome on/off state in the tempo pill.
+  // Reflect the transport toggles' state on their buttons (blue tint when active).
   function syncMetroPill() {
-    if (tempoPillEl) tempoPillEl.classList.toggle("metro-on", clickOnEl.checked);
+    if (metroToggleEl) metroToggleEl.classList.toggle("on", clickOnEl.checked);
   }
+  function syncAccompBtn() {
+    if (accompBtn) accompBtn.classList.toggle("on", playAlongEl.checked);
+  }
+  function syncTransport() { syncMetroPill(); syncAccompBtn(); }
 
   // ===========================================================================
   // Seeing mode: read the rendered notes back out and bracket the chunks
@@ -926,10 +871,8 @@
   // ===========================================================================
   var tempoEl      = document.getElementById("tempo");
   var tempoValEl   = document.getElementById("tempo-val");
-  var tempoPillValEl = document.getElementById("tempo-pill-val");
-  var tempoPillEl  = document.getElementById("tempo-pill");
-  var metroToggleEl = document.getElementById("metro-toggle");
-  var sheetTopEl   = document.getElementById("sheet-top");
+  var metroToggleEl = document.getElementById("metro-toggle");   // 🎼 transport button
+  var accompBtn    = document.getElementById("accomp");          // ♩ transport button
   var clickOnEl    = document.getElementById("click-on");
   var playAlongEl  = document.getElementById("play-along");
   var instrumentEl = document.getElementById("instrument");
@@ -1442,24 +1385,21 @@
   document.getElementById("from-top").addEventListener("click", resetTop);
   setPlayIcon(false);
 
-  // Tempo stepper pill (kept in sync with the sidebar slider). The steppers only
-  // act when the metronome is on; the sidebar slider adjusts tempo either way.
-  function bumpTempo(d) {
-    if (!clickOnEl.checked) return;
-    var v = Math.max(40, Math.min(160, (parseInt(tempoEl.value, 10) || 80) + d));
-    tempoEl.value = v;
-    tempoEl.dispatchEvent(new Event("input"));
-  }
-  document.getElementById("tempo-down").addEventListener("click", function () { bumpTempo(-5); });
-  document.getElementById("tempo-up").addEventListener("click", function () { bumpTempo(5); });
-
-  // The ♩ in the pill toggles the metronome (synced with the sidebar checkbox).
+  // 🎼 transport button toggles the metronome (mirrors the sidebar checkbox).
   metroToggleEl.addEventListener("click", function () {
     clickOnEl.checked = !clickOnEl.checked;
     clickOnEl.dispatchEvent(new Event("change"));
   });
   clickOnEl.addEventListener("change", syncMetroPill);
-  syncMetroPill();
+
+  // ♩ transport button toggles the accompaniment (mirrors the play-along checkbox).
+  accompBtn.addEventListener("click", function () {
+    ensureAudio();   // this is a real gesture — a good moment to unlock/prime audio
+    playAlongEl.checked = !playAlongEl.checked;
+    playAlongEl.dispatchEvent(new Event("change"));
+  });
+  playAlongEl.addEventListener("change", syncAccompBtn);
+  syncTransport();
 
   // Collapsible settings. The control bar (Play / New line) is always visible;
   // the sidebar is a drawer that shows only when .panel-open — closed by default
@@ -1551,7 +1491,7 @@
   setWeights(BUILTIN["thirds drill"]);
   activePreset = "thirds drill";
   restoreSession();            // override defaults with last-used settings, if any
-  syncMetroPill();             // reflect the restored metronome state in the pill
+  syncTransport();             // reflect the restored metronome / accompaniment state
   if (isSampled(instrumentEl.value)) loadSamples(instrumentEl.value);   // preload so it's ready before Play
   renderPresets();
   initGroups();

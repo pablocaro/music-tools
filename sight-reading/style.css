@@ -87,6 +87,11 @@ body {
   align-items: center;
   gap: 16px;
 }
+.cb-right { grid-column: 3; justify-self: end; }
+
+/* A transport toggle that's currently active (metronome on, accompaniment on) —
+   the same blue tint the settings button wears while the pocket is open. */
+.controlbar .cb-icon.on { background: var(--ctl-on-tint); color: var(--ctl-on); }
 
 .controlbar button {
   background: var(--paper-dim);
@@ -489,16 +494,15 @@ button.secondary {
   min-height: 0;
   overflow: hidden;
   background: var(--paper);
-  padding: 48px 40px;
+  padding: 12px 40px 40px;
   display: flex;
   flex-direction: column;
   align-items: center;           /* center the music column in the window */
   position: relative;            /* containing block for the page covers */
 }
 
-/* The header row and the scrolling stage are one centered column, capped and
-   floored in width. Everything horizontal (title, pill, tray) keys off this. */
-#sheet-top,
+/* The scrolling stage is a centered column, capped and floored in width; the
+   top bar keys off the same cap so the title lines up with the music. */
 #sheet-stage {
   width: 100%;
   max-width: var(--music-max);
@@ -527,97 +531,42 @@ button.secondary {
   pointer-events: none;
 }
 
-/* Header row: summary on the left, tempo stepper pill on the right */
-#sheet-top {
+/* Top bar — the drill's name + key/length digest on the left, a regenerate
+   button on the right. Capped to the music column and centered so the title
+   lines up with the staff below. */
+.topbar {
+  flex-shrink: 0;
+  align-self: center;
+  width: 100%;
+  max-width: var(--music-max);
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
-  margin-bottom: 22px;
+  padding: 22px 40px 6px;
 }
-#sheet-head { min-width: 0; }
-#sh-title { font-size: 26px; font-weight: 700; color: var(--ink); letter-spacing: 0.2px; }
-#sh-sub   { font-size: 15px; font-weight: 500; color: var(--muted); margin-top: 6px; }
-#sh-notes { font-size: 15px; font-weight: 500; color: var(--muted); margin-top: 2px; }
+.tb-titles { min-width: 0; }
+#sh-title { font-size: 28px; font-weight: 700; color: var(--ink); letter-spacing: 0.2px; line-height: 1.15; }
+#sh-sub   { font-size: 15px; font-weight: 600; color: var(--muted); margin-top: 5px; }
 
-/* Tempo / metronome pill — maps to the button language. OFF collapses to a glyph
-   circle in the REST style (line border, paper); ON expands into the full pill in
-   the SELECTED style (blue border + tint), with a divider, the bpm, and −/+ steppers. */
-#tempo-pill {
+/* Regenerate — same rounded-icon family as the transport, set in paper-dim. */
+.tb-btn {
   flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 44px;
+  width: 46px; height: 46px;
+  padding: 0;
   border: none;
   border-radius: 999px;
-  overflow: hidden;
-  background: var(--paper-dim);           /* OFF: grey circle, like the pocket buttons */
-  transition: width 0.32s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.22s;
-}
-/* ON → animate wide into the SELECTED style: blue tint, blue glyph, no border. */
-#tempo-pill.metro-on {
-  width: 182px;                          /* fits glyph · divider · 3-digit bpm · −/+ without squishing */
-  padding: 5px 7px 5px 14px;
-  justify-content: flex-start;
-  background: var(--ctl-on-tint);
-}
-/* OFF → grey glyph circle: hide the value + steppers, square the box to a circle. */
-#tempo-pill:not(.metro-on) {
-  padding: 0;
-  gap: 0;
-  width: 44px;
-  justify-content: center;
-}
-#tempo-pill:not(.metro-on) #tempo-pill-val,
-#tempo-pill:not(.metro-on) #tempo-down,
-#tempo-pill:not(.metro-on) #tempo-up { display: none; }
-
-#metro-toggle {
-  background: none;
-  border: none;
-  padding: 4px 6px;   /* generous tap target around the glyph */
-  margin: -4px -2px;  /* offset so the pill's own padding is preserved */
-  cursor: pointer;
+  background: var(--paper-dim);
+  color: var(--ink);
   display: inline-flex;
   align-items: center;
-  color: var(--ink);                     /* OFF: ink glyph on the grey circle */
-  transition: color 0.22s;
-}
-#tempo-pill.metro-on #metro-toggle { color: var(--ctl-on); }   /* ON: blue glyph, like the settings icon */
-/* Optically centered: the solid beat-dot weights the top-right, so nudge the
-   glyph down-left a hair so its mass reads centered in the circle. */
-#metro-glyph { width: 29px; height: 28px; display: block; }
-
-#tempo-pill-val {
-  font-size: 18px; font-weight: 700; white-space: nowrap;
-  color: var(--ink);
-  padding-left: 10px;
-  border-left: 1.5px solid rgba(0, 0, 0, 0.16);   /* divider between glyph and value */
-}
-
-.tp-btn {
-  width: 30px; height: 30px;
-  flex-shrink: 0;                       /* stay round — never get squished into ovals */
-  padding: 0;
-  border: none;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.07);      /* OFF: visible container, muted */
-  color: var(--muted);
-  font-size: 19px; font-weight: 600; line-height: 1;
+  justify-content: center;
   cursor: pointer;
-  display: inline-flex; align-items: center; justify-content: center;
-  transition: background 0.15s, transform 0.1s, color 0.15s, box-shadow 0.15s;
+  transition: background 0.15s, transform 0.1s;
 }
-#tempo-pill.metro-on .tp-btn {          /* ON: white, raised, dark glyphs */
-  background: var(--paper);
-  color: var(--ink);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-.tp-btn:hover { opacity: 1; }
-#tempo-pill.metro-on .tp-btn:hover { background: #f4f4f6; }
-.tp-btn:active { transform: scale(0.92); opacity: 1; }
-#tempo-pill:not(.metro-on) .tp-btn { pointer-events: none; }   /* OFF: steppers inert */
+.tb-btn:hover { background: #e7e7ec; opacity: 1; }
+.tb-btn:active { transform: scale(0.94); opacity: 1; }
+.tb-btn svg { width: 22px; height: 22px; display: block; }
 
 #chunk-overlay {
   position: absolute;
@@ -712,7 +661,9 @@ button.secondary {
 /* Mobile: trim the gutters and let the music column shrink below its desktop
    floor so narrow screens reflow instead of clipping. */
 @media (max-width: 720px) {
-  .sheet-area { padding: 18px 14px; }
-  #sheet-top, #sheet-stage { min-width: 0; }   /* let it shrink to fit the phone */
+  .sheet-area { padding: 8px 14px 18px; }
+  .topbar { padding: 16px 16px 4px; }
+  #sh-title { font-size: 24px; }
+  #sheet-stage { min-width: 0; }   /* let it shrink to fit the phone */
   #countdown { font-size: 96px; }
 }
