@@ -112,7 +112,7 @@ body {
   grid-column: 2;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 8px;
 }
 .cb-right { grid-column: 3; justify-self: end; }
 
@@ -143,6 +143,13 @@ body {
 .ic-metro      { width: 23px; height: 23px; }
 .ic-eye        { width: 23px; height: 23px; }
 .ic-regenerate { width: 19px; height: 19px; }
+/* The transport's centre trio runs lighter than the flanking buttons, so the
+   cluster reads as one group rather than five equal weights. */
+.cb-center .ic-restart { width: 18px; height: 18px; }
+.cb-center .ic-play    { width: 15px; height: 15px; }
+.cb-center .ic-pause   { width: 14px; height: 14px; }
+.cb-center .ic-accomp  { width: 16px; height: 16px; }
+
 /* The panel's icon-toggles are a smaller button than the transport's, so the
    same glyphs step down with them. */
 .icon-toggle .ic-metro { width: 21px; height: 21px; }
@@ -681,27 +688,32 @@ button.secondary {
 
 .fig-svg { width: 42px; height: 27px; display: block; }
 
-/* hover tooltip with the figure name */
-.fig-cell::after {
-  content: attr(data-name);
-  position: absolute;
-  bottom: calc(100% + 5px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--ink);
-  color: var(--paper);
-  font-size: 10px;
-  font-weight: 500;
-  white-space: nowrap;
-  padding: 3px 7px;
-  border-radius: 5px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.12s;
-  z-index: 60;
-}
+/* Hover tooltip with the figure name. Only built where there's a pointer to
+   hover with: on touch it can never be shown, and an always-present nowrap
+   label — invisible but still laid out — pushed the panel's scrollWidth past
+   the viewport and let the whole sheet slide sideways on a phone. */
+@media (hover: hover) and (pointer: fine) {
+  .fig-cell::after {
+    content: attr(data-name);
+    position: absolute;
+    bottom: calc(100% + 5px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: var(--paper);
+    font-size: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+    padding: 3px 7px;
+    border-radius: 5px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s;
+    z-index: 60;
+  }
 
-.fig-cell:hover::after { opacity: 1; }
+  .fig-cell:hover::after { opacity: 1; }
+}
 
 /* Legend — what the two bracket colours mean, beside the Chunks toggle. */
 .legend {
