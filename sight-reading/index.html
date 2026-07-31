@@ -31,8 +31,8 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 5v9.4"/><ellipse cx="12" cy="16" rx="4" ry="3" fill="currentColor" stroke="none"/></svg>
           </button>
         </div>
-        <button id="metro-toggle" class="cb-icon cb-right" aria-label="Metronome on/off">
-          <svg id="metro-glyph" viewBox="0 0 29 28" fill="none" stroke="currentColor" stroke-width="1.68" stroke-linecap="round" aria-hidden="true">
+        <button id="metro-toggle" class="cb-icon cb-right js-metro" aria-label="Metronome on/off">
+          <svg class="metro-glyph" viewBox="0 0 29 28" fill="none" stroke="currentColor" stroke-width="1.68" stroke-linecap="round" aria-hidden="true">
             <path d="M18.8888 7.18696C18.724 6.38266 18.6417 5.98051 18.4934 5.6471C18.0595 4.67132 17.1876 3.95991 16.1445 3.73067C15.7882 3.65234 15.3777 3.65234 14.5567 3.65234H14.1749C12.9945 3.65234 12.4044 3.65234 11.9031 3.81339C11.1011 4.07107 10.4251 4.62064 10.0091 5.3532C9.74914 5.81103 9.62867 6.38876 9.38773 7.54422L7.20432 18.0151C6.74206 20.232 6.51093 21.3404 6.80579 22.2088C7.06439 22.9704 7.58759 23.6139 8.28034 24.0225C9.07026 24.4885 10.2025 24.4885 12.4671 24.4885H15.9205C18.1779 24.4885 19.3066 24.4885 20.0953 24.0243C20.7871 23.6173 21.3103 22.976 21.5703 22.2166C21.8666 21.3507 21.6401 20.245 21.1871 18.0336L19.9871 12.1762"/>
             <line x1="15.3552" y1="17.8517" x2="24.6724" y2="6.49723"/>
             <line x1="13.3625" y1="12.2303" x2="15.1141" y2="12.2303"/>
@@ -42,149 +42,182 @@
       </div>
 
       <div class="pocket-body">
-      <div class="pocket-grid">
 
-      <!-- SETUPS: presets that snapshot the whole panel -->
-      <details class="group" data-group="setups" open>
-        <summary>Setups</summary>
-        <div class="group-body">
+      <!-- Settings read/write these elements; the visible pills, steppers and
+           grids above are the UI that drives them. Keeping them as real form
+           controls means the preset / session snapshot logic is unchanged. -->
+      <div class="state" hidden>
+        <input type="range" id="tempo" min="40" max="160" step="1" value="80">
+        <input type="checkbox" id="click-on">
+        <input type="checkbox" id="play-along">
+        <input type="range" id="volume" min="0" max="100" step="5" value="80">
+        <input type="checkbox" id="hide-behind">
+        <input type="range" id="hide-lead" min="0" max="8" step="1" value="0">
+        <input type="checkbox" id="show-chunks">
+        <select id="instrument">
+          <option value="organ">Organ</option>
+          <option value="piano" selected>Piano</option>
+          <option value="marimba">Marimba</option>
+          <option value="vibraphone">Vibraphone</option>
+          <option value="synth">Synth</option>
+        </select>
+        <select id="cursor-mode">
+          <option value="beat" selected>Beat</option>
+          <option value="measure">Measure</option>
+          <option value="off">Off</option>
+        </select>
+        <select id="key-tonic">
+          <option value="0-0" selected>C</option>
+          <option value="1-0">D</option>
+          <option value="2-0">E</option>
+          <option value="3-0">F</option>
+          <option value="4-0">G</option>
+          <option value="5-0">A</option>
+          <option value="6-0">B</option>
+        </select>
+        <select id="key-mode">
+          <option value="major" selected>Major</option>
+          <option value="minor">Minor</option>
+          <option value="harmonic">Harmonic Minor</option>
+          <option value="melodic">Melodic Minor</option>
+        </select>
+        <select id="measures">
+          <option value="8">8</option>
+          <option value="12">12</option>
+          <option value="16" selected>16</option>
+          <option value="24">24</option>
+          <option value="32">32</option>
+        </select>
+        <select id="clef">
+          <option value="treble" selected>Treble</option>
+          <option value="alto">Alto</option>
+          <option value="tenor">Tenor</option>
+          <option value="bass">Bass</option>
+        </select>
+      </div>
+
+      <!-- PRESETS — snapshots of the whole panel -->
+      <div class="band">
+        <section class="sec">
+          <h2 class="sec-h">Presets</h2>
           <div class="presets" id="presets"></div>
-        </div>
-      </details>
+        </section>
+      </div>
 
-      <!-- NOTES: the alphabet matrix + range grid -->
-      <details class="group" data-group="notes" open>
-        <summary>Notes</summary>
-        <div class="group-body">
+      <!-- TEMPO · ACCOMPANIMENT · HIDE AHEAD -->
+      <div class="band">
+        <section class="sec sec-tempo">
+          <h2 class="sec-h">Tempo</h2>
+          <div class="sec-row">
+            <button class="icon-toggle js-metro" type="button" aria-label="Metronome on/off">
+              <svg class="metro-glyph" viewBox="0 0 29 28" fill="none" stroke="currentColor" stroke-width="1.68" stroke-linecap="round" aria-hidden="true">
+                <path d="M18.8888 7.18696C18.724 6.38266 18.6417 5.98051 18.4934 5.6471C18.0595 4.67132 17.1876 3.95991 16.1445 3.73067C15.7882 3.65234 15.3777 3.65234 14.5567 3.65234H14.1749C12.9945 3.65234 12.4044 3.65234 11.9031 3.81339C11.1011 4.07107 10.4251 4.62064 10.0091 5.3532C9.74914 5.81103 9.62867 6.38876 9.38773 7.54422L7.20432 18.0151C6.74206 20.232 6.51093 21.3404 6.80579 22.2088C7.06439 22.9704 7.58759 23.6139 8.28034 24.0225C9.07026 24.4885 10.2025 24.4885 12.4671 24.4885H15.9205C18.1779 24.4885 19.3066 24.4885 20.0953 24.0243C20.7871 23.6173 21.3103 22.976 21.5703 22.2166C21.8666 21.3507 21.6401 20.245 21.1871 18.0336L19.9871 12.1762"/>
+                <line x1="15.3552" y1="17.8517" x2="24.6724" y2="6.49723"/>
+                <line x1="13.3625" y1="12.2303" x2="15.1141" y2="12.2303"/>
+                <line x1="12.6916" y1="9.10532" x2="15.785" y2="9.10532"/>
+              </svg>
+            </button>
+            <button id="cursor-toggle" class="icon-toggle" type="button" aria-label="Cursor on/off">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/>
+              </svg>
+            </button>
+            <div class="stepper">
+              <span class="stepper-val" id="tempo-val">80</span>
+              <input type="range" class="stepper-range" id="tempo-ui" min="40" max="160" step="1" value="80" aria-label="Tempo">
+              <button id="tempo-down" class="step-btn" type="button" aria-label="Slower">&#8722;</button>
+              <button id="tempo-up" class="step-btn" type="button" aria-label="Faster">+</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="sec sec-accomp">
+          <h2 class="sec-h">Accompaniment</h2>
+          <div class="sec-row">
+            <button id="instrument-cycle" class="cycle" type="button" aria-label="Voice">Piano</button>
+            <div class="stepper stepper-plain">
+              <svg class="vol-glyph" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              <input type="range" class="stepper-range" id="volume-ui" min="0" max="100" step="5" value="80" aria-label="Volume">
+            </div>
+          </div>
+        </section>
+
+        <section class="sec sec-hide">
+          <h2 class="sec-h">Hide Ahead</h2>
+          <div class="sec-row">
+            <div class="stepper">
+              <span class="stepper-val" id="hide-val">Off</span>
+              <button id="hide-down" class="step-btn" type="button" aria-label="Less">&#8722;</button>
+              <button id="hide-up" class="step-btn" type="button" aria-label="More">+</button>
+            </div>
+            <button id="hide-unit" class="cycle" type="button" aria-label="Hide ahead unit">Beats</button>
+          </div>
+        </section>
+      </div>
+
+      <!-- RHYTHM — the beat figures -->
+      <div class="band">
+        <section class="sec">
+          <h2 class="sec-h">Rhythm</h2>
+          <div class="beats" id="beats"></div>
+        </section>
+      </div>
+
+      <!-- STEP · NOTES — the melodic alphabet and the pitches it may use -->
+      <div class="band">
+        <section class="sec sec-step">
+          <h2 class="sec-h">Step</h2>
           <div class="matrix-head">
-            <span></span>
+            <span></span><span></span>
             <span>up</span>
             <span>down</span>
           </div>
           <div class="matrix" id="matrix"></div>
+        </section>
+
+        <section class="sec sec-notes">
+          <h2 class="sec-h">Notes</h2>
           <div id="range-grid"></div>
-          <section>
-            <label for="musicality">Musicality <span id="musicality-val">0</span></label>
-            <input type="range" id="musicality" min="0" max="100" step="5" value="0">
-          </section>
-        </div>
-      </details>
+        </section>
+      </div>
 
-      <!-- RHYTHM: the beat patterns -->
-      <details class="group" data-group="rhythm" open>
-        <summary>Rhythm</summary>
-        <div class="group-body">
-          <div class="beats" id="beats"></div>
-        </div>
-      </details>
+      <!-- MUSICALITY · CHUNKS -->
+      <div class="band">
+        <section class="sec sec-musicality">
+          <h2 class="sec-h">Musicality</h2>
+          <div class="sec-row">
+            <input type="range" class="stepper-range bare-range" id="musicality" min="0" max="100" step="5" value="0" aria-label="Musicality">
+          </div>
+        </section>
 
-      <!-- KEY & LENGTH -->
-      <details class="group" data-group="key" open>
-        <summary>Key &amp; length</summary>
-        <div class="group-body">
-          <section>
-            <label>Key</label>
-            <div class="key-row">
-              <select id="key-tonic">
-                <option value="0-0" selected>C</option>
-                <option value="4-0">G</option>
-                <option value="1-0">D</option>
-                <option value="5-0">A</option>
-                <option value="2-0">E</option>
-                <option value="6-0">B</option>
-                <option value="3-0">F</option>
-                <option value="6-b">B&#9837;</option>
-                <option value="2-b">E&#9837;</option>
-                <option value="5-b">A&#9837;</option>
-              </select>
-              <select id="key-mode">
-                <option value="major" selected>Major</option>
-                <option value="minor">Minor</option>
-                <option value="harmonic">Harmonic min</option>
-                <option value="melodic">Melodic min</option>
-              </select>
-            </div>
-          </section>
+        <section class="sec sec-chunks">
+          <h2 class="sec-h">Chunks</h2>
+          <div class="sec-row">
+            <button id="chunks-toggle" class="cycle" type="button" aria-label="Show chunk brackets">Off</button>
+            <span class="legend">
+              <span class="legend-item"><span class="swatch swatch-scale"></span> steps</span>
+              <span class="legend-item"><span class="swatch swatch-chord"></span> leaps</span>
+            </span>
+          </div>
+        </section>
+      </div>
 
-          <section>
-            <label for="measures">Measures</label>
-            <select id="measures">
-              <option value="8">8</option>
-              <option value="12">12</option>
-              <option value="16" selected>16</option>
-              <option value="24">24</option>
-              <option value="32">32</option>
-              <option value="48">48</option>
-            </select>
-          </section>
-        </div>
-      </details>
+      <!-- STAFF, KEY AND LENGTH · MEASURES -->
+      <div class="band">
+        <section class="sec sec-key">
+          <h2 class="sec-h">Staff, Key and Length</h2>
+          <div class="sec-row">
+            <button id="clef-cycle" class="cycle cycle-clef cycle-glyph" type="button" aria-label="Clef"></button>
+            <button id="tonic-cycle" class="cycle" type="button" aria-label="Key">C</button>
+            <button id="mode-cycle" class="cycle" type="button" aria-label="Mode">Major</button>
+            <button id="acc-cycle" class="cycle cycle-glyph" type="button" aria-label="Accidental">&#9838;</button>
+          </div>
+        </section>
 
-      <!-- PLAYBACK: the moving clock -->
-      <details class="group" data-group="playback" open>
-        <summary>Playback</summary>
-        <div class="group-body">
-          <section>
-            <label for="tempo">Tempo <span id="tempo-val">80</span></label>
-            <input type="range" id="tempo" min="40" max="160" step="1" value="80">
-          </section>
-
-          <section class="toggle-row">
-            <label for="click-on">Metronome</label>
-            <input type="checkbox" id="click-on">
-          </section>
-
-          <section class="toggle-row">
-            <label for="play-along">Play along</label>
-            <input type="checkbox" id="play-along">
-          </section>
-
-          <section>
-            <label for="instrument">Voice</label>
-            <select id="instrument">
-              <option value="organ">Organ</option>
-              <option value="piano" selected>Piano</option>
-              <option value="marimba">Marimba</option>
-              <option value="vibraphone">Vibraphone</option>
-              <option value="synth">Synth</option>
-            </select>
-          </section>
-
-          <section>
-            <label for="volume">Volume <span id="volume-val">80</span></label>
-            <input type="range" id="volume" min="0" max="100" step="5" value="80">
-          </section>
-
-          <section>
-            <label for="cursor-mode">Cursor</label>
-            <select id="cursor-mode">
-              <option value="beat" selected>Beat</option>
-              <option value="measure">Measure</option>
-              <option value="off">Off</option>
-            </select>
-          </section>
-
-          <section class="toggle-row">
-            <label for="hide-behind">Hide behind</label>
-            <input type="checkbox" id="hide-behind">
-          </section>
-
-          <section>
-            <label for="hide-lead">Hide lead <span id="hide-lead-val">0</span></label>
-            <input type="range" id="hide-lead" min="0" max="8" step="1" value="0">
-          </section>
-
-          <section class="toggle-row">
-            <label for="show-chunks">Show chunks</label>
-            <input type="checkbox" id="show-chunks">
-          </section>
-        </div>
-      </details>
-      </div><!-- /pocket-grid -->
-
-      <div class="legend">
-        <span class="legend-item"><span class="swatch swatch-scale"></span> stepwise</span>
-        <span class="legend-item"><span class="swatch swatch-chord"></span> leaps</span>
+        <section class="sec sec-measures">
+          <h2 class="sec-h">Measures</h2>
+          <div class="sec-row" id="measures-pills"></div>
+        </section>
       </div>
 
       <p id="error-msg" class="error" hidden></p>

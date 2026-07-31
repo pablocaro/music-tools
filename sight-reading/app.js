@@ -23,6 +23,7 @@
   // ---- config ----
   var COLOR_SCALE = "#9aa0a8";   // neutral grey — stepwise motion
   var COLOR_CHORD = "#0a84ff";   // iOS blue — leaps / arpeggios
+  var WEIGHT_MIN = 1;            // min per-interval slider weight (the checkbox owns off)
   var WEIGHT_MAX = 4;            // max per-interval slider weight
   var MEASURES_PER_LINE = 6;     // cap on a wide screen
   var MIN_PER_LINE = 2;          // never fewer than this; shrink to fit if needed
@@ -33,7 +34,6 @@
   var SYSTEM_BREAK_PX = 40;     // vertical gap that signals a line wrap
   var STORE_KEY = "sr_presets";
   var SESSION_KEY = "sr_session";  // last-used settings, restored on reload
-  var GROUPS_KEY = "sr_groups";    // collapsed/expanded state of panel groups
   var COUNTIN_FREQ = 1568;      // count-in click pitch (G6) — distinct from play
   var PLAY_FREQ = 784;          // in-piece click pitch (G5)
 
@@ -64,17 +64,21 @@
     return (a && a.length === 7) ? a.slice(0, 6).concat([0], a.slice(6)) : a;
   }
 
-  var downInputs = [], upInputs = [];
+  var downInputs = [], upInputs = [], stepChecks = [], matrixRows = [];
   var matrixEl  = document.getElementById("matrix");
   var presetsEl = document.getElementById("presets");
+
+  // Short row labels — the matrix now leads with a checkbox, so the name column
+  // is narrow. ("=" is the unison/repeat row.)
+  var STEP_LABELS = ["=", "2", "3", "4", "5", "6", "7", "8ve"];
 
   function makeCell(arr) {
     var cell = document.createElement("div");
     cell.className = "cell";
     var input = document.createElement("input");
-    input.type = "range"; input.min = 0; input.max = WEIGHT_MAX; input.step = 1; input.value = 0;
+    input.type = "range"; input.min = WEIGHT_MIN; input.max = WEIGHT_MAX; input.step = 1; input.value = WEIGHT_MIN;
     var ro = document.createElement("span");
-    ro.className = "ro"; ro.textContent = "0";
+    ro.className = "ro"; ro.textContent = String(WEIGHT_MIN);
     input.addEventListener("input", function () { ro.textContent = input.value; });
     input.addEventListener("change", generate);
     cell.appendChild(input); cell.appendChild(ro);
@@ -82,34 +86,59 @@
     return cell;
   }
 
+  // Each interval row: a checkbox (is it in play?) + up/down weight sliders.
+  // The checkbox owns on/off, so a weight never has to mean "never" — it floors
+  // at WEIGHT_MIN and readAlphabet() zeroes out unchecked rows instead.
   function buildMatrix() {
-    INTERVALS.forEach(function (iv) {
+    INTERVALS.forEach(function (iv, i) {
       var row = document.createElement("div");
       row.className = "matrix-row";
+
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.setAttribute("aria-label", iv.n);
+      cb.addEventListener("change", function () { syncStepRow(i); generate(); });
+      stepChecks.push(cb);
+      row.appendChild(cb);
+
       var label = document.createElement("div");
       label.className = "row-label";
-      label.innerHTML = '<span class="dot" style="background:' + iv.c + '"></span>' + iv.n;
+      label.innerHTML = '<span class="dot" style="background:' + iv.c + '"></span>' + STEP_LABELS[i];
       row.appendChild(label);
+
       row.appendChild(makeCell(upInputs));
       row.appendChild(makeCell(downInputs));
+      matrixRows.push(row);
       matrixEl.appendChild(row);
     });
   }
 
-  function setWeights(weights) {
-    weights = fix7(weights);
-    for (var i = 0; i < weights.length; i++) {
-      downInputs[i].value = weights[i];
-      upInputs[i].value = weights[i];
-      downInputs[i].nextElementSibling.textContent = weights[i];
-      upInputs[i].nextElementSibling.textContent = weights[i];
-    }
+  function syncStepRow(i) {
+    if (matrixRows[i]) matrixRows[i].classList.toggle("off", !stepChecks[i].checked);
   }
 
+  // Apply a weight to both directions of a row. 0 means "not in play" — the
+  // checkbox goes off and the sliders rest at the floor.
+  function setRow(i, w) {
+    var on = w > 0, v = on ? Math.max(WEIGHT_MIN, Math.min(WEIGHT_MAX, w)) : WEIGHT_MIN;
+    stepChecks[i].checked = on;
+    downInputs[i].value = v; upInputs[i].value = v;
+    downInputs[i].nextElementSibling.textContent = v;
+    upInputs[i].nextElementSibling.textContent = v;
+    syncStepRow(i);
+  }
+
+  function setWeights(weights) {
+    weights = fix7(weights);
+    for (var i = 0; i < weights.length && i < INTERVALS.length; i++) setRow(i, +weights[i] || 0);
+  }
+
+  // An unchecked interval contributes 0, which is what the engine's weighted
+  // draw already understands — so nothing downstream needed to change.
   function readAlphabet() {
     return {
-      down: downInputs.map(function (x) { return +x.value; }),
-      up:   upInputs.map(function (x) { return +x.value; })
+      down: downInputs.map(function (x, i) { return stepChecks[i].checked ? +x.value : 0; }),
+      up:   upInputs.map(function (x, i) { return stepChecks[i].checked ? +x.value : 0; })
     };
   }
 
@@ -124,13 +153,20 @@
     catch (e) { return {}; }
   }
 
+  // A row is in play when either direction carries weight; the sliders then show
+  // each direction's weight (floored, since 0 is now expressed by the checkbox).
   function applyAlphabet(a) {
     var down = fix7(a.down), up = fix7(a.up);
     for (var i = 0; i < INTERVALS.length; i++) {
-      var d = (down && down[i]) || 0, u = (up && up[i]) || 0;
-      downInputs[i].value = d; upInputs[i].value = u;
-      downInputs[i].nextElementSibling.textContent = d;
-      upInputs[i].nextElementSibling.textContent = u;
+      var d = (down && +down[i]) || 0, u = (up && +up[i]) || 0;
+      var on = (d > 0 || u > 0);
+      stepChecks[i].checked = on;
+      var dv = Math.max(WEIGHT_MIN, Math.min(WEIGHT_MAX, d || WEIGHT_MIN));
+      var uv = Math.max(WEIGHT_MIN, Math.min(WEIGHT_MAX, u || WEIGHT_MIN));
+      downInputs[i].value = dv; upInputs[i].value = uv;
+      downInputs[i].nextElementSibling.textContent = dv;
+      upInputs[i].nextElementSibling.textContent = uv;
+      syncStepRow(i);
     }
   }
 
@@ -144,16 +180,18 @@
     if (p.beats) applyBeats(p.beats);
     if (p.key != null) setKeyFromCode(p.key);
     if (p.measures != null) measuresEl.value = String(Math.max(8, parseInt(p.measures, 10) || 16));
-    if (p.musicality != null) { musicalityEl.value = p.musicality; musicalityValEl.textContent = p.musicality; }
+    if (p.musicality != null) musicalityEl.value = p.musicality;
     if (p.tempo != null) { tempoEl.value = p.tempo; tempoValEl.textContent = p.tempo; }
     if (p.cursor != null) cursorModeEl.value = p.cursor;
     // metronome is intentionally NOT restored — it always starts off each load
     if (p.playAlong != null) playAlongEl.checked = p.playAlong;
     if (p.instrument != null) instrumentEl.value = p.instrument;
-    if (p.volume != null) { volumeEl.value = p.volume; volumeValEl.textContent = p.volume; }
+    if (p.volume != null) volumeEl.value = p.volume;
     if (p.hideBehind != null) hideBehindEl.checked = p.hideBehind;
-    if (p.hideLead != null) { hideLeadEl.value = p.hideLead; hideLeadValEl.textContent = p.hideLead; }
+    if (p.hideLead != null) hideLeadEl.value = p.hideLead;
+    if (p.hideUnit != null) hideUnitEl.dataset.unit = p.hideUnit;
     if (p.showChunks != null) showChunksEl.checked = p.showChunks;
+    if (p.clef != null) clefEl.value = p.clef;
   }
 
   // The full panel snapshot — what a preset and the remembered session store.
@@ -174,7 +212,9 @@
       volume: volumeEl.value,
       hideBehind: hideBehindEl.checked,
       hideLead: hideLeadEl.value,
-      showChunks: showChunksEl.checked
+      hideUnit: hideUnitEl.dataset.unit || "beats",
+      showChunks: showChunksEl.checked,
+      clef: clefEl.value
     };
   }
 
@@ -202,6 +242,7 @@
       pill.appendChild(label);
       pill.addEventListener("click", function () {
         applyPreset(all[name]);
+        syncPanel();              // a preset can move any control — re-read them all
         activePreset = name;
         markActive(pill);
         generate();
@@ -277,15 +318,19 @@
   var keyTonicEl   = document.getElementById("key-tonic");
   var keyModeEl    = document.getElementById("key-mode");
   var measuresEl   = document.getElementById("measures");
+  var clefEl       = document.getElementById("clef");
   var musicalityEl    = document.getElementById("musicality");
 
   // The scale key as a "<mode>_<symbol>-<acc>" code (the form makeScaleKey reads).
   function currentKeyCode() { return keyModeEl.value + "_" + keyTonicEl.value; }
+  // Restore a "<mode>_<symbol>-<acc>" code, ignoring anything the current build
+  // doesn't offer (a preset saved before a key list changed shouldn't wedge the app).
   function setKeyFromCode(code) {
     var parts = String(code).split("_");
-    if (parts.length === 2) { keyModeEl.value = parts[0]; keyTonicEl.value = parts[1]; }
+    if (parts.length !== 2) return;
+    if (keyModeEl.querySelector('option[value="' + parts[0] + '"]')) keyModeEl.value = parts[0];
+    if (keyTonicEl.querySelector('option[value="' + parts[1] + '"]')) keyTonicEl.value = parts[1];
   }
-  var musicalityValEl = document.getElementById("musicality-val");
   var beatsEl      = document.getElementById("beats");
   var showChunksEl = document.getElementById("show-chunks");
   var generateBtn  = document.getElementById("generate");
@@ -318,6 +363,7 @@
       var cell = rangeCells[oct + "-" + i];
       if (cell) cell.className = "note-cell" + (rangeState[oct][i] ? " on" : "");
     });
+    syncOctCheck(oct);
   }
 
   function applyRange(r) {
@@ -329,13 +375,22 @@
     });
   }
 
+  // Octave checkbox: on when any note in the row is picked; toggling it turns the
+  // whole octave on or off (matching the Step rows' checkbox-owns-the-row idea).
+  var octChecks = {};
+
+  function syncOctCheck(oct) {
+    if (octChecks[oct]) octChecks[oct].checked = rangeState[oct].some(Boolean);
+  }
+
   function buildRangeGrid() {
     var container = document.getElementById("range-grid");
     container.innerHTML = "";
     // column headers
     var hdr = document.createElement("div");
     hdr.className = "note-row";
-    hdr.appendChild(document.createElement("span")); // empty corner
+    hdr.appendChild(document.createElement("span")); // checkbox corner
+    hdr.appendChild(document.createElement("span")); // octave-label corner
     NOTE_COLS.forEach(function (nc) {
       var h = document.createElement("span");
       h.className = "note-col-hdr"; h.textContent = nc.name;
@@ -346,15 +401,26 @@
     RANGE_OCTAVES.forEach(function (oct) {
       var row = document.createElement("div");
       row.className = "note-row";
-      var lbl = document.createElement("button");
-      lbl.className = "note-row-lbl"; lbl.textContent = "C" + oct;
-      lbl.addEventListener("click", function () {
-        var allOn = rangeState[oct].every(Boolean);
-        rangeState[oct] = rangeState[oct].map(function () { return !allOn; });
-        syncRangeCells(oct);
-        generate();
-      });
+
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = rangeState[oct].some(Boolean);
+      cb.setAttribute("aria-label", "Octave " + oct);
+      (function (o) {
+        cb.addEventListener("change", function () {
+          var on = cb.checked;
+          rangeState[o] = rangeState[o].map(function () { return on; });
+          syncRangeCells(o);
+          generate();
+        });
+      })(oct);
+      octChecks[oct] = cb;
+      row.appendChild(cb);
+
+      var lbl = document.createElement("span");
+      lbl.className = "note-row-lbl"; lbl.textContent = String(oct);
       row.appendChild(lbl);
+
       NOTE_COLS.forEach(function (nc, i) {
         var cell = document.createElement("button");
         cell.className = "note-cell" + (rangeState[oct][i] ? " on" : "");
@@ -385,6 +451,46 @@
     });
     if (!isFinite(lowH)) { lowH = 48; highH = 71; } // fallback C4–B5
     return { lowH: lowH, highH: highH };
+  }
+
+  // ===========================================================================
+  // Clef
+  //
+  // OSME always exports a treble clef, so we swap the <clef> element in the
+  // MusicXML on its way to OSMD — render-side only, no generator changes.
+  // Each clef also carries the octave pair the melody should sit in, so
+  // switching clef moves the notes onto the staff instead of onto ledger lines.
+  // ===========================================================================
+  var CLEFS = [
+    { id: "treble", label: "𝄞", sign: "G", line: 2, octaves: [4, 5] },   // 𝄞
+    { id: "alto",   label: "𝄡", sign: "C", line: 3, octaves: [3, 4] },   // 𝄡
+    { id: "tenor",  label: "𝄡", sign: "C", line: 4, octaves: [3, 4] },
+    { id: "bass",   label: "𝄢", sign: "F", line: 4, octaves: [2, 3] }    // 𝄢
+  ];
+  function clefDef(id) {
+    for (var i = 0; i < CLEFS.length; i++) if (CLEFS[i].id === id) return CLEFS[i];
+    return CLEFS[0];
+  }
+
+  // Rewrite the exported score's clef. The exporter emits exactly one
+  // <clef><sign>G</sign><line>2</line></clef> per part, at the first measure.
+  function applyClefToXml(xml) {
+    var c = clefDef(clefEl.value);
+    if (c.id === "treble") return xml;
+    return xml.replace(/<clef>[\s\S]*?<\/clef>/g,
+      "<clef><sign>" + c.sign + "</sign><line>" + c.line + "</line></clef>");
+  }
+
+  // Move the picked notes onto the new clef's staff: select every pitch in that
+  // clef's two octaves. (Hand-picking afterwards is untouched until the next
+  // clef change.)
+  function shiftRangeToClef(id) {
+    var octs = clefDef(id).octaves;
+    RANGE_OCTAVES.forEach(function (oct) {
+      var on = (octs.indexOf(oct) >= 0);
+      rangeState[oct] = NOTE_COLS.map(function () { return on; });
+      syncRangeCells(oct);
+    });
   }
 
   // ===========================================================================
@@ -573,7 +679,7 @@
     try {
       var plugin = new ExampleSourceGenerator(buildOptions());
       currentSheet = plugin.generate();
-      var xml = new XMLSourceExporter().export(currentSheet);
+      var xml = applyClefToXml(new XMLSourceExporter().export(currentSheet));
       osmd.load(xml).then(function () {
         renderLoaded();
         persistSession();
@@ -604,7 +710,8 @@
 
   // The top bar: drill name, then "Key Mode – N Bars".
   function updateHeader() {
-    var tonic = keyTonicEl.options[keyTonicEl.selectedIndex].textContent;
+    var sel = keyTonicEl.options[keyTonicEl.selectedIndex];
+    var tonic = sel ? sel.textContent : "C";
     var mode = MODE_FULL[keyModeEl.value] || "";
     shTitleEl.textContent = titleCase(activePreset || "Custom");
     shSubEl.textContent = tonic + " " + mode + " – " + measuresEl.value + " Bars";
@@ -753,8 +860,12 @@
   }
 
   // Reflect the transport toggles' state on their buttons (blue tint when active).
+  // The metronome has two faces — the transport bar and the Tempo section — so
+  // every .js-metro button tracks the one checkbox.
   function syncMetroPill() {
-    if (metroToggleEl) metroToggleEl.classList.toggle("on", clickOnEl.checked);
+    document.querySelectorAll(".js-metro").forEach(function (b) {
+      b.classList.toggle("on", clickOnEl.checked);
+    });
   }
   function syncAccompBtn() {
     if (accompBtn) accompBtn.classList.toggle("on", playAlongEl.checked);
@@ -871,17 +982,14 @@
   // ===========================================================================
   var tempoEl      = document.getElementById("tempo");
   var tempoValEl   = document.getElementById("tempo-val");
-  var metroToggleEl = document.getElementById("metro-toggle");   // 🎼 transport button
   var accompBtn    = document.getElementById("accomp");          // ♩ transport button
   var clickOnEl    = document.getElementById("click-on");
   var playAlongEl  = document.getElementById("play-along");
   var instrumentEl = document.getElementById("instrument");
   var volumeEl     = document.getElementById("volume");
-  var volumeValEl  = document.getElementById("volume-val");
   var hideBehindEl = document.getElementById("hide-behind");
   var cursorModeEl = document.getElementById("cursor-mode");
   var hideLeadEl   = document.getElementById("hide-lead");
-  var hideLeadValEl = document.getElementById("hide-lead-val");
   var countdownEl  = document.getElementById("countdown");
   var playBtn      = document.getElementById("play");
 
@@ -904,9 +1012,7 @@
   var playVoices = [];          // scheduled play-along oscillators, killed on stop
 
   tempoEl.addEventListener("input", function () { tempoValEl.textContent = tempoEl.value; updateHeader(); retempo(); });
-  hideLeadEl.addEventListener("input", function () { hideLeadValEl.textContent = hideLeadEl.value; });
   volumeEl.addEventListener("input", function () {
-    volumeValEl.textContent = volumeEl.value;
     if (bus) bus.master.gain.value = volume();        // live while playing
   });
 
@@ -1368,13 +1474,252 @@
   }
 
   // ===========================================================================
+  // Panel controls
+  //
+  // The visible pills / steppers / grids drive the hidden form elements, which
+  // remain the single source of truth the preset + session snapshot reads.
+  // ===========================================================================
+  var tonicCycleEl = document.getElementById("tonic-cycle");
+  var accCycleEl   = document.getElementById("acc-cycle");
+  var modeCycleEl  = document.getElementById("mode-cycle");
+  var clefCycleEl  = document.getElementById("clef-cycle");
+  var hideUnitEl   = document.getElementById("hide-unit");
+  var hideValEl    = document.getElementById("hide-val");
+  var instCycleEl  = document.getElementById("instrument-cycle");
+  var chunksBtnEl  = document.getElementById("chunks-toggle");
+  var cursorBtnEl  = document.getElementById("cursor-toggle");
+  var tempoUiEl    = document.getElementById("tempo-ui");
+  var volumeUiEl   = document.getElementById("volume-ui");
+  var measuresPillsEl = document.getElementById("measures-pills");
+
+  var LETTERS = ["C", "D", "E", "F", "G", "A", "B"];          // key-code symbols 0–6
+  var ACCS = [{ v: "0", label: "♮" }, { v: "#", label: "♯" }, { v: "b", label: "♭" }];
+  var MODES = ["major", "minor", "harmonic", "melodic"];
+  var HIDE_MAX = 8;
+
+  // Which letter+accidental combinations OSME can actually build a scale from.
+  // ScaleKey.create doesn't reject an impossible key (D♯ major and friends) — it
+  // hands back tones the ladder then chokes on — so probe by actually building
+  // the ladder in every mode and keeping only the keys that survive.
+  var validAcc = {};
+  function keyWorks(sym, acc) {
+    for (var m = 0; m < MODES.length; m++) {
+      try {
+        var sk = makeScaleKey(MODES[m] + "_" + sym + "-" + acc);
+        var tones = sk.getTones();
+        if (!tones || tones.length < 7) return false;
+        for (var t = 0; t < tones.length; t++) {
+          if (!tones[t] || typeof tones[t].getSymbol !== "function") return false;
+        }
+        SREngine.buildLadder(sk);
+      } catch (e) { return false; }
+    }
+    return true;
+  }
+
+  // Probe, then rebuild the hidden <select> to hold exactly the valid keys — so
+  // any code a saved preset carries can still be restored onto it.
+  function probeKeys() {
+    var current = keyTonicEl.value;
+    keyTonicEl.innerHTML = "";
+    for (var s = 0; s < 7; s++) {
+      validAcc[s] = [];
+      ACCS.forEach(function (a) {
+        if (!keyWorks(s, a.v)) return;
+        validAcc[s].push(a.v);
+        var o = document.createElement("option");
+        o.value = s + "-" + a.v;
+        o.textContent = LETTERS[s] + (a.v === "#" ? "♯" : a.v === "b" ? "♭" : "");
+        keyTonicEl.appendChild(o);
+      });
+      if (!validAcc[s].length) validAcc[s] = ["0"];
+    }
+    keyTonicEl.value = keyTonicEl.querySelector('option[value="' + current + '"]') ? current : "0-0";
+  }
+
+  function keyParts() {
+    var tp = String(keyTonicEl.value).split("-");
+    return { sym: parseInt(tp[0], 10) || 0, acc: tp[1] || "0" };
+  }
+  function setKeyParts(sym, acc) {
+    if (validAcc[sym] && validAcc[sym].indexOf(acc) < 0) acc = validAcc[sym][0];
+    keyTonicEl.value = sym + "-" + acc;   // probeKeys() guarantees the option exists
+  }
+
+  function syncKeyRow() {
+    var k = keyParts();
+    tonicCycleEl.textContent = LETTERS[k.sym];
+    var a = ACCS.filter(function (x) { return x.v === k.acc; })[0] || ACCS[0];
+    accCycleEl.textContent = a.label;
+    accCycleEl.classList.toggle("on", k.acc !== "0");
+    modeCycleEl.textContent = MODE_FULL[keyModeEl.value] || "Major";
+    clefCycleEl.textContent = clefDef(clefEl.value).label;
+    clefCycleEl.title = clefDef(clefEl.value).id;
+  }
+
+  // Hide Ahead: 0 reads as "Off" — that's what replaces the old hide-behind
+  // checkbox, so any value above 0 means hiding is on with that much lead.
+  function hideUnitIsMeasures() { return hideUnitEl.dataset.unit === "measures"; }
+  function syncHide() {
+    var n = parseInt(hideValEl.dataset.n, 10) || 0;
+    hideValEl.textContent = n === 0 ? "Off" : String(n);
+    hideUnitEl.textContent = hideUnitIsMeasures() ? "Measures" : "Beats";
+    hideBehindEl.checked = n > 0;
+    hideLeadEl.value = Math.min(HIDE_MAX, hideUnitIsMeasures() ? n * BEATS_PER_BAR : n);
+  }
+  function setHide(n, unit) {
+    hideValEl.dataset.n = Math.max(0, Math.min(HIDE_MAX, n));
+    if (unit) hideUnitEl.dataset.unit = unit;
+    syncHide();
+  }
+  // Restore the stepper from the stored beats-lead + on/off flag.
+  function hideFromState() {
+    var lead = parseInt(hideLeadEl.value, 10) || 0;
+    if (!hideBehindEl.checked) { setHide(0); return; }
+    if (hideUnitIsMeasures()) setHide(Math.max(1, Math.round(lead / BEATS_PER_BAR)));
+    else setHide(Math.max(1, lead));
+  }
+
+  function syncInstrument() {
+    var o = instrumentEl.options[instrumentEl.selectedIndex];
+    instCycleEl.textContent = o ? o.textContent : "Piano";
+  }
+  function syncChunks() {
+    chunksBtnEl.textContent = showChunksEl.checked ? "On" : "Off";
+    chunksBtnEl.classList.toggle("on", showChunksEl.checked);
+  }
+  function syncCursorBtn() {
+    cursorBtnEl.classList.toggle("on", cursorModeEl.value !== "off");
+  }
+  function syncTempoUi() {
+    tempoUiEl.value = tempoEl.value;
+    tempoValEl.textContent = tempoEl.value;
+  }
+
+  function buildMeasuresPills() {
+    measuresPillsEl.innerHTML = "";
+    Array.prototype.forEach.call(measuresEl.options, function (opt) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "opt";
+      b.textContent = opt.textContent;
+      b.addEventListener("click", function () {
+        measuresEl.value = opt.value;
+        syncMeasuresPills();
+        generate();
+      });
+      measuresPillsEl.appendChild(b);
+    });
+    syncMeasuresPills();
+  }
+  function syncMeasuresPills() {
+    Array.prototype.forEach.call(measuresPillsEl.children, function (b, i) {
+      b.classList.toggle("on", measuresEl.options[i].value === measuresEl.value);
+    });
+  }
+
+  // Reflect every hidden control onto its visible counterpart. Called after any
+  // preset / session restore, so the whole panel re-reads from one place.
+  function syncPanel() {
+    syncKeyRow();
+    syncInstrument();
+    syncChunks();
+    syncCursorBtn();
+    syncTempoUi();
+    syncMeasuresPills();
+    hideFromState();
+    volumeUiEl.value = volumeEl.value;
+    syncTransport();
+  }
+
+  function wirePanel() {
+    // --- key row: each pill advances through its own list ---
+    tonicCycleEl.addEventListener("click", function () {
+      var k = keyParts();
+      setKeyParts((k.sym + 1) % 7, k.acc);
+      syncKeyRow(); generate();
+    });
+    accCycleEl.addEventListener("click", function () {
+      var k = keyParts(), allowed = validAcc[k.sym] || ["0"];
+      var i = allowed.indexOf(k.acc);
+      setKeyParts(k.sym, allowed[(i + 1) % allowed.length]);
+      syncKeyRow(); generate();
+    });
+    modeCycleEl.addEventListener("click", function () {
+      var i = MODES.indexOf(keyModeEl.value);
+      keyModeEl.value = MODES[(i + 1) % MODES.length];
+      syncKeyRow(); generate();
+    });
+    clefCycleEl.addEventListener("click", function () {
+      var ids = CLEFS.map(function (c) { return c.id; });
+      var i = ids.indexOf(clefEl.value);
+      clefEl.value = ids[(i + 1) % ids.length];
+      shiftRangeToClef(clefEl.value);      // move the notes onto the new staff
+      syncKeyRow(); generate();
+    });
+
+    // --- tempo: slider drags, ±5 nudges ---
+    tempoUiEl.addEventListener("input", function () {
+      tempoEl.value = tempoUiEl.value;
+      tempoEl.dispatchEvent(new Event("input"));
+      tempoValEl.textContent = tempoEl.value;
+    });
+    tempoUiEl.addEventListener("change", persistSession);
+    function bumpTempo(d) {
+      tempoEl.value = Math.max(40, Math.min(160, (parseInt(tempoEl.value, 10) || 80) + d));
+      tempoEl.dispatchEvent(new Event("input"));
+      syncTempoUi();
+      persistSession();
+    }
+    document.getElementById("tempo-down").addEventListener("click", function () { bumpTempo(-5); });
+    document.getElementById("tempo-up").addEventListener("click", function () { bumpTempo(5); });
+
+    // --- accompaniment ---
+    instCycleEl.addEventListener("click", function () {
+      ensureAudio();
+      var n = instrumentEl.options.length;
+      instrumentEl.selectedIndex = (instrumentEl.selectedIndex + 1) % n;
+      instrumentEl.dispatchEvent(new Event("change"));
+      syncInstrument();
+    });
+    volumeUiEl.addEventListener("input", function () {
+      volumeEl.value = volumeUiEl.value;
+      volumeEl.dispatchEvent(new Event("input"));
+    });
+    volumeUiEl.addEventListener("change", persistSession);
+
+    // --- hide ahead ---
+    document.getElementById("hide-down").addEventListener("click", function () {
+      setHide((parseInt(hideValEl.dataset.n, 10) || 0) - 1); persistSession();
+    });
+    document.getElementById("hide-up").addEventListener("click", function () {
+      setHide((parseInt(hideValEl.dataset.n, 10) || 0) + 1); persistSession();
+    });
+    hideUnitEl.addEventListener("click", function () {
+      hideUnitEl.dataset.unit = hideUnitIsMeasures() ? "beats" : "measures";
+      syncHide(); persistSession();
+    });
+
+    // --- chunks + cursor ---
+    chunksBtnEl.addEventListener("click", function () {
+      showChunksEl.checked = !showChunksEl.checked;
+      showChunksEl.dispatchEvent(new Event("change"));
+      syncChunks();
+    });
+    cursorBtnEl.addEventListener("click", function () {
+      cursorModeEl.value = (cursorModeEl.value === "off") ? "beat" : "off";
+      cursorModeEl.dispatchEvent(new Event("change"));
+      syncCursorBtn();
+    });
+  }
+
+  // ===========================================================================
   // Wiring + init
   // ===========================================================================
   function showError(msg) { errorEl.textContent = msg; errorEl.hidden = false; }
   function clearError() { errorEl.hidden = true; errorEl.textContent = ""; }
 
   [keyTonicEl, keyModeEl, measuresEl, musicalityEl].forEach(function (el) { el.addEventListener("change", generate); });
-  musicalityEl.addEventListener("input", function () { musicalityValEl.textContent = musicalityEl.value; });
   showChunksEl.addEventListener("change", drawOverlay);
   generateBtn.addEventListener("click", function () { generate(); });
   playBtn.addEventListener("click", function () {
@@ -1385,10 +1730,12 @@
   document.getElementById("from-top").addEventListener("click", resetTop);
   setPlayIcon(false);
 
-  // 🎼 transport button toggles the metronome (mirrors the sidebar checkbox).
-  metroToggleEl.addEventListener("click", function () {
-    clickOnEl.checked = !clickOnEl.checked;
-    clickOnEl.dispatchEvent(new Event("change"));
+  // Either 🎼 button (transport bar or Tempo section) toggles the metronome.
+  document.querySelectorAll(".js-metro").forEach(function (b) {
+    b.addEventListener("click", function () {
+      clickOnEl.checked = !clickOnEl.checked;
+      clickOnEl.dispatchEvent(new Event("change"));
+    });
   });
   clickOnEl.addEventListener("change", syncMetroPill);
 
@@ -1448,22 +1795,6 @@
     if (isSampled(v)) { sampleFailed[v] = false; loadSamples(v); }
   });
 
-  // Remember which panel groups are open/closed.
-  function initGroups() {
-    var state = {};
-    try { state = JSON.parse(localStorage.getItem(GROUPS_KEY)) || {}; } catch (e) {}
-    var groups = document.querySelectorAll(".group");
-    groups.forEach(function (g) {
-      var name = g.getAttribute("data-group");
-      if (state.hasOwnProperty(name)) g.open = state[name];
-      g.addEventListener("toggle", function () {
-        var s = {};
-        groups.forEach(function (gg) { s[gg.getAttribute("data-group")] = gg.open; });
-        try { localStorage.setItem(GROUPS_KEY, JSON.stringify(s)); } catch (e) {}
-      });
-    });
-  }
-
   var resizeTimer = null;
   window.addEventListener("resize", function () {
     clearTimeout(resizeTimer);
@@ -1484,16 +1815,18 @@
     sheetEl.parentNode.addEventListener(ev, function () { pinTop = false; }, { passive: true });
   });
 
+  probeKeys();                 // which accidentals each letter supports
   initRangeState();
   buildRangeGrid();
   buildBeatsPalette();
   buildMatrix();
+  buildMeasuresPills();
+  wirePanel();
   setWeights(BUILTIN["thirds drill"]);
   activePreset = "thirds drill";
   restoreSession();            // override defaults with last-used settings, if any
-  syncTransport();             // reflect the restored metronome / accompaniment state
+  syncPanel();                 // reflect the restored state across every visible control
   if (isSampled(instrumentEl.value)) loadSamples(instrumentEl.value);   // preload so it's ready before Play
   renderPresets();
-  initGroups();
   generate();
 }());

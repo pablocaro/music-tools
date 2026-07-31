@@ -28,6 +28,23 @@
   --ctl-on: var(--chord);                                          /* selected = iOS-blue accent */
   --ctl-on-ink: var(--paper);                                      /* text/glyph on a filled selected control */
   --ctl-on-tint: color-mix(in srgb, var(--chord) 10%, var(--paper)); /* subtle tint for pill-selected */
+  --ctl-h: 40px;                                                   /* standard control height in the panel */
+  --ctl-fill: var(--paper-dim);                                    /* recessed track / plain-container fill */
+
+  /* Type scale — same naming as pitch-trainer's, so the two apps read as one
+     system. Sizes differ (this one sits on paper, at desktop distances). */
+  --fs-0: 10px;   /* micro — grid column/row headers */
+  --fs-1: 11px;   /* caption — section headings */
+  --fs-2: 14px;   /* label — control text, pills */
+  --fs-3: 15px;   /* subtitle */
+  --fs-4: 28px;   /* title */
+  --type-micro:   var(--fs-0);
+  --type-caption: var(--fs-1);   /* section headings */
+  --type-label:   var(--fs-2);   /* pills, cycles, steppers */
+  --type-title:   var(--fs-4);   /* the drill name */
+  --weight-standard:  500;
+  --weight-prominent: 600;   /* section headings, control labels */
+  --weight-strong:    700;   /* titles, stepper values */
 }
 
 *, *::before, *::after {
@@ -140,20 +157,58 @@ body {
   padding: 4px 20px calc(24px + env(safe-area-inset-bottom, 0px));
 }
 
-/* Groups laid out as open cards that use the width: ~3 cols desktop, 2 iPad, 1 phone. */
-.pocket-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 16px;
-  align-items: start;
+/* ---------------------------------------------------------------------------
+   PATTERN: band + section
+   The panel is a stack of horizontal bands. Each band holds one or more
+   sections and simply wraps: sections sit side by side when there's width and
+   stack when there isn't, so phone / iPad / desktop fall out of one rule set
+   instead of three layouts. A section never splits across a wrap.
+   --------------------------------------------------------------------------- */
+.band {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
 }
-.pocket-grid [data-group="setups"] { grid-column: 1 / -1; }   /* Setups spans the top */
+.band:last-of-type { border-bottom: none; }
 
-.group {
-  background: var(--paper-dim);
-  border-radius: 14px;
-  padding: 12px 15px;
+.sec {
+  flex: 1 1 100%;      /* full width by default; the modifiers below pair them up */
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
+
+/* Section heading — the caption style shared with the old group summaries. */
+.sec-h {
+  font-size: var(--type-caption);
+  font-weight: var(--weight-prominent);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--muted);
+}
+
+/* A row of controls inside a section. */
+.sec-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Band pairing. Sections declare the width they want to keep; below it they
+   wrap to their own line on their own. */
+.sec-tempo      { flex: 3 1 320px; }
+.sec-accomp     { flex: 2 1 260px; }
+.sec-hide       { flex: 2 1 240px; }
+.sec-step       { flex: 1 1 380px; }
+.sec-notes      { flex: 1 1 340px; }
+.sec-musicality { flex: 3 1 320px; }
+.sec-chunks     { flex: 1 1 220px; }
+.sec-key        { flex: 1 1 300px; }
+.sec-measures   { flex: 1 1 260px; }
 
 /* Scrim: dims the music behind the open pocket; tap it to close. */
 .scrim {
@@ -212,44 +267,9 @@ section {
   justify-content: space-between;
 }
 
-/* Collapsible groups */
-.group > summary {
-  list-style: none;
-  cursor: pointer;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.7px;
-  color: var(--muted);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  user-select: none;
-}
-
-.group > summary::-webkit-details-marker { display: none; }
-
-.group > summary::after {
-  content: "›";
-  font-size: 15px;
-  line-height: 1;
-  transition: transform 0.15s;
-  transform: rotate(90deg);
-}
-
-.group:not([open]) > summary::after { transform: rotate(0deg); }
-.group > summary:hover { color: var(--ink); }
-
-.group-body {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding-top: 12px;
-}
-
 label {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--type-caption);
+  font-weight: var(--weight-prominent);
   text-transform: uppercase;
   letter-spacing: 0.7px;
   color: var(--muted);
@@ -257,26 +277,6 @@ label {
   justify-content: space-between;
   align-items: center;
 }
-
-select {
-  width: 100%;
-  background: var(--paper);
-  border: var(--ctl-border) solid var(--line);
-  color: var(--ink);
-  border-radius: var(--ctl-radius-box);
-  padding: 8px 10px;
-  font-size: 14px;
-  font-family: inherit;
-  appearance: none;
-  cursor: pointer;
-  outline: none;
-}
-
-select:focus { border-color: var(--ctl-on); }
-
-.key-row { display: flex; gap: 8px; }
-.key-row #key-tonic { flex: 0 0 34%; }
-.key-row #key-mode { flex: 1; }
 
 input[type="range"] {
   width: 100%;
@@ -285,10 +285,153 @@ input[type="range"] {
 }
 
 input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
   accent-color: var(--chord);
   cursor: pointer;
+}
+
+/* Hidden state mirror — the real form controls the settings logic reads. */
+.state[hidden] { display: none; }
+
+/* ---------------------------------------------------------------------------
+   PATTERN: cycle
+   A pill that advances through a short list of values on tap, showing the
+   current one. Used where a menu would cost more space than it's worth: clef,
+   key letter, accidental, mode, hide-ahead unit, voice. Always reads as "set",
+   so it carries the rest style — it's a value display, not an on/off.
+   --------------------------------------------------------------------------- */
+.cycle {
+  height: var(--ctl-h);
+  min-width: 56px;
+  padding: 0 16px;
+  border: var(--ctl-border) solid var(--line);
+  border-radius: var(--ctl-radius);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: var(--type-label);
+  font-weight: var(--weight-prominent);
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+}
+.cycle:hover { border-color: var(--muted); opacity: 1; }
+.cycle:active { transform: scale(0.96); opacity: 1; }
+/* A cycle whose value is itself an "on" state (chunks on) takes the accent. */
+.cycle.on {
+  border-color: var(--ctl-on);
+  background: var(--ctl-on-tint);
+  color: var(--ctl-on);
+}
+/* Music characters (clefs, accidentals) sit small and light beside text at the
+   same nominal size, so they get their own optical size. */
+.cycle-glyph { font-size: 21px; line-height: 1; }
+.cycle-clef  { font-size: 26px; min-width: 62px; }
+
+/* ---------------------------------------------------------------------------
+   PATTERN: stepper
+   A recessed container holding a value, an optional slider, and −/+ buttons —
+   coarse dragging and fine nudging in one control. Used for tempo, volume and
+   hide-ahead.
+   --------------------------------------------------------------------------- */
+.stepper {
+  flex: 1 1 200px;
+  min-width: 0;
+  height: var(--ctl-h);
+  padding: 0 5px 0 14px;
+  border-radius: var(--ctl-radius);
+  background: var(--ctl-fill);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.stepper-plain { padding-left: 12px; }
+
+.stepper-val {
+  font-size: 17px;
+  font-weight: var(--weight-strong);
+  color: var(--ink);
+  white-space: nowrap;
+  min-width: 30px;
+}
+
+.stepper-range { flex: 1; min-width: 40px; }
+.bare-range { width: 100%; }
+
+.vol-glyph { width: 20px; height: 20px; flex-shrink: 0; color: var(--ink); }
+
+.step-btn {
+  width: 30px; height: 30px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  font-size: 19px; font-weight: var(--weight-prominent); line-height: 1;
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background 0.15s, transform 0.1s;
+}
+.step-btn:hover { background: #f4f4f6; opacity: 1; }
+.step-btn:active { transform: scale(0.92); opacity: 1; }
+
+/* ---------------------------------------------------------------------------
+   PATTERN: icon-toggle
+   A round icon button that is on or off — the panel-sized sibling of the
+   transport bar's .cb-icon. Off is a grey disc; on takes the accent tint.
+   --------------------------------------------------------------------------- */
+.icon-toggle {
+  width: var(--ctl-h); height: var(--ctl-h);
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--ctl-fill);
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
+}
+.icon-toggle:hover { background: #e7e7ec; opacity: 1; }
+.icon-toggle:active { transform: scale(0.94); opacity: 1; }
+.icon-toggle.on { background: var(--ctl-on-tint); color: var(--ctl-on); }
+.icon-toggle svg { width: 22px; height: 22px; display: block; }
+.icon-toggle .metro-glyph { width: 25px; height: 24px; }
+
+/* ---------------------------------------------------------------------------
+   PATTERN: opt
+   A choice pill within a mutually-exclusive row (measures). Same shape as a
+   preset pill; selected takes the accent border + tint.
+   --------------------------------------------------------------------------- */
+.opt {
+  min-width: 52px;
+  height: var(--ctl-h);
+  padding: 0 16px;
+  border: var(--ctl-border) solid var(--line);
+  border-radius: var(--ctl-radius);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: var(--type-label);
+  font-weight: var(--weight-prominent);
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+}
+.opt:hover { border-color: var(--muted); opacity: 1; }
+.opt:active { transform: scale(0.96); opacity: 1; }
+.opt.on {
+  border-color: var(--ctl-on);
+  background: var(--ctl-on-tint);
+  color: var(--ctl-on);
 }
 
 button {
@@ -296,8 +439,8 @@ button {
   border: none;
   border-radius: 6px;
   font-family: inherit;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--fs-2);
+  font-weight: var(--weight-prominent);
   cursor: pointer;
   background: var(--ink);
   color: var(--paper);
@@ -325,8 +468,8 @@ button.secondary {
   align-items: center;
   gap: 6px;
   padding: 8px 15px;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: var(--type-label);
+  font-weight: var(--weight-standard);
   border-radius: var(--ctl-radius);
   border: var(--ctl-border) solid var(--line);
   background: var(--paper);
@@ -354,22 +497,28 @@ button.secondary {
   color: var(--muted);
 }
 
-/* Alphabet matrix */
+/* Alphabet matrix — a checkbox owns whether an interval is in play; the two
+   sliders are its up / down weight (which therefore never needs to reach 0). */
 .matrix-head,
 .matrix-row {
   display: grid;
-  grid-template-columns: 64px 1fr 1fr;
+  grid-template-columns: 22px 46px 1fr 1fr;
   gap: 6px 10px;
   align-items: center;
 }
 
 .matrix-head {
-  font-size: 10px;
+  font-size: var(--type-micro);
+  font-weight: var(--weight-prominent);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--muted);
   margin-top: 2px;
 }
+
+/* An interval that's switched off dims its weights, but they stay legible and
+   draggable — so you can dial a weight in before enabling the row. */
+.matrix-row.off .cell { opacity: 0.38; }
 
 .matrix {
   display: flex;
@@ -381,7 +530,8 @@ button.secondary {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--fs-2);
+  font-weight: var(--weight-standard);
 }
 
 .dot {
@@ -400,7 +550,8 @@ button.secondary {
 .cell input[type="range"] { flex: 1; }
 
 .cell .ro {
-  font-size: 11px;
+  font-size: var(--type-caption);
+  font-weight: var(--weight-prominent);
   color: var(--muted);
   min-width: 8px;
   text-align: right;
@@ -460,16 +611,16 @@ button.secondary {
 
 .fig-cell:hover::after { opacity: 1; }
 
-/* Legend */
+/* Legend — what the two bracket colours mean, beside the Chunks toggle. */
 .legend {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  font-size: 11px;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: var(--type-caption);
   color: var(--muted);
 }
 
-.legend-item { display: flex; align-items: center; gap: 8px; }
+.legend-item { display: inline-flex; align-items: center; gap: 6px; }
 
 .swatch {
   width: 18px;
@@ -546,8 +697,8 @@ button.secondary {
   padding: 22px 40px 6px;
 }
 .tb-titles { min-width: 0; }
-#sh-title { font-size: 28px; font-weight: 700; color: var(--ink); letter-spacing: 0.2px; line-height: 1.15; }
-#sh-sub   { font-size: 15px; font-weight: 600; color: var(--muted); margin-top: 5px; }
+#sh-title { font-size: var(--type-title); font-weight: var(--weight-strong); color: var(--ink); letter-spacing: 0.2px; line-height: 1.15; }
+#sh-sub   { font-size: var(--fs-3); font-weight: var(--weight-prominent); color: var(--muted); margin-top: 5px; }
 
 /* Regenerate — same rounded-icon family as the transport, set in paper-dim. */
 .tb-btn {
@@ -606,40 +757,33 @@ button.secondary {
 
 .note-row {
   display: grid;
-  grid-template-columns: 24px repeat(7, 1fr);
-  gap: 3px;
+  grid-template-columns: 22px 22px repeat(7, 1fr);
+  gap: 4px;
   align-items: center;
 }
 
 .note-col-hdr {
-  font-size: 9px;
-  font-weight: 600;
+  font-size: var(--type-micro);
+  font-weight: var(--weight-prominent);
   text-transform: uppercase;
   letter-spacing: 0.4px;
   color: var(--muted);
   text-align: center;
 }
 
+/* The octave number beside its checkbox — the checkbox toggles the whole row. */
 .note-row-lbl {
-  font-size: 9px;
-  font-weight: 600;
+  font-size: var(--type-micro);
+  font-weight: var(--weight-prominent);
   color: var(--muted);
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
   text-align: left;
-  font-family: inherit;
   letter-spacing: 0.2px;
-  transition: color 0.1s;
 }
 
-.note-row-lbl:hover { color: var(--ink); }
-
 .note-cell {
-  height: 18px;
+  height: 22px;
   width: 100%;
-  border-radius: 3px;
+  border-radius: 4px;
   border: 1px solid var(--line);
   background: var(--paper);
   cursor: pointer;
