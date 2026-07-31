@@ -21,7 +21,12 @@
   --bar-h: 94px;         /* control-bar height = the pocket's visible lip when closed */
 
   /* Buttons / controls — sight-reading's own (filled-on-paper) system, sibling to
-     pitch-trainer's outline-on-colour one. Roomier scale (2px borders); selected = accent. */
+     pitch-trainer's outline-on-colour one.
+       Rest      every control is a filled shape on paper, never outlined.
+       Selected  earns the accent: a blue fill for cells in a grid, a blue tint
+                 for pills and toggles.
+     Borders are kept at a transparent 2px rather than removed, so they hold the
+     metrics and a future selected state can colour them in without reflowing. */
   --ctl-border: 2px;
   --ctl-radius: 999px;                                             /* pill controls (presets) */
   --ctl-radius-box: 8px;                                           /* boxy controls (selects, tiles) */
@@ -30,6 +35,7 @@
   --ctl-on-tint: color-mix(in srgb, var(--chord) 10%, var(--paper)); /* subtle tint for pill-selected */
   --ctl-h: 40px;                                                   /* standard control height in the panel */
   --ctl-fill: var(--paper-dim);                                    /* recessed track / plain-container fill */
+  --ctl-fill-hover: #e9e9ee;                                       /* resting fill, hovered */
   --track: rgba(0, 0, 0, 0.18);                                    /* slider track — reads recessed on paper and on --ctl-fill */
   --track-h: 6px;
   --thumb: 17px;
@@ -396,9 +402,9 @@ input[type="checkbox"] {
   height: var(--ctl-h);
   min-width: 56px;
   padding: 0 16px;
-  border: var(--ctl-border) solid var(--line);
+  border: var(--ctl-border) solid transparent;
   border-radius: var(--ctl-radius);
-  background: var(--paper);
+  background: var(--ctl-fill);
   color: var(--ink);
   font-family: inherit;
   font-size: var(--type-label);
@@ -410,11 +416,10 @@ input[type="checkbox"] {
   justify-content: center;
   transition: border-color 0.15s, background 0.15s, transform 0.1s;
 }
-.cycle:hover { border-color: var(--muted); opacity: 1; }
+.cycle:hover { background: var(--ctl-fill-hover); opacity: 1; }
 .cycle:active { transform: scale(0.96); opacity: 1; }
 /* A cycle whose value is itself an "on" state (chunks on) takes the accent. */
 .cycle.on {
-  border-color: var(--ctl-on);
   background: var(--ctl-on-tint);
   color: var(--ctl-on);
 }
@@ -461,15 +466,14 @@ input[type="checkbox"] {
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: var(--paper);
+  background: rgba(0, 0, 0, 0.07);
   color: var(--ink);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   font-size: 19px; font-weight: var(--weight-prominent); line-height: 1;
   cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
   transition: background 0.15s, transform 0.1s;
 }
-.step-btn:hover { background: #f4f4f6; opacity: 1; }
+.step-btn:hover { background: rgba(0, 0, 0, 0.12); opacity: 1; }
 .step-btn:active { transform: scale(0.92); opacity: 1; }
 
 /* ---------------------------------------------------------------------------
@@ -502,9 +506,9 @@ input[type="checkbox"] {
   min-width: 52px;
   height: var(--ctl-h);
   padding: 0 16px;
-  border: var(--ctl-border) solid var(--line);
+  border: var(--ctl-border) solid transparent;
   border-radius: var(--ctl-radius);
-  background: var(--paper);
+  background: var(--ctl-fill);
   color: var(--ink);
   font-family: inherit;
   font-size: var(--type-label);
@@ -514,10 +518,9 @@ input[type="checkbox"] {
   display: inline-flex; align-items: center; justify-content: center;
   transition: border-color 0.15s, background 0.15s, transform 0.1s;
 }
-.opt:hover { border-color: var(--muted); opacity: 1; }
+.opt:hover { background: var(--ctl-fill-hover); opacity: 1; }
 .opt:active { transform: scale(0.96); opacity: 1; }
 .opt.on {
-  border-color: var(--ctl-on);
   background: var(--ctl-on-tint);
   color: var(--ctl-on);
 }
@@ -559,10 +562,12 @@ button.secondary {
   font-size: var(--type-label);
   font-weight: var(--weight-standard);
   border-radius: var(--ctl-radius);
-  border: var(--ctl-border) solid var(--line);
-  background: var(--paper);
+  border: var(--ctl-border) solid transparent;   /* transparent, not absent: keeps the metrics a selected state can fill in */
+  background: var(--ctl-fill);
   color: var(--ink);
 }
+
+.pill:hover { background: var(--ctl-fill-hover); }
 
 .pill .upd,
 .pill .del {
@@ -576,14 +581,13 @@ button.secondary {
 .pill .del:hover { color: var(--ink); }
 
 .pill.active {
-  border-color: var(--ctl-on);
   background: var(--ctl-on-tint);
+  color: var(--ctl-on);
 }
 
-.pill.save {
-  border-style: dashed;
-  color: var(--muted);
-}
+/* "+ save" is an action rather than a saved setup, so it sits back: same filled
+   shape, muted label. */
+.pill.save { color: var(--muted); }
 
 /* Alphabet matrix — a checkbox owns whether an interval is in play; the two
    sliders are its up / down weight (which therefore never needs to reach 0). */
@@ -655,9 +659,9 @@ button.secondary {
 .fig-cell {
   position: relative;
   height: 50px;
-  border: var(--ctl-border) solid var(--line);
+  border: var(--ctl-border) solid transparent;
   border-radius: var(--ctl-radius-box);
-  background: var(--paper);
+  background: var(--ctl-fill);
   color: var(--ink);
   cursor: pointer;
   padding: 0;
@@ -667,11 +671,10 @@ button.secondary {
   transition: background 0.1s, border-color 0.1s;
 }
 
-.fig-cell:hover { border-color: var(--muted); }
+.fig-cell:hover { background: var(--ctl-fill-hover); }
 
 .fig-cell.on {
   background: var(--ctl-on);
-  border-color: var(--ctl-on);
   color: var(--ctl-on-ink);
 }
 
@@ -871,23 +874,17 @@ button.secondary {
   height: 22px;
   width: 100%;
   border-radius: 4px;
-  border: 1px solid var(--line);
-  background: var(--paper);
+  border: 1px solid transparent;
+  background: var(--ctl-fill);
   cursor: pointer;
   padding: 0;
   display: block;
   transition: background 0.1s, border-color 0.1s;
 }
 
-.note-cell.on {
-  background: var(--ctl-on);
-  border-color: var(--ctl-on);
-}
+.note-cell.on { background: var(--ctl-on); }
 
-.note-cell:hover:not(.on) {
-  background: var(--paper-dim);
-  border-color: var(--muted);
-}
+.note-cell:hover:not(.on) { background: var(--ctl-fill-hover); }
 
 /* Mobile: trim the gutters and let the music column shrink below its desktop
    floor so narrow screens reflow instead of clipping. */

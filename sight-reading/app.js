@@ -1622,6 +1622,35 @@
     paintRange(tempoUiEl);        // the ± steppers move the slider without an input event
   }
 
+  // A cycle's label changes as you tap through it, which would make the pill
+  // jump between "Piano" and "Vibraphone" (or "Major" and "Harmonic Minor") and
+  // shove its neighbours around. Measure every value it can show and pin the
+  // width to the widest, so the row stays put.
+  function lockCycleWidth(btn, labels) {
+    if (!btn || !labels.length) return;
+    var prev = btn.textContent, max = 0;
+    btn.style.minWidth = "";
+    labels.forEach(function (t) {
+      btn.textContent = t;
+      max = Math.max(max, btn.getBoundingClientRect().width);
+    });
+    btn.textContent = prev;
+    btn.style.minWidth = Math.ceil(max) + "px";
+  }
+
+  function lockCycleWidths() {
+    var optionText = function (sel) {
+      return Array.prototype.map.call(sel.options, function (o) { return o.textContent; });
+    };
+    lockCycleWidth(instCycleEl, optionText(instrumentEl));
+    lockCycleWidth(modeCycleEl, MODES.map(function (m) { return MODE_FULL[m]; }));
+    lockCycleWidth(hideUnitEl, ["Beats", "Measures"]);
+    lockCycleWidth(tonicCycleEl, LETTERS);
+    lockCycleWidth(accCycleEl, ACCS.map(function (a) { return a.label; }));
+    lockCycleWidth(clefCycleEl, CLEFS.map(function (c) { return c.label; }));
+    lockCycleWidth(chunksBtnEl, ["Off", "On"]);
+  }
+
   function buildMeasuresPills() {
     measuresPillsEl.innerHTML = "";
     Array.prototype.forEach.call(measuresEl.options, function (opt) {
@@ -1877,6 +1906,10 @@
   activePreset = "thirds drill";
   restoreSession();            // override defaults with last-used settings, if any
   syncPanel();                 // reflect the restored state across every visible control
+  // Pin the cycle pills once Rubik is actually in play — measuring against the
+  // fallback font would size them wrong.
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(lockCycleWidths);
+  else lockCycleWidths();
   if (isSampled(instrumentEl.value)) loadSamples(instrumentEl.value);   // preload so it's ready before Play
   renderPresets();
   generate();
