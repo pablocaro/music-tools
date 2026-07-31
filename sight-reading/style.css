@@ -48,8 +48,9 @@
      picks exactly one. Nothing else sets a size.
        micro    coordinates in a grid — note letters, octave numbers, weights
        caption  section headings, legend, errors, tooltips
-       label    anything you tap that says a word — pills, cycles, options
-       value    the readout in a stepper
+       label    anything you tap that says a word — pills, cycles, options,
+                and a stepper's readout, which is marked by weight not size
+       lead     the main view's subtitle, above the panel's range
      Weight follows suit: the panel is 600 throughout, and 700 marks a value. */
   --fs-0: 10px;
   --fs-1: 11px;
@@ -59,7 +60,7 @@
   --type-micro:   var(--fs-0);
   --type-caption: var(--fs-1);
   --type-label:   var(--fs-2);
-  --type-value:   var(--fs-3);
+  --type-lead:    var(--fs-3);
   --type-title:   var(--fs-4);
   --weight-standard:  500;   /* body copy; the panel doesn't use it */
   --weight-prominent: 600;   /* the panel's default */
@@ -240,8 +241,8 @@ button.playing svg.state-alt { display: block; }
 .band {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px 22px;
-  padding: 14px 0;
+  gap: 20px 22px;      /* row gap separates stacked sections on a phone */
+  padding: 20px 0;
   border-bottom: 1px solid var(--line);
 }
 .band:last-of-type { border-bottom: none; }
@@ -432,7 +433,7 @@ input[type="checkbox"] {
 .stepper-plain { padding-left: 12px; }
 
 .stepper-val {
-  font-size: var(--type-value);
+  font-size: var(--type-label);
   font-weight: var(--weight-strong);
   color: var(--ink);
   white-space: nowrap;
@@ -778,7 +779,7 @@ button.secondary {
 }
 .tb-titles { min-width: 0; }
 #sh-title { font-size: var(--type-title); font-weight: var(--weight-strong); color: var(--ink); letter-spacing: 0.2px; line-height: 1.15; }
-#sh-sub   { font-size: var(--type-value); font-weight: var(--weight-prominent); color: var(--muted); margin-top: 5px; }
+#sh-sub   { font-size: var(--type-lead); font-weight: var(--weight-prominent); color: var(--muted); margin-top: 5px; }
 
 /* Regenerate — same rounded-icon family as the transport, set in paper-dim. */
 .tb-btn {
