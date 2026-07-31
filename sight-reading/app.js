@@ -515,29 +515,16 @@
   // major / minor (natural) / harmonic / melodic.
   // (OSME's fromStringCode only understands major, so we build it ourselves.)
   var SCALE_TYPES = {
-    major:    function () { return O.ScaleType.MAJOR; },
-    minor:    function () { return O.ScaleType.MINOR_NATURAL; },
-    harmonic: function () { return O.ScaleType.MINOR_HARMONIC; },
-    melodic:  function () { return O.ScaleType.MINOR_MELODIC; }
+    major: function () { return O.ScaleType.MAJOR; },
+    minor: function () { return O.ScaleType.MINOR_NATURAL; }
   };
   function makeScaleKey(code) {
     var parts = code.split("_");
     var typeFn = SCALE_TYPES[parts[0]] || SCALE_TYPES.major;
-    var type = typeFn();
     var tp = parts[1].split("-");
     var symbol = parseInt(tp[0], 10);
     var acc = (tp[1] === "b") ? -1 : (tp[1] === "#") ? 1 : 0;
-    var tone = O.Tone.getToneFromSymbol(symbol, acc);
-    var sk = ScaleKey.create(type, tone);
-
-    // Harmonic/melodic minor: the raised 6th/7th are accidentals, not part of
-    // the key signature. Force the signature to natural minor's; the raised
-    // tones then render as accidentals on each note.
-    if (type === O.ScaleType.MINOR_HARMONIC || type === O.ScaleType.MINOR_MELODIC) {
-      var naturalNum = ScaleKey.create(O.ScaleType.MINOR_NATURAL, tone).getKeyNumber();
-      sk.getKeyNumber = function () { return naturalNum; };
-    }
-    return sk;
+    return ScaleKey.create(typeFn(), O.Tone.getToneFromSymbol(symbol, acc));
   }
 
   // Rhythm figures, in display order. Each event is [num, den] or [num, den,
@@ -702,7 +689,7 @@
   // ===========================================================================
   // Summary header — the drill's name + key/length digest
   // ===========================================================================
-  var MODE_FULL = { major: "Major", minor: "Minor", harmonic: "Harmonic Minor", melodic: "Melodic Minor" };
+  var MODE_FULL = { major: "Major", minor: "Minor" };
 
   function titleCase(s) {
     return String(s).replace(/\b\w/g, function (c) { return c.toUpperCase(); });
@@ -1519,7 +1506,7 @@
 
   var LETTERS = ["C", "D", "E", "F", "G", "A", "B"];          // key-code symbols 0–6
   var ACCS = [{ v: "0", label: "♮" }, { v: "#", label: "♯" }, { v: "b", label: "♭" }];
-  var MODES = ["major", "minor", "harmonic", "melodic"];
+  var MODES = ["major", "minor"];
   var HIDE_MAX = 8;
 
   // Which letter+accidental combinations OSME can actually build a scale from.
