@@ -42,19 +42,34 @@
   --thumb: 17px;
 
   /* Type scale — same naming as pitch-trainer's, so the two apps read as one
-     system. Sizes differ (this one sits on paper, at desktop distances). */
-  --fs-0: 10px;   /* micro — grid column/row headers */
-  --fs-1: 11px;   /* caption — section headings */
-  --fs-2: 14px;   /* label — control text, pills */
-  --fs-3: 15px;   /* subtitle */
-  --fs-4: 28px;   /* title */
+     system. Sizes differ (this one sits on paper, at desktop distances).
+
+     Four roles carry the whole settings panel, and every piece of text in it
+     picks exactly one. Nothing else sets a size.
+       micro    coordinates in a grid — note letters, octave numbers, weights
+       caption  section headings, legend, errors, tooltips
+       label    anything you tap that says a word — pills, cycles, options
+       value    the readout in a stepper
+     Weight follows suit: the panel is 600 throughout, and 700 marks a value. */
+  --fs-0: 10px;
+  --fs-1: 11px;
+  --fs-2: 14px;
+  --fs-3: 17px;
+  --fs-4: 28px;
   --type-micro:   var(--fs-0);
-  --type-caption: var(--fs-1);   /* section headings */
-  --type-label:   var(--fs-2);   /* pills, cycles, steppers */
-  --type-title:   var(--fs-4);   /* the drill name */
-  --weight-standard:  500;
-  --weight-prominent: 600;   /* section headings, control labels */
-  --weight-strong:    700;   /* titles, stepper values */
+  --type-caption: var(--fs-1);
+  --type-label:   var(--fs-2);
+  --type-value:   var(--fs-3);
+  --type-title:   var(--fs-4);
+  --weight-standard:  500;   /* body copy; the panel doesn't use it */
+  --weight-prominent: 600;   /* the panel's default */
+  --weight-strong:    700;   /* values and the drill title */
+
+  /* Characters used as icons rather than text — clefs, accidentals, the
+     stepper's +/-. Sized optically, so they sit outside the type scale. */
+  --glyph-sm: 19px;
+  --glyph-md: 21px;
+  --glyph-lg: 26px;
 }
 
 *, *::before, *::after {
@@ -69,7 +84,7 @@ button, select, input, label, summary, #tempo-pill { touch-action: manipulation;
 
 body {
   font-family: "Rubik", -apple-system, "SF Pro Text", BlinkMacSystemFont, sans-serif;
-  font-size: 14px;
+  font-size: var(--fs-2);
   background: var(--paper);
   color: var(--ink);
   height: 100dvh;        /* dvh, not vh — so the fixed pocket sits at the true bottom on iOS/iPadOS */
@@ -280,49 +295,10 @@ button.playing svg.state-alt { display: block; }
 }
 .layout.panel-open .scrim { opacity: 1; pointer-events: auto; }
 
-.sidebar-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.sidebar h1 {
-  font-size: 19px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
-}
-
-/* Close button — same rounded-icon family as the control bar, sized for the
-   panel header and set in paper so it reads against the dim sidebar. */
-#panel-close {
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  padding: 0;
-  border: none;
-  border-radius: 999px;
-  background: var(--paper);
-  color: var(--ink);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background 0.15s, transform 0.1s;
-}
-#panel-close:hover { background: #e7e7ec; opacity: 1; }
-#panel-close:active { transform: scale(0.94); opacity: 1; }
-#panel-close svg { width: 18px; height: 18px; display: block; }
-
 section {
   display: flex;
   flex-direction: column;
   gap: 9px;
-}
-
-.toggle-row {
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
 }
 
 label {
@@ -433,8 +409,8 @@ input[type="checkbox"] {
 }
 /* Music characters (clefs, accidentals) sit small and light beside text at the
    same nominal size, so they get their own optical size. */
-.cycle-glyph { font-size: 21px; line-height: 1; }
-.cycle-clef  { font-size: 26px; min-width: 62px; }
+.cycle-glyph { font-size: var(--glyph-md); line-height: 1; }
+.cycle-clef  { font-size: var(--glyph-lg); min-width: 62px; }
 
 /* ---------------------------------------------------------------------------
    PATTERN: stepper
@@ -456,7 +432,7 @@ input[type="checkbox"] {
 .stepper-plain { padding-left: 12px; }
 
 .stepper-val {
-  font-size: 17px;
+  font-size: var(--type-value);
   font-weight: var(--weight-strong);
   color: var(--ink);
   white-space: nowrap;
@@ -476,7 +452,7 @@ input[type="checkbox"] {
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.07);
   color: var(--ink);
-  font-size: 19px; font-weight: var(--weight-prominent); line-height: 1;
+  font-size: var(--glyph-sm); font-weight: var(--weight-prominent); line-height: 1;
   cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
   transition: background 0.15s, transform 0.1s;
@@ -568,7 +544,7 @@ button.secondary {
   gap: 6px;
   padding: 8px 15px;
   font-size: var(--type-label);
-  font-weight: var(--weight-standard);
+  font-weight: var(--weight-prominent);
   border-radius: var(--ctl-radius);
   border: var(--ctl-border) solid transparent;   /* transparent, not absent: keeps the metrics a selected state can fill in */
   background: var(--ctl-fill);
@@ -579,7 +555,7 @@ button.secondary {
 
 .pill .upd,
 .pill .del {
-  font-size: 12px;
+  font-size: var(--type-caption);
   line-height: 1;
   color: var(--muted);
   cursor: pointer;
@@ -630,8 +606,8 @@ button.secondary {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: var(--fs-2);
-  font-weight: var(--weight-standard);
+  font-size: var(--type-label);
+  font-weight: var(--weight-prominent);
 }
 
 .dot {
@@ -650,7 +626,7 @@ button.secondary {
 .cell input[type="range"] { flex: 1; }
 
 .cell .ro {
-  font-size: var(--type-caption);
+  font-size: var(--type-micro);
   font-weight: var(--weight-prominent);
   color: var(--muted);
   min-width: 8px;
@@ -701,8 +677,8 @@ button.secondary {
     transform: translateX(-50%);
     background: var(--ink);
     color: var(--paper);
-    font-size: 10px;
-    font-weight: 500;
+    font-size: var(--type-micro);
+    font-weight: var(--weight-prominent);
     white-space: nowrap;
     padding: 3px 7px;
     border-radius: 5px;
@@ -738,7 +714,7 @@ button.secondary {
 
 .error {
   color: #b03b3b;
-  font-size: 12px;
+  font-size: var(--type-caption);
   line-height: 1.5;
   word-break: break-word;
 }
@@ -802,7 +778,7 @@ button.secondary {
 }
 .tb-titles { min-width: 0; }
 #sh-title { font-size: var(--type-title); font-weight: var(--weight-strong); color: var(--ink); letter-spacing: 0.2px; line-height: 1.15; }
-#sh-sub   { font-size: var(--fs-3); font-weight: var(--weight-prominent); color: var(--muted); margin-top: 5px; }
+#sh-sub   { font-size: var(--type-value); font-weight: var(--weight-prominent); color: var(--muted); margin-top: 5px; }
 
 /* Regenerate — same rounded-icon family as the transport, set in paper-dim. */
 .tb-btn {
@@ -831,13 +807,14 @@ button.secondary {
 }
 
 /* Count-in countdown number */
+/* The count-in numeral is display type — sized to the page, not the scale. */
 #countdown {
   position: fixed;
   top: 50%;
   left: 50%;                     /* music is centered in the window now */
   transform: translate(-50%, -50%);
   font-size: 160px;
-  font-weight: 600;
+  font-weight: var(--weight-prominent);
   color: var(--ink);
   opacity: 0.12;
   pointer-events: none;
@@ -903,8 +880,8 @@ button.secondary {
    floor so narrow screens reflow instead of clipping. */
 @media (max-width: 720px) {
   .sheet-area { padding: 8px 14px 18px; }
+  :root { --fs-4: 24px; }        /* the title steps down; the rest of the scale holds */
   .topbar { padding: 16px 16px 4px; }
-  #sh-title { font-size: 24px; }
   #sheet-stage { min-width: 0; }   /* let it shrink to fit the phone */
   #countdown { font-size: 96px; }
 }
