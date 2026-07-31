@@ -30,6 +30,9 @@
   --ctl-on-tint: color-mix(in srgb, var(--chord) 10%, var(--paper)); /* subtle tint for pill-selected */
   --ctl-h: 40px;                                                   /* standard control height in the panel */
   --ctl-fill: var(--paper-dim);                                    /* recessed track / plain-container fill */
+  --track: rgba(0, 0, 0, 0.18);                                    /* slider track — reads recessed on paper and on --ctl-fill */
+  --track-h: 6px;
+  --thumb: 17px;
 
   /* Type scale — same naming as pitch-trainer's, so the two apps read as one
      system. Sizes differ (this one sits on paper, at desktop distances). */
@@ -137,6 +140,25 @@ body {
    same glyphs step down with them. */
 .icon-toggle .ic-metro { width: 23px; height: 23px; }
 .icon-toggle .ic-eye   { width: 24px; height: 24px; }
+
+/* The metronome's pendulum swings while the clock runs — one sweep per beat,
+   with app.js setting the rate and play state. This is why the metronome glyph
+   is inlined at each button rather than pulled from the sprite: <use> renders
+   into a shadow tree, and document CSS can't reliably reach a path inside one
+   (Chromium allows it, WebKit doesn't). */
+@keyframes srMetroSwing {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(88deg); }
+}
+.ic-metro .rod {
+  transform-box: fill-box;
+  transform-origin: 92% 96%;        /* the rod's heel, where it meets the body */
+  animation: srMetroSwing var(--swing-dur, 1s) ease-in-out infinite alternate;
+  animation-play-state: var(--swing-state, paused);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ic-metro .rod { animation: none; }
+}
 
 /* Which of the two glyphs shows. Written as svg.state-* so these beat the .ic
    sizing rules above on specificity, whatever order they land in. */
@@ -313,10 +335,56 @@ label {
   align-items: center;
 }
 
+/* ---------------------------------------------------------------------------
+   PATTERN: range
+   The browser's own slider draws a bordered track, which reads as clutter once
+   there are sixteen of them in the Step matrix. These are drawn from scratch:
+   no border, a recessed darker track, and the filled portion painted by a
+   gradient stop that JS keeps in sync (--pct).
+   --------------------------------------------------------------------------- */
 input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
   width: 100%;
-  accent-color: var(--chord);
+  height: 20px;
+  background: transparent;
   cursor: pointer;
+  --pct: 0%;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: var(--track-h);
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(to right,
+    var(--ctl-on) 0 var(--pct), var(--track) var(--pct) 100%);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: var(--thumb); height: var(--thumb);
+  margin-top: calc((var(--track-h) - var(--thumb)) / 2);
+  border: none;
+  border-radius: 50%;
+  background: var(--ctl-on);
+}
+
+input[type="range"]::-moz-range-track {
+  height: var(--track-h);
+  border: none;
+  border-radius: 999px;
+  background: var(--track);
+}
+input[type="range"]::-moz-range-progress {
+  height: var(--track-h);
+  border-radius: 999px;
+  background: var(--ctl-on);
+}
+input[type="range"]::-moz-range-thumb {
+  width: var(--thumb); height: var(--thumb);
+  border: none;
+  border-radius: 50%;
+  background: var(--ctl-on);
 }
 
 input[type="checkbox"] {

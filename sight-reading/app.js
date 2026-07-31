@@ -1181,7 +1181,12 @@
     var done = function () {
       if (--pending > 0) return;
       sampleLoading[name] = false;
-      if (ok > 0) { sampleBuffers[name] = map; }
+      if (ok > 0) {
+        sampleBuffers[name] = map;
+        // Chosen mid-line: the queued notes are sounding the organ stand-in, so
+        // re-voice them now that the real samples are decoded.
+        if (playing && instrumentEl.value === name) scheduleAhead();
+      }
       else { sampleFailed[name] = true; showError(name + " samples failed to decode — using the organ instead."); }
     };
     set.notes.forEach(function (nm) {
@@ -1283,6 +1288,7 @@
     if (session && session.rafId) cancelAnimationFrame(session.rafId);
     session = null; rafId = null;
     setPlayIcon(false);
+    syncSwing();
     blinkCursor(false);
     try { osmd.cursor.hide(); osmd.cursor.reset(); } catch (e) {}
     hideCountdown();
@@ -1302,6 +1308,7 @@
     blinkCursor(false);
     hideCountdown();
     setPlayIcon(false);
+    syncSwing();
   }
 
   // A line finished while playing: tear down its timers/cursor but keep the
@@ -1394,21 +1401,41 @@
 
     blinkCursor(fresh && s.elapsed < 0 && cursorModeEl.value !== "off", bms);
 
-    stopVoices();
-    if (playAlongEl.checked && audioCtx) {
-      var secPerBeat = bms / 1000;
-      s.melody.forEach(function (n) {
-        if (n.onset + n.dur <= s.elapsed) return;    // already finished
-        var startBeat = Math.max(n.onset, s.elapsed);
-        var st = audioCtx.currentTime + (startBeat - s.elapsed) * secPerBeat;
-        var en = audioCtx.currentTime + (n.onset + n.dur - s.elapsed) * secPerBeat;
-        scheduleNote(n.freq, st, en);
-      });
-    }
+    scheduleAhead();
 
     playing = true; paused = false;
     setPlayIcon(true);
+    syncSwing();
     s.rafId = rafId = requestAnimationFrame(frame);
+  }
+
+  // (Re)schedule the play-along voice for everything still ahead of the playhead,
+  // dropping whatever was already queued. Anything that changes how the melody
+  // should sound from here on — tempo, instrument, the accompaniment toggle —
+  // just calls this and the change takes effect without interrupting playback.
+  function scheduleAhead() {
+    var s = session;
+    stopVoices();
+    if (!s || !playAlongEl.checked || !audioCtx) return;
+    var secPerBeat = s.bms / 1000;
+    s.melody.forEach(function (n) {
+      if (n.onset + n.dur <= s.elapsed) return;      // already finished
+      var startBeat = Math.max(n.onset, s.elapsed);
+      scheduleNote(n.freq, audioCtx.currentTime + (startBeat - s.elapsed) * secPerBeat,
+                           audioCtx.currentTime + (n.onset + n.dur - s.elapsed) * secPerBeat);
+    });
+  }
+
+  // The metronome glyph's pendulum swings while the clock is running, one sweep
+  // per beat. Driven by inherited custom properties because the glyph lives in a
+  // <use> shadow tree (see the sprite's own <style>).
+  function syncSwing() {
+    var on = playing && clickOnEl.checked;
+    var dur = 60000 / (+tempoEl.value || 80);
+    document.querySelectorAll(".js-metro").forEach(function (b) {
+      b.style.setProperty("--swing-state", on ? "running" : "paused");
+      b.style.setProperty("--swing-dur", dur + "ms");
+    });
   }
 
   function resumePlay() {
@@ -1426,16 +1453,8 @@
     s.elapsed = (now - s.t0) / s.bms;      // exact current beat under the old rate
     s.bms = 60000 / (+tempoEl.value);
     s.t0 = now - s.elapsed * s.bms;         // same beat, new rate
-    if (playAlongEl.checked && audioCtx) {
-      stopVoices();
-      var secPerBeat = s.bms / 1000;
-      s.melody.forEach(function (n) {
-        if (n.onset + n.dur <= s.elapsed) return;
-        var startBeat = Math.max(n.onset, s.elapsed);
-        scheduleNote(n.freq, audioCtx.currentTime + (startBeat - s.elapsed) * secPerBeat,
-                             audioCtx.currentTime + (n.onset + n.dur - s.elapsed) * secPerBeat);
-      });
-    }
+    scheduleAhead();
+    syncSwing();                            // the pendulum tracks the new tempo
   }
 
   function frame(now) {
@@ -1592,6 +1611,7 @@
   function syncTempoUi() {
     tempoUiEl.value = tempoEl.value;
     tempoValEl.textContent = tempoEl.value;
+    paintRange(tempoUiEl);        // the ± steppers move the slider without an input event
   }
 
   function buildMeasuresPills() {
@@ -1616,6 +1636,21 @@
     });
   }
 
+  // Sliders are drawn by CSS from a gradient stop, so each one needs its filled
+  // fraction kept current. One delegated listener covers every range on the page,
+  // including the sixteen built for the Step matrix.
+  function paintRange(el) {
+    var min = +el.min || 0, max = (el.max === "" ? 100 : +el.max), v = +el.value;
+    var pct = (max > min) ? ((v - min) / (max - min)) * 100 : 0;
+    el.style.setProperty("--pct", pct + "%");
+  }
+  function paintAllRanges() {
+    document.querySelectorAll('input[type="range"]').forEach(paintRange);
+  }
+  document.addEventListener("input", function (e) {
+    if (e.target && e.target.type === "range") paintRange(e.target);
+  });
+
   // Reflect every hidden control onto its visible counterpart. Called after any
   // preset / session restore, so the whole panel re-reads from one place.
   function syncPanel() {
@@ -1628,6 +1663,7 @@
     hideFromState();
     volumeUiEl.value = volumeEl.value;
     syncTransport();
+    paintAllRanges();
   }
 
   function wirePanel() {
@@ -1735,7 +1771,7 @@
       clickOnEl.dispatchEvent(new Event("change"));
     });
   });
-  clickOnEl.addEventListener("change", syncMetroPill);
+  clickOnEl.addEventListener("change", function () { syncMetroPill(); syncSwing(); });
 
   // ♩ transport button toggles the accompaniment (mirrors the play-along checkbox).
   accompBtn.addEventListener("click", function () {
@@ -1787,10 +1823,19 @@
     el.addEventListener("change", persistSession);
   });
 
-  // Pre-load a sampled instrument as soon as it's chosen, so it's decoded by Play.
+  // Pre-load a sampled instrument as soon as it's chosen, so it's decoded by Play,
+  // and re-voice anything already queued so the change is audible immediately
+  // rather than at the next line.
   instrumentEl.addEventListener("change", function () {
     var v = instrumentEl.value;
     if (isSampled(v)) { sampleFailed[v] = false; loadSamples(v); }
+    if (playing) scheduleAhead();
+  });
+
+  // Turning the accompaniment on or off mid-line takes effect on the spot too:
+  // scheduleAhead() queues the rest of the melody, or clears it when switched off.
+  playAlongEl.addEventListener("change", function () {
+    if (playing) scheduleAhead();
   });
 
   var resizeTimer = null;
