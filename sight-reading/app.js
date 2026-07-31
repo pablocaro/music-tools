@@ -993,11 +993,9 @@
   var countdownEl  = document.getElementById("countdown");
   var playBtn      = document.getElementById("play");
 
-  // Play / Pause icons swapped into the control-bar button by state.
-  var ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5v14l12-7z"/></svg>';
-  var ICON_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="5" width="4" height="14" rx="1.3"/><rect x="13.5" y="5" width="4" height="14" rx="1.3"/></svg>';
+  // Play / Pause: both glyphs live in the button; .playing picks which shows.
   function setPlayIcon(playingNow) {
-    playBtn.innerHTML = playingNow ? ICON_PAUSE : ICON_PLAY;
+    playBtn.classList.toggle("playing", !!playingNow);
     playBtn.setAttribute("aria-label", playingNow ? "Pause" : "Play");
   }
 

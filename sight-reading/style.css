@@ -107,8 +107,44 @@ body {
 .cb-right { grid-column: 3; justify-self: end; }
 
 /* A transport toggle that's currently active (metronome on, accompaniment on) —
-   the same blue tint the settings button wears while the pocket is open. */
+   the same blue tint the settings button wears while the pocket is open. The
+   glyph swaps too (see PATTERN: icon states), so state reads by colour at a
+   glance and by form up close. */
 .controlbar .cb-icon.on { background: var(--ctl-on-tint); color: var(--ctl-on); }
+
+/* ---------------------------------------------------------------------------
+   PATTERN: icon states
+   Buttons carrying a state hold both glyphs and let CSS pick: .state-off /
+   .state-on for toggles, .state-rest / .state-alt for play↔pause. Swapping by
+   class (not innerHTML) keeps the markup declarative and avoids re-parsing SVG
+   on every tap.
+   --------------------------------------------------------------------------- */
+.sprite { display: none; }
+
+/* Per-icon optical sizing. The source viewBoxes range from tall-and-narrow to
+   wide-and-short, so a single box size would make the wide ones read small and
+   the tall ones read large — each is tuned to sit at the same visual weight. */
+.ic { display: block; width: 25px; height: 25px; }
+.ic-settings   { width: 24px; height: 24px; }
+.ic-restart    { width: 26px; height: 26px; }
+.ic-play       { width: 23px; height: 23px; }
+.ic-pause      { width: 21px; height: 21px; }
+.ic-accomp     { width: 24px; height: 24px; }
+.ic-metro      { width: 27px; height: 27px; }
+.ic-eye        { width: 28px; height: 28px; }
+.ic-regenerate { width: 22px; height: 22px; }
+/* The panel's icon-toggles are a smaller button than the transport's, so the
+   same glyphs step down with them. */
+.icon-toggle .ic-metro { width: 23px; height: 23px; }
+.icon-toggle .ic-eye   { width: 24px; height: 24px; }
+
+/* Which of the two glyphs shows. Written as svg.state-* so these beat the .ic
+   sizing rules above on specificity, whatever order they land in. */
+svg.state-on, svg.state-alt { display: none; }
+button.on svg.state-off,
+button.playing svg.state-rest { display: none; }
+button.on svg.state-on,
+button.playing svg.state-alt { display: block; }
 
 .controlbar button {
   background: var(--paper-dim);
@@ -127,7 +163,6 @@ body {
 .controlbar button:active { transform: scale(0.94); opacity: 1; }
 
 .controlbar .cb-icon { width: 58px; height: 58px; }
-.controlbar svg { width: 25px; height: 25px; display: block; }
 /* Settings shows the selected state (blue tint) while the pocket is open. */
 .layout.panel-open #settings-toggle { background: var(--ctl-on-tint); color: var(--ctl-on); }
 
@@ -402,8 +437,6 @@ input[type="checkbox"] {
 .icon-toggle:hover { background: #e7e7ec; opacity: 1; }
 .icon-toggle:active { transform: scale(0.94); opacity: 1; }
 .icon-toggle.on { background: var(--ctl-on-tint); color: var(--ctl-on); }
-.icon-toggle svg { width: 22px; height: 22px; display: block; }
-.icon-toggle .metro-glyph { width: 25px; height: 24px; }
 
 /* ---------------------------------------------------------------------------
    PATTERN: opt
@@ -717,7 +750,6 @@ button.secondary {
 }
 .tb-btn:hover { background: #e7e7ec; opacity: 1; }
 .tb-btn:active { transform: scale(0.94); opacity: 1; }
-.tb-btn svg { width: 22px; height: 22px; display: block; }
 
 #chunk-overlay {
   position: absolute;
