@@ -1426,16 +1426,33 @@
     });
   }
 
-  // The metronome glyph's pendulum swings while the clock is running, one sweep
-  // per beat. Driven by inherited custom properties because the glyph lives in a
-  // <use> shadow tree (see the sprite's own <style>).
-  function syncSwing() {
-    var on = playing && clickOnEl.checked;
-    var dur = 60000 / (+tempoEl.value || 80);
-    document.querySelectorAll(".js-metro").forEach(function (b) {
-      b.style.setProperty("--swing-state", on ? "running" : "paused");
-      b.style.setProperty("--swing-dur", dur + "ms");
+  // The metronome beats by mirroring: each beat flips the glyph so the pendulum
+  // snaps to its other side, with a quick fade-up softening the cut. Called from
+  // the play loop, so it lands exactly on the beat rather than free-running.
+  var metroFlipped = false;
+  var TICK_MS = 130;
+
+  function metroGlyphs() { return document.querySelectorAll(".js-metro .ic-metro.state-on"); }
+
+  function flipMetro() {
+    metroFlipped = !metroFlipped;
+    metroGlyphs().forEach(function (el) {
+      el.classList.toggle("flip", metroFlipped);
+      if (el.animate && !reducedMotion()) {
+        el.animate([{ opacity: 0.45 }, { opacity: 1 }], { duration: TICK_MS, easing: "ease-out" });
+      }
     });
+  }
+
+  // Back to rest — the pendulum shouldn't stay parked mid-swing once we stop.
+  function syncSwing() {
+    if (playing && clickOnEl.checked) return;
+    metroFlipped = false;
+    metroGlyphs().forEach(function (el) { el.classList.remove("flip"); });
+  }
+
+  function reducedMotion() {
+    return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }
 
   function resumePlay() {
@@ -1464,6 +1481,7 @@
     s.elapsed = curBeat;
 
     while (s.nextBeat <= Math.floor(curBeat) && s.nextBeat < s.totalBeats) {
+      if (clickOnEl.checked) flipMetro();             // the glyph mirrors on the beat
       if (s.nextBeat < 0) {                          // count-in
         if (clickOnEl.checked) tick(COUNTIN_FREQ);
         showCountdown(-s.nextBeat);

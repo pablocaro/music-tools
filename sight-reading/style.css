@@ -141,23 +141,16 @@ body {
 .icon-toggle .ic-metro { width: 23px; height: 23px; }
 .icon-toggle .ic-eye   { width: 24px; height: 24px; }
 
-/* The metronome's pendulum swings while the clock runs — one sweep per beat,
-   with app.js setting the rate and play state. This is why the metronome glyph
-   is inlined at each button rather than pulled from the sprite: <use> renders
-   into a shadow tree, and document CSS can't reliably reach a path inside one
-   (Chromium allows it, WebKit doesn't). */
-@keyframes srMetroSwing {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(88deg); }
-}
-.ic-metro .rod {
-  transform-box: fill-box;
-  transform-origin: 92% 96%;        /* the rod's heel, where it meets the body */
-  animation: srMetroSwing var(--swing-dur, 1s) ease-in-out infinite alternate;
-  animation-play-state: var(--swing-state, paused);
-}
-@media (prefers-reduced-motion: reduce) {
-  .ic-metro .rod { animation: none; }
+/* The metronome ticks by mirroring: on each beat the glyph flips, so the
+   pendulum snaps to its other extreme the way a real one does. The flip itself
+   is instant — no tween — and app.js fades the glyph back up from a dip on each
+   beat so the cut lands softly instead of jumping. Beat-locked, because it's
+   driven from the same loop that fires the click. */
+.ic-metro.flip { transform: scaleX(-1); }
+
+@keyframes srMetroTick {
+  from { opacity: 0.45; }
+  to   { opacity: 1; }
 }
 
 /* Which of the two glyphs shows. Written as svg.state-* so these beat the .ic
