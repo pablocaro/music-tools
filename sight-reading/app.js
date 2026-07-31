@@ -1427,32 +1427,22 @@
   }
 
   // The metronome beats by mirroring: each beat flips the glyph so the pendulum
-  // snaps to its other side, with a quick fade-up softening the cut. Called from
-  // the play loop, so it lands exactly on the beat rather than free-running.
+  // snaps to its other side. Called from the play loop, so it lands exactly on
+  // the beat rather than free-running.
   var metroFlipped = false;
-  var TICK_MS = 130;
 
   function metroGlyphs() { return document.querySelectorAll(".js-metro .ic-metro.state-on"); }
 
   function flipMetro() {
     metroFlipped = !metroFlipped;
-    metroGlyphs().forEach(function (el) {
-      el.classList.toggle("flip", metroFlipped);
-      if (el.animate && !reducedMotion()) {
-        el.animate([{ opacity: 0.45 }, { opacity: 1 }], { duration: TICK_MS, easing: "ease-out" });
-      }
-    });
+    metroGlyphs().forEach(function (el) { el.classList.toggle("flip", metroFlipped); });
   }
 
-  // Back to rest — the pendulum shouldn't stay parked mid-swing once we stop.
+  // Back to rest — the pendulum shouldn't stay parked on one side once we stop.
   function syncSwing() {
     if (playing && clickOnEl.checked) return;
     metroFlipped = false;
     metroGlyphs().forEach(function (el) { el.classList.remove("flip"); });
-  }
-
-  function reducedMotion() {
-    return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }
 
   function resumePlay() {
