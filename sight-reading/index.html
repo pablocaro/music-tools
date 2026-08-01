@@ -75,7 +75,7 @@
             <svg class="ic ic-play state-rest"><use href="#ic-play"/></svg>
             <svg class="ic ic-pause state-alt"><use href="#ic-pause"/></svg>
           </button>
-          <button id="accomp" class="cb-icon" aria-label="Accompaniment on/off" data-i18n-aria="aria.accomp">
+          <button id="accomp" class="cb-icon js-accomp" aria-label="Accompaniment on/off" data-i18n-aria="aria.accomp">
             <svg class="ic ic-accomp state-off"><use href="#ic-accomp-off"/></svg>
             <svg class="ic ic-accomp state-on"><use href="#ic-accomp-on"/></svg>
           </button>
@@ -178,6 +178,10 @@
         <section class="sec sec-accomp">
           <h2 class="sec-h" data-i18n="sec.accomp">Accompaniment</h2>
           <div class="sec-row unit">
+            <button class="icon-toggle js-accomp" type="button" aria-label="Accompaniment on/off" data-i18n-aria="aria.accomp">
+              <svg class="ic ic-accomp state-off"><use href="#ic-accomp-off"/></svg>
+              <svg class="ic ic-accomp state-on"><use href="#ic-accomp-on"/></svg>
+            </button>
             <button id="instrument-cycle" class="cycle" type="button" aria-label="Voice" data-i18n-aria="aria.voice" data-i18n="inst.piano">Piano</button>
             <div class="stepper stepper-plain">
               <svg class="vol-glyph" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>

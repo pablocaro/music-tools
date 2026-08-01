@@ -909,15 +909,18 @@
   }
 
   // Reflect the transport toggles' state on their buttons (blue tint when active).
-  // The metronome has two faces — the transport bar and the Tempo section — so
-  // every .js-metro button tracks the one checkbox.
+  // Both the metronome and the accompaniment have two faces — the transport bar
+  // and their own section in the panel — so every .js-metro / .js-accomp button
+  // tracks the one checkbox.
   function syncMetroPill() {
     document.querySelectorAll(".js-metro").forEach(function (b) {
       b.classList.toggle("on", clickOnEl.checked);
     });
   }
   function syncAccompBtn() {
-    if (accompBtn) accompBtn.classList.toggle("on", playAlongEl.checked);
+    document.querySelectorAll(".js-accomp").forEach(function (b) {
+      b.classList.toggle("on", playAlongEl.checked);
+    });
   }
   function syncTransport() { syncMetroPill(); syncAccompBtn(); }
 
@@ -1031,7 +1034,6 @@
   // ===========================================================================
   var tempoEl      = document.getElementById("tempo");
   var tempoValEl   = document.getElementById("tempo-val");
-  var accompBtn    = document.getElementById("accomp");          // ♩ transport button
   var clickOnEl    = document.getElementById("click-on");
   var playAlongEl  = document.getElementById("play-along");
   var instrumentEl = document.getElementById("instrument");
@@ -2000,11 +2002,13 @@
   });
   clickOnEl.addEventListener("change", function () { syncMetroPill(); syncSwing(); });
 
-  // ♩ transport button toggles the accompaniment (mirrors the play-along checkbox).
-  accompBtn.addEventListener("click", function () {
-    ensureAudio();   // this is a real gesture — a good moment to unlock/prime audio
-    playAlongEl.checked = !playAlongEl.checked;
-    playAlongEl.dispatchEvent(new Event("change"));
+  // Either ♩ button (transport bar or Accompaniment section) toggles play-along.
+  document.querySelectorAll(".js-accomp").forEach(function (b) {
+    b.addEventListener("click", function () {
+      ensureAudio();   // this is a real gesture — a good moment to unlock/prime audio
+      playAlongEl.checked = !playAlongEl.checked;
+      playAlongEl.dispatchEvent(new Event("change"));
+    });
   });
   playAlongEl.addEventListener("change", syncAccompBtn);
   syncTransport();
