@@ -775,14 +775,18 @@ button.secondary {
     z-index: 60;
   }
 
-  .cb-icon:hover::after,
-  .tb-btn:hover::after,
-  .icon-toggle:hover::after,
-  .cycle:hover::after,
-  .step-btn:hover::after,
-  .fig-cell:hover::after,
-  .pill .upd:hover::after,
-  .pill .del:hover::after { opacity: 1; transition-delay: var(--tip-delay); }
+  /* :not(.tip-off) — once the control has been used, the hint is spent. app.js
+     sets that class on press and clears it when the pointer leaves, so the
+     tooltip stays down while you keep working the control and re-arms only
+     when you come back to it. */
+  .cb-icon:hover:not(.tip-off)::after,
+  .tb-btn:hover:not(.tip-off)::after,
+  .icon-toggle:hover:not(.tip-off)::after,
+  .cycle:hover:not(.tip-off)::after,
+  .step-btn:hover:not(.tip-off)::after,
+  .fig-cell:hover:not(.tip-off)::after,
+  .pill .upd:hover:not(.tip-off)::after,
+  .pill .del:hover:not(.tip-off)::after { opacity: 1; transition-delay: var(--tip-delay); }
 
   /* The transport sits at the top edge of the open sheet, so its tooltips
      hang below rather than off the top of the panel. */

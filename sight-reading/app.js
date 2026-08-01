@@ -1803,6 +1803,27 @@
     });
   }
 
+  // A tooltip answers "what is this?", so it has nothing left to say once you've
+  // used the control — it would otherwise sit there through every tap while you
+  // cycle the voice or nudge the tempo. Pressing marks it spent; leaving the
+  // control re-arms it. Delegated, since rhythm tiles and preset pills are built
+  // at runtime. (pointerleave doesn't bubble, so it's caught on the way down.)
+  var TIP_SEL = ".cb-icon, .tb-btn, .icon-toggle, .cycle, .step-btn, .fig-cell, .upd, .del";
+
+  document.addEventListener("pointerdown", function (e) {
+    var el = (e.target && e.target.closest) ? e.target.closest(TIP_SEL) : null;
+    if (el) el.classList.add("tip-off");
+  }, true);
+
+  // Only a leave of the control itself re-arms it. Clicking one of these swaps
+  // its glyph, which hides the outgoing <svg> and fires pointerleave on that
+  // child — matching by closest() here would clear the flag the press just set,
+  // in the same gesture.
+  document.addEventListener("pointerleave", function (e) {
+    var el = e.target;
+    if (el && el.matches && el.matches(TIP_SEL)) el.classList.remove("tip-off");
+  }, true);
+
   // ===========================================================================
   // Wiring + init
   // ===========================================================================
