@@ -132,11 +132,12 @@ body {
 }
 .cb-right { grid-column: 3; justify-self: end; }
 
-/* A transport toggle that's currently active (metronome on, accompaniment on) —
-   the same blue tint the settings button wears while the pocket is open. The
-   glyph swaps too (see PATTERN: icon states), so state reads by colour at a
-   glance and by form up close. */
-.controlbar .cb-icon.on { background: var(--ctl-on-tint); color: var(--ctl-on); }
+/* A transport button that's currently active — metronome on, accompaniment on,
+   or the transport running — wears the same blue tint the settings button does
+   while the pocket is open. The glyph swaps too (see PATTERN: icon states), so
+   state reads by colour at a glance and by form up close. */
+.controlbar .cb-icon.on,
+.controlbar .cb-icon.playing { background: var(--ctl-on-tint); color: var(--ctl-on); }
 
 /* ---------------------------------------------------------------------------
    PATTERN: icon states
