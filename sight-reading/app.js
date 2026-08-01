@@ -172,18 +172,22 @@
 
   // A preset/session may carry any subset of the panel's state; apply what's
   // present. Built-ins (and legacy saves) are plain symmetric alphabet arrays.
+  // A preset never carries the session-only fields (see readConfig), so this
+  // stays one function: applying a preset just leaves them untouched, and
+  // applying a session naturally restores them too.
   function applyPreset(p) {
     if (Array.isArray(p)) { setWeights(p); return; }
     if (p.alphabet) applyAlphabet(p.alphabet);
     else if (p.down || p.up) applyAlphabet(p);              // legacy {down, up}
     if (p.range) applyRange(p.range);
-    if (p.beats) applyBeats(p.beats);
     if (p.key != null) setKeyFromCode(p.key);
+    if (p.clef != null) clefEl.value = p.clef;
     if (p.measures != null) measuresEl.value = String(Math.max(8, parseInt(p.measures, 10) || 16));
     if (p.musicality != null) musicalityEl.value = p.musicality;
+    if (p.beats) applyBeats(p.beats);
     if (p.tempo != null) { tempoEl.value = p.tempo; tempoValEl.textContent = p.tempo; }
     if (p.cursor != null) cursorModeEl.value = p.cursor;
-    // metronome is intentionally NOT restored — it always starts off each load
+    if (p.metronome != null) clickOnEl.checked = p.metronome;
     if (p.playAlong != null) playAlongEl.checked = p.playAlong;
     if (p.instrument != null) instrumentEl.value = p.instrument;
     if (p.volume != null) volumeEl.value = p.volume;
@@ -191,31 +195,41 @@
     if (p.hideLead != null) hideLeadEl.value = p.hideLead;
     if (p.hideUnit != null) hideUnitEl.dataset.unit = p.hideUnit;
     if (p.showChunks != null) showChunksEl.checked = p.showChunks;
-    if (p.clef != null) clefEl.value = p.clef;
   }
 
-  // The full panel snapshot — what a preset and the remembered session store.
-  function readConfig() {
+  // What a *preset* defines: the melodic material itself — which intervals,
+  // which pitches, how musical, and the staff it's written on. Playback
+  // controls (tempo, metronome, accompaniment, hide-ahead, rhythm, chunks)
+  // are the student's in-the-moment choices, not part of the drill, so a
+  // saved preset leaves them alone — whatever's currently set stays set.
+  function readPresetConfig() {
     return {
       alphabet: { down: downInputs.map(function (x) { return +x.value; }),
                   up:   upInputs.map(function (x) { return +x.value; }) },
       range: JSON.parse(JSON.stringify(rangeState)),
-      beats: readBeatIds(),
-      key: currentKeyCode(),
-      measures: measuresEl.value,
       musicality: musicalityEl.value,
-      tempo: tempoEl.value,
-      cursor: cursorModeEl.value,
-      metronome: clickOnEl.checked,
-      playAlong: playAlongEl.checked,
-      instrument: instrumentEl.value,
-      volume: volumeEl.value,
-      hideBehind: hideBehindEl.checked,
-      hideLead: hideLeadEl.value,
-      hideUnit: hideUnitEl.dataset.unit || "beats",
-      showChunks: showChunksEl.checked,
-      clef: clefEl.value
+      key: currentKeyCode(),
+      clef: clefEl.value,
+      measures: measuresEl.value
     };
+  }
+
+  // The full panel snapshot — everything a preset defines, plus the session-only
+  // controls, so a reload picks up exactly where practice left off.
+  function readConfig() {
+    var cfg = readPresetConfig();
+    cfg.beats = readBeatIds();
+    cfg.tempo = tempoEl.value;
+    cfg.cursor = cursorModeEl.value;
+    cfg.metronome = clickOnEl.checked;
+    cfg.playAlong = playAlongEl.checked;
+    cfg.instrument = instrumentEl.value;
+    cfg.volume = volumeEl.value;
+    cfg.hideBehind = hideBehindEl.checked;
+    cfg.hideLead = hideLeadEl.value;
+    cfg.hideUnit = hideUnitEl.dataset.unit || "beats";
+    cfg.showChunks = showChunksEl.checked;
+    return cfg;
   }
 
   function persistSession() {
@@ -288,11 +302,13 @@
     renderPresets();
   }
 
-  // Overwrite an existing preset with the whole current panel state.
+  // Overwrite an existing preset with the drill-defining part of the panel
+  // (see readPresetConfig) — not the whole panel, so it doesn't freeze in
+  // whatever tempo or metronome state happened to be set at save time.
   function updatePreset(name) {
     if (!confirm("Update preset “" + name + "” with the current settings?")) return;
     var saved = loadSaved();
-    saved[name] = readConfig();
+    saved[name] = readPresetConfig();
     localStorage.setItem(STORE_KEY, JSON.stringify(saved));
     activePreset = name;
     renderPresets();
@@ -306,7 +322,7 @@
     name = name.trim();
     if (!name) return;
     var saved = loadSaved();
-    saved[name] = readConfig();
+    saved[name] = readPresetConfig();
     localStorage.setItem(STORE_KEY, JSON.stringify(saved));
     activePreset = name;
     renderPresets();
