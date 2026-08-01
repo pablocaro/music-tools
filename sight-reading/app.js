@@ -1700,6 +1700,64 @@
     lockCycleWidth(chunksBtnEl, [t("val.off"), t("val.on")]);
   }
 
+  // ===========================================================================
+  // Help
+  //
+  // The sections, in the order they appear in the interface, so reading the
+  // guide top to bottom walks the panel top to bottom. Copy lives in i18n.js.
+  // ===========================================================================
+  var HELP_SECTIONS = ["exercise", "transport", "presets", "tempo", "accomp",
+                       "hide", "rhythm", "step", "notes", "musicality",
+                       "chunks", "staff"];
+
+  function buildHelpBody() {
+    var host = document.getElementById("help-body");
+    if (!host) return;
+    host.innerHTML = "";
+
+    var intro = document.createElement("p");
+    intro.className = "help-intro";
+    intro.textContent = t("help.intro");
+    host.appendChild(intro);
+
+    HELP_SECTIONS.forEach(function (id) {
+      var item = document.createElement("div");
+      item.className = "help-item";
+      var h = document.createElement("h3");
+      h.textContent = t("help.g." + id);
+      var p = document.createElement("p");
+      p.textContent = t("help." + id);
+      item.appendChild(h); item.appendChild(p);
+      host.appendChild(item);
+    });
+  }
+
+  function setHelp(open) {
+    var scrim = document.getElementById("help-scrim");
+    var sheet = document.getElementById("help-sheet");
+    if (!scrim || !sheet) return;
+    if (open) buildHelpBody();          // rebuild so it's always in the current language
+    scrim.hidden = !open;
+    sheet.hidden = !open;
+    if (open) {
+      sheet.querySelector(".help-body").scrollTop = 0;
+      var close = document.getElementById("help-close");
+      if (close) close.focus();
+    }
+  }
+
+  function wireHelp() {
+    var open = document.getElementById("help-open");
+    var close = document.getElementById("help-close");
+    var scrim = document.getElementById("help-scrim");
+    if (open) open.addEventListener("click", function () { setHelp(true); });
+    if (close) close.addEventListener("click", function () { setHelp(false); });
+    if (scrim) scrim.addEventListener("click", function () { setHelp(false); });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") setHelp(false);
+    });
+  }
+
   // Re-label everything for the current language: the declarative bits from the
   // markup, then the pieces built at runtime, then anything measured from text.
   function applyLang() {
@@ -1723,6 +1781,8 @@
 
     setPlayIcon(playing);
     renderPresets();          // preset labels and the "+ save" pill
+    var sheet = document.getElementById("help-sheet");
+    if (sheet && !sheet.hidden) buildHelpBody();
     syncPanel();              // every value shown on a control
     syncLangPills();
     lockCycleWidths();        // translated labels are a different width
@@ -2033,6 +2093,7 @@
   buildMeasuresPills();
   buildLangPills();
   wirePanel();
+  wireHelp();
   setWeights(BUILTIN["thirds drill"]);
   activePreset = "thirds drill";
   restoreSession();            // override defaults with last-used settings, if any

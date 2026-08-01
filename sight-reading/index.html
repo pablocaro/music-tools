@@ -142,7 +142,11 @@
       <!-- PRESETS — snapshots of the whole panel -->
       <div class="band">
         <section class="sec">
-          <h2 class="sec-h" data-i18n="sec.presets">Presets</h2>
+          <div class="sec-head">
+            <h2 class="sec-h" data-i18n="sec.presets">Presets</h2>
+            <button id="help-open" class="help-btn" type="button"
+                    aria-label="How this works" data-i18n-aria="help.open">?</button>
+          </div>
           <div class="presets" id="presets"></div>
         </section>
       </div>
@@ -296,6 +300,19 @@
       <div id="countdown" hidden></div>
     </main>
     </div><!-- /content -->
+
+    <!-- Help — a scrim plus a sheet. Content is written from the catalogue so it
+         follows the language like everything else. -->
+    <div class="help-scrim" id="help-scrim" hidden></div>
+    <div class="help-sheet" id="help-sheet" role="dialog" aria-modal="true"
+         aria-labelledby="help-title" hidden>
+      <div class="help-top">
+        <h2 id="help-title" data-i18n="help.title">How this works</h2>
+        <button id="help-close" class="help-btn" type="button"
+                aria-label="Close" data-i18n-aria="help.close">&#215;</button>
+      </div>
+      <div class="help-body" id="help-body"></div>
+    </div>
 
     <div class="scrim" id="scrim"></div>
 
