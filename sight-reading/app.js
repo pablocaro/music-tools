@@ -20,6 +20,32 @@
   var Fraction                 = O.Fraction;
   var XMLSourceExporter        = O.XMLSourceExporter;
 
+  // ===========================================================================
+  // Language
+  //
+  // Strings live in i18n.js. Markup declares what it needs with data-i18n (text)
+  // and data-i18n-aria (label, which the hover tooltip also reads), so switching
+  // language is one pass over the document plus a re-render of anything built at
+  // runtime. Note letters stay English in both languages.
+  // ===========================================================================
+  var LANG_KEY = "sr_lang";
+  var LANGS = [{ id: "en", label: "ENG" }, { id: "es", label: "ESP" }];
+  var I18N = window.SR_I18N || { en: {} };
+  var lang = "en";
+  try { if (I18N[localStorage.getItem(LANG_KEY)]) lang = localStorage.getItem(LANG_KEY); } catch (e) {}
+
+  // Look up a string, filling {placeholders}. Falls back through English to the
+  // key itself, so a missing translation degrades to something readable.
+  function t(key, vars) {
+    var s = (I18N[lang] && I18N[lang][key]) || (I18N.en && I18N.en[key]) || key;
+    if (vars) {
+      Object.keys(vars).forEach(function (k) {
+        s = s.replace("{" + k + "}", vars[k]);
+      });
+    }
+    return s;
+  }
+
   // ---- config ----
   var COLOR_SCALE = "#9aa0a8";   // neutral grey — stepwise motion
   var COLOR_CHORD = "#0a84ff";   // iOS blue — leaps / arpeggios
@@ -109,7 +135,7 @@
 
       var cb = document.createElement("input");
       cb.type = "checkbox";
-      cb.setAttribute("aria-label", iv.n);
+      cb.setAttribute("aria-label", t("interval." + i));
       cb.addEventListener("change", function () { syncStepRow(i); generate(); });
       stepChecks.push(cb);
       row.appendChild(cb);
@@ -160,6 +186,14 @@
   // saves) are plain arrays applied symmetrically. A saved name shadowing a
   // built-in acts as an editable override; deleting it reverts to the built-in.
   var activePreset = null;
+
+  // Built-ins are keyed by a stable English id, which is also what a saved
+  // preset uses if it shadows one — so only the label translates and nothing in
+  // localStorage has to move. A preset the student named shows as they typed it.
+  function presetLabel(name) {
+    if (!name) return "";
+    return BUILTIN.hasOwnProperty(name) ? t("preset." + name) : name;
+  }
 
   function loadSaved() {
     try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; }
@@ -265,7 +299,7 @@
       var pill = document.createElement("button");
       pill.className = "pill";
       var label = document.createElement("span");
-      label.textContent = name;
+      label.textContent = presetLabel(name);
       pill.appendChild(label);
       pill.addEventListener("click", function () {
         applyPreset(all[name]);
@@ -276,14 +310,14 @@
       });
       if (saved.hasOwnProperty(name)) {                // user preset/override: updatable + deletable
         var upd = document.createElement("span");
-        upd.className = "upd"; upd.textContent = "↻"; upd.setAttribute("aria-label", "Update with current settings");
+        upd.className = "upd"; upd.textContent = "↻"; upd.setAttribute("aria-label", t("aria.updatePreset"));
         upd.addEventListener("click", function (e) {
           e.stopPropagation();
           updatePreset(name);
         });
         pill.appendChild(upd);
         var del = document.createElement("span");
-        del.className = "del"; del.textContent = "×"; del.setAttribute("aria-label", "Delete preset");
+        del.className = "del"; del.textContent = "×"; del.setAttribute("aria-label", t("aria.deletePreset"));
         del.addEventListener("click", function (e) {
           e.stopPropagation();
           deletePreset(name);
@@ -295,7 +329,7 @@
     });
 
     var save = document.createElement("button");
-    save.className = "pill save"; save.textContent = "+ save";
+    save.className = "pill save"; save.textContent = t("val.save");
     save.addEventListener("click", saveCurrent);
     presetsEl.appendChild(save);
     updateHeader();
@@ -307,7 +341,7 @@
   }
 
   function deletePreset(name) {
-    if (!confirm("Delete preset “" + name + "”?")) return;
+    if (!confirm(t("msg.deletePreset", { name: presetLabel(name) }))) return;
     var saved = loadSaved();
     delete saved[name];
     localStorage.setItem(STORE_KEY, JSON.stringify(saved));
@@ -319,7 +353,7 @@
   // (see readPresetConfig) — not the whole panel, so it doesn't freeze in
   // whatever tempo or metronome state happened to be set at save time.
   function updatePreset(name) {
-    if (!confirm("Update preset “" + name + "” with the current settings?")) return;
+    if (!confirm(t("msg.updatePreset", { name: presetLabel(name) }))) return;
     var saved = loadSaved();
     saved[name] = readPresetConfig();
     localStorage.setItem(STORE_KEY, JSON.stringify(saved));
@@ -330,7 +364,7 @@
   // Create a new preset from the current panel (updating an existing one is the
   // ↻ button's job). Typing an existing name still overwrites it.
   function saveCurrent() {
-    var name = prompt("New preset name:", "");
+    var name = prompt(t("msg.newPresetName"), "");
     if (name == null) return;
     name = name.trim();
     if (!name) return;
@@ -439,7 +473,7 @@
       var cb = document.createElement("input");
       cb.type = "checkbox";
       cb.checked = rangeState[oct].some(Boolean);
-      cb.setAttribute("aria-label", "Octave " + oct);
+      cb.setAttribute("aria-label", t("aria.octave") + " " + oct);
       (function (o) {
         cb.addEventListener("change", function () {
           var on = cb.checked;
@@ -633,7 +667,7 @@
       });
       var cell = document.createElement("label");
       cell.className = "fig-cell";
-      cell.setAttribute("aria-label", item.name);
+      cell.setAttribute("aria-label", t("fig." + item.id));
       var cb = document.createElement("input");
       cb.type = "checkbox"; cb.className = "beat"; cb.value = item.id; cb.checked = !!item.def; cb.hidden = true;
       if (cb.checked) cell.classList.add("on");
@@ -705,7 +739,7 @@
         persistSession();
         if (typeof after === "function") after();
       }).catch(function (e) {
-        showError("Load failed: " + (e.message || e));
+        showError(t("msg.loadFailed", { detail: (e.message || e) }));
         console.error(e);
       });
     } catch (e) {
@@ -722,19 +756,14 @@
   // ===========================================================================
   // Summary header — the drill's name + key/length digest
   // ===========================================================================
-  var MODE_FULL = { major: "Major", minor: "Minor" };
-
-  function titleCase(s) {
-    return String(s).replace(/\b\w/g, function (c) { return c.toUpperCase(); });
-  }
 
   // The top bar: drill name, then "Key Mode – N Bars".
   function updateHeader() {
     var sel = keyTonicEl.options[keyTonicEl.selectedIndex];
     var tonic = sel ? sel.textContent : "C";
-    var mode = MODE_FULL[keyModeEl.value] || "";
-    shTitleEl.textContent = titleCase(activePreset || "Custom");
-    shSubEl.textContent = tonic + " " + mode + " – " + measuresEl.value + " Bars";
+    var mode = t("mode." + keyModeEl.value);
+    shTitleEl.textContent = presetLabel(activePreset) || t("val.custom");
+    shSubEl.textContent = tonic + " " + mode + " – " + measuresEl.value + " " + t("val.bars");
     syncTransport();
   }
 
@@ -1016,7 +1045,7 @@
   // Play / Pause: both glyphs live in the button; .playing picks which shows.
   function setPlayIcon(playingNow) {
     playBtn.classList.toggle("playing", !!playingNow);
-    playBtn.setAttribute("aria-label", playingNow ? "Pause" : "Play");
+    playBtn.setAttribute("aria-label", t(playingNow ? "aria.pause" : "aria.play"));
   }
 
   var BEATS_PER_BAR = 4;        // 4/4, fixed
@@ -1195,7 +1224,7 @@
     if (sampleBuffers[name] || sampleLoading[name] || sampleFailed[name]) return;
     var set = SAMPLE_SETS[name], data = window[set.data];
     ensureAudio();
-    if (!audioCtx || !data) { sampleFailed[name] = true; showError(name + " samples unavailable."); return; }
+    if (!audioCtx || !data) { sampleFailed[name] = true; showError(t("msg.noSamples", { name: t("inst." + name) })); return; }
     sampleLoading[name] = true;
     var map = {}, pending = set.notes.length, ok = 0;
     var done = function () {
@@ -1207,7 +1236,7 @@
         // re-voice them now that the real samples are decoded.
         if (playing && instrumentEl.value === name) scheduleAhead();
       }
-      else { sampleFailed[name] = true; showError(name + " samples failed to decode — using the organ instead."); }
+      else { sampleFailed[name] = true; showError(t("msg.badSamples", { name: t("inst." + name) })); }
     };
     set.notes.forEach(function (nm) {
       var b64 = data[nm[0]];
@@ -1354,7 +1383,7 @@
   function startPlay(noCountIn) {
     if (!currentSheet) return;
     var cur = osmd.cursor;
-    if (!cur) { showError("Cursor unavailable."); return; }
+    if (!cur) { showError(t("msg.noCursor")); return; }
     pinTop = true;   // hold the top until the new line's downbeat (released in frame)
 
     ensureAudio();
@@ -1597,7 +1626,7 @@
     var a = ACCS.filter(function (x) { return x.v === k.acc; })[0] || ACCS[0];
     accCycleEl.textContent = a.label;
     accCycleEl.classList.toggle("on", k.acc !== "0");
-    modeCycleEl.textContent = MODE_FULL[keyModeEl.value] || "Major";
+    modeCycleEl.textContent = t("mode." + keyModeEl.value);
     clefCycleEl.textContent = clefDef(clefEl.value).label;
   }
 
@@ -1606,8 +1635,8 @@
   function hideUnitIsMeasures() { return hideUnitEl.dataset.unit === "measures"; }
   function syncHide() {
     var n = parseInt(hideValEl.dataset.n, 10) || 0;
-    hideValEl.textContent = n === 0 ? "Off" : String(n);
-    hideUnitEl.textContent = hideUnitIsMeasures() ? "Measures" : "Beats";
+    hideValEl.textContent = n === 0 ? t("val.off") : String(n);
+    hideUnitEl.textContent = hideUnitIsMeasures() ? t("val.measures") : t("val.beats");
     hideBehindEl.checked = n > 0;
     hideLeadEl.value = Math.min(HIDE_MAX, hideUnitIsMeasures() ? n * BEATS_PER_BAR : n);
   }
@@ -1626,10 +1655,10 @@
 
   function syncInstrument() {
     var o = instrumentEl.options[instrumentEl.selectedIndex];
-    instCycleEl.textContent = o ? o.textContent : "Piano";
+    instCycleEl.textContent = t("inst." + instrumentEl.value);
   }
   function syncChunks() {
-    chunksBtnEl.textContent = showChunksEl.checked ? "On" : "Off";
+    chunksBtnEl.textContent = showChunksEl.checked ? t("val.on") : t("val.off");
     chunksBtnEl.classList.toggle("on", showChunksEl.checked);
   }
   function syncCursorBtn() {
@@ -1661,13 +1690,74 @@
     var optionText = function (sel) {
       return Array.prototype.map.call(sel.options, function (o) { return o.textContent; });
     };
-    lockCycleWidth(instCycleEl, optionText(instrumentEl));
-    lockCycleWidth(modeCycleEl, MODES.map(function (m) { return MODE_FULL[m]; }));
-    lockCycleWidth(hideUnitEl, ["Beats", "Measures"]);
+    lockCycleWidth(instCycleEl, Array.prototype.map.call(instrumentEl.options,
+      function (o) { return t("inst." + o.value); }));
+    lockCycleWidth(modeCycleEl, MODES.map(function (m) { return t("mode." + m); }));
+    lockCycleWidth(hideUnitEl, [t("val.beats"), t("val.measures")]);
     lockCycleWidth(tonicCycleEl, LETTERS);
     lockCycleWidth(accCycleEl, ACCS.map(function (a) { return a.label; }));
     lockCycleWidth(clefCycleEl, CLEFS.map(function (c) { return c.label; }));
-    lockCycleWidth(chunksBtnEl, ["Off", "On"]);
+    lockCycleWidth(chunksBtnEl, [t("val.off"), t("val.on")]);
+  }
+
+  // Re-label everything for the current language: the declarative bits from the
+  // markup, then the pieces built at runtime, then anything measured from text.
+  function applyLang() {
+    document.documentElement.setAttribute("lang", lang);
+    document.querySelectorAll("[data-i18n]").forEach(function (el) {
+      el.textContent = t(el.getAttribute("data-i18n"));
+    });
+    document.querySelectorAll("[data-i18n-aria]").forEach(function (el) {
+      el.setAttribute("aria-label", t(el.getAttribute("data-i18n-aria")));
+    });
+
+    // runtime-built labels
+    stepChecks.forEach(function (cb, i) { cb.setAttribute("aria-label", t("interval." + i)); });
+    RANGE_OCTAVES.forEach(function (oct) {
+      if (octChecks[oct]) octChecks[oct].setAttribute("aria-label", t("aria.octave") + " " + oct);
+    });
+    beatsEl.querySelectorAll(".beat").forEach(function (cb) {
+      var cell = cb.closest(".fig-cell");
+      if (cell) cell.setAttribute("aria-label", t("fig." + cb.value));
+    });
+
+    setPlayIcon(playing);
+    renderPresets();          // preset labels and the "+ save" pill
+    syncPanel();              // every value shown on a control
+    syncLangPills();
+    lockCycleWidths();        // translated labels are a different width
+  }
+
+  function setLang(next) {
+    if (!I18N[next] || next === lang) return;
+    lang = next;
+    try { localStorage.setItem(LANG_KEY, lang); } catch (e) {}
+    applyLang();
+  }
+
+  function buildLangPills() {
+    var host = document.getElementById("lang-pills");
+    if (!host) return;
+    host.innerHTML = "";
+    LANGS.forEach(function (l) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "opt";
+      b.textContent = l.label;
+      b.setAttribute("aria-label", l.label);
+      b.dataset.lang = l.id;
+      b.addEventListener("click", function () { setLang(l.id); });
+      host.appendChild(b);
+    });
+    syncLangPills();
+  }
+
+  function syncLangPills() {
+    var host = document.getElementById("lang-pills");
+    if (!host) return;
+    Array.prototype.forEach.call(host.children, function (b) {
+      b.classList.toggle("on", b.dataset.lang === lang);
+    });
   }
 
   function buildMeasuresPills() {
@@ -1941,16 +2031,15 @@
   buildBeatsPalette();
   buildMatrix();
   buildMeasuresPills();
+  buildLangPills();
   wirePanel();
   setWeights(BUILTIN["thirds drill"]);
   activePreset = "thirds drill";
   restoreSession();            // override defaults with last-used settings, if any
-  syncPanel();                 // reflect the restored state across every visible control
-  // Pin the cycle pills once Rubik is actually in play — measuring against the
-  // fallback font would size them wrong.
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(lockCycleWidths);
-  else lockCycleWidths();
+  applyLang();                 // label everything, sync the panel, size the pills
   if (isSampled(instrumentEl.value)) loadSamples(instrumentEl.value);   // preload so it's ready before Play
-  renderPresets();
+  // Re-measure once Rubik is actually in play — the fallback font would have
+  // sized the cycle pills wrong.
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(lockCycleWidths);
   generate();
 }());

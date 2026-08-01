@@ -64,23 +64,23 @@
       <!-- The control bar IS the sheet's top edge / handle. Closed, only this row
            peeks at the screen bottom; ⚙ slides the whole sheet up to reveal the grid. -->
       <div class="controlbar">
-        <button id="settings-toggle" class="cb-icon" aria-label="Settings">
+        <button id="settings-toggle" class="cb-icon" aria-label="Settings" data-i18n-aria="aria.settings">
           <svg class="ic ic-settings"><use href="#ic-settings"/></svg>
         </button>
         <div class="cb-center">
-          <button id="from-top" class="cb-icon" aria-label="From the top">
+          <button id="from-top" class="cb-icon" aria-label="From the top" data-i18n-aria="aria.fromTop">
             <svg class="ic ic-restart"><use href="#ic-restart"/></svg>
           </button>
-          <button id="play" class="cb-icon" aria-label="Play">
+          <button id="play" class="cb-icon" aria-label="Play" data-i18n-aria="aria.play">
             <svg class="ic ic-play state-rest"><use href="#ic-play"/></svg>
             <svg class="ic ic-pause state-alt"><use href="#ic-pause"/></svg>
           </button>
-          <button id="accomp" class="cb-icon" aria-label="Accompaniment on/off">
+          <button id="accomp" class="cb-icon" aria-label="Accompaniment on/off" data-i18n-aria="aria.accomp">
             <svg class="ic ic-accomp state-off"><use href="#ic-accomp-off"/></svg>
             <svg class="ic ic-accomp state-on"><use href="#ic-accomp-on"/></svg>
           </button>
         </div>
-        <button id="metro-toggle" class="cb-icon cb-right js-metro" aria-label="Metronome on/off">
+        <button id="metro-toggle" class="cb-icon cb-right js-metro" aria-label="Metronome on/off" data-i18n-aria="aria.metronome">
           <svg class="ic ic-metro state-off"><use href="#ic-metro-off"/></svg>
             <svg class="ic ic-metro state-on"><use href="#ic-metro-on"/></svg>
         </button>
@@ -100,11 +100,11 @@
         <input type="range" id="hide-lead" min="0" max="8" step="1" value="0">
         <input type="checkbox" id="show-chunks">
         <select id="instrument">
-          <option value="organ">Organ</option>
-          <option value="piano" selected>Piano</option>
-          <option value="marimba">Marimba</option>
-          <option value="vibraphone">Vibraphone</option>
-          <option value="synth">Synth</option>
+          <option data-i18n="inst.organ" value="organ">Organ</option>
+          <option data-i18n="inst.piano" value="piano" selected>Piano</option>
+          <option data-i18n="inst.marimba" value="marimba">Marimba</option>
+          <option data-i18n="inst.vibraphone" value="vibraphone">Vibraphone</option>
+          <option data-i18n="inst.synth" value="synth">Synth</option>
         </select>
         <select id="cursor-mode">
           <option value="beat" selected>Beat</option>
@@ -121,8 +121,8 @@
           <option value="6-0">B</option>
         </select>
         <select id="key-mode">
-          <option value="major" selected>Major</option>
-          <option value="minor">Minor</option>
+          <option data-i18n="mode.major" value="major" selected>Major</option>
+          <option data-i18n="mode.minor" value="minor">Minor</option>
         </select>
         <select id="measures">
           <option value="8">8</option>
@@ -132,17 +132,17 @@
           <option value="32">32</option>
         </select>
         <select id="clef">
-          <option value="treble" selected>Treble</option>
-          <option value="alto">Alto</option>
-          <option value="tenor">Tenor</option>
-          <option value="bass">Bass</option>
+          <option data-i18n="clef.treble" value="treble" selected>Treble</option>
+          <option data-i18n="clef.alto" value="alto">Alto</option>
+          <option data-i18n="clef.tenor" value="tenor">Tenor</option>
+          <option data-i18n="clef.bass" value="bass">Bass</option>
         </select>
       </div>
 
       <!-- PRESETS — snapshots of the whole panel -->
       <div class="band">
         <section class="sec">
-          <h2 class="sec-h">Presets</h2>
+          <h2 class="sec-h" data-i18n="sec.presets">Presets</h2>
           <div class="presets" id="presets"></div>
         </section>
       </div>
@@ -150,49 +150,49 @@
       <!-- TEMPO · ACCOMPANIMENT · HIDE AHEAD -->
       <div class="band">
         <section class="sec sec-tempo">
-          <h2 class="sec-h">Tempo</h2>
+          <h2 class="sec-h" data-i18n="sec.tempo">Tempo</h2>
           <div class="sec-row unit">
-            <button class="icon-toggle js-metro" type="button" aria-label="Metronome on/off">
+            <button class="icon-toggle js-metro" type="button" aria-label="Metronome on/off" data-i18n-aria="aria.metronome">
               <svg class="ic ic-metro state-off"><use href="#ic-metro-off"/></svg>
             <svg class="ic ic-metro state-on"><use href="#ic-metro-on"/></svg>
             </button>
-            <button id="cursor-toggle" class="icon-toggle" type="button" aria-label="Cursor on/off">
+            <button id="cursor-toggle" class="icon-toggle" type="button" aria-label="Cursor on/off" data-i18n-aria="aria.cursor">
               <svg class="ic ic-eye state-off"><use href="#ic-eye-off"/></svg>
               <svg class="ic ic-eye state-on"><use href="#ic-eye-on"/></svg>
             </button>
             <div class="stepper">
               <span class="stepper-val" id="tempo-val">80</span>
-              <input type="range" class="stepper-range" id="tempo-ui" min="40" max="160" step="1" value="80" aria-label="Tempo">
+              <input type="range" class="stepper-range" id="tempo-ui" min="40" max="160" step="1" value="80" aria-label="Tempo" data-i18n-aria="aria.tempo">
               <span class="step-pair">
-                <button id="tempo-down" class="step-btn" type="button" aria-label="Slower">&#8722;</button>
-                <button id="tempo-up" class="step-btn" type="button" aria-label="Faster">+</button>
+                <button id="tempo-down" class="step-btn" type="button" aria-label="Slower" data-i18n-aria="aria.slower">&#8722;</button>
+                <button id="tempo-up" class="step-btn" type="button" aria-label="Faster" data-i18n-aria="aria.faster">+</button>
               </span>
             </div>
           </div>
         </section>
 
         <section class="sec sec-accomp">
-          <h2 class="sec-h">Accompaniment</h2>
+          <h2 class="sec-h" data-i18n="sec.accomp">Accompaniment</h2>
           <div class="sec-row unit">
-            <button id="instrument-cycle" class="cycle" type="button" aria-label="Voice">Piano</button>
+            <button id="instrument-cycle" class="cycle" type="button" aria-label="Voice" data-i18n-aria="aria.voice" data-i18n="inst.piano">Piano</button>
             <div class="stepper stepper-plain">
               <svg class="vol-glyph" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-              <input type="range" class="stepper-range" id="volume-ui" min="0" max="100" step="5" value="80" aria-label="Volume">
+              <input type="range" class="stepper-range" id="volume-ui" min="0" max="100" step="5" value="80" aria-label="Volume" data-i18n-aria="aria.volume">
             </div>
           </div>
         </section>
 
         <section class="sec sec-hide">
-          <h2 class="sec-h">Hide Ahead</h2>
+          <h2 class="sec-h" data-i18n="sec.hideAhead">Hide Ahead</h2>
           <div class="sec-row unit">
             <div class="stepper stepper-fit">
-              <span class="stepper-val" id="hide-val">Off</span>
+              <span class="stepper-val" id="hide-val" data-i18n="val.off">Off</span>
               <span class="step-pair">
-                <button id="hide-down" class="step-btn" type="button" aria-label="Less">&#8722;</button>
-                <button id="hide-up" class="step-btn" type="button" aria-label="More">+</button>
+                <button id="hide-down" class="step-btn" type="button" aria-label="Less" data-i18n-aria="aria.less">&#8722;</button>
+                <button id="hide-up" class="step-btn" type="button" aria-label="More" data-i18n-aria="aria.more">+</button>
               </span>
             </div>
-            <button id="hide-unit" class="cycle" type="button" aria-label="Hide ahead unit">Beats</button>
+            <button id="hide-unit" class="cycle" type="button" aria-label="Hide ahead unit" data-i18n-aria="aria.hideUnit" data-i18n="val.beats">Beats</button>
           </div>
         </section>
       </div>
@@ -200,7 +200,7 @@
       <!-- RHYTHM — the beat figures -->
       <div class="band">
         <section class="sec">
-          <h2 class="sec-h">Rhythm</h2>
+          <h2 class="sec-h" data-i18n="sec.rhythm">Rhythm</h2>
           <div class="beats" id="beats"></div>
         </section>
       </div>
@@ -208,17 +208,17 @@
       <!-- STEP · NOTES — the melodic alphabet and the pitches it may use -->
       <div class="band">
         <section class="sec sec-step">
-          <h2 class="sec-h">Step</h2>
+          <h2 class="sec-h" data-i18n="sec.step">Step</h2>
           <div class="matrix-head">
             <span></span><span></span>
-            <span>up</span>
-            <span>down</span>
+            <span data-i18n="col.up">up</span>
+            <span data-i18n="col.down">down</span>
           </div>
           <div class="matrix" id="matrix"></div>
         </section>
 
         <section class="sec sec-notes">
-          <h2 class="sec-h">Notes</h2>
+          <h2 class="sec-h" data-i18n="sec.notes">Notes</h2>
           <div id="range-grid"></div>
         </section>
       </div>
@@ -226,19 +226,19 @@
       <!-- MUSICALITY · CHUNKS -->
       <div class="band">
         <section class="sec sec-musicality">
-          <h2 class="sec-h">Musicality</h2>
+          <h2 class="sec-h" data-i18n="sec.musicality">Musicality</h2>
           <div class="sec-row">
-            <input type="range" class="stepper-range bare-range" id="musicality" min="0" max="100" step="5" value="0" aria-label="Musicality">
+            <input type="range" class="stepper-range bare-range" id="musicality" min="0" max="100" step="5" value="0" aria-label="Musicality" data-i18n-aria="aria.musicality">
           </div>
         </section>
 
         <section class="sec sec-chunks">
-          <h2 class="sec-h">Chunks</h2>
+          <h2 class="sec-h" data-i18n="sec.chunks">Chunks</h2>
           <div class="sec-row">
-            <button id="chunks-toggle" class="cycle" type="button" aria-label="Show chunk brackets">Off</button>
+            <button id="chunks-toggle" class="cycle" type="button" aria-label="Show chunk brackets" data-i18n-aria="aria.chunks" data-i18n="val.off">Off</button>
             <span class="legend">
-              <span class="legend-item"><span class="swatch swatch-scale"></span> steps</span>
-              <span class="legend-item"><span class="swatch swatch-chord"></span> leaps</span>
+              <span class="legend-item"><span class="swatch swatch-scale"></span> <span data-i18n="legend.steps">steps</span></span>
+              <span class="legend-item"><span class="swatch swatch-chord"></span> <span data-i18n="legend.leaps">leaps</span></span>
             </span>
           </div>
         </section>
@@ -247,18 +247,26 @@
       <!-- STAFF, KEY AND LENGTH · MEASURES -->
       <div class="band">
         <section class="sec sec-key">
-          <h2 class="sec-h">Staff, Key and Length</h2>
+          <h2 class="sec-h" data-i18n="sec.staff">Staff, Key and Length</h2>
           <div class="sec-row unit">
-            <button id="clef-cycle" class="cycle cycle-clef cycle-glyph" type="button" aria-label="Clef"></button>
-            <button id="tonic-cycle" class="cycle" type="button" aria-label="Key">C</button>
-            <button id="mode-cycle" class="cycle" type="button" aria-label="Mode">Major</button>
-            <button id="acc-cycle" class="cycle cycle-glyph" type="button" aria-label="Accidental">&#9838;</button>
+            <button id="clef-cycle" class="cycle cycle-clef cycle-glyph" type="button" aria-label="Clef" data-i18n-aria="aria.clef"></button>
+            <button id="tonic-cycle" class="cycle" type="button" aria-label="Key" data-i18n-aria="aria.key">C</button>
+            <button id="mode-cycle" class="cycle" type="button" aria-label="Mode" data-i18n-aria="aria.mode" data-i18n="mode.major">Major</button>
+            <button id="acc-cycle" class="cycle cycle-glyph" type="button" aria-label="Accidental" data-i18n-aria="aria.accidental">&#9838;</button>
           </div>
         </section>
 
         <section class="sec sec-measures">
-          <h2 class="sec-h">Measures</h2>
+          <h2 class="sec-h" data-i18n="sec.measures">Measures</h2>
           <div class="sec-row" id="measures-pills"></div>
+        </section>
+      </div>
+
+      <!-- LANGUAGE — an app-level choice, so it sits apart at the end -->
+      <div class="band">
+        <section class="sec sec-language">
+          <h2 class="sec-h" data-i18n="sec.language">Language</h2>
+          <div class="sec-row" id="lang-pills"></div>
         </section>
       </div>
 
@@ -275,7 +283,7 @@
         <h1 id="sh-title"></h1>
         <div id="sh-sub"></div>
       </div>
-      <button id="generate" class="tb-btn" aria-label="New exercise">
+      <button id="generate" class="tb-btn" aria-label="New exercise" data-i18n-aria="aria.newExercise">
         <svg class="ic ic-regenerate"><use href="#ic-regenerate"/></svg>
       </button>
     </header>
@@ -294,6 +302,7 @@
   </div>
 
   <script src="lib/osme.js"></script>
+  <script src="i18n.js"></script>
   <script src="engine.js"></script>
   <script src="samples/instruments.js"></script>
   <script src="app.js"></script>
