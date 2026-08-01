@@ -73,6 +73,11 @@
   --glyph-sm: 19px;
   --glyph-md: 21px;
   --glyph-lg: 26px;
+
+  /* How long the pointer must rest on a control before it names itself, so
+     crossing the transport doesn't set off a run of tooltips. Leaving hides
+     it with no delay at all. */
+  --tip-delay: 0.45s;
 }
 
 *, *::before, *::after {
@@ -763,6 +768,7 @@ button.secondary {
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.12s;
+    transition-delay: 0s;        /* on the way out: no wait */
     z-index: 60;
   }
 
@@ -771,7 +777,7 @@ button.secondary {
   .icon-toggle:hover::after,
   .cycle:hover::after,
   .step-btn:hover::after,
-  .fig-cell:hover::after { opacity: 1; }
+  .fig-cell:hover::after { opacity: 1; transition-delay: var(--tip-delay); }
 
   /* The transport sits at the top edge of the open sheet, so its tooltips
      hang below rather than off the top of the panel. */
