@@ -366,12 +366,37 @@ input[type="range"]::-moz-range-thumb {
   background: var(--ctl-on);
 }
 
+/* ---------------------------------------------------------------------------
+   PATTERN: checkbox
+   Drawn from scratch rather than left to the browser's native box, which
+   comes with its own border regardless of accent-color — the one control
+   still wearing an outline after every other rest state went to a filled
+   shape. Same rule as everywhere else: filled, no border at rest; the accent
+   fill plus a checkmark when checked.
+   --------------------------------------------------------------------------- */
 input[type="checkbox"] {
-  width: 17px;
-  height: 17px;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 19px;
+  height: 19px;
   flex-shrink: 0;
-  accent-color: var(--chord);
+  margin: 0;
+  border-radius: 5px;
+  background: var(--ctl-fill);
   cursor: pointer;
+  position: relative;
+  transition: background 0.1s;
+}
+input[type="checkbox"]:hover { background: var(--ctl-fill-hover); }
+input[type="checkbox"]:checked { background: var(--ctl-on); }
+input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 50%; top: 46%;
+  width: 5px; height: 9px;
+  border: solid var(--ctl-on-ink);
+  border-width: 0 2px 2px 0;
+  transform: translate(-50%, -50%) rotate(45deg);
 }
 
 /* Hidden state mirror — the real form controls the settings logic reads. */
