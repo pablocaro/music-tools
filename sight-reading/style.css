@@ -36,6 +36,7 @@
   --ctl-h: 40px;                                                   /* standard control height in the panel */
   --ctl-h-lg: 48px;                                                /* round icon buttons — transport, regenerate */
   --panel-max: 1100px;                                             /* settings content stops widening past this */
+  --col-max: 540px;                                                /* one column of the panel's two-up bands */
   --ctl-fill: var(--paper-dim);                                    /* recessed track / plain-container fill */
   --ctl-fill-hover: #e9e9ee;                                       /* resting fill, hovered */
   --track: rgba(0, 0, 0, 0.18);                                    /* slider track — reads recessed on paper and on --ctl-fill */
@@ -288,6 +289,11 @@ button.playing svg.state-alt { display: block; }
 }
 .sec-row.unit { flex-wrap: nowrap; }
 
+/* A full-width section whose control is a bare slider stops at one column's
+   width — stretched across the whole panel it reads as a scrollbar, and the
+   travel becomes far finer than the setting warrants. */
+.sec-musicality .sec-row { max-width: var(--col-max); }
+
 /* Band pairing. Sections declare the width they want to keep; below it they
    wrap to their own line on their own. */
 .sec-tempo      { flex: 3 1 320px; }
@@ -473,6 +479,10 @@ input[type="checkbox"]:checked::after {
 }
 /* No buttons on this one, so the track needs its own margin from the edge. */
 .stepper-plain { padding: 0 18px 0 14px; }
+
+/* A stepper with no slider has nothing to fill extra width with — it hugs its
+   value and buttons instead of stretching them apart. */
+.stepper-fit { flex: 0 0 auto; }
 
 /* The -/+ belong to each other more than to the slider, so they pair up tight
    and the stepper's own gap keeps them clear of it. */
