@@ -151,7 +151,7 @@
       <div class="band">
         <section class="sec sec-tempo">
           <h2 class="sec-h">Tempo</h2>
-          <div class="sec-row">
+          <div class="sec-row unit">
             <button class="icon-toggle js-metro" type="button" aria-label="Metronome on/off">
               <svg class="ic ic-metro state-off"><use href="#ic-metro-off"/></svg>
             <svg class="ic ic-metro state-on"><use href="#ic-metro-on"/></svg>
@@ -163,15 +163,17 @@
             <div class="stepper">
               <span class="stepper-val" id="tempo-val">80</span>
               <input type="range" class="stepper-range" id="tempo-ui" min="40" max="160" step="1" value="80" aria-label="Tempo">
-              <button id="tempo-down" class="step-btn" type="button" aria-label="Slower">&#8722;</button>
-              <button id="tempo-up" class="step-btn" type="button" aria-label="Faster">+</button>
+              <span class="step-pair">
+                <button id="tempo-down" class="step-btn" type="button" aria-label="Slower">&#8722;</button>
+                <button id="tempo-up" class="step-btn" type="button" aria-label="Faster">+</button>
+              </span>
             </div>
           </div>
         </section>
 
         <section class="sec sec-accomp">
           <h2 class="sec-h">Accompaniment</h2>
-          <div class="sec-row">
+          <div class="sec-row unit">
             <button id="instrument-cycle" class="cycle" type="button" aria-label="Voice">Piano</button>
             <div class="stepper stepper-plain">
               <svg class="vol-glyph" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
@@ -182,11 +184,13 @@
 
         <section class="sec sec-hide">
           <h2 class="sec-h">Hide Ahead</h2>
-          <div class="sec-row">
+          <div class="sec-row unit">
             <div class="stepper">
               <span class="stepper-val" id="hide-val">Off</span>
-              <button id="hide-down" class="step-btn" type="button" aria-label="Less">&#8722;</button>
-              <button id="hide-up" class="step-btn" type="button" aria-label="More">+</button>
+              <span class="step-pair">
+                <button id="hide-down" class="step-btn" type="button" aria-label="Less">&#8722;</button>
+                <button id="hide-up" class="step-btn" type="button" aria-label="More">+</button>
+              </span>
             </div>
             <button id="hide-unit" class="cycle" type="button" aria-label="Hide ahead unit">Beats</button>
           </div>
@@ -244,7 +248,7 @@
       <div class="band">
         <section class="sec sec-key">
           <h2 class="sec-h">Staff, Key and Length</h2>
-          <div class="sec-row">
+          <div class="sec-row unit">
             <button id="clef-cycle" class="cycle cycle-clef cycle-glyph" type="button" aria-label="Clef"></button>
             <button id="tonic-cycle" class="cycle" type="button" aria-label="Key">C</button>
             <button id="mode-cycle" class="cycle" type="button" aria-label="Mode">Major</button>

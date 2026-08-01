@@ -35,6 +35,7 @@
   --ctl-on-tint: color-mix(in srgb, var(--chord) 10%, var(--paper)); /* subtle tint for pill-selected */
   --ctl-h: 40px;                                                   /* standard control height in the panel */
   --ctl-h-lg: 48px;                                                /* round icon buttons — transport, regenerate */
+  --panel-max: 1100px;                                             /* settings content stops widening past this */
   --ctl-fill: var(--paper-dim);                                    /* recessed track / plain-container fill */
   --ctl-fill-hover: #e9e9ee;                                       /* resting fill, hovered */
   --track: rgba(0, 0, 0, 0.18);                                    /* slider track — reads recessed on paper and on --ctl-fill */
@@ -229,8 +230,18 @@ button.playing svg.state-alt { display: block; }
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* Nothing may ever drag the panel sideways. A hover tooltip on an edge tile
+     can still reach past the content box in a narrow desktop window; clipping
+     it beats letting the whole sheet slide. (`clip` would be tidier, but it
+     computes to `hidden` anyway whenever the other axis is `auto`.) */
+  overflow-x: hidden;
   padding: 4px 20px calc(24px + env(safe-area-inset-bottom, 0px));
 }
+
+/* The panel's content stops widening on a large monitor — past this the rows
+   stretch into unreadable runs. Capped per band so the dividers stop with it. */
+.pocket-body > .band,
+.pocket-body > .error { max-width: var(--panel-max); margin-inline: auto; }
 
 /* ---------------------------------------------------------------------------
    PATTERN: band + section
@@ -265,13 +276,17 @@ button.playing svg.state-alt { display: block; }
   color: var(--muted);
 }
 
-/* A row of controls inside a section. */
+/* A row of controls inside a section. Lists (presets, measures, rhythm) wrap
+   freely — their length varies. A row marked .unit is a single control group,
+   so it never breaks internally: it shrinks, and the whole section wraps to
+   the next line instead. */
 .sec-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
+.sec-row.unit { flex-wrap: nowrap; }
 
 /* Band pairing. Sections declare the width they want to keep; below it they
    wrap to their own line on their own. */
@@ -449,14 +464,24 @@ input[type="checkbox"]:checked::after {
   flex: 1 1 200px;
   min-width: 0;
   height: var(--ctl-h);
-  padding: 0 5px 0 14px;
+  padding: 0 8px 0 16px;
   border-radius: var(--ctl-radius);
   background: var(--ctl-fill);
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
-.stepper-plain { padding-left: 12px; }
+/* No buttons on this one, so the track needs its own margin from the edge. */
+.stepper-plain { padding: 0 18px 0 14px; }
+
+/* The -/+ belong to each other more than to the slider, so they pair up tight
+   and the stepper's own gap keeps them clear of it. */
+.step-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
 
 .stepper-val {
   font-size: var(--type-label);
@@ -472,7 +497,7 @@ input[type="checkbox"]:checked::after {
 .vol-glyph { width: 20px; height: 20px; flex-shrink: 0; color: var(--ink); }
 
 .step-btn {
-  width: 30px; height: 30px;
+  width: 26px; height: 26px;
   flex-shrink: 0;
   padding: 0;
   border: none;
