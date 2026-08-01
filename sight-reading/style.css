@@ -77,7 +77,7 @@
   /* How long the pointer must rest on a control before it names itself, so
      crossing the transport doesn't set off a run of tooltips. Leaving hides
      it with no delay at all. */
-  --tip-delay: 0.45s;
+  --tip-delay: 0.9s;
 }
 
 *, *::before, *::after {
