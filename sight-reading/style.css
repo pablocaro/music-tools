@@ -1053,19 +1053,29 @@ button.secondary {
 .help-top {
   flex-shrink: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  padding: 20px 22px 14px;
+  padding: 18px 22px 14px;
   border-bottom: 1px solid var(--line);
+}
+.help-titles { min-width: 0; }
+.help-kicker {
+  font-size: var(--type-caption);
+  font-weight: var(--weight-prominent);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--ctl-on);
+  margin-bottom: 2px;
 }
 .help-top h2 {
   font-size: var(--type-lead);
   font-weight: var(--weight-strong);
   color: var(--ink);
 }
-/* The close control is a touch target, not a caption. */
-#help-close { width: 32px; height: 32px; font-size: 20px; }
+/* The close control is a touch target, not a caption; nudge it down to sit
+   level with the (now two-line) title block instead of its top edge. */
+#help-close { width: 32px; height: 32px; font-size: 20px; margin-top: 2px; }
 
 .help-body {
   overflow-y: auto;
