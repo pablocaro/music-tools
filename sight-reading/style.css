@@ -154,7 +154,7 @@ body {
    wide-and-short, so a single box size would make the wide ones read small and
    the tall ones read large — each is tuned to sit at the same visual weight. */
 .ic { display: block; width: 21px; height: 21px; }
-.ic-settings   { width: 20px; height: 20px; }
+.ic-settings   { width: 22px; height: 22px; }
 .ic-restart    { width: 22px; height: 22px; }
 .ic-play       { width: 19px; height: 19px; }
 .ic-pause      { width: 18px; height: 18px; }
@@ -726,15 +726,31 @@ button.secondary {
 
 .fig-svg { width: 42px; height: 27px; display: block; }
 
-/* Hover tooltip with the figure name. Only built where there's a pointer to
-   hover with: on touch it can never be shown, and an always-present nowrap
-   label — invisible but still laid out — pushed the panel's scrollWidth past
-   the viewport and let the whole sheet slide sideways on a phone. */
+/* ---------------------------------------------------------------------------
+   PATTERN: tooltip
+   Every control that says what it is only through a glyph names itself on
+   hover. The label is read straight off aria-label rather than duplicated
+   into a data- attribute, so there is one source of truth: it stays right
+   when a label changes at runtime (play becomes pause) and it will follow
+   translation for free.
+
+   Built only where there's a pointer to hover with. On touch it could never
+   be shown anyway, and an always-present nowrap label — invisible but still
+   laid out — pushed the panel's scrollWidth past the viewport and let the
+   whole sheet slide sideways on a phone.
+   --------------------------------------------------------------------------- */
 @media (hover: hover) and (pointer: fine) {
+  .cb-icon, .tb-btn, .icon-toggle, .cycle, .step-btn, .fig-cell { position: relative; }
+
+  .cb-icon::after,
+  .tb-btn::after,
+  .icon-toggle::after,
+  .cycle::after,
+  .step-btn::after,
   .fig-cell::after {
-    content: attr(data-name);
+    content: attr(aria-label);
     position: absolute;
-    bottom: calc(100% + 5px);
+    bottom: calc(100% + 6px);
     left: 50%;
     transform: translateX(-50%);
     background: var(--ink);
@@ -750,7 +766,16 @@ button.secondary {
     z-index: 60;
   }
 
+  .cb-icon:hover::after,
+  .tb-btn:hover::after,
+  .icon-toggle:hover::after,
+  .cycle:hover::after,
+  .step-btn:hover::after,
   .fig-cell:hover::after { opacity: 1; }
+
+  /* The transport sits at the top edge of the open sheet, so its tooltips
+     hang below rather than off the top of the panel. */
+  .controlbar .cb-icon::after { top: calc(100% + 6px); bottom: auto; }
 }
 
 /* Legend — what the two bracket colours mean, beside the Chunks toggle. */

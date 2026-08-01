@@ -52,11 +52,24 @@
   ];
 
   // built-in presets (same weight applied to down + up): [uni,2,3,4,5,6,7,oct]
+  // The alphabet each built-in drill is built around (same weight up and down).
   var BUILTIN = {
     "steps only":   [0, 4, 0, 0, 0, 0, 0, 0],
     "thirds drill": [1, 2, 4, 1, 1, 0, 0, 0],
     "wide leaps":   [0, 1, 2, 3, 3, 2, 1, 2]
   };
+
+  // What a built-in leaves alone would otherwise be whatever the last drill
+  // happened to use, so each one carries the same five fields a saved preset
+  // does — the alphabet it's named for, plus the neutral staff to read it on.
+  var BUILTIN_DEFAULTS = { musicality: "0", key: "major_0-0", clef: "treble", measures: "16" };
+
+  function builtinPreset(name) {
+    var w = BUILTIN[name];
+    var p = { alphabet: { down: w.slice(), up: w.slice() }, range: defaultRange() };
+    Object.keys(BUILTIN_DEFAULTS).forEach(function (k) { p[k] = BUILTIN_DEFAULTS[k]; });
+    return p;
+  }
 
   // Migrate an old 7-entry alphabet ([..,6th,octave]) to 8 entries by inserting
   // a 0 for the new 7th slot, so saved presets/sessions keep their octave weight.
@@ -245,7 +258,7 @@
     presetsEl.innerHTML = "";
     var saved = loadSaved();
     var all = {};
-    Object.keys(BUILTIN).forEach(function (k) { all[k] = BUILTIN[k]; });
+    Object.keys(BUILTIN).forEach(function (k) { all[k] = builtinPreset(k); });
     Object.keys(saved).forEach(function (k) { all[k] = saved[k]; });
 
     Object.keys(all).forEach(function (name) {
@@ -368,11 +381,16 @@
   var rangeState = {};   // { [oct]: [bool × 7] }
   var rangeCells = {};   // { "oct-i": button }
 
-  function initRangeState() {
+  // Treble's home octaves — the starting selection, and what a built-in resets to.
+  function defaultRange() {
+    var r = {};
     RANGE_OCTAVES.forEach(function (oct) {
-      rangeState[oct] = NOTE_COLS.map(function () { return oct === 4 || oct === 5; });
+      r[oct] = NOTE_COLS.map(function () { return oct === 4 || oct === 5; });
     });
+    return r;
   }
+
+  function initRangeState() { rangeState = defaultRange(); }
 
   function syncRangeCells(oct) {
     NOTE_COLS.forEach(function (nc, i) {
@@ -615,7 +633,6 @@
       });
       var cell = document.createElement("label");
       cell.className = "fig-cell";
-      cell.setAttribute("data-name", item.name);
       cell.setAttribute("aria-label", item.name);
       var cb = document.createElement("input");
       cb.type = "checkbox"; cb.className = "beat"; cb.value = item.id; cb.checked = !!item.def; cb.hidden = true;
@@ -1582,7 +1599,6 @@
     accCycleEl.classList.toggle("on", k.acc !== "0");
     modeCycleEl.textContent = MODE_FULL[keyModeEl.value] || "Major";
     clefCycleEl.textContent = clefDef(clefEl.value).label;
-    clefCycleEl.title = clefDef(clefEl.value).id;
   }
 
   // Hide Ahead: 0 reads as "Off" — that's what replaces the old hide-behind
