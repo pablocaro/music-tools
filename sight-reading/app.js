@@ -276,14 +276,14 @@
       });
       if (saved.hasOwnProperty(name)) {                // user preset/override: updatable + deletable
         var upd = document.createElement("span");
-        upd.className = "upd"; upd.textContent = "↻"; upd.title = "Update with current settings";
+        upd.className = "upd"; upd.textContent = "↻"; upd.setAttribute("aria-label", "Update with current settings");
         upd.addEventListener("click", function (e) {
           e.stopPropagation();
           updatePreset(name);
         });
         pill.appendChild(upd);
         var del = document.createElement("span");
-        del.className = "del"; del.textContent = "×"; del.title = "Delete preset";
+        del.className = "del"; del.textContent = "×"; del.setAttribute("aria-label", "Delete preset");
         del.addEventListener("click", function (e) {
           e.stopPropagation();
           deletePreset(name);

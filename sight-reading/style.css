@@ -77,7 +77,7 @@
   /* How long the pointer must rest on a control before it names itself, so
      crossing the transport doesn't set off a run of tooltips. Leaving hides
      it with no delay at all. */
-  --tip-delay: 0.9s;
+  --tip-delay: 1.4s;
 }
 
 *, *::before, *::after {
@@ -745,14 +745,17 @@ button.secondary {
    whole sheet slide sideways on a phone.
    --------------------------------------------------------------------------- */
 @media (hover: hover) and (pointer: fine) {
-  .cb-icon, .tb-btn, .icon-toggle, .cycle, .step-btn, .fig-cell { position: relative; }
+  .cb-icon, .tb-btn, .icon-toggle, .cycle, .step-btn, .fig-cell,
+  .pill .upd, .pill .del { position: relative; }
 
   .cb-icon::after,
   .tb-btn::after,
   .icon-toggle::after,
   .cycle::after,
   .step-btn::after,
-  .fig-cell::after {
+  .fig-cell::after,
+  .pill .upd::after,
+  .pill .del::after {
     content: attr(aria-label);
     position: absolute;
     bottom: calc(100% + 6px);
@@ -777,7 +780,9 @@ button.secondary {
   .icon-toggle:hover::after,
   .cycle:hover::after,
   .step-btn:hover::after,
-  .fig-cell:hover::after { opacity: 1; transition-delay: var(--tip-delay); }
+  .fig-cell:hover::after,
+  .pill .upd:hover::after,
+  .pill .del:hover::after { opacity: 1; transition-delay: var(--tip-delay); }
 
   /* The transport sits at the top edge of the open sheet, so its tooltips
      hang below rather than off the top of the panel. */
