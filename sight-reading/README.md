@@ -1,4 +1,4 @@
-# Sight Reading — Seeing Mode
+# Prima Vista — Seeing Mode
 
 A practice tool for building sight-reading **fluency** on violin. You define a
 *vocabulary* — which melodic intervals and which rhythmic figures are allowed —
