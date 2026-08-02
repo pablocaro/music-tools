@@ -3,7 +3,7 @@
  *
  * Pipeline: read the controls -> ask OSME to generate a sheet (pitch selection
  * is overridden in engine.js) -> export to MusicXML -> load + render via OSMD's
- * standard path -> draw chunk brackets over the result.
+ * standard path -> highlight the chunks over the result.
  */
 (function () {
   "use strict";
@@ -47,17 +47,20 @@
   }
 
   // ---- config ----
-  var COLOR_SCALE = "#9aa0a8";   // neutral grey — stepwise motion
-  var COLOR_CHORD = "#0a84ff";   // iOS blue — leaps / arpeggios
+  // Chunk ink, mirroring the --chunk-* tokens. One register only: the dot beside
+  // an interval in the panel is the exact colour that will highlight it on the
+  // staff, so the code is learned in one place and recognised in the other.
+  var HL_STEP = "#4fd9ef";       // highlighter cyan — stepwise motion
+  var HL_LEAP = "#a8e63c";       // highlighter lime — leaps / arpeggios
   var WEIGHT_MIN = 1;            // min per-interval slider weight (the checkbox owns off)
   var WEIGHT_MAX = 4;            // max per-interval slider weight
   var MEASURES_PER_LINE = 6;     // cap on a wide screen
   var MIN_PER_LINE = 2;          // never fewer than this; shrink to fit if needed
   var MEASURE_PX = 175;          // ~full-size measure width (FixedMeasureWidth keeps it stable)
   var CLEF_PX = 88;              // ~clef + key + time prefix at a line start
-  var BRACKET_GAP = 10;         // px the bracket sits above the highest notehead
-  var BRACKET_TICK = 6;         // px length of the bracket's end ticks
-  var SYSTEM_BREAK_PX = 40;     // vertical gap that signals a line wrap
+  var HL_PAD_X = 4;             // px the block runs past the first/last notehead
+  var HL_PAD_Y = 6;             // px above the top notehead and below the bottom
+  var HL_RADIUS = 6;            // corner radius — a highlighter stroke, not a pill
   var STORE_KEY = "sr_presets";
   var SESSION_KEY = "sr_session";  // last-used settings, restored on reload
   var COUNTIN_FREQ = 1568;      // count-in click pitch (G6) — distinct from play
@@ -68,13 +71,13 @@
   // ===========================================================================
   var INTERVALS = [
     { n: "unison", c: "#888780" },
-    { n: "2nd",    c: COLOR_SCALE },
-    { n: "3rd",    c: COLOR_CHORD },
-    { n: "4th",    c: COLOR_CHORD },
-    { n: "5th",    c: COLOR_CHORD },
-    { n: "6th",    c: COLOR_CHORD },
-    { n: "7th",    c: COLOR_CHORD },
-    { n: "octave", c: COLOR_CHORD }
+    { n: "2nd",    c: HL_STEP },
+    { n: "3rd",    c: HL_LEAP },
+    { n: "4th",    c: HL_LEAP },
+    { n: "5th",    c: HL_LEAP },
+    { n: "6th",    c: HL_LEAP },
+    { n: "7th",    c: HL_LEAP },
+    { n: "octave", c: HL_LEAP }
   ];
 
   // built-in presets (same weight applied to down + up): [uni,2,3,4,5,6,7,oct]
@@ -925,7 +928,7 @@
   function syncTransport() { syncMetroPill(); syncAccompBtn(); }
 
   // ===========================================================================
-  // Seeing mode: read the rendered notes back out and bracket the chunks
+  // Seeing mode: read the rendered noteheads back out and highlight the chunks
   // ===========================================================================
   function collectNotes() {
     var out = [];
@@ -945,7 +948,14 @@
             var halfTone = (!isRest && src.Pitch) ? src.Pitch.getHalfTone() : null;
             var el = null;
             try { el = gn.getSVGGElement ? gn.getSVGGElement() : null; } catch (err) { el = null; }
-            out.push({ isRest: isRest, halfTone: halfTone, el: el });
+            // The notehead alone anchors the highlighter — a note's own <g>
+            // stretches 35px up or down for the stem, which would swell every
+            // block far past the notes it is marking.
+            var head = el ? (el.querySelector(".vf-notehead") || el) : null;
+            // Which engraved system this note landed on, so a run that wraps at
+            // a line break can be highlighted once per line.
+            var sys = el ? el.closest(".staffline") : null;
+            out.push({ isRest: isRest, halfTone: halfTone, el: el, head: head, sys: sys, measure: m });
           }
         }
       }
@@ -966,7 +976,7 @@
     }
     for (var i = 0; i < notes.length; i++) {
       var note = notes[i];
-      if (note.isRest || note.halfTone == null || !note.el) { flush(); continue; }
+      if (note.isRest || note.halfTone == null || !note.head) { flush(); continue; }
       if (run.length === 0) { run = [note]; dir = 0; continue; }
       var diff = note.halfTone - run[run.length - 1].halfTone;
       if (diff === 0) { flush(); run = [note]; continue; }
@@ -979,6 +989,25 @@
     return chunks;
   }
 
+  // Split a run at system boundaries, keeping order. A run that straddles a
+  // line break gets one block per line — which is what a highlighter does when
+  // a phrase wraps, and it retires the old "skip chunks that wrap" limitation.
+  function splitBySystem(notes) {
+    var parts = [], cur = null, sys;
+    for (var i = 0; i < notes.length; i++) {
+      if (!cur || notes[i].sys !== sys) { cur = []; parts.push(cur); sys = notes[i].sys; }
+      cur.push(notes[i]);
+    }
+    return parts;
+  }
+
+  // Each chunk is drawn as a highlighter block whose opposite corners are the
+  // run's first and last noteheads. Runs are strictly monotonic — analyzeChunks
+  // ends one the moment direction reverses — so those two notes are always the
+  // pitch extremes, and the block is exactly the bounding box of the run's
+  // noteheads with the melodic contour tracing its diagonal. Consecutive chunks
+  // therefore always run opposite ways and their blocks step past each other,
+  // so two same-coloured runs never read as one.
   function drawOverlay() {
     var old = document.getElementById("chunk-overlay");
     if (old) old.remove();
@@ -996,30 +1025,42 @@
     overlay.setAttribute("height", sheetEl.scrollHeight);
 
     chunks.forEach(function (chunk) {
-      var left = Infinity, right = -Infinity, top = Infinity, firstTop = null, sameLine = true;
-      chunk.notes.forEach(function (note) {
-        var r = note.el.getBoundingClientRect();
-        if (firstTop === null) firstTop = r.top;
-        if (Math.abs(r.top - firstTop) > SYSTEM_BREAK_PX) sameLine = false;
-        left = Math.min(left, r.left); right = Math.max(right, r.right); top = Math.min(top, r.top);
+      var color = chunk.type === "chord" ? HL_LEAP : HL_STEP;
+      splitBySystem(chunk.notes).forEach(function (part) {
+        // A wrapped run can leave one note stranded on the far side of the line
+        // break. A block around a single note says nothing on its own and reads
+        // as a stray chip of colour, so only the substantial side is marked.
+        if (part.length < 2) return;
+        var l = Infinity, r = -Infinity, t = Infinity, b = -Infinity;
+        for (var i = 0; i < part.length; i++) {
+          var box = part[i].head.getBoundingClientRect();
+          l = Math.min(l, box.left); r = Math.max(r, box.right);
+          t = Math.min(t, box.top);  b = Math.max(b, box.bottom);
+        }
+        var rect = document.createElementNS(NS, "rect");
+        rect.setAttribute("x", l - cRect.left + scrollLeft - HL_PAD_X);
+        rect.setAttribute("y", t - cRect.top + scrollTop - HL_PAD_Y);
+        rect.setAttribute("width",  (r - l) + HL_PAD_X * 2);
+        rect.setAttribute("height", (b - t) + HL_PAD_Y * 2);
+        rect.setAttribute("rx", HL_RADIUS);
+        rect.setAttribute("fill", color);
+        rect.dataset.measure = part[0].measure;
+        overlay.appendChild(rect);
       });
-      if (!sameLine) return; // skip chunks that wrap across a system line break
-
-      var x1 = left - cRect.left + scrollLeft;
-      var x2 = right - cRect.left + scrollLeft;
-      var y = top - cRect.top + scrollTop - BRACKET_GAP;
-      var color = chunk.type === "chord" ? COLOR_CHORD : COLOR_SCALE;
-      var path = document.createElementNS(NS, "path");
-      path.setAttribute("d", "M " + x1 + " " + (y + BRACKET_TICK) + " L " + x1 + " " + y +
-                             " L " + x2 + " " + y + " L " + x2 + " " + (y + BRACKET_TICK));
-      path.setAttribute("fill", "none");
-      path.setAttribute("stroke", color);
-      path.setAttribute("stroke-width", "2");
-      path.setAttribute("stroke-linecap", "round");
-      path.setAttribute("stroke-linejoin", "round");
-      overlay.appendChild(path);
     });
     sheetEl.appendChild(overlay);
+    syncHighlights(session ? Math.max(0, session.hideState) : 0);
+  }
+
+  // Blocks empty out with the measures they sit on, so "hide behind" leaves a
+  // clean bar instead of a slab of ink floating over nothing. A block is keyed
+  // to the measure its run starts in.
+  function syncHighlights(count) {
+    var ov = document.getElementById("chunk-overlay");
+    if (!ov) return;
+    ov.querySelectorAll("rect").forEach(function (r) {
+      r.style.visibility = (+r.dataset.measure < count) ? "hidden" : "";
+    });
   }
 
   // ===========================================================================
@@ -1322,6 +1363,7 @@
 
   function showAllInk() {
     sheetEl.querySelectorAll(INK_SEL).forEach(function (el) { el.style.visibility = ""; });
+    syncHighlights(0);
   }
 
   // Hide the ink in measures [0, count); show it in the rest.
@@ -1331,6 +1373,7 @@
       var nodes = measureInk[i];
       for (var j = 0; j < nodes.length; j++) nodes[j].style.visibility = vis;
     }
+    syncHighlights(count);
   }
 
   // Full reset to the top: stop, hide the cursor, rewind to the first note.

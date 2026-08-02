@@ -3,7 +3,7 @@
 A practice tool for building sight-reading **fluency** on violin. You define a
 *vocabulary* — which melodic intervals and which rhythmic figures are allowed —
 and the engine generates endless fresh exercises from it. Recognizable patterns
-are bracketed over the staff (blue = stepwise, coral = leaps) to train the eye
+are highlighted on the staff (cyan = stepwise, lime = leaps) to train the eye
 to read in chunks instead of note-by-note.
 
 This is **Seeing mode**: pattern recognition with no time pressure. It's the
@@ -26,7 +26,7 @@ Or any static server (`python3 -m http.server`, etc.).
 ## How it works
 
 ```
-controls ──► OSME generates a sheet ──► export MusicXML ──► OSMD load + render ──► bracket the chunks
+controls ──► OSME generates a sheet ──► export MusicXML ──► OSMD load + render ──► highlight the chunks
              (pitch picker overridden)                      (standard pipeline)
 ```
 
@@ -38,8 +38,10 @@ controls ──► OSME generates a sheet ──► export MusicXML ──► OS
   staying in key and inside the chosen note range.
 - Generation goes out as MusicXML and back in through OSMD's standard
   `load() → render()` so render options (auto-beaming, layout) actually apply.
-- After rendering, `app.js` reads each note's SVG position back out of OSMD and
-  draws the chunk brackets on an overlay.
+- After rendering, `app.js` reads each notehead's SVG position back out of OSMD
+  and draws the chunk highlights on an overlay. Each run's first and last
+  noteheads are opposite corners of a block, which multiply-blends so the
+  notation reads straight through the colour.
 
 ## Controls
 
@@ -57,19 +59,17 @@ controls ──► OSME generates a sheet ──► export MusicXML ──► OS
 |------|------|
 | `index.html` / `style.css` | markup + styling |
 | `engine.js` | generation layer — OSME overrides, interval walk, diatonic ladder |
-| `app.js` | UI, render pipeline, Seeing-mode bracket overlay |
+| `app.js` | UI, render pipeline, Seeing-mode highlight overlay |
 | `lib/osme.js` | prebuilt OSME + OSMD bundle (vendored) |
 | `serve.py` | tiny no-cache dev server |
 
 ## Known limitations
 
-- Chunk brackets that would span a line wrap are skipped (drawn within each
-  system, not across).
 - Rhythm figures are equally weighted (on/off), not yet probability-weighted.
 - Time signature is fixed at 4/4.
 
 ## Roadmap
 
 - **Letting-go mode** — hide measures as you reach them to force reading ahead.
-- Probability-weighted rhythm figures; rhythm brackets below the staff.
+- Probability-weighted rhythm figures; rhythm chunks marked below the staff.
 - Interval/figure targeting tied to weak spots.

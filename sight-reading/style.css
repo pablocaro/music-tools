@@ -12,8 +12,14 @@
   --paper-dim: #f5f5f5;
   --ink: #1a1a1a;
   --muted: #8e8e93;
-  --scale: #9aa0a8;   /* steps — neutral cool grey */
-  --chord: #0a84ff;   /* leaps + primary UI accent — iOS blue */
+  --accent: #0a84ff;  /* primary UI accent — iOS blue */
+
+  /* Chunk ink — highlighter pigment laid on the staff, and the same two values
+     for the small marks that name it in the panel (interval dots, legend), so
+     the code is learned in one place and recognised in the other. Deliberately
+     louder than the rest of the palette: this reads as ink on paper, not UI. */
+  --chunk-step: #4fd9ef;      /* steps — highlighter cyan */
+  --chunk-leap: #a8e63c;      /* leaps — highlighter lime */
   --line: #e5e5e5;
   --music-max: 1040px;   /* the music column never grows wider than this — wide
                             viewports just gain negative space on the sides */
@@ -30,9 +36,9 @@
   --ctl-border: 2px;
   --ctl-radius: 999px;                                             /* pill controls (presets) */
   --ctl-radius-box: 8px;                                           /* boxy controls (selects, tiles) */
-  --ctl-on: var(--chord);                                          /* selected = iOS-blue accent */
+  --ctl-on: var(--accent);                                         /* selected = iOS-blue accent */
   --ctl-on-ink: var(--paper);                                      /* text/glyph on a filled selected control */
-  --ctl-on-tint: color-mix(in srgb, var(--chord) 10%, var(--paper)); /* subtle tint for pill-selected */
+  --ctl-on-tint: color-mix(in srgb, var(--accent) 10%, var(--paper)); /* subtle tint for pill-selected */
   --ctl-h: 40px;                                                   /* standard control height in the panel */
   --ctl-h-lg: 48px;                                                /* round icon buttons — transport, regenerate */
   --panel-max: 1100px;                                             /* settings content stops widening past this */
@@ -794,7 +800,7 @@ button.secondary {
   .controlbar .cb-icon::after { top: calc(100% + 6px); bottom: auto; }
 }
 
-/* Legend — what the two bracket colours mean, beside the Chunks toggle. */
+/* Legend — what the two highlighter colours mean, beside the Chunks toggle. */
 .legend {
   display: inline-flex;
   flex-wrap: wrap;
@@ -805,15 +811,17 @@ button.secondary {
 
 .legend-item { display: inline-flex; align-items: center; gap: 6px; }
 
+/* A miniature of the block drawn on the staff, not a rule: same fill, same
+   corner treatment, scaled down. */
 .swatch {
   width: 18px;
-  height: 3px;
-  border-radius: 2px;
+  height: 11px;
+  border-radius: 3px;
   flex-shrink: 0;
 }
 
-.swatch-scale { background: var(--scale); }
-.swatch-chord { background: var(--chord); }
+.swatch-step { background: var(--chunk-step); }
+.swatch-leap { background: var(--chunk-leap); }
 
 .error {
   color: #b03b3b;
@@ -901,12 +909,17 @@ button.secondary {
 .tb-btn:hover { background: #e7e7ec; opacity: 1; }
 .tb-btn:active { transform: scale(0.94); opacity: 1; }
 
+/* Chunk highlighter. Multiply is how pigment actually behaves: the pale block
+   darkens white paper but leaves black notation and the staff lines reading
+   straight through it, so the overlay can sit on top of the score without
+   having to be re-parented underneath it. */
 #chunk-overlay {
   position: absolute;
   top: 0;
   left: 0;
   pointer-events: none;
   overflow: visible;
+  mix-blend-mode: multiply;
 }
 
 /* Count-in countdown number */

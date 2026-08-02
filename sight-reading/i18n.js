@@ -82,7 +82,7 @@ window.SR_I18N = {
     "aria.key":          "Key",
     "aria.mode":         "Mode",
     "aria.accidental":   "Accidental",
-    "aria.chunks":       "Show chunk brackets",
+    "aria.chunks":       "Show chunk highlights",
     "aria.musicality":   "Musicality",
     "aria.octave":       "Octave",
     "aria.updatePreset": "Update with current settings",
@@ -150,7 +150,7 @@ window.SR_I18N = {
     "help.musicality":  "At zero the line is a plain random walk. Higher, it starts behaving like a melody — phrases turn back on themselves and leaps resolve instead of wandering.",
 
     "help.g.chunks":    "Chunks",
-    "help.chunks":      "Brackets the patterns above the staff: grey for stepwise runs, blue for leaps. Use it to check what your eye is catching, then switch it off and see whether you still catch them.",
+    "help.chunks":      "Highlights the patterns on the staff: cyan for stepwise runs, lime for leaps. Use it to check what your eye is catching, then switch it off and see whether you still catch them.",
 
     "help.g.staff":     "Staff, key and length",
     "help.staff":       "Clef, key, and how many bars. Changing the clef moves the notes to that clef's octaves so they sit on the staff rather than under a pile of ledger lines.",
@@ -295,7 +295,7 @@ window.SR_I18N = {
     "help.musicality":  "En cero la línea es un recorrido al azar. Más arriba empieza a comportarse como una melodía: las frases se repliegan y los saltos se resuelven en vez de vagar.",
 
     "help.g.chunks":    "Patrones",
-    "help.chunks":      "Marca los patrones sobre el pentagrama: gris para grados conjuntos, azul para saltos. Úsalo para comprobar qué está viendo tu ojo, y luego quítalo para ver si los sigues viendo.",
+    "help.chunks":      "Resalta los patrones sobre el pentagrama: cian para grados conjuntos, verde lima para saltos. Úsalo para comprobar qué está viendo tu ojo, y luego quítalo para ver si los sigues viendo.",
 
     "help.g.staff":     "Pentagrama, tonalidad y duración",
     "help.staff":       "Clave, tonalidad y cuántos compases. Al cambiar la clave las notas se mueven a las octavas de esa clave, para que queden sobre el pentagrama y no bajo un montón de líneas adicionales.",
