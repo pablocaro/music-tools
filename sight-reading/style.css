@@ -20,6 +20,8 @@
      louder than the rest of the palette: this reads as ink on paper, not UI. */
   --chunk-step: #4fd9ef;      /* steps — highlighter cyan */
   --chunk-leap: #a8e63c;      /* leaps — highlighter lime */
+  --chunk-alpha: 0.5;         /* laid on at half strength — the notation stays
+                                 the loudest thing on the staff */
   --line: #e5e5e5;
   --music-max: 1040px;   /* the music column never grows wider than this — wide
                             viewports just gain negative space on the sides */
@@ -812,12 +814,13 @@ button.secondary {
 .legend-item { display: inline-flex; align-items: center; gap: 6px; }
 
 /* A miniature of the block drawn on the staff, not a rule: same fill, same
-   corner treatment, scaled down. */
+   corner treatment, same half strength, scaled down. */
 .swatch {
   width: 18px;
   height: 11px;
   border-radius: 3px;
   flex-shrink: 0;
+  opacity: var(--chunk-alpha);
 }
 
 .swatch-step { background: var(--chunk-step); }
@@ -920,6 +923,7 @@ button.secondary {
   pointer-events: none;
   overflow: visible;
   mix-blend-mode: multiply;
+  opacity: var(--chunk-alpha);
 }
 
 /* Count-in countdown number */
