@@ -155,6 +155,23 @@ window.SR_I18N = {
     "help.g.staff":     "Staff, key and length",
     "help.staff":       "Clef, key, and how many bars. Changing the clef moves the notes to that clef's octaves so they sit on the staff rather than under a pile of ledger lines.",
 
+    // onboarding \u2014 the first-run walkthrough, which doubles as a tour of the
+    // settings panel: each page names a section the student will meet later
+    "ob.pitch":       "Endless sight-reading exercises, built from the intervals and rhythms you choose. Nothing is memorised, so you are always reading.",
+    "ob.start":       "Get Started",
+    "ob.skip":        "Skip",
+    "ob.next":        "Next",
+    "ob.clefTitle":   "Which clef do you read?",
+    "ob.clefNote":    "Sets the staff, and moves the notes into that clef\u2019s octaves so they sit on it.",
+    "ob.vocabTitle":  "Your vocabulary",
+    "ob.vocabRhythm": "Rhythm",
+    "ob.vocabSteps":  "Intervals",
+    "ob.vocabNote":   "Steps only to start \u2014 add leaps whenever you want more.",
+    "ob.doneTitle":   "You\u2019re set.",
+    "ob.doneChunks":  "Recognisable patterns get highlighted as you read: cyan for stepwise runs, lime for leaps.",
+    "ob.doneWhere":   "Everything you just chose \u2014 plus tempo, key, length and more \u2014 lives behind the button at the bottom left.",
+    "ob.go":          "Start practicing",
+
     // prompts and messages
     "msg.newPresetName": "New preset name:",
     "msg.deletePreset":  "Delete preset “{name}”?",
@@ -299,6 +316,21 @@ window.SR_I18N = {
 
     "help.g.staff":     "Pentagrama, tonalidad y duración",
     "help.staff":       "Clave, tonalidad y cuántos compases. Al cambiar la clave las notas se mueven a las octavas de esa clave, para que queden sobre el pentagrama y no bajo un montón de líneas adicionales.",
+
+    "ob.pitch":       "Ejercicios de lectura a primera vista sin fin, construidos con los intervalos y ritmos que elijas. No se memoriza nada: siempre est\u00e1s leyendo.",
+    "ob.start":       "Empezar",
+    "ob.skip":        "Omitir",
+    "ob.next":        "Siguiente",
+    "ob.clefTitle":   "\u00bfQu\u00e9 clave lees?",
+    "ob.clefNote":    "Define el pentagrama y lleva las notas a las octavas de esa clave para que se asienten en \u00e9l.",
+    "ob.vocabTitle":  "Tu vocabulario",
+    "ob.vocabRhythm": "Ritmo",
+    "ob.vocabSteps":  "Intervalos",
+    "ob.vocabNote":   "Empiezas solo con grados conjuntos \u2014 a\u00f1ade saltos cuando quieras m\u00e1s.",
+    "ob.doneTitle":   "Todo listo.",
+    "ob.doneChunks":  "Los patrones reconocibles se resaltan mientras lees: cian para los grados conjuntos, verde lima para los saltos.",
+    "ob.doneWhere":   "Todo lo que acabas de elegir \u2014 y tambi\u00e9n el tempo, la tonalidad, la duraci\u00f3n y m\u00e1s \u2014 est\u00e1 detr\u00e1s del bot\u00f3n de abajo a la izquierda.",
+    "ob.go":          "Empezar a practicar",
 
     "msg.newPresetName": "Nombre del preset:",
     "msg.deletePreset":  "¿Eliminar el preset “{name}”?",

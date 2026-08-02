@@ -32,6 +32,11 @@
   var LANGS = [{ id: "en", label: "ENG" }, { id: "es", label: "ESP" }];
   var I18N = window.SR_I18N || { en: {} };
   var lang = "en";
+  // A first visit has no stored choice, and onboarding runs before the student
+  // can reach the language pills — so the browser's own language picks the
+  // opening one. An explicit choice, once made, always wins.
+  var navLang = (navigator.language || "").slice(0, 2).toLowerCase();
+  if (I18N[navLang]) lang = navLang;
   try { if (I18N[localStorage.getItem(LANG_KEY)]) lang = localStorage.getItem(LANG_KEY); } catch (e) {}
 
   // Look up a string, filling {placeholders}. Falls back through English to the
@@ -1803,6 +1808,213 @@
     });
   }
 
+  // ===========================================================================
+  // Onboarding — shown once on a first visit, then never again.
+  //
+  // It is a tour of the settings panel as much as a setup step: the goal is
+  // that when the student opens ⚙ for the first time they already recognise
+  // the shapes in it. So the pages use the panel's own controls, wired to the
+  // same hidden inputs, rather than simplified stand-ins that would teach a
+  // model the panel then contradicts.
+  //
+  // Two pages carry choices, and both are skippable — at four screens,
+  // tapping through is a real cost for someone who already knows what they
+  // want. Skip lands on the closing page rather than dismissing outright, so
+  // nobody leaves without being told where the settings live.
+  // ===========================================================================
+  var OB_KEY  = "sr_onboarded";
+  var OB_PAGES = ["intro", "clef", "vocab", "done"];
+  // The plain note values plus one rest: the first six cells of the real rhythm
+  // grid, in the same order, so the grid is recognisable when the rest appear.
+  var OB_FIGS = ["w", "h", "q", "ee", "ssss", "qr"];
+  var obPage = 0;
+
+  function obSetClef(id) {
+    clefEl.value = id;
+    shiftRangeToClef(id);      // move the notes onto the new staff
+    syncKeyRow();
+  }
+
+  function obSetFigure(id, on) {
+    var cb = beatsEl.querySelector('.beat[value="' + id + '"]');
+    if (!cb) return;
+    cb.checked = on;
+    cb.parentNode.classList.toggle("on", on);
+  }
+
+  function obFigureOn(id) {
+    var cb = beatsEl.querySelector('.beat[value="' + id + '"]');
+    return !!(cb && cb.checked);
+  }
+
+  // A row of pills that behave like the panel control they stand for: clefs are
+  // a single choice, figures and intervals are independent toggles.
+  function obPills(host, items, isOn, onPick, cls) {
+    var row = document.createElement("div");
+    row.className = "ob-pills";
+    items.forEach(function (item) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "opt" + (cls ? " " + cls : "");
+      b.innerHTML = item.html;
+      b.classList.toggle("on", isOn(item));
+      b.addEventListener("click", function () {
+        onPick(item);
+        row.querySelectorAll(".opt").forEach(function (el, i) {
+          el.classList.toggle("on", isOn(items[i]));
+        });
+      });
+      row.appendChild(b);
+    });
+    host.appendChild(row);
+    return row;
+  }
+
+  function obGroup(host, titleKey) {
+    var g = document.createElement("div");
+    g.className = "ob-group";
+    var h = document.createElement("h3");
+    h.textContent = t(titleKey);
+    g.appendChild(h);
+    host.appendChild(g);
+    return g;
+  }
+
+  function obPara(host, key, cls) {
+    var p = document.createElement("p");
+    if (cls) p.className = cls;
+    p.textContent = t(key);
+    host.appendChild(p);
+    return p;
+  }
+
+  function buildObPage() {
+    var host = document.getElementById("ob-body");
+    var page = OB_PAGES[obPage];
+    host.innerHTML = "";
+    host.scrollTop = 0;
+
+    if (page === "intro") {
+      var mark = document.createElement("p");
+      mark.className = "ob-wordmark";
+      mark.id = "ob-title";
+      mark.textContent = "Prima Vista";     // the app's name, untranslated
+      host.appendChild(mark);
+      obPara(host, "ob.pitch");
+
+    } else if (page === "clef") {
+      obHeading(host, "ob.clefTitle");
+      obPills(host, CLEFS.map(function (c) {
+        return { id: c.id, html: '<span class="ob-clef-glyph">' + c.label + "</span>" + t("clef." + c.id) };
+      }), function (it) { return clefEl.value === it.id; },
+         function (it) { obSetClef(it.id); });
+      obPara(host, "ob.clefNote", "ob-note");
+
+    } else if (page === "vocab") {
+      obHeading(host, "ob.vocabTitle");
+
+      var rg = obGroup(host, "ob.vocabRhythm");
+      var grid = document.createElement("div");
+      grid.className = "fig-grid";
+      rg.appendChild(grid);
+      OB_FIGS.forEach(function (id) {
+        var cell = document.createElement("button");
+        cell.type = "button";
+        cell.className = "fig-cell";
+        cell.setAttribute("aria-label", t("fig." + id));
+        cell.innerHTML = figureGlyph(id);
+        cell.classList.toggle("on", obFigureOn(id));
+        cell.addEventListener("click", function () {
+          obSetFigure(id, !obFigureOn(id));
+          cell.classList.toggle("on", obFigureOn(id));
+        });
+        grid.appendChild(cell);
+      });
+
+      // Unison is left out: a repeated note is the least useful thing a
+      // beginner can switch on, and dropping it makes the row read cleanly.
+      var ig = obGroup(host, "ob.vocabSteps");
+      var ivs = [];
+      for (var i = 1; i < INTERVALS.length; i++) ivs.push({ i: i, html:
+        '<span class="dot" style="background:' + INTERVALS[i].c + '"></span>' + STEP_LABELS[i] });
+      obPills(ig, ivs,
+        function (it) { return stepChecks[it.i].checked; },
+        function (it) { stepChecks[it.i].checked = !stepChecks[it.i].checked; syncStepRow(it.i); },
+        "ob-int");
+
+      obPara(host, "ob.vocabNote", "ob-note");
+
+    } else {
+      obHeading(host, "ob.doneTitle");
+      obPara(host, "ob.doneChunks");
+      obPara(host, "ob.doneWhere");
+    }
+
+    var dots = document.getElementById("ob-dots");
+    dots.innerHTML = "";
+    OB_PAGES.forEach(function (_, i) {
+      var d = document.createElement("i");
+      if (i === obPage) d.className = "on";
+      dots.appendChild(d);
+    });
+
+    var last = obPage === OB_PAGES.length - 1;
+    var next = document.getElementById("ob-next");
+    next.textContent = t(page === "intro" ? "ob.start" : last ? "ob.go" : "ob.next");
+    // Skip only sits on the pages that ask something. The intro has nothing to
+    // skip past, and the closing page is already the end.
+    document.getElementById("ob-skip").hidden = (page === "intro" || last);
+  }
+
+  function obHeading(host, key) {
+    var h = document.createElement("h2");
+    h.id = "ob-title";
+    h.textContent = t(key);
+    host.appendChild(h);
+    return h;
+  }
+
+  function obGo(i) {
+    obPage = i;
+    if (obPage === 1) {
+      // Get Started puts a beginner on the gentlest built-in. It is applied as
+      // the current setup, not saved as a new preset — naming one is a later
+      // idea, and it would drag a keyboard into the first thirty seconds.
+      applyPreset(builtinPreset("steps only"));
+      activePreset = "steps only";
+      syncPanel();
+    }
+    buildObPage();
+  }
+
+  function obFinish() {
+    document.getElementById("ob").hidden = true;
+    try { localStorage.setItem(OB_KEY, "1"); } catch (e) {}
+    syncPanel();
+    persistSession();
+    generate();          // one render for everything chosen along the way
+  }
+
+  function wireOnboarding() {
+    var ob = document.getElementById("ob");
+    if (!ob) return;
+    var seen = true;
+    try { seen = !!localStorage.getItem(OB_KEY); } catch (e) {}
+    document.getElementById("ob-next").addEventListener("click", function () {
+      if (obPage === OB_PAGES.length - 1) obFinish();
+      else obGo(obPage + 1);
+    });
+    // Skip lands on the closing page, not straight out — whatever else a
+    // student skips, they should still be told where the settings are.
+    document.getElementById("ob-skip").addEventListener("click", function () {
+      obGo(OB_PAGES.length - 1);
+    });
+    if (seen) return;
+    ob.hidden = false;
+    buildObPage();
+    document.getElementById("ob-next").focus();
+  }
+
   // Re-label everything for the current language: the declarative bits from the
   // markup, then the pieces built at runtime, then anything measured from text.
   function applyLang() {
@@ -2145,6 +2357,7 @@
   activePreset = "thirds drill";
   restoreSession();            // override defaults with last-used settings, if any
   applyLang();                 // label everything, sync the panel, size the pills
+  wireOnboarding();            // first visit only — built after the panel is in sync
   if (isSampled(instrumentEl.value)) loadSamples(instrumentEl.value);   // preload so it's ready before Play
   // Re-measure once Rubik is actually in play — the fallback font would have
   // sized the cycle pills wrong.

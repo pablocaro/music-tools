@@ -331,6 +331,24 @@
 
     <div class="scrim" id="scrim"></div>
 
+    <!-- Onboarding — shown once (sr_onboarded), then never again. It doubles as
+         a tour of the settings panel: each page uses the real control it is
+         naming, so the student recognises it when they open ⚙ later. Pages are
+         built in JS so they follow the language like everything else. -->
+    <div class="ob" id="ob" role="dialog" aria-modal="true"
+         aria-labelledby="ob-title" hidden>
+      <div class="ob-card">
+        <div class="ob-body" id="ob-body"></div>
+        <div class="ob-foot">
+          <div class="ob-dots" id="ob-dots" aria-hidden="true"></div>
+          <button id="ob-skip" class="ob-skip" type="button"
+                  data-i18n="ob.skip">Skip</button>
+          <button id="ob-next" class="ob-next" type="button"
+                  data-i18n="ob.start">Get Started</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <script src="lib/osme.js"></script>

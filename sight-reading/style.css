@@ -1126,6 +1126,178 @@ button.secondary {
   color: var(--ink);
 }
 
+/* ---------------------------------------------------------------------------
+   PATTERN: onboarding
+   The first-run walkthrough. Unlike the help sheet it takes the whole screen on
+   a phone — it is the first thing the app shows, not something summoned over
+   it — and becomes a centred card once there's room.
+
+   Its controls are deliberately the panel's own (.opt pills, .fig-grid cells),
+   because the page's job is to make those shapes familiar before the student
+   ever opens the settings. Only the frame around them is new.
+   --------------------------------------------------------------------------- */
+.ob {
+  position: fixed;
+  inset: 0;
+  z-index: 120;                    /* above the settings pocket and the help sheet */
+  background: var(--paper);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ob[hidden] { display: none; }
+
+.ob-card {
+  width: 100%;
+  height: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  padding: max(28px, env(safe-area-inset-top)) 26px
+           calc(24px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Once there's room the wall becomes a card floating on a scrim. */
+@media (min-width: 720px) {
+  .ob { background: rgba(0, 0, 0, 0.28); }
+  .ob-card {
+    height: auto;
+    min-height: 460px;
+    max-height: 86dvh;
+    background: var(--paper);
+    border-radius: 22px;
+    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.22);
+    padding: 34px 34px 26px;
+  }
+}
+
+/* The pages scroll; the footer never does, so Next is always reachable. */
+.ob-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* The app's one branding moment, so it sits outside the type scale — the
+   panel's title size reads as a heading here, not as a name. */
+.ob-wordmark {
+  font-size: clamp(34px, 11vw, 46px);
+  font-weight: var(--weight-strong);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  line-height: 1.1;
+  margin-bottom: 22px;
+}
+
+/* The panel's grid is auto-fill, which would leave this fixed six-figure set
+   as a row of five and an orphan. Six across, always. */
+.ob .fig-grid { grid-template-columns: repeat(6, 1fr); }
+
+.ob-body h2 {
+  font-size: var(--type-lead);
+  font-weight: var(--weight-strong);
+  line-height: 1.3;
+  margin-bottom: 20px;
+}
+
+.ob-body p {
+  font-size: var(--type-label);
+  font-weight: var(--weight-standard);
+  line-height: 1.55;
+  color: var(--ink);
+}
+.ob-body p + p { margin-top: 14px; }
+
+/* A quiet caption under a group of controls, saying what the choice does. */
+.ob-note {
+  margin-top: 18px;
+  color: var(--muted);
+}
+
+/* Sub-headings inside a page reuse the panel's section-heading treatment, so
+   RHYTHM here and RHYTHM there read as the same label. */
+.ob-group + .ob-group { margin-top: 24px; }
+.ob-group > h3 {
+  font-size: var(--type-caption);
+  font-weight: var(--weight-prominent);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.ob-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Clef pills carry the glyph beside the name — the panel's cycle shows the
+   glyph alone, so the name is what makes this one choosable at a glance. */
+.ob-clef-glyph {
+  font-size: var(--glyph-md);
+  line-height: 1;
+  margin-right: 7px;
+}
+
+/* An interval pill: the matrix row compressed to its checkbox and its dot. The
+   dot is the exact colour that will highlight that interval on the staff. */
+.ob-int { padding: 0 14px 0 11px; }
+.ob-int .dot { margin-right: 7px; }
+
+.ob-foot {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-top: 22px;
+}
+
+.ob-dots {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ob-dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--track);
+  transition: background 0.15s;
+}
+.ob-dots i.on { background: var(--ctl-on); }
+
+.ob-skip {
+  padding: 0 4px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: var(--type-label);
+  font-weight: var(--weight-prominent);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.ob-skip:hover { color: var(--ink); opacity: 1; }
+.ob-skip[hidden] { display: none; }
+
+.ob-next {
+  height: var(--ctl-h-lg);
+  padding: 0 26px;
+  border-radius: var(--ctl-radius);
+  background: var(--ctl-on);
+  color: var(--ctl-on-ink);
+  font-size: var(--type-label);
+  font-weight: var(--weight-strong);
+  transition: transform 0.1s, opacity 0.15s;
+}
+.ob-next:active { transform: scale(0.96); opacity: 1; }
+
 /* Mobile: trim the gutters and let the music column shrink below its desktop
    floor so narrow screens reflow instead of clipping. */
 @media (max-width: 720px) {
