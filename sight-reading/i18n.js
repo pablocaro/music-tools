@@ -113,6 +113,18 @@ window.SR_I18N = {
     "fig.re":   "8th rest + eighth",
     "fig.er":   "eighth + 8th rest",
 
+    // one-line captions under a heading, for sections whose name alone
+    // doesn't say what they do (skipped on Tempo, Measures, Language)
+    "hint.presets":    "Save or load a setup.",
+    "hint.accomp":     "Plays the line back to you.",
+    "hint.hideAhead":  "Blanks bars as you pass them.",
+    "hint.rhythm":     "Which note values can appear.",
+    "hint.step":       "Which intervals can appear.",
+    "hint.notes":      "Which pitches can appear.",
+    "hint.musicality": "How much it varies each time.",
+    "hint.chunks":     "Highlights the patterns as you read.",
+    "hint.staff":      "Clef and key.",
+
     // help — the guide behind the ? on the Presets heading
     "help.open":     "How this works",
     "help.close":    "Close",
@@ -277,6 +289,16 @@ window.SR_I18N = {
     "fig.qr":   "silencio de negra",
     "fig.re":   "silencio de corchea + corchea",
     "fig.er":   "corchea + silencio de corchea",
+
+    "hint.presets":    "Guarda o carga un ajuste.",
+    "hint.accomp":     "Te toca la línea de vuelta.",
+    "hint.hideAhead":  "Vacía los compases al pasarlos.",
+    "hint.rhythm":     "Qué figuras pueden aparecer.",
+    "hint.step":       "Qué intervalos pueden aparecer.",
+    "hint.notes":      "Qué notas pueden aparecer.",
+    "hint.musicality": "Cuánto varía cada vez.",
+    "hint.chunks":     "Resalta los patrones mientras lees.",
+    "hint.staff":      "Clave y tonalidad.",
 
     "help.open":     "Cómo funciona",
     "help.close":    "Cerrar",

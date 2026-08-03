@@ -291,6 +291,17 @@ button.playing svg.state-alt { display: block; }
   color: var(--muted);
 }
 
+/* One quiet line under a heading, for a section whose name alone doesn't say
+   what it does. Sentence case and no letter-spacing, so it never competes
+   with the heading above it — and skipped entirely on sections that don't
+   need it (Tempo, Measures, Language), rather than forced onto all of them. */
+.sec-note {
+  font-size: var(--type-caption);
+  font-weight: var(--weight-standard);
+  color: var(--muted);
+  margin-top: -4px;    /* pulls in against the section's own 10px gap */
+}
+
 /* A row of controls inside a section. Lists (presets, measures, rhythm) wrap
    freely — their length varies. A row marked .unit is a single control group,
    so it never breaks internally: it shrinks, and the whole section wraps to
@@ -631,7 +642,7 @@ button.secondary {
 
 .pill .upd,
 .pill .del {
-  font-size: var(--type-caption);
+  font-size: var(--type-lead);
   line-height: 1;
   color: var(--muted);
   cursor: pointer;
@@ -1077,7 +1088,10 @@ button.secondary {
   border-bottom: 1px solid var(--line);
 }
 .help-titles { min-width: 0; }
-.help-kicker {
+/* The app's one branding moment, wherever it appears: small, blue, uppercase.
+   Shared by the help sheet's header and the main title above the drill name —
+   one rule so the two stay identical if either ever moves. */
+.kicker {
   font-size: var(--type-caption);
   font-weight: var(--weight-prominent);
   text-transform: uppercase;
