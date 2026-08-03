@@ -1817,27 +1817,24 @@
   // same hidden inputs, rather than simplified stand-ins that would teach a
   // model the panel then contradicts.
   //
-  // Two pages carry choices, and both are skippable — at four screens,
-  // tapping through is a real cost for someone who already knows what they
-  // want. Skip lands on the closing page rather than dismissing outright, so
-  // nobody leaves without being told where the settings live.
+  // One page carries choices, and it's skippable — whatever else a beginner
+  // skips, they should still be told where the settings live, so Skip lands
+  // on the closing page rather than dismissing outright.
+  //
+  // Clef was cut as a page on its own: "which clef do you read" assumes one
+  // answer, and a violist reads two. Clef stays a panel setting, defaulted
+  // and changeable there, just never asked up front.
   // ===========================================================================
   var OB_KEY  = "sr_onboarded";
   // TEMPORARY — while the walkthrough is being reviewed it runs on every load.
   // Set to false to restore once-per-visitor behaviour; the flag is still
   // written on finish, so nothing else has to change.
   var OB_ALWAYS = true;
-  var OB_PAGES = ["intro", "clef", "vocab", "done"];
+  var OB_PAGES = ["intro", "vocab", "done"];
   // The plain note values plus one rest: the first six cells of the real rhythm
   // grid, in the same order, so the grid is recognisable when the rest appear.
   var OB_FIGS = ["w", "h", "q", "ee", "ssss", "qr"];
   var obPage = 0;
-
-  function obSetClef(id) {
-    clefEl.value = id;
-    shiftRangeToClef(id);      // move the notes onto the new staff
-    syncKeyRow();
-  }
 
   function obSetFigure(id, on) {
     var cb = beatsEl.querySelector('.beat[value="' + id + '"]');
@@ -1851,8 +1848,8 @@
     return !!(cb && cb.checked);
   }
 
-  // A row of pills that behave like the panel control they stand for: clefs are
-  // a single choice, figures and intervals are independent toggles.
+  // A row of pills that behave like the panel control they stand for —
+  // intervals here are independent toggles, same as the Step checkboxes.
   function obPills(host, items, isOn, onPick, cls) {
     var row = document.createElement("div");
     row.className = "ob-pills";
@@ -1906,14 +1903,6 @@
       host.appendChild(mark);
       obPara(host, "ob.pitch");
       obPara(host, "ob.pitch2");
-
-    } else if (page === "clef") {
-      obHeading(host, "ob.clefTitle");
-      obPills(host, CLEFS.map(function (c) {
-        return { id: c.id, html: '<span class="ob-clef-glyph">' + c.label + "</span>" + t("clef." + c.id) };
-      }), function (it) { return clefEl.value === it.id; },
-         function (it) { obSetClef(it.id); });
-      obPara(host, "ob.clefNote", "ob-note");
 
     } else if (page === "vocab") {
       obHeading(host, "ob.vocabTitle");

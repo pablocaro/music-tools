@@ -1259,14 +1259,6 @@ button.secondary {
   gap: 8px;
 }
 
-/* Clef pills carry the glyph beside the name — the panel's cycle shows the
-   glyph alone, so the name is what makes this one choosable at a glance. */
-.ob-clef-glyph {
-  font-size: var(--glyph-md);
-  line-height: 1;
-  margin-right: 7px;
-}
-
 /* An interval pill: the matrix row compressed to its checkbox and its dot. The
    dot is the exact colour that will highlight that interval on the staff. */
 .ob-int { padding: 0 14px 0 11px; }
