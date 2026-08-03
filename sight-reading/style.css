@@ -1200,16 +1200,18 @@ button.secondary {
   justify-content: center;
 }
 
-/* The app's one branding moment, so it sits outside the type scale — the
-   panel's title size reads as a heading here, not as a name. Scoped to
-   .ob-body so it outranks the body-copy sizing on its sibling paragraphs. */
+/* The app's one branding moment — but sized against the app's own title
+   scale (--type-title, what #sh-title uses), not invented as a display size
+   of its own. Uppercase and letter-spacing still mark it as a wordmark
+   rather than a heading; the previous 46px read as a poster, not a page.
+   Scoped to .ob-body so it outranks the body-copy sizing on its siblings. */
 .ob-body .ob-wordmark {
-  font-size: clamp(34px, 11vw, 46px);
+  font-size: var(--type-title);
   font-weight: var(--weight-strong);
   text-transform: uppercase;
-  letter-spacing: 1.5px;
-  line-height: 1.1;
-  margin-bottom: 22px;
+  letter-spacing: 1px;
+  line-height: 1.15;
+  margin-bottom: 18px;
 }
 
 /* The panel's grid is auto-fill, which would leave this fixed six-figure set
