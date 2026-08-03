@@ -143,6 +143,12 @@
           <option data-i18n="clef.tenor" value="tenor">Tenor</option>
           <option data-i18n="clef.bass" value="bass">Bass</option>
         </select>
+        <select id="timesig">
+          <option value="2/4">2/4</option>
+          <option value="3/4">3/4</option>
+          <option value="4/4" selected>4/4</option>
+          <option value="6/8">6/8</option>
+        </select>
       </div>
 
       <!-- PRESETS — snapshots of the whole panel -->
@@ -215,6 +221,9 @@
       <div class="band">
         <section class="sec">
           <h2 class="sec-h" data-i18n="sec.rhythm">Rhythm</h2>
+          <div class="sec-row unit">
+            <button id="timesig-cycle" class="cycle" type="button" aria-label="Time signature" data-i18n-aria="aria.timesig">4/4</button>
+          </div>
           <div class="beats" id="beats"></div>
         </section>
       </div>

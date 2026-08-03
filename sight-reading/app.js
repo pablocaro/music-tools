@@ -96,7 +96,7 @@
   // What a built-in leaves alone would otherwise be whatever the last drill
   // happened to use, so each one carries the same five fields a saved preset
   // does — the alphabet it's named for, plus the neutral staff to read it on.
-  var BUILTIN_DEFAULTS = { musicality: "0", key: "major_0-0", clef: "treble", measures: "16" };
+  var BUILTIN_DEFAULTS = { musicality: "0", key: "major_0-0", clef: "treble", timesig: "4/4", measures: "16" };
 
   function builtinPreset(name) {
     var w = BUILTIN[name];
@@ -237,8 +237,11 @@
     if (p.range) applyRange(p.range);
     if (p.key != null) setKeyFromCode(p.key);
     if (p.clef != null) clefEl.value = p.clef;
+    if (p.timesig != null) timesigEl.value = p.timesig;
     if (p.measures != null) measuresEl.value = String(Math.max(8, parseInt(p.measures, 10) || 16));
     if (p.musicality != null) musicalityEl.value = p.musicality;
+    syncBeatsFamily();   // meter may have just changed the figure grid — rebuild
+                         // before applyBeats looks for checkboxes in it
     if (p.beats) applyBeats(p.beats);
     if (p.tempo != null) { tempoEl.value = p.tempo; tempoValEl.textContent = p.tempo; }
     if (p.cursor != null) cursorModeEl.value = p.cursor;
@@ -265,6 +268,7 @@
       musicality: musicalityEl.value,
       key: currentKeyCode(),
       clef: clefEl.value,
+      timesig: timesigEl.value,
       measures: measuresEl.value
     };
   }
@@ -390,6 +394,7 @@
   var keyModeEl    = document.getElementById("key-mode");
   var measuresEl   = document.getElementById("measures");
   var clefEl       = document.getElementById("clef");
+  var timesigEl    = document.getElementById("timesig");
   var musicalityEl    = document.getElementById("musicality");
 
   // The scale key as a "<mode>_<symbol>-<acc>" code (the form makeScaleKey reads).
@@ -548,6 +553,26 @@
     return CLEFS[0];
   }
 
+  // ===========================================================================
+  // Time signature. num/den are what's printed on the staff — passed straight
+  // through to the generator. The playback clock's own notion of "how many
+  // beats make a bar" is separate; see barBeats() below.
+  //
+  // "compound" marks 6/8-family meters, where the beat groups in 3s and the
+  // Rhythm figure palette swaps to the dotted-quarter-beat set
+  // (BEAT_FIGURES_COMPOUND).
+  // ===========================================================================
+  var TIME_SIGS = [
+    { id: "2/4", num: 2, den: 4 },
+    { id: "3/4", num: 3, den: 4 },
+    { id: "4/4", num: 4, den: 4 },
+    { id: "6/8", num: 6, den: 8, compound: true }
+  ];
+  function timeSigDef(id) {
+    for (var i = 0; i < TIME_SIGS.length; i++) if (TIME_SIGS[i].id === id) return TIME_SIGS[i];
+    return TIME_SIGS[2];   // 4/4
+  }
+
   // Rewrite the exported score's clef. The exporter emits exactly one
   // <clef><sign>G</sign><line>2</line></clef> per part, at the first measure.
   function applyClefToXml(xml) {
@@ -606,7 +631,7 @@
   // Rhythm figures, in display order. Each event is [num, den] or [num, den,
   // true] for a rest; a figure's events sum to one beat (1/4) unless it's a
   // multi-beat cell (whole/half). Rendered as a flat grid of notation cells.
-  var BEAT_FIGURES = [
+  var BEAT_FIGURES_SIMPLE = [
     // plain figures
     { id: "w",    name: "whole",                  events: [[1,1]] },
     { id: "h",    name: "half",       def: true,  events: [[1,2]] },
@@ -626,7 +651,24 @@
     { id: "er",   name: "eighth + 8th rest",      events: [[1,8],[1,8,true]] }
   ];
 
-  var BEAT_PATTERNS = {}; // id -> [{n,d,rest}]
+  // 6/8's beat is a dotted quarter (3 eighths), not a quarter — so the simple
+  // set's figures (built around a quarter-note beat) don't tile a compound bar
+  // cleanly, and the beat-level figures here read wrong. Each figure below is
+  // sized to one full beat (a dotted quarter, 3/8) or the whole two-beat bar
+  // (a dotted half, 3/4), the same way the simple set's figures are each one
+  // beat (1/4) or the whole bar (1, the whole note).
+  var BEAT_FIGURES_COMPOUND = [
+    { id: "dq",  name: "dotted quarter",          def: true,  events: [[3,8]] },
+    { id: "eee", name: "three eighths",           def: true,  events: [[1,8],[1,8],[1,8]] },
+    { id: "qe",  name: "quarter + eighth",        def: true,  events: [[1,4],[1,8]] },
+    { id: "eq",  name: "eighth + quarter",                    events: [[1,8],[1,4]] },
+    { id: "dh",  name: "dotted half",                         events: [[3,4]] },
+    { id: "dqr", name: "dotted quarter rest",                 events: [[3,8,true]] },
+    { id: "ree", name: "8th rest + 2 eighths",                events: [[1,8,true],[1,8],[1,8]] },
+    { id: "eer", name: "2 eighths + 8th rest",                events: [[1,8],[1,8],[1,8,true]] }
+  ];
+
+  var BEAT_PATTERNS = {}; // id -> [{n,d,rest}], populated for both sets up front
 
   // A tiny notation glyph (inline SVG, currentColor so it inverts when the cell
   // is on) for each rhythm figure — noteheads, stems, beams, dots, rests.
@@ -658,6 +700,15 @@
       case "qr":   g = rest4(22); break;
       case "re":   g = rest8(13) + head(30, 0) + stem(30) + flag(30); break;
       case "er":   g = head(14, 0) + stem(14) + flag(14) + rest8(33); break;
+      // compound (6/8-family) figures
+      case "dq":   g = head(22, false) + stem(22) + dot(22); break;
+      case "eee":  g = head(10, 0) + head(22, 0) + head(34, 0) + stem(10) + stem(22) + stem(34) + beam(12.6, 36.6, TOP); break;
+      case "qe":   g = head(11, false) + stem(11) + head(30, 0) + stem(30) + flag(30); break;
+      case "eq":   g = head(11, 0) + stem(11) + flag(11) + head(30, false) + stem(30); break;
+      case "dh":   g = head(22, true) + stem(22) + dot(22); break;
+      case "dqr":  g = rest4(22) + dot(22); break;
+      case "ree":  g = rest8(11) + head(23, 0) + head(34, 0) + stem(23) + stem(34) + beam(25.6, 36.6, TOP); break;
+      case "eer":  g = head(11, 0) + head(22, 0) + stem(11) + stem(22) + beam(13.6, 24.6, TOP) + rest8(35); break;
       default:     g = head(22, false) + stem(22);
     }
     return '<svg viewBox="0 0 44 28" class="fig-svg">' + g + "</svg>";
@@ -666,13 +717,27 @@
   // Flat grid of rhythm figures — each cell is a notation glyph toggled on/off,
   // its name revealed on hover. A hidden .beat checkbox keeps the read/apply
   // path (buildBeatPatterns / readBeatIds / applyBeats) unchanged.
-  function buildBeatsPalette() {
-    var grid = document.createElement("div");
-    grid.className = "fig-grid";
-    BEAT_FIGURES.forEach(function (item) {
+  // Every figure's pattern is known up front, from both sets, regardless of
+  // which one is currently on screen — only the visible grid (and therefore
+  // what readBeatIds/applyBeats see as "in play") changes with the meter.
+  [BEAT_FIGURES_SIMPLE, BEAT_FIGURES_COMPOUND].forEach(function (set) {
+    set.forEach(function (item) {
       BEAT_PATTERNS[item.id] = item.events.map(function (e) {
         return { n: e[0], d: e[1], rest: !!e[2] };
       });
+    });
+  });
+
+  function currentBeatFigures() {
+    return timeSigDef(timesigEl.value).compound ? BEAT_FIGURES_COMPOUND : BEAT_FIGURES_SIMPLE;
+  }
+
+  function buildBeatsPalette(figures) {
+    beatsEl.innerHTML = "";
+    beatsEl.dataset.family = timeSigDef(timesigEl.value).compound ? "compound" : "simple";
+    var grid = document.createElement("div");
+    grid.className = "fig-grid";
+    figures.forEach(function (item) {
       var cell = document.createElement("label");
       cell.className = "fig-cell";
       cell.setAttribute("aria-label", t("fig." + item.id));
@@ -685,6 +750,16 @@
       grid.appendChild(cell);
     });
     beatsEl.appendChild(grid);
+  }
+
+  // Only rebuilds (and resets to that family's defaults) when the meter
+  // actually crosses the simple/compound line — cycling among 2/4, 3/4 and
+  // 4/4 shares one grid and leaves whatever is checked alone.
+  function syncBeatsFamily() {
+    var wantCompound = !!timeSigDef(timesigEl.value).compound;
+    var have = beatsEl.dataset.family === "compound";
+    if (wantCompound === have) return;
+    buildBeatsPalette(currentBeatFigures());
   }
 
   function buildBeatPatterns() {
@@ -722,7 +797,7 @@
       complexity: 0.5,  // required by OSME; pitch/rhythm are driven by our settings
       measure_count: parseInt(measuresEl.value, 10),
       tempo: 80,
-      time_signature: new RhythmInstruction(new Fraction(4, 4, 0, false), RhythmSymbolEnum.NONE),
+      time_signature: new RhythmInstruction(new Fraction(timeSigDef(timesigEl.value).num, timeSigDef(timesigEl.value).den, 0, false), RhythmSymbolEnum.NONE),
       scale_key: scaleKey,
       instruments: [DefaultInstrumentOptions.get("trumpet")],
       pitch_settings: ComplexityMap.getPitchSettings(0.5), // unused (overridden) but kept valid
@@ -1121,7 +1196,18 @@
     playBtn.setAttribute("aria-label", t(playingNow ? "aria.pause" : "aria.play"));
   }
 
-  var BEATS_PER_BAR = 4;        // 4/4, fixed
+  // The playback clock (elapsed/nextBeat/onsets, everywhere below) always counts
+  // in quarter-note beats — that's what ties it to the tempo slider's BPM number,
+  // and it must stay fixed regardless of meter so the same tempo value plays at
+  // the same real speed in 3/4 as in 6/8. Only "how many of those beats make a
+  // bar" varies: 4 for /4 meters (unchanged from before this was configurable),
+  // 3 for 6/8 (a 6/8 bar is 3/4 of a whole note — 3 quarter-beats long, exactly
+  // as many as a 3/4 bar, since duration is duration regardless of how the bar
+  // is felt). barBeats() is that one number; nothing else here is meter-aware.
+  function barBeats() {
+    var ts = timeSigDef(timesigEl.value);
+    return ts.num * 4 / ts.den;
+  }
   var playing = false;
   var paused = false;           // frozen mid-line, resumable from the same beat
   var advancing = false;        // mid auto-advance regen (keeps playback alive)
@@ -1466,12 +1552,16 @@
     // Precompute note onsets (in beats) by walking the cursor once. Capture the
     // melody (pitched notes only) at the same time, for the play-along voice.
     cur.reset();
+    var bpb = barBeats();   // fixed for this session — a regenerate rebuilds it fresh
     var onsets = [], measureFirst = [], melody = [], beat = 0, idx = 0;
     while (!cur.Iterator.EndReached) {
       var ves = cur.Iterator.CurrentVoiceEntries;
       var note = ves && ves[0] && ves[0].Notes && ves[0].Notes[0];
-      var durBeats = (note ? note.Length.RealValue : 0.25) * BEATS_PER_BAR;
-      var meas = Math.floor(beat / BEATS_PER_BAR + 1e-6);
+      // Always quarter-beats (RealValue is a fraction of a whole note, and a
+      // quarter is always 1/4 of one) — this is the tempo clock's own unit
+      // and must not vary with meter; see barBeats() above.
+      var durBeats = (note ? note.Length.RealValue : 0.25) * 4;
+      var meas = Math.floor(beat / bpb + 1e-6);
       if (measureFirst[meas] == null) measureFirst[meas] = idx;
       if (note && !note.isRest() && note.Pitch) {
         melody.push({ onset: beat, dur: durBeats, freq: note.Pitch.Frequency });
@@ -1499,10 +1589,10 @@
     );
     showAllInk();
 
-    var countIn = noCountIn ? 0 : BEATS_PER_BAR;     // 1-bar count-in, skipped on auto-advance
+    var countIn = noCountIn ? 0 : bpb;     // 1-bar count-in, skipped on auto-advance
     session = {
       cur: cur, measureFirst: measureFirst, melody: melody, beatNote: beatNote,
-      measureInk: measureInk, totalBeats: totalBeats,
+      measureInk: measureInk, totalBeats: totalBeats, barBeats: bpb,
       elapsed: -countIn,       // count-in beats are negative
       nextBeat: -countIn,
       cursorIdx: 0,
@@ -1602,7 +1692,7 @@
       } else {                                       // playing
         if (clickOnEl.checked) tick(PLAY_FREQ);
         var target = (cursorModeEl.value === "measure")
-          ? s.measureFirst[Math.min(Math.floor(s.nextBeat / BEATS_PER_BAR), s.measureFirst.length - 1)]
+          ? s.measureFirst[Math.min(Math.floor(s.nextBeat / s.barBeats), s.measureFirst.length - 1)]
           : s.beatNote[Math.min(s.nextBeat, s.beatNote.length - 1)];
         while (s.cursorIdx < target) { try { cur.next(); } catch (e) {} s.cursorIdx++; }
       }
@@ -1613,7 +1703,7 @@
 
     if (curBeat >= 0) {
       var hideCount = hideBehindEl.checked
-        ? Math.floor((curBeat + (+hideLeadEl.value)) / BEATS_PER_BAR)
+        ? Math.floor((curBeat + (+hideLeadEl.value)) / s.barBeats)
         : 0;
       if (hideCount !== s.hideState) { hideMeasures(s.measureInk, hideCount); s.hideState = hideCount; }
       followCursor();   // scroll once the cursor reaches the last visible line
@@ -1632,6 +1722,7 @@
   var accCycleEl   = document.getElementById("acc-cycle");
   var modeCycleEl  = document.getElementById("mode-cycle");
   var clefCycleEl  = document.getElementById("clef-cycle");
+  var timesigCycleEl = document.getElementById("timesig-cycle");
   var hideUnitEl   = document.getElementById("hide-unit");
   var hideValEl    = document.getElementById("hide-val");
   var instCycleEl  = document.getElementById("instrument-cycle");
@@ -1705,6 +1796,8 @@
     clefCycleEl.textContent = clefDef(clefEl.value).label;
   }
 
+  function syncTimeSigBtn() { timesigCycleEl.textContent = timesigEl.value; }
+
   // Hide Ahead: 0 reads as "Off" — that's what replaces the old hide-behind
   // checkbox, so any value above 0 means hiding is on with that much lead.
   function hideUnitIsMeasures() { return hideUnitEl.dataset.unit === "measures"; }
@@ -1713,7 +1806,7 @@
     hideValEl.textContent = n === 0 ? t("val.off") : String(n);
     hideUnitEl.textContent = hideUnitIsMeasures() ? t("val.measures") : t("val.beats");
     hideBehindEl.checked = n > 0;
-    hideLeadEl.value = Math.min(HIDE_MAX, hideUnitIsMeasures() ? n * BEATS_PER_BAR : n);
+    hideLeadEl.value = Math.min(HIDE_MAX, hideUnitIsMeasures() ? n * barBeats() : n);
   }
   function setHide(n, unit) {
     hideValEl.dataset.n = Math.max(0, Math.min(HIDE_MAX, n));
@@ -1724,7 +1817,7 @@
   function hideFromState() {
     var lead = parseInt(hideLeadEl.value, 10) || 0;
     if (!hideBehindEl.checked) { setHide(0); return; }
-    if (hideUnitIsMeasures()) setHide(Math.max(1, Math.round(lead / BEATS_PER_BAR)));
+    if (hideUnitIsMeasures()) setHide(Math.max(1, Math.round(lead / barBeats())));
     else setHide(Math.max(1, lead));
   }
 
@@ -1772,6 +1865,7 @@
     lockCycleWidth(tonicCycleEl, LETTERS);
     lockCycleWidth(accCycleEl, ACCS.map(function (a) { return a.label; }));
     lockCycleWidth(clefCycleEl, CLEFS.map(function (c) { return c.label; }));
+    lockCycleWidth(timesigCycleEl, TIME_SIGS.map(function (s) { return s.id; }));
     lockCycleWidth(chunksBtnEl, [t("val.off"), t("val.on")]);
   }
 
@@ -2141,6 +2235,8 @@
   // preset / session restore, so the whole panel re-reads from one place.
   function syncPanel() {
     syncKeyRow();
+    syncTimeSigBtn();
+    syncBeatsFamily();    // a preset/session restore can change meter family too
     syncInstrument();
     syncChunks();
     syncCursorBtn();
@@ -2176,6 +2272,15 @@
       clefEl.value = ids[(i + 1) % ids.length];
       shiftRangeToClef(clefEl.value);      // move the notes onto the new staff
       syncKeyRow(); generate();
+    });
+
+    timesigCycleEl.addEventListener("click", function () {
+      var ids = TIME_SIGS.map(function (s) { return s.id; });
+      var i = ids.indexOf(timesigEl.value);
+      timesigEl.value = ids[(i + 1) % ids.length];
+      syncTimeSigBtn();
+      syncBeatsFamily();    // swaps the figure grid only if simple<->compound changed
+      generate();
     });
 
     // --- tempo: slider drags, ±5 nudges ---
@@ -2371,7 +2476,7 @@
   probeKeys();                 // which accidentals each letter supports
   initRangeState();
   buildRangeGrid();
-  buildBeatsPalette();
+  buildBeatsPalette(currentBeatFigures());
   buildMatrix();
   buildMeasuresPills();
   buildLangPills();
