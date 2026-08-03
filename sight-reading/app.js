@@ -968,14 +968,39 @@
     return out;
   }
 
-  // group maximal same-direction runs; classify scale (steps) vs chord (leaps)
+  // A chunk is what the eye can take in at once: consecutive notes moving the
+  // same way, by the same kind of interval. Direction alone isn't a fine enough
+  // grouping — classifying a whole run by its widest interval painted "C D E G"
+  // entirely as a leap when three quarters of it is a scale.
+  //
+  // So a direction-run is split again wherever steps meet leaps. The two
+  // segments share the note between them and blocks must not overlap, so the
+  // leap keeps it: a jump is the more salient event and the one worth seeing
+  // marked. A step fragment left holding a single note isn't a chunk, and drops.
+  var LEAP_SEMITONES = 3;   // a minor 3rd or wider; every diatonic step is 1 or 2
+
   function analyzeChunks(notes) {
     var chunks = [], run = [], dir = 0;
+
     function flush() {
       if (run.length >= 2) {
-        var maxStep = 0;
-        for (var i = 1; i < run.length; i++) maxStep = Math.max(maxStep, Math.abs(run[i].halfTone - run[i - 1].halfTone));
-        chunks.push({ notes: run.slice(), type: maxStep >= 3 ? "chord" : "scale" });
+        var leap = [];    // one entry per interval: is it a leap?
+        for (var i = 1; i < run.length; i++) {
+          leap.push(Math.abs(run[i].halfTone - run[i - 1].halfTone) >= LEAP_SEMITONES);
+        }
+        // Walk maximal same-kind stretches of intervals. Intervals [a, b) span
+        // notes [a, b], so neighbouring stretches meet on a shared note.
+        var a = 0;
+        for (var b = 1; b <= leap.length; b++) {
+          if (b < leap.length && leap[b] === leap[a]) continue;
+          var isLeap = leap[a], lo = a, hi = b;
+          if (!isLeap) {
+            if (a > 0) lo++;                // yield the note shared with the leap before
+            if (b < leap.length) hi--;      // …and the one shared with the leap after
+          }
+          if (hi > lo) chunks.push({ notes: run.slice(lo, hi + 1), type: isLeap ? "chord" : "scale" });
+          a = b;
+        }
       }
       run = []; dir = 0;
     }
