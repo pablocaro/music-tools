@@ -1139,6 +1139,7 @@ button.secondary {
 .ob {
   position: fixed;
   inset: 0;
+  outline: none;              /* it takes focus as a container, not as a control */
   z-index: 120;                    /* above the settings pocket and the help sheet */
   background: var(--paper);
   display: flex;
@@ -1183,8 +1184,9 @@ button.secondary {
 }
 
 /* The app's one branding moment, so it sits outside the type scale — the
-   panel's title size reads as a heading here, not as a name. */
-.ob-wordmark {
+   panel's title size reads as a heading here, not as a name. Scoped to
+   .ob-body so it outranks the body-copy sizing on its sibling paragraphs. */
+.ob-body .ob-wordmark {
   font-size: clamp(34px, 11vw, 46px);
   font-weight: var(--weight-strong);
   text-transform: uppercase;
@@ -1217,6 +1219,10 @@ button.secondary {
   margin-top: 18px;
   color: var(--muted);
 }
+
+/* …and its counterpart above them, framing what the controls are for. The
+   heading alone can't carry that on a page the student has never seen. */
+.ob-lead { margin: -8px 0 22px; }
 
 /* Sub-headings inside a page reuse the panel's section-heading treatment, so
    RHYTHM here and RHYTHM there read as the same label. */

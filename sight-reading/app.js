@@ -1823,6 +1823,10 @@
   // nobody leaves without being told where the settings live.
   // ===========================================================================
   var OB_KEY  = "sr_onboarded";
+  // TEMPORARY — while the walkthrough is being reviewed it runs on every load.
+  // Set to false to restore once-per-visitor behaviour; the flag is still
+  // written on finish, so nothing else has to change.
+  var OB_ALWAYS = true;
   var OB_PAGES = ["intro", "clef", "vocab", "done"];
   // The plain note values plus one rest: the first six cells of the real rhythm
   // grid, in the same order, so the grid is recognisable when the rest appear.
@@ -1901,6 +1905,7 @@
       mark.textContent = "Prima Vista";     // the app's name, untranslated
       host.appendChild(mark);
       obPara(host, "ob.pitch");
+      obPara(host, "ob.pitch2");
 
     } else if (page === "clef") {
       obHeading(host, "ob.clefTitle");
@@ -1912,6 +1917,7 @@
 
     } else if (page === "vocab") {
       obHeading(host, "ob.vocabTitle");
+      obPara(host, "ob.vocabLead", "ob-lead");
 
       var rg = obGroup(host, "ob.vocabRhythm");
       var grid = document.createElement("div");
@@ -1999,7 +2005,7 @@
     var ob = document.getElementById("ob");
     if (!ob) return;
     var seen = true;
-    try { seen = !!localStorage.getItem(OB_KEY); } catch (e) {}
+    try { seen = !OB_ALWAYS && !!localStorage.getItem(OB_KEY); } catch (e) {}
     document.getElementById("ob-next").addEventListener("click", function () {
       if (obPage === OB_PAGES.length - 1) obFinish();
       else obGo(obPage + 1);
@@ -2012,7 +2018,10 @@
     if (seen) return;
     ob.hidden = false;
     buildObPage();
-    document.getElementById("ob-next").focus();
+    // Focus the dialog itself rather than Next: it puts keyboard and
+    // screen-reader context inside the walkthrough without painting a
+    // focus ring on a button nobody has reached for yet.
+    ob.focus();
   }
 
   // Re-label everything for the current language: the declarative bits from the
