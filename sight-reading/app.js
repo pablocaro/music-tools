@@ -582,6 +582,76 @@
       "<clef><sign>" + c.sign + "</sign><line>" + c.line + "</line></clef>");
   }
 
+  // OSMD's auto-beam produces zero beams for any /8 meter (empirically
+  // confirmed: identical eighth-note content beams cleanly in 3/4, not at all
+  // in 6/8) — the exporter never emits explicit <beam> elements for anything,
+  // so simple meters only ever looked beamed because OSMD's own guesswork
+  // happened to work there. For compound meters we write the beams ourselves.
+  //
+  // Walk each measure's notes in eighth-note position order and group
+  // consecutive beamable notes (eighth or shorter, not rests, not chord
+  // tones) that fall inside the same 3-eighth pulse — 6/8's two real beats —
+  // stopping a group at a rest, a longer note, or the pulse boundary itself.
+  // A lone beamable note (no partner in its pulse) is left with a flag.
+  var BEAMABLE_TYPES = { eighth: true, "16th": true, "32nd": true, "64th": true };
+
+  function child(el, tag) {
+    for (var i = 0; i < el.children.length; i++) {
+      if (el.children[i].tagName === tag) return el.children[i];
+    }
+    return null;
+  }
+
+  function applyBeamsToXml(xml) {
+    var doc = new DOMParser().parseFromString(xml, "application/xml");
+    if (doc.querySelector("parsererror")) return xml;   // never risk a blank score over beaming
+    var divisions = null;
+
+    Array.prototype.forEach.call(doc.getElementsByTagName("measure"), function (measure) {
+      var attrs = child(measure, "attributes");
+      var divEl = attrs && child(attrs, "divisions");
+      if (divEl) divisions = +divEl.textContent;
+      if (!divisions) return;
+      var eighthTicks = divisions / 2;
+
+      var pos = 0, run = [], runPulse = -1;
+      function flush() {
+        if (run.length >= 2) {
+          run.forEach(function (n, i) {
+            var beam = doc.createElement("beam");
+            beam.setAttribute("number", "1");
+            beam.textContent = i === 0 ? "begin" : (i === run.length - 1 ? "end" : "continue");
+            n.appendChild(beam);
+          });
+        }
+        run = [];
+      }
+
+      Array.prototype.forEach.call(measure.children, function (el) {
+        if (el.tagName !== "note") return;
+        var isChord = !!child(el, "chord");
+        var isRest = !!child(el, "rest");
+        var durEl = child(el, "duration");
+        var dur = durEl ? +durEl.textContent : 0;
+        var typeEl = child(el, "type");
+        var type = typeEl ? typeEl.textContent : "";
+        var pulse = Math.floor((pos + 1e-6) / 3);
+
+        if (!isChord && !isRest && BEAMABLE_TYPES[type]) {
+          if (run.length && pulse !== runPulse) flush();
+          runPulse = pulse;
+          run.push(el);
+        } else {
+          flush();
+        }
+        if (!isChord) pos += dur / eighthTicks;
+      });
+      flush();
+    });
+
+    return new XMLSerializer().serializeToString(doc);
+  }
+
   // Move the picked notes onto the new clef's staff: select every pitch in that
   // clef's two octaves. (Hand-picking afterwards is untouched until the next
   // clef change.)
@@ -817,6 +887,7 @@
       var plugin = new ExampleSourceGenerator(buildOptions());
       currentSheet = plugin.generate();
       var xml = applyClefToXml(new XMLSourceExporter().export(currentSheet));
+      if (timeSigDef(timesigEl.value).compound) xml = applyBeamsToXml(xml);
       osmd.load(xml).then(function () {
         renderLoaded();
         persistSession();
