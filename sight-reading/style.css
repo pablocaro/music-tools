@@ -72,7 +72,8 @@
   --type-label:   var(--fs-2);
   --type-lead:    var(--fs-3);
   --type-title:   var(--fs-4);
-  --weight-standard:  500;   /* body copy; the panel doesn't use it */
+  --weight-regular:   400;   /* the panel's one deliberately quiet moment: a section's caption */
+  --weight-standard:  500;   /* body copy; the panel otherwise doesn't use it */
   --weight-prominent: 600;   /* the panel's default */
   --weight-strong:    700;   /* values and the drill title */
 
@@ -292,14 +293,16 @@ button.playing svg.state-alt { display: block; }
 }
 
 /* One quiet line under a heading, for a section whose name alone doesn't say
-   what it does. Sentence case and no letter-spacing, so it never competes
-   with the heading above it — and skipped entirely on sections that don't
-   need it (Tempo, Measures, Language), rather than forced onto all of them. */
+   what it does. Sentence case, no letter-spacing and the panel's one regular-
+   weight moment, so it reads as an aside rather than competing with the
+   heading above it — skipped entirely where a caption would just be padding
+   (Language is two two-letter pills; nothing to explain). */
 .sec-note {
   font-size: var(--type-caption);
-  font-weight: var(--weight-standard);
+  font-weight: var(--weight-regular);
   color: var(--muted);
-  margin-top: -4px;    /* pulls in against the section's own 10px gap */
+  margin-top: -7px;    /* pulls in tight against the section's own 10px gap,
+                           leaving the fuller gap below to the controls */
 }
 
 /* A row of controls inside a section. Lists (presets, measures, rhythm) wrap

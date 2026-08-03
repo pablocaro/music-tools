@@ -114,8 +114,10 @@ window.SR_I18N = {
     "fig.er":   "eighth + 8th rest",
 
     // one-line captions under a heading, for sections whose name alone
-    // doesn't say what they do (skipped on Tempo, Measures, Language)
+    // doesn't say what they do (skipped on Language — nothing to explain)
     "hint.presets":    "Save or load a setup.",
+    "hint.tempo":      "Speed, metronome and cursor.",
+    "hint.measures":   "How many bars.",
     "hint.accomp":     "Plays the line back to you.",
     "hint.hideAhead":  "Blanks bars as you pass them.",
     "hint.rhythm":     "Which note values can appear.",
@@ -291,6 +293,8 @@ window.SR_I18N = {
     "fig.er":   "corchea + silencio de corchea",
 
     "hint.presets":    "Guarda o carga un ajuste.",
+    "hint.tempo":      "Velocidad, metrónomo y cursor.",
+    "hint.measures":   "Cuántos compases.",
     "hint.accomp":     "Te toca la línea de vuelta.",
     "hint.hideAhead":  "Vacía los compases al pasarlos.",
     "hint.rhythm":     "Qué figuras pueden aparecer.",
