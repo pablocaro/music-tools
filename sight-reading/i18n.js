@@ -13,14 +13,14 @@ window.SR_I18N = {
     // section headings
     "sec.presets":     "Presets",
     "sec.tempo":       "Tempo",
-    "sec.accomp":      "Accompaniment",
+    "sec.accomp":      "Play Along",
     "sec.hideAhead":   "Hide Ahead",
     "sec.rhythm":      "Rhythm",
-    "sec.step":        "Step",
+    "sec.step":        "Intervals",
     "sec.notes":       "Notes",
     "sec.musicality":  "Musicality",
-    "sec.chunks":      "Chunks",
-    "sec.staff":       "Staff, Key and Length",
+    "sec.chunks":      "Highlight Patterns",
+    "sec.staff":       "Clef & Key",
     "sec.measures":    "Measures",
     "sec.language":    "Language",
 
@@ -113,19 +113,12 @@ window.SR_I18N = {
     "fig.re":   "8th rest + eighth",
     "fig.er":   "eighth + 8th rest",
 
-    // one-line captions under a heading, for sections whose name alone
-    // doesn't say what they do (skipped on Language — nothing to explain)
-    "hint.presets":    "Save or load a setup.",
-    "hint.tempo":      "Speed, metronome and cursor.",
-    "hint.measures":   "How many bars.",
-    "hint.accomp":     "Plays the line back to you.",
+    // one-line captions under a heading — down to just the two sections
+    // whose name genuinely doesn't say what they do. Everywhere else, the
+    // rename that would have earned a caption happened in the heading
+    // itself instead (Step -> Intervals, Chunks -> Highlight Patterns, …).
     "hint.hideAhead":  "Blanks bars as you pass them.",
-    "hint.rhythm":     "Which note values can appear.",
-    "hint.step":       "Which intervals can appear.",
-    "hint.notes":      "Which pitches can appear.",
     "hint.musicality": "How much it varies each time.",
-    "hint.chunks":     "Highlights the patterns as you read.",
-    "hint.staff":      "Clef and key.",
 
     // help — the guide behind the ? on the Presets heading
     "help.open":     "How this works",
@@ -145,7 +138,7 @@ window.SR_I18N = {
     "help.g.tempo":     "Tempo",
     "help.tempo":       "Beats per minute, plus two toggles: the metronome, and the eye, which shows or hides the cursor that follows the beat. Reading without the cursor is harder and worth doing.",
 
-    "help.g.accomp":    "Accompaniment",
+    "help.g.accomp":    "Play Along",
     "help.accomp":      "The voice that plays the line, and how loud. Useful for checking yourself; turn it off once you trust your ear.",
 
     "help.g.hide":      "Hide ahead",
@@ -154,7 +147,7 @@ window.SR_I18N = {
     "help.g.rhythm":    "Rhythm",
     "help.rhythm":      "Which figures may appear. Anything unchecked is never written, so you can drill one pattern at a time.",
 
-    "help.g.step":      "Step",
+    "help.g.step":      "Intervals",
     "help.step":        "The melodic vocabulary. Tick an interval to let it appear, and set how often it is used going up and going down — a 4 turns up roughly four times as often as a 1. Untick everything but the third and you get thirds.",
 
     "help.g.notes":     "Notes",
@@ -163,11 +156,11 @@ window.SR_I18N = {
     "help.g.musicality": "Musicality",
     "help.musicality":  "At zero the line is a plain random walk. Higher, it starts behaving like a melody — phrases turn back on themselves and leaps resolve instead of wandering.",
 
-    "help.g.chunks":    "Chunks",
+    "help.g.chunks":    "Highlight Patterns",
     "help.chunks":      "Highlights the patterns on the staff: cyan for stepwise runs, lime for leaps. Use it to check what your eye is catching, then switch it off and see whether you still catch them.",
 
-    "help.g.staff":     "Staff, key and length",
-    "help.staff":       "Clef, key, and how many bars. Changing the clef moves the notes to that clef's octaves so they sit on the staff rather than under a pile of ledger lines.",
+    "help.g.staff":     "Clef & Key",
+    "help.staff":       "Changing the clef moves the notes to that clef's octaves, so they sit on the staff rather than under a pile of ledger lines.",
 
     // onboarding \u2014 the first-run walkthrough, which doubles as a tour of the
     // settings panel: each page names a section the student will meet later
@@ -201,14 +194,14 @@ window.SR_I18N = {
   es: {
     "sec.presets":     "Presets",
     "sec.tempo":       "Tempo",
-    "sec.accomp":      "Acompañamiento",
+    "sec.accomp":      "Tocar contigo",
     "sec.hideAhead":   "Ocultar adelante",
     "sec.rhythm":      "Ritmo",
     "sec.step":        "Intervalos",
     "sec.notes":       "Notas",
     "sec.musicality":  "Musicalidad",
-    "sec.chunks":      "Patrones",
-    "sec.staff":       "Pentagrama, tonalidad y duración",
+    "sec.chunks":      "Resaltar patrones",
+    "sec.staff":       "Clave y tonalidad",
     "sec.measures":    "Compases",
     "sec.language":    "Idioma",
 
@@ -292,17 +285,8 @@ window.SR_I18N = {
     "fig.re":   "silencio de corchea + corchea",
     "fig.er":   "corchea + silencio de corchea",
 
-    "hint.presets":    "Guarda o carga un ajuste.",
-    "hint.tempo":      "Velocidad, metrónomo y cursor.",
-    "hint.measures":   "Cuántos compases.",
-    "hint.accomp":     "Te toca la línea de vuelta.",
     "hint.hideAhead":  "Vacía los compases al pasarlos.",
-    "hint.rhythm":     "Qué figuras pueden aparecer.",
-    "hint.step":       "Qué intervalos pueden aparecer.",
-    "hint.notes":      "Qué notas pueden aparecer.",
     "hint.musicality": "Cuánto varía cada vez.",
-    "hint.chunks":     "Resalta los patrones mientras lees.",
-    "hint.staff":      "Clave y tonalidad.",
 
     "help.open":     "Cómo funciona",
     "help.close":    "Cerrar",
@@ -321,7 +305,7 @@ window.SR_I18N = {
     "help.g.tempo":     "Tempo",
     "help.tempo":       "Pulsos por minuto, más dos botones: el metrónomo y el ojo, que muestra u oculta el cursor que sigue el pulso. Leer sin cursor cuesta más y vale la pena.",
 
-    "help.g.accomp":    "Acompañamiento",
+    "help.g.accomp":    "Tocar contigo",
     "help.accomp":      "El instrumento que toca la línea, y a qué volumen. Sirve para comprobarte; quítalo cuando te fíes de tu oído.",
 
     "help.g.hide":      "Ocultar adelante",
@@ -339,11 +323,11 @@ window.SR_I18N = {
     "help.g.musicality": "Musicalidad",
     "help.musicality":  "En cero la línea es un recorrido al azar. Más arriba empieza a comportarse como una melodía: las frases se repliegan y los saltos se resuelven en vez de vagar.",
 
-    "help.g.chunks":    "Patrones",
+    "help.g.chunks":    "Resaltar patrones",
     "help.chunks":      "Resalta los patrones sobre el pentagrama: cian para grados conjuntos, verde lima para saltos. Úsalo para comprobar qué está viendo tu ojo, y luego quítalo para ver si los sigues viendo.",
 
-    "help.g.staff":     "Pentagrama, tonalidad y duración",
-    "help.staff":       "Clave, tonalidad y cuántos compases. Al cambiar la clave las notas se mueven a las octavas de esa clave, para que queden sobre el pentagrama y no bajo un montón de líneas adicionales.",
+    "help.g.staff":     "Clave y tonalidad",
+    "help.staff":       "Al cambiar la clave, las notas se mueven a las octavas de esa clave, para que queden sobre el pentagrama y no bajo un montón de líneas adicionales.",
 
     "ob.pitch":       "Prima Vista te escribe un ejercicio de lectura a primera vista nuevo cada vez que se lo pides. Nunca se repite, as\u00ed que no hay nada que memorizar: lees cada l\u00ednea en fr\u00edo, como leer\u00edas una obra que no has visto nunca.",
     "ob.pitch2":      "T\u00fa decides qu\u00e9 puede aparecer en \u00e9l: por qu\u00e9 intervalos se mueve la melod\u00eda, qu\u00e9 ritmos usa, la tonalidad, la clave y cu\u00e1ntos compases. Despu\u00e9s lo tocas en tu instrumento, a tu tempo, con metr\u00f3nomo o con un acompa\u00f1amiento si lo quieres.",
