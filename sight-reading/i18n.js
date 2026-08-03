@@ -79,7 +79,6 @@ window.SR_I18N = {
     "aria.voice":        "Voice",
     "aria.hideUnit":     "Hide ahead unit",
     "aria.clef":         "Clef",
-    "aria.timesig":      "Time signature",
     "aria.key":          "Key",
     "aria.mode":         "Mode",
     "aria.accidental":   "Accidental",
@@ -148,7 +147,7 @@ window.SR_I18N = {
     "help.hide":        "Empties each bar as you reach it, so you are forced to look further along the line than you are playing. Start at one beat. This is the whole point of the tool, and it will feel wrong before it feels useful.",
 
     "help.g.rhythm":    "Rhythm",
-    "help.rhythm":      "The time signature pill sets the meter — 2/4, 3/4, 4/4 or 6/8. Below it, which figures may appear: anything unchecked is never written, so you can drill one pattern at a time. 6/8 swaps in its own compound-time set, built around the dotted-quarter beat instead of the quarter.",
+    "help.rhythm":      "The time signature pills set the meter — 2/4, 3/4, 4/4 or 6/8. Below it, which figures may appear: anything unchecked is never written, so you can drill one pattern at a time. 6/8 swaps in its own compound-time set, built around the dotted-quarter beat instead of the quarter.",
 
     "help.g.step":      "Intervals",
     "help.step":        "The melodic vocabulary. Tick an interval to let it appear, and set how often it is used going up and going down — a 4 turns up roughly four times as often as a 1. Untick everything but the third and you get thirds.",
@@ -170,7 +169,7 @@ window.SR_I18N = {
     "ob.pitch":       "Endless sight-reading exercises, built from the notes and rhythms you choose.",
     "ob.skip":        "Skip",
     "ob.next":        "Next",
-    "ob.vocabTitle":  "Your vocabulary",
+    "ob.vocabTitle":  "Choose your starting point",
     "ob.vocabRhythm": "Rhythm",
     "ob.vocabSteps":  "Intervals",
     "ob.vocabNote":   "Steps only \u2014 add leaps whenever.",
@@ -251,7 +250,6 @@ window.SR_I18N = {
     "aria.voice":        "Instrumento",
     "aria.hideUnit":     "Unidad",
     "aria.clef":         "Clave",
-    "aria.timesig":      "Comp\u00e1s",
     "aria.key":          "Tonalidad",
     "aria.mode":         "Modo",
     "aria.accidental":   "Alteración",
@@ -316,7 +314,7 @@ window.SR_I18N = {
     "help.hide":        "Vacía cada compás según llegas a él, así te obliga a mirar más adelante de lo que estás tocando. Empieza por un tiempo. En esto consiste la herramienta, y te resultará incómodo antes de resultarte útil.",
 
     "help.g.rhythm":    "Ritmo",
-    "help.rhythm":      "La pastilla del compás fija el metro — 2/4, 3/4, 4/4 o 6/8. Debajo, qué figuras pueden aparecer: lo que no marques no se escribe nunca, así puedes trabajar un patrón cada vez. En 6/8 cambia a su propio grupo de figuras, construido sobre el pulso de negra con puntillo en vez de la negra.",
+    "help.rhythm":      "Las pastillas del compás fijan el metro — 2/4, 3/4, 4/4 o 6/8. Debajo, qué figuras pueden aparecer: lo que no marques no se escribe nunca, así puedes trabajar un patrón cada vez. En 6/8 cambia a su propio grupo de figuras, construido sobre el pulso de negra con puntillo en vez de la negra.",
 
     "help.g.step":      "Intervalos",
     "help.step":        "El vocabulario melódico. Marca un intervalo para que aparezca y ajusta con qué frecuencia se usa al subir y al bajar — un 4 sale unas cuatro veces más que un 1. Desmarca todo menos la tercera y tendrás terceras.",
@@ -336,7 +334,7 @@ window.SR_I18N = {
     "ob.pitch":       "Ejercicios de lectura a primera vista sin fin, construidos con las notas y los ritmos que elijas.",
     "ob.skip":        "Omitir",
     "ob.next":        "Siguiente",
-    "ob.vocabTitle":  "Tu vocabulario",
+    "ob.vocabTitle":  "Elige tu punto de partida",
     "ob.vocabRhythm": "Ritmo",
     "ob.vocabSteps":  "Intervalos",
     "ob.vocabNote":   "Empiezas solo con grados conjuntos \u2014 a\u00f1ade saltos cuando quieras.",

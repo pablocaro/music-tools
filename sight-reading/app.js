@@ -1722,7 +1722,7 @@
   var accCycleEl   = document.getElementById("acc-cycle");
   var modeCycleEl  = document.getElementById("mode-cycle");
   var clefCycleEl  = document.getElementById("clef-cycle");
-  var timesigCycleEl = document.getElementById("timesig-cycle");
+  var timesigPillsEl = document.getElementById("timesig-pills");
   var hideUnitEl   = document.getElementById("hide-unit");
   var hideValEl    = document.getElementById("hide-val");
   var instCycleEl  = document.getElementById("instrument-cycle");
@@ -1796,7 +1796,28 @@
     clefCycleEl.textContent = clefDef(clefEl.value).label;
   }
 
-  function syncTimeSigBtn() { timesigCycleEl.textContent = timesigEl.value; }
+  function buildTimesigPills() {
+    timesigPillsEl.innerHTML = "";
+    TIME_SIGS.forEach(function (ts) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "opt";
+      b.textContent = ts.id;
+      b.addEventListener("click", function () {
+        timesigEl.value = ts.id;
+        syncTimesigPills();
+        syncBeatsFamily();    // swaps the figure grid only if simple<->compound changed
+        generate();
+      });
+      timesigPillsEl.appendChild(b);
+    });
+    syncTimesigPills();
+  }
+  function syncTimesigPills() {
+    Array.prototype.forEach.call(timesigPillsEl.children, function (b, i) {
+      b.classList.toggle("on", TIME_SIGS[i].id === timesigEl.value);
+    });
+  }
 
   // Hide Ahead: 0 reads as "Off" — that's what replaces the old hide-behind
   // checkbox, so any value above 0 means hiding is on with that much lead.
@@ -1865,7 +1886,6 @@
     lockCycleWidth(tonicCycleEl, LETTERS);
     lockCycleWidth(accCycleEl, ACCS.map(function (a) { return a.label; }));
     lockCycleWidth(clefCycleEl, CLEFS.map(function (c) { return c.label; }));
-    lockCycleWidth(timesigCycleEl, TIME_SIGS.map(function (s) { return s.id; }));
     lockCycleWidth(chunksBtnEl, [t("val.off"), t("val.on")]);
   }
 
@@ -2233,7 +2253,7 @@
   // preset / session restore, so the whole panel re-reads from one place.
   function syncPanel() {
     syncKeyRow();
-    syncTimeSigBtn();
+    syncTimesigPills();
     syncBeatsFamily();    // a preset/session restore can change meter family too
     syncInstrument();
     syncChunks();
@@ -2270,15 +2290,6 @@
       clefEl.value = ids[(i + 1) % ids.length];
       shiftRangeToClef(clefEl.value);      // move the notes onto the new staff
       syncKeyRow(); generate();
-    });
-
-    timesigCycleEl.addEventListener("click", function () {
-      var ids = TIME_SIGS.map(function (s) { return s.id; });
-      var i = ids.indexOf(timesigEl.value);
-      timesigEl.value = ids[(i + 1) % ids.length];
-      syncTimeSigBtn();
-      syncBeatsFamily();    // swaps the figure grid only if simple<->compound changed
-      generate();
     });
 
     // --- tempo: slider drags, ±5 nudges ---
@@ -2477,6 +2488,7 @@
   buildBeatsPalette(currentBeatFigures());
   buildMatrix();
   buildMeasuresPills();
+  buildTimesigPills();
   buildLangPills();
   wirePanel();
   wireHelp();
