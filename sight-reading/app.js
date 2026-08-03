@@ -2264,9 +2264,10 @@
   showChunksEl.addEventListener("change", drawOverlay);
   generateBtn.addEventListener("click", function () { generate(); });
   playBtn.addEventListener("click", function () {
-    if (playing) pausePlay();
-    else if (paused) resumePlay();
-    else startPlay();
+    if (playing) { pausePlay(); return; }
+    if (paused) resumePlay(); else startPlay();
+    setPanel(false);   // starting or resuming clears the panel so the sheet is
+                        // uncovered while it plays; pausing leaves it as is
   });
   document.getElementById("from-top").addEventListener("click", resetTop);
   setPlayIcon(false);

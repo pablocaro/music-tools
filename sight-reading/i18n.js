@@ -18,7 +18,7 @@ window.SR_I18N = {
     "sec.rhythm":      "Rhythm",
     "sec.step":        "Intervals",
     "sec.notes":       "Notes",
-    "sec.musicality":  "Musicality",
+    "sec.musicality":  "How Musical?",
     "sec.chunks":      "Highlight Patterns",
     "sec.staff":       "Clef & Key",
     "sec.measures":    "Measures",
@@ -113,13 +113,6 @@ window.SR_I18N = {
     "fig.re":   "8th rest + eighth",
     "fig.er":   "eighth + 8th rest",
 
-    // one-line captions under a heading — down to just the two sections
-    // whose name genuinely doesn't say what they do. Everywhere else, the
-    // rename that would have earned a caption happened in the heading
-    // itself instead (Step -> Intervals, Chunks -> Highlight Patterns, …).
-    "hint.hideAhead":  "Blanks bars as you pass them.",
-    "hint.musicality": "How much it varies each time.",
-
     // help — the guide behind the ? on the Presets heading
     "help.open":     "How this works",
     "help.close":    "Close",
@@ -153,7 +146,7 @@ window.SR_I18N = {
     "help.g.notes":     "Notes",
     "help.notes":       "Which pitches the line may use. Tick a whole octave with the box on the left, or single notes in the grid.",
 
-    "help.g.musicality": "Musicality",
+    "help.g.musicality": "How Musical?",
     "help.musicality":  "At zero the line is a plain random walk. Higher, it starts behaving like a melody — phrases turn back on themselves and leaps resolve instead of wandering.",
 
     "help.g.chunks":    "Highlight Patterns",
@@ -197,7 +190,7 @@ window.SR_I18N = {
     "sec.rhythm":      "Ritmo",
     "sec.step":        "Intervalos",
     "sec.notes":       "Notas",
-    "sec.musicality":  "Musicalidad",
+    "sec.musicality":  "¿Qué tan musical?",
     "sec.chunks":      "Resaltar patrones",
     "sec.staff":       "Clave y tonalidad",
     "sec.measures":    "Compases",
@@ -283,9 +276,6 @@ window.SR_I18N = {
     "fig.re":   "silencio de corchea + corchea",
     "fig.er":   "corchea + silencio de corchea",
 
-    "hint.hideAhead":  "Vacía los compases al pasarlos.",
-    "hint.musicality": "Cuánto varía cada vez.",
-
     "help.open":     "Cómo funciona",
     "help.close":    "Cerrar",
     "help.title":    "Cómo funciona",
@@ -318,7 +308,7 @@ window.SR_I18N = {
     "help.g.notes":     "Notas",
     "help.notes":       "Qué alturas puede usar la línea. Marca una octava entera con la casilla de la izquierda, o notas sueltas en la cuadrícula.",
 
-    "help.g.musicality": "Musicalidad",
+    "help.g.musicality": "¿Qué tan musical?",
     "help.musicality":  "En cero la línea es un recorrido al azar. Más arriba empieza a comportarse como una melodía: las frases se repliegan y los saltos se resuelven en vez de vagar.",
 
     "help.g.chunks":    "Resaltar patrones",
