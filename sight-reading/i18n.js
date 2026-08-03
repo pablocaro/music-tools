@@ -167,19 +167,16 @@ window.SR_I18N = {
 
     // onboarding \u2014 the first-run walkthrough, which doubles as a tour of the
     // settings panel: each page names a section the student will meet later
-    "ob.pitch":       "Prima Vista writes you a fresh sight-reading exercise every time you ask for one. Nothing ever repeats, so there is nothing to memorise \u2014 you read every line cold, the way you would a piece you have never seen.",
-    "ob.pitch2":      "You decide what may turn up in it: which intervals the melody moves by, which rhythms it uses, the key, the clef and how many bars. Then play it on your instrument \u2014 at your own tempo, with a metronome or a backing part if you want one.",
-    "ob.start":       "Get Started",
+    "ob.pitch":       "Endless sight-reading exercises, built from the notes and rhythms you choose.",
     "ob.skip":        "Skip",
     "ob.next":        "Next",
     "ob.vocabTitle":  "Your vocabulary",
-    "ob.vocabLead":   "The generator only uses what is switched on here. Add to it as things stop feeling hard \u2014 that is how the exercises get harder.",
     "ob.vocabRhythm": "Rhythm",
     "ob.vocabSteps":  "Intervals",
-    "ob.vocabNote":   "Steps only to start: the melody moves one scale degree at a time. Switch on a 3rd or a 5th and it starts to leap.",
+    "ob.vocabNote":   "Steps only \u2014 add leaps whenever.",
     "ob.doneTitle":   "You\u2019re set.",
-    "ob.doneChunks":  "As you read, the app marks the patterns it finds: cyan where the melody moves in steps, lime where it leaps. That is the point of the whole thing \u2014 training your eye to take in a group at a glance instead of one note at a time.",
-    "ob.doneWhere":   "Tempo, key, length, the metronome, a backing part, and hiding bars as you pass them to force you to read ahead \u2014 all of it is behind the button at the bottom left. The button at the top right writes you a new exercise whenever you want one.",
+    "ob.doneChunks":  "Cyan marks steps, lime marks leaps.",
+    "ob.doneWhere":   "Everything else lives behind \u2699 \u2014 tap \u21bb for a new line anytime.",
     "ob.go":          "Start practicing",
 
     // prompts and messages
@@ -336,19 +333,16 @@ window.SR_I18N = {
     "help.g.staff":     "Clave y tonalidad",
     "help.staff":       "Al cambiar la clave, las notas se mueven a las octavas de esa clave, para que queden sobre el pentagrama y no bajo un montón de líneas adicionales.",
 
-    "ob.pitch":       "Prima Vista te escribe un ejercicio de lectura a primera vista nuevo cada vez que se lo pides. Nunca se repite, as\u00ed que no hay nada que memorizar: lees cada l\u00ednea en fr\u00edo, como leer\u00edas una obra que no has visto nunca.",
-    "ob.pitch2":      "T\u00fa decides qu\u00e9 puede aparecer en \u00e9l: por qu\u00e9 intervalos se mueve la melod\u00eda, qu\u00e9 ritmos usa, la tonalidad, la clave y cu\u00e1ntos compases. Despu\u00e9s lo tocas en tu instrumento, a tu tempo, con metr\u00f3nomo o con un acompa\u00f1amiento si lo quieres.",
-    "ob.start":       "Empezar",
+    "ob.pitch":       "Ejercicios de lectura a primera vista sin fin, construidos con las notas y los ritmos que elijas.",
     "ob.skip":        "Omitir",
     "ob.next":        "Siguiente",
     "ob.vocabTitle":  "Tu vocabulario",
-    "ob.vocabLead":   "El generador solo usa lo que est\u00e9 activado aqu\u00ed. A\u00f1ade cosas a medida que dejen de costarte: as\u00ed es como suben de dificultad los ejercicios.",
     "ob.vocabRhythm": "Ritmo",
     "ob.vocabSteps":  "Intervalos",
-    "ob.vocabNote":   "Empiezas solo con grados conjuntos: la melod\u00eda avanza de grado en grado. Activa una 3\u00aa o una 5\u00aa y empezar\u00e1 a saltar.",
+    "ob.vocabNote":   "Empiezas solo con grados conjuntos \u2014 a\u00f1ade saltos cuando quieras.",
     "ob.doneTitle":   "Todo listo.",
-    "ob.doneChunks":  "Mientras lees, la app marca los patrones que encuentra: cian donde la melod\u00eda va por grados conjuntos, verde lima donde salta. De eso se trata todo: entrenar el ojo para abarcar un grupo de un vistazo en lugar de nota a nota.",
-    "ob.doneWhere":   "El tempo, la tonalidad, la duraci\u00f3n, el metr\u00f3nomo, el acompa\u00f1amiento y ocultar los compases que vas dejando atr\u00e1s para obligarte a leer por delante: todo est\u00e1 detr\u00e1s del bot\u00f3n de abajo a la izquierda. El bot\u00f3n de arriba a la derecha te escribe un ejercicio nuevo cuando quieras.",
+    "ob.doneChunks":  "Cian marca los grados conjuntos, verde lima los saltos.",
+    "ob.doneWhere":   "Todo lo dem\u00e1s vive detr\u00e1s de \u2699 \u2014 toca \u21bb para una l\u00ednea nueva cuando quieras.",
     "ob.go":          "Empezar a practicar",
 
     "msg.newPresetName": "Nombre del preset:",

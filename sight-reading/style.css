@@ -1225,10 +1225,6 @@ button.secondary {
   color: var(--muted);
 }
 
-/* …and its counterpart above them, framing what the controls are for. The
-   heading alone can't carry that on a page the student has never seen. */
-.ob-lead { margin: -8px 0 22px; }
-
 /* Sub-headings inside a page reuse the panel's section-heading treatment, so
    RHYTHM here and RHYTHM there read as the same label. */
 .ob-group + .ob-group { margin-top: 24px; }

@@ -2021,11 +2021,9 @@
       mark.textContent = "Prima Vista";     // the app's name, untranslated
       host.appendChild(mark);
       obPara(host, "ob.pitch");
-      obPara(host, "ob.pitch2");
 
     } else if (page === "vocab") {
       obHeading(host, "ob.vocabTitle");
-      obPara(host, "ob.vocabLead", "ob-lead");
 
       var rg = obGroup(host, "ob.vocabRhythm");
       var grid = document.createElement("div");
@@ -2074,7 +2072,7 @@
 
     var last = obPage === OB_PAGES.length - 1;
     var next = document.getElementById("ob-next");
-    next.textContent = t(page === "intro" ? "ob.start" : last ? "ob.go" : "ob.next");
+    next.textContent = t(last ? "ob.go" : "ob.next");
     // Skip only sits on the pages that ask something. The intro has nothing to
     // skip past, and the closing page is already the end.
     document.getElementById("ob-skip").hidden = (page === "intro" || last);
