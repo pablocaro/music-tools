@@ -2441,14 +2441,17 @@
       tempoValEl.textContent = tempoEl.value;
     });
     tempoUiEl.addEventListener("change", persistSession);
+    // The slider is the coarse control (it steps in 5s); ± is the fine one, so
+    // a tempo between the notches is reachable. The thumb can then sit up to
+    // 2bpm off the true value it can't represent — the readout is exact.
     function bumpTempo(d) {
-      tempoEl.value = Math.max(40, Math.min(160, (parseInt(tempoEl.value, 10) || 80) + d));
+      tempoEl.value = Math.max(40, Math.min(180, (parseInt(tempoEl.value, 10) || 80) + d));
       tempoEl.dispatchEvent(new Event("input"));
       syncTempoUi();
       persistSession();
     }
-    document.getElementById("tempo-down").addEventListener("click", function () { bumpTempo(-5); });
-    document.getElementById("tempo-up").addEventListener("click", function () { bumpTempo(5); });
+    document.getElementById("tempo-down").addEventListener("click", function () { bumpTempo(-1); });
+    document.getElementById("tempo-up").addEventListener("click", function () { bumpTempo(1); });
 
     // --- accompaniment ---
     instCycleEl.addEventListener("click", function () {
