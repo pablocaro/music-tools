@@ -262,8 +262,11 @@
   // saved preset leaves them alone — whatever's currently set stays set.
   function readPresetConfig() {
     return {
-      alphabet: { down: downInputs.map(function (x) { return +x.value; }),
-                  up:   upInputs.map(function (x) { return +x.value; }) },
+      // readAlphabet, not the raw sliders: an unchecked row's slider still
+      // reads WEIGHT_MIN (the checkbox owns off, the slider floors at 1), so
+      // reading it raw saved every switched-off interval as weight 1 — and
+      // reloading the preset turned them all back on.
+      alphabet: readAlphabet(),
       range: JSON.parse(JSON.stringify(rangeState)),
       musicality: musicalityEl.value,
       key: currentKeyCode(),
@@ -317,8 +320,7 @@
         applyPreset(all[name]);
         syncPanel();              // a preset can move any control — re-read them all
         activePreset = name;
-        markActive(pill);
-        generate();
+        generate();               // renderLoaded -> updateHeader -> syncActivePill
       });
       if (saved.hasOwnProperty(name)) {                // user preset/override: updatable + deletable
         var upd = document.createElement("span");
@@ -336,7 +338,7 @@
         });
         pill.appendChild(del);
       }
-      if (name === activePreset) pill.classList.add("active");
+      pill.dataset.preset = name;
       presetsEl.appendChild(pill);
     });
 
@@ -347,9 +349,14 @@
     updateHeader();
   }
 
-  function markActive(pill) {
-    presetsEl.querySelectorAll(".pill").forEach(function (p) { p.classList.remove("active"); });
-    if (pill) pill.classList.add("active");
+  // The lit pill follows the same rule as the title: it marks the preset the
+  // panel currently *is*, not merely the last one clicked, so the two can't
+  // disagree once a control has been touched.
+  function syncActivePill() {
+    var live = loadedPresetName();
+    presetsEl.querySelectorAll(".pill").forEach(function (p) {
+      p.classList.toggle("active", !!live && p.dataset.preset === live);
+    });
   }
 
   function deletePreset(name) {
@@ -912,12 +919,43 @@
   // ===========================================================================
 
   // The top bar: drill name, then "Key Mode – N Bars".
+  // A preset's name belongs on the title only while the panel still matches it.
+  // Comparing the config beats clearing activePreset from every control's change
+  // handler: it can't miss a control, needs no upkeep as preset fields come and
+  // go, and putting a value back restores the name instead of stranding it on
+  // "Custom". Only fields the preset actually defines are compared, mirroring
+  // applyPreset — so a preset saved before a field existed still matches.
+  var PRESET_FIELDS = ["musicality", "key", "clef", "timesig", "measures"];
+
+  function presetMatchesPanel(p) {
+    var cur = readPresetConfig();
+    var alpha = p.alphabet || ((p.down || p.up) ? { down: p.down, up: p.up } : null);
+    if (alpha && JSON.stringify(alpha) !== JSON.stringify(cur.alphabet)) return false;
+    if (p.range && JSON.stringify(p.range) !== JSON.stringify(cur.range)) return false;
+    for (var i = 0; i < PRESET_FIELDS.length; i++) {
+      var f = PRESET_FIELDS[i];
+      if (p[f] != null && String(p[f]) !== String(cur[f])) return false;
+    }
+    return true;
+  }
+
+  function loadedPresetName() {
+    if (!activePreset) return null;
+    var saved = loadSaved();
+    var p = saved.hasOwnProperty(activePreset) ? saved[activePreset]
+          : (BUILTIN[activePreset] ? builtinPreset(activePreset) : null);
+    return (p && presetMatchesPanel(p)) ? activePreset : null;
+  }
+
   function updateHeader() {
     var sel = keyTonicEl.options[keyTonicEl.selectedIndex];
     var tonic = sel ? sel.textContent : "C";
     var mode = t("mode." + keyModeEl.value);
-    shTitleEl.textContent = presetLabel(activePreset) || t("val.custom");
-    shSubEl.textContent = tonic + " " + mode + " – " + measuresEl.value + " " + t("val.bars");
+    // Onboarding blanks the staff; the title would leak the same thing in words.
+    shTitleEl.textContent = obBlanking ? "" : (presetLabel(loadedPresetName()) || t("val.custom"));
+    shSubEl.textContent = obBlanking ? ""
+      : tonic + " " + mode + " – " + measuresEl.value + " " + t("val.bars");
+    syncActivePill();
     syncTransport();
   }
 
@@ -937,6 +975,7 @@
       if (w > avail + 1) { osmd.zoom *= (avail / w) * 0.99; osmd.render(); }
     }
     drawOverlay();
+    applyObBlank();     // a fresh SVG has fresh ink; re-empty it if onboarding is up
     updateHeader();
     computeLines();
     if (playing && !advancing) { lastScrollTarget = -1; followCursor(); }  // keep the cursor in view on a mid-play reflow
@@ -1553,6 +1592,21 @@
     syncHighlights(0);
   }
 
+  // Onboarding renders over a real exercise, so the walkthrough would otherwise
+  // be talking about choices the student can already see made for them. The
+  // same ink-hiding trick empties the staff completely — clef, time signature,
+  // barlines and staff lines stay, everything written on them goes, including
+  // the measure numbers that would give the length away. Re-applied after every
+  // render (a resize reflows mid-walkthrough) and lifted when onboarding ends.
+  var OB_BLANK_SEL = INK_SEL + ", .measure-number";
+  var obBlanking = false;
+
+  function applyObBlank() {
+    if (!obBlanking) return;
+    sheetEl.querySelectorAll(OB_BLANK_SEL).forEach(function (el) { el.style.visibility = "hidden"; });
+    syncHighlights(Infinity);
+  }
+
   // Hide the ink in measures [0, count); show it in the rest.
   function hideMeasures(measureInk, count) {
     for (var i = 0; i < measureInk.length; i++) {
@@ -2040,7 +2094,7 @@
   // Set to false to restore once-per-visitor behaviour; the flag is still
   // written on finish, so nothing else has to change.
   var OB_ALWAYS = true;
-  var OB_PAGES = ["intro", "vocab", "done"];
+  var OB_PAGES = ["intro", "vocab"];
   // The plain note values plus one rest: the first six cells of the real rhythm
   // grid, in the same order, so the grid is recognisable when the rest appear.
   var OB_FIGS = ["w", "h", "q", "ee", "ssss", "qr"];
@@ -2099,6 +2153,22 @@
     return p;
   }
 
+  // Same, but with {icon} swapped for the actual settings glyph — pointing at
+  // the real button beats naming a gear the interface doesn't have. The token
+  // lets each language put it wherever its own word order wants it.
+  function obIconPara(host, key, cls) {
+    var p = document.createElement("p");
+    if (cls) p.className = cls;
+    var parts = t(key).split("{icon}");
+    parts.forEach(function (chunk, i) {
+      if (i) p.insertAdjacentHTML("beforeend",
+        '<svg class="ic ic-settings ob-ic" aria-hidden="true"><use href="#ic-settings"/></svg>');
+      p.appendChild(document.createTextNode(chunk));
+    });
+    host.appendChild(p);
+    return p;
+  }
+
   function buildObPage() {
     var host = document.getElementById("ob-body");
     var page = OB_PAGES[obPage];
@@ -2145,12 +2215,7 @@
         function (it) { stepChecks[it.i].checked = !stepChecks[it.i].checked; syncStepRow(it.i); },
         "ob-int");
 
-      obPara(host, "ob.vocabNote", "ob-note");
-
-    } else {
-      obHeading(host, "ob.doneTitle");
-      obPara(host, "ob.doneChunks");
-      obPara(host, "ob.doneWhere");
+      obIconPara(host, "ob.vocabNote", "ob-note");
     }
 
     var dots = document.getElementById("ob-dots");
@@ -2192,6 +2257,7 @@
 
   function obFinish() {
     document.getElementById("ob").hidden = true;
+    obBlanking = false;  // the staff and title fill in with the first real exercise
     try { localStorage.setItem(OB_KEY, "1"); } catch (e) {}
     syncPanel();
     persistSession();
@@ -2214,6 +2280,9 @@
     });
     if (seen) return;
     ob.hidden = false;
+    // Set before init's generate() runs, so the first render comes up empty
+    // rather than flashing a full exercise behind the card.
+    obBlanking = true;
     buildObPage();
     // Focus the dialog itself rather than Next: it puts keyboard and
     // screen-reader context inside the walkthrough without painting a

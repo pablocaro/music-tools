@@ -1225,6 +1225,17 @@ button.secondary {
   color: var(--muted);
 }
 
+/* The settings glyph sitting inside a sentence. .ic is display:block for
+   buttons, so it has to go inline here, and it takes the surrounding text's
+   colour rather than the control-bar treatment. */
+.ob-ic {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  vertical-align: -2px;
+  color: var(--ink);
+}
+
 /* Sub-headings inside a page reuse the panel's section-heading treatment, so
    RHYTHM here and RHYTHM there read as the same label. */
 .ob-group + .ob-group { margin-top: 24px; }

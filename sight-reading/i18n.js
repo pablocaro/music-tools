@@ -166,16 +166,15 @@ window.SR_I18N = {
 
     // onboarding \u2014 the first-run walkthrough, which doubles as a tour of the
     // settings panel: each page names a section the student will meet later
-    "ob.pitch":       "Endless sight-reading exercises, built from the notes and rhythms you choose.",
+    "ob.pitch":       "This is a tool that writes you a new sight-reading exercise every time you ask \u2014 built from the notes and rhythms you choose.",
     "ob.skip":        "Skip",
     "ob.next":        "Next",
     "ob.vocabTitle":  "Choose your starting point",
     "ob.vocabRhythm": "Rhythm",
     "ob.vocabSteps":  "Intervals",
-    "ob.vocabNote":   "Steps only \u2014 add leaps whenever.",
-    "ob.doneTitle":   "You\u2019re set.",
-    "ob.doneChunks":  "Cyan marks steps, lime marks leaps.",
-    "ob.doneWhere":   "Everything else lives behind \u2699 \u2014 tap \u21bb for a new line anytime.",
+    // {icon} is replaced with the real settings glyph, so the sentence points
+    // at the button the student will actually look for.
+    "ob.vocabNote":   "Steps only \u2014 add leaps whenever. Everything else is behind {icon}.",
     "ob.go":          "Start practicing",
 
     // prompts and messages
@@ -331,16 +330,13 @@ window.SR_I18N = {
     "help.g.staff":     "Clave y tonalidad",
     "help.staff":       "Al cambiar la clave, las notas se mueven a las octavas de esa clave, para que queden sobre el pentagrama y no bajo un montón de líneas adicionales.",
 
-    "ob.pitch":       "Ejercicios de lectura a primera vista sin fin, construidos con las notas y los ritmos que elijas.",
+    "ob.pitch":       "Esta es una herramienta que te escribe un ejercicio de lectura a primera vista nuevo cada vez que se lo pides \u2014 construido con las notas y los ritmos que elijas.",
     "ob.skip":        "Omitir",
     "ob.next":        "Siguiente",
     "ob.vocabTitle":  "Elige tu punto de partida",
     "ob.vocabRhythm": "Ritmo",
     "ob.vocabSteps":  "Intervalos",
-    "ob.vocabNote":   "Empiezas solo con grados conjuntos \u2014 a\u00f1ade saltos cuando quieras.",
-    "ob.doneTitle":   "Todo listo.",
-    "ob.doneChunks":  "Cian marca los grados conjuntos, verde lima los saltos.",
-    "ob.doneWhere":   "Todo lo dem\u00e1s vive detr\u00e1s de \u2699 \u2014 toca \u21bb para una l\u00ednea nueva cuando quieras.",
+    "ob.vocabNote":   "Empiezas solo con grados conjuntos \u2014 a\u00f1ade saltos cuando quieras. Todo lo dem\u00e1s est\u00e1 detr\u00e1s de {icon}.",
     "ob.go":          "Empezar a practicar",
 
     "msg.newPresetName": "Nombre del preset:",
