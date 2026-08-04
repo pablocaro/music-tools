@@ -121,20 +121,21 @@
   var matrixEl  = document.getElementById("matrix");
   var presetsEl = document.getElementById("presets");
 
-  // Short row labels — the matrix now leads with a checkbox, so the name column
-  // is narrow. ("=" is the unison/repeat row.)
-  var STEP_LABELS = ["=", "2", "3", "4", "5", "6", "7", "8ve"];
+  // Row labels live in the catalogue: they used to be bare digits, which needed
+  // no translating, but ordinals do — Spanish writes 2ª where English writes
+  // 2nd. All eight are three characters wide, so the column stays narrow.
+  function stepLabel(i) { return t("step." + i); }
 
+  // No numeric readout: 1–4 named nothing a student could act on, and the
+  // less/more header above the column already says which way the slider runs.
+  // The value still reaches assistive tech through the range input itself.
   function makeCell(arr) {
     var cell = document.createElement("div");
     cell.className = "cell";
     var input = document.createElement("input");
     input.type = "range"; input.min = WEIGHT_MIN; input.max = WEIGHT_MAX; input.step = 1; input.value = WEIGHT_MIN;
-    var ro = document.createElement("span");
-    ro.className = "ro"; ro.textContent = String(WEIGHT_MIN);
-    input.addEventListener("input", function () { ro.textContent = input.value; });
     input.addEventListener("change", generate);
-    cell.appendChild(input); cell.appendChild(ro);
+    cell.appendChild(input);
     arr.push(input);
     return cell;
   }
@@ -156,7 +157,9 @@
 
       var label = document.createElement("div");
       label.className = "row-label";
-      label.innerHTML = '<span class="dot" style="background:' + iv.c + '"></span>' + STEP_LABELS[i];
+      label.innerHTML = '<span class="dot" style="background:' + iv.c + '"></span>'
+                      + '<span class="row-name"></span>';
+      label.querySelector(".row-name").textContent = stepLabel(i);
       row.appendChild(label);
 
       row.appendChild(makeCell(weightInputs));
@@ -175,7 +178,6 @@
     var on = w > 0, v = on ? Math.max(WEIGHT_MIN, Math.min(WEIGHT_MAX, w)) : WEIGHT_MIN;
     stepChecks[i].checked = on;
     weightInputs[i].value = v;
-    weightInputs[i].nextElementSibling.textContent = v;
     syncStepRow(i);
   }
 
@@ -2205,7 +2207,7 @@
       var ig = obGroup(host, "ob.vocabSteps");
       var ivs = [];
       for (var i = 1; i < INTERVALS.length; i++) ivs.push({ i: i, html:
-        '<span class="dot" style="background:' + INTERVALS[i].c + '"></span>' + STEP_LABELS[i] });
+        '<span class="dot" style="background:' + INTERVALS[i].c + '"></span>' + stepLabel(i) });
       obPills(ig, ivs,
         function (it) { return stepChecks[it.i].checked; },
         function (it) { stepChecks[it.i].checked = !stepChecks[it.i].checked; syncStepRow(it.i); },
@@ -2299,6 +2301,10 @@
 
     // runtime-built labels
     stepChecks.forEach(function (cb, i) { cb.setAttribute("aria-label", t("interval." + i)); });
+    matrixRows.forEach(function (row, i) {
+      var n = row.querySelector(".row-name");   // 2nd / 2ª — ordinals translate
+      if (n) n.textContent = stepLabel(i);
+    });
     RANGE_OCTAVES.forEach(function (oct) {
       if (octChecks[oct]) octChecks[oct].setAttribute("aria-label", t("aria.octave") + " " + oct);
     });

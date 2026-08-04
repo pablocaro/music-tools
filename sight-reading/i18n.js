@@ -86,6 +86,18 @@ window.SR_I18N = {
     "aria.updatePreset": "Update with current settings",
     "aria.deletePreset": "Delete preset",
 
+    // the Intervals rows: short label, and the axis its sliders run along
+    "step.0": "uni",
+    "step.1": "2nd",
+    "step.2": "3rd",
+    "step.3": "4th",
+    "step.4": "5th",
+    "step.5": "6th",
+    "step.6": "7th",
+    "step.7": "8ve",
+    "col.less": "less",
+    "col.more": "more",
+
     // intervals, in the Step matrix
     "interval.0": "unison",
     "interval.1": "2nd",
@@ -253,6 +265,17 @@ window.SR_I18N = {
     "aria.octave":       "Octava",
     "aria.updatePreset": "Actualizar con los ajustes actuales",
     "aria.deletePreset": "Eliminar preset",
+
+    "step.0": "uni",
+    "step.1": "2ª",
+    "step.2": "3ª",
+    "step.3": "4ª",
+    "step.4": "5ª",
+    "step.5": "6ª",
+    "step.6": "7ª",
+    "step.7": "8ª",
+    "col.less": "menos",
+    "col.more": "más",
 
     "interval.0": "unísono",
     "interval.1": "2ª",
