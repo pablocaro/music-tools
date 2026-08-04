@@ -24,9 +24,7 @@ window.SR_I18N = {
     "sec.measures":    "Measures",
     "sec.language":    "Language",
 
-    // column headers and legend
-    "col.up":     "up",
-    "col.down":   "down",
+    // chunk legend
     "legend.steps": "steps",
     "legend.leaps": "leaps",
 
@@ -150,7 +148,7 @@ window.SR_I18N = {
     "help.rhythm":      "The time signature pills set the meter — 2/4, 3/4, 4/4 or 6/8. Below it, which figures may appear: anything unchecked is never written, so you can drill one pattern at a time. 6/8 swaps in its own compound-time set, built around the dotted-quarter beat instead of the quarter.",
 
     "help.g.step":      "Intervals",
-    "help.step":        "The melodic vocabulary. Tick an interval to let it appear, and set how often it is used going up and going down — a 4 turns up roughly four times as often as a 1. Untick everything but the third and you get thirds.",
+    "help.step":        "The melodic vocabulary. Tick an interval to let it appear, and set how often it is used — a 4 turns up roughly four times as often as a 1. Untick everything but the third and you get thirds.",
 
     "help.g.notes":     "Notes",
     "help.notes":       "Which pitches the line may use. Tick a whole octave with the box on the left, or single notes in the grid.",
@@ -201,8 +199,6 @@ window.SR_I18N = {
     "sec.measures":    "Compases",
     "sec.language":    "Idioma",
 
-    "col.up":     "sube",
-    "col.down":   "baja",
     "legend.steps": "grados",
     "legend.leaps": "saltos",
 
@@ -316,7 +312,7 @@ window.SR_I18N = {
     "help.rhythm":      "Las pastillas del compás fijan el metro — 2/4, 3/4, 4/4 o 6/8. Debajo, qué figuras pueden aparecer: lo que no marques no se escribe nunca, así puedes trabajar un patrón cada vez. En 6/8 cambia a su propio grupo de figuras, construido sobre el pulso de negra con puntillo en vez de la negra.",
 
     "help.g.step":      "Intervalos",
-    "help.step":        "El vocabulario melódico. Marca un intervalo para que aparezca y ajusta con qué frecuencia se usa al subir y al bajar — un 4 sale unas cuatro veces más que un 1. Desmarca todo menos la tercera y tendrás terceras.",
+    "help.step":        "El vocabulario melódico. Marca un intervalo para que aparezca y ajusta con qué frecuencia se usa — un 4 sale unas cuatro veces más que un 1. Desmarca todo menos la tercera y tendrás terceras.",
 
     "help.g.notes":     "Notas",
     "help.notes":       "Qué alturas puede usar la línea. Marca una octava entera con la casilla de la izquierda, o notas sueltas en la cuadrícula.",

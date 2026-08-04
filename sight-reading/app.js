@@ -111,7 +111,13 @@
     return (a && a.length === 7) ? a.slice(0, 6).concat([0], a.slice(6)) : a;
   }
 
-  var downInputs = [], upInputs = [], stepChecks = [], matrixRows = [];
+  // One weight per interval. There used to be two — an up column and a down one
+  // — but the pair couldn't express the only directional drill worth having
+  // ("descending 3rds only"): the slider floors at WEIGHT_MIN and the checkbox
+  // owns the whole row, so neither direction could be zeroed on its own. It
+  // cost eight extra sliders to offer ratios nobody reaches for. The engine
+  // still takes {down, up}; readAlphabet just emits the same value for both.
+  var weightInputs = [], stepChecks = [], matrixRows = [];
   var matrixEl  = document.getElementById("matrix");
   var presetsEl = document.getElementById("presets");
 
@@ -133,7 +139,7 @@
     return cell;
   }
 
-  // Each interval row: a checkbox (is it in play?) + up/down weight sliders.
+  // Each interval row: a checkbox (is it in play?) + its weight.
   // The checkbox owns on/off, so a weight never has to mean "never" — it floors
   // at WEIGHT_MIN and readAlphabet() zeroes out unchecked rows instead.
   function buildMatrix() {
@@ -153,8 +159,7 @@
       label.innerHTML = '<span class="dot" style="background:' + iv.c + '"></span>' + STEP_LABELS[i];
       row.appendChild(label);
 
-      row.appendChild(makeCell(upInputs));
-      row.appendChild(makeCell(downInputs));
+      row.appendChild(makeCell(weightInputs));
       matrixRows.push(row);
       matrixEl.appendChild(row);
     });
@@ -164,14 +169,13 @@
     if (matrixRows[i]) matrixRows[i].classList.toggle("off", !stepChecks[i].checked);
   }
 
-  // Apply a weight to both directions of a row. 0 means "not in play" — the
-  // checkbox goes off and the sliders rest at the floor.
+  // Apply a weight to a row. 0 means "not in play" — the checkbox goes off and
+  // the slider rests at the floor.
   function setRow(i, w) {
     var on = w > 0, v = on ? Math.max(WEIGHT_MIN, Math.min(WEIGHT_MAX, w)) : WEIGHT_MIN;
     stepChecks[i].checked = on;
-    downInputs[i].value = v; upInputs[i].value = v;
-    downInputs[i].nextElementSibling.textContent = v;
-    upInputs[i].nextElementSibling.textContent = v;
+    weightInputs[i].value = v;
+    weightInputs[i].nextElementSibling.textContent = v;
     syncStepRow(i);
   }
 
@@ -183,10 +187,8 @@
   // An unchecked interval contributes 0, which is what the engine's weighted
   // draw already understands — so nothing downstream needed to change.
   function readAlphabet() {
-    return {
-      down: downInputs.map(function (x, i) { return stepChecks[i].checked ? +x.value : 0; }),
-      up:   upInputs.map(function (x, i) { return stepChecks[i].checked ? +x.value : 0; })
-    };
+    var w = weightInputs.map(function (x, i) { return stepChecks[i].checked ? +x.value : 0; });
+    return { down: w.slice(), up: w.slice() };   // engine still wants both; they're symmetric now
   }
 
   // ---- presets (built-in + saved in localStorage) ----
@@ -208,20 +210,14 @@
     catch (e) { return {}; }
   }
 
-  // A row is in play when either direction carries weight; the sliders then show
-  // each direction's weight (floored, since 0 is now expressed by the checkbox).
+  // A row is in play when either direction carries weight. Presets saved while
+  // the panel had separate up/down columns can still be asymmetric, so they
+  // collapse to their louder direction rather than silently losing the row.
   function applyAlphabet(a) {
     var down = fix7(a.down), up = fix7(a.up);
     for (var i = 0; i < INTERVALS.length; i++) {
-      var d = (down && +down[i]) || 0, u = (up && +up[i]) || 0;
-      var on = (d > 0 || u > 0);
-      stepChecks[i].checked = on;
-      var dv = Math.max(WEIGHT_MIN, Math.min(WEIGHT_MAX, d || WEIGHT_MIN));
-      var uv = Math.max(WEIGHT_MIN, Math.min(WEIGHT_MAX, u || WEIGHT_MIN));
-      downInputs[i].value = dv; upInputs[i].value = uv;
-      downInputs[i].nextElementSibling.textContent = dv;
-      upInputs[i].nextElementSibling.textContent = uv;
-      syncStepRow(i);
+      var w = Math.max((down && +down[i]) || 0, (up && +up[i]) || 0);
+      setRow(i, w);
     }
   }
 

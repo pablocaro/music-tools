@@ -651,21 +651,11 @@ button.secondary {
 
 /* Alphabet matrix — a checkbox owns whether an interval is in play; the two
    sliders are its up / down weight (which therefore never needs to reach 0). */
-.matrix-head,
 .matrix-row {
   display: grid;
-  grid-template-columns: 22px 46px 1fr 1fr;
+  grid-template-columns: 22px 46px 1fr;
   gap: 6px 10px;
   align-items: center;
-}
-
-.matrix-head {
-  font-size: var(--type-micro);
-  font-weight: var(--weight-prominent);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--muted);
-  margin-top: 2px;
 }
 
 /* An interval that's switched off dims its weights, but they stay legible and
