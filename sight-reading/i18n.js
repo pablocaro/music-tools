@@ -172,7 +172,7 @@ window.SR_I18N = {
     "help.musicality":  "At zero the line is a plain random walk. Higher, it starts behaving like a melody — phrases turn back on themselves and leaps resolve instead of wandering.",
 
     "help.g.harmony":   "Follow Chords?",
-    "help.harmony":     "Each bar sits on a chord — the line walks I, IV, V, I and back. At zero the chords are ignored. Higher, the notes stick to them, and at the top the line is pure arpeggio.",
+    "help.harmony":     "Each bar sits on a chord — I, IV, V, I in a major key, i, VI, VII, i in a minor one. At zero the chords are ignored. Higher, the notes stick to them, and at the top the line is pure arpeggio.",
 
     "help.g.chunks":    "Highlight Patterns",
     "help.chunks":      "Highlights the patterns on the staff: cyan for stepwise runs, lime for leaps. Use it to check what your eye is catching, then switch it off and see whether you still catch them.",
@@ -353,7 +353,7 @@ window.SR_I18N = {
     "help.musicality":  "En cero la línea es un recorrido al azar. Más arriba empieza a comportarse como una melodía: las frases se repliegan y los saltos se resuelven en vez de vagar.",
 
     "help.g.harmony":   "¿Seguir acordes?",
-    "help.harmony":     "Cada compás se apoya en un acorde: la línea recorre I, IV, V, I y vuelve. En cero se ignoran los acordes. Más arriba las notas se ciñen a ellos, y al tope la línea es puro arpegio.",
+    "help.harmony":     "Cada compás se apoya en un acorde: I, IV, V, I en tonalidad mayor; i, VI, VII, i en menor. En cero se ignoran los acordes. Más arriba las notas se ciñen a ellos, y al tope la línea es puro arpegio.",
 
     "help.g.chunks":    "Resaltar patrones",
     "help.chunks":      "Resalta los patrones sobre el pentagrama: cian para grados conjuntos, verde lima para saltos. Úsalo para comprobar qué está viendo tu ojo, y luego quítalo para ver si los sigues viendo.",

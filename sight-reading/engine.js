@@ -198,7 +198,9 @@
       if (musicality > 0 || harmony > 0) {
         // Which chord this bar sits on. One chord per bar, looping — so the
         // progression is meter-independent, unlike the beat maths below it.
-        var prog = this.options.progression || [0, 3, 4, 0];   // I – IV – V – I, scale-degree roots
+        // Scale-degree roots, one per bar. The caller picks the pattern to suit
+        // the mode (see PROGRESSIONS in app.js); this is only the fallback.
+        var prog = this.options.progression || [0, 3, 4, 0];   // I – IV – V – I
         var mi = this._measureIdx || 0, totalM = this.options.measure_count || 8;
         var root = prog[mi % prog.length];
         var chordTones = [root % N, (root + 2) % N, (root + 4) % N];

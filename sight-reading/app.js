@@ -874,6 +874,18 @@
     });
   }
 
+  // One chord per bar, written as scale-degree roots into the diatonic ladder.
+  // Major gets I – IV – V – I. Minor can't reuse it: the fifth degree of a
+  // natural minor scale builds a *minor* v, so there is no leading tone and the
+  // phrase never leans home — i – iv – v – i comes out sounding like a drone
+  // rather than a cadence. Until the app can raise that 7th (it would be the
+  // first accidental it generates), minor gets a progression that means to stay
+  // inside the key signature: i – VI – VII – i, the natural-minor cadence.
+  var PROGRESSIONS = {
+    major: [0, 3, 4, 0],   // I – IV – V   – I
+    minor: [0, 5, 6, 0]    // i – VI – VII – i
+  };
+
   function buildOptions() {
     var scaleKey = makeScaleKey(currentKeyCode());
     var ladder = SREngine.buildLadder(scaleKey);
@@ -894,7 +906,8 @@
       rangeMax: bounds.max,
       beatPatterns: buildBeatPatterns(),
       musicality: (+musicalityEl.value) / 100,
-      harmony: (+harmonyEl.value) / 100
+      harmony: (+harmonyEl.value) / 100,
+      progression: PROGRESSIONS[keyModeEl.value] || PROGRESSIONS.major
     };
   }
 

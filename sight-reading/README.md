@@ -54,9 +54,10 @@ controls ──► OSME generates a sheet ──► export MusicXML ──► OS
 - **Notes:** which pitches the line may reach, by octave or one at a time.
 - **How musical?** — 0 is a plain weighted random walk. Higher, contour,
   gap-fill and cadence biases start shaping the line into phrases.
-- **Follow chords?** — each bar sits on a chord (I–IV–V–I, looping). At 0 the
-  chords are ignored; at the top every note is a chord tone and the line
-  arpeggiates. This is what the *Arpeggios* preset turns all the way up.
+- **Follow chords?** — each bar sits on a chord, looping: I–IV–V–I in a major
+  key, i–VI–VII–i in a minor one. At 0 the chords are ignored; at the top every
+  note is a chord tone and the line arpeggiates. This is what the *Arpeggios*
+  preset turns all the way up.
 - **Clef & key, Measures, Highlight patterns.**
 
 ## Files
@@ -73,13 +74,17 @@ controls ──► OSME generates a sheet ──► export MusicXML ──► OS
 ## Known limitations
 
 - Rhythm figures are equally weighted (on/off), not yet probability-weighted.
-- The chord progression is fixed at I–IV–V–I; it isn't selectable yet.
+- One progression per mode, not selectable.
+- Everything generated is diatonic — the app has no way to write an accidental
+  yet. That's why minor keys cadence i–VI–VII–i: a true V would need the 7th
+  raised, and the raised 7th isn't a position on the diatonic ladder.
 - "How musical?" reads strong beats as though the meter were 4/4, so its
   strong-beat bonus lands wrong in 3/4 and 6/8.
 
 ## Roadmap
 
 - **Letting-go mode** — hide measures as you reach them to force reading ahead.
+- Accidentals — starting with a real dominant in minor (raise the 7th in V bars).
 - Selectable chord progressions (I–V–vi–IV, ii–V–I, 12-bar blues).
 - Probability-weighted rhythm figures; rhythm chunks marked below the staff.
 - Interval/figure targeting tied to weak spots.
