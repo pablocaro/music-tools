@@ -45,13 +45,19 @@ controls ──► OSME generates a sheet ──► export MusicXML ──► OS
 
 ## Controls
 
-- **Notes — the alphabet:** a matrix of intervals (unison…octave) × direction
-  (down/up). Each weight (0–4) is how *often* that move is used. Presets save to
-  the browser (`localStorage`).
-- **Rhythm — the figures:** check which note values are in play (whole … sixteenth),
-  plus an option to include rests.
-- **Range:** lowest and highest note the melody may reach.
-- **Key, Measures, Show chunks.**
+- **Intervals — the melodic alphabet:** one row per interval (unison…octave).
+  Tick it to allow the move, and slide *less → more* to set how often it turns
+  up. Presets save to the browser (`localStorage`).
+- **Rhythm — the figures:** the meter (2/4, 3/4, 4/4, 6/8) plus which note
+  values are in play. 6/8 swaps in a compound-time figure set built on the
+  dotted-quarter pulse.
+- **Notes:** which pitches the line may reach, by octave or one at a time.
+- **How musical?** — 0 is a plain weighted random walk. Higher, contour,
+  gap-fill and cadence biases start shaping the line into phrases.
+- **Follow chords?** — each bar sits on a chord (I–IV–V–I, looping). At 0 the
+  chords are ignored; at the top every note is a chord tone and the line
+  arpeggiates. This is what the *Arpeggios* preset turns all the way up.
+- **Clef & key, Measures, Highlight patterns.**
 
 ## Files
 
@@ -60,16 +66,20 @@ controls ──► OSME generates a sheet ──► export MusicXML ──► OS
 | `index.html` / `style.css` | markup + styling |
 | `engine.js` | generation layer — OSME overrides, interval walk, diatonic ladder |
 | `app.js` | UI, render pipeline, Seeing-mode highlight overlay |
+| `i18n.js` | the English/Spanish string catalogue |
 | `lib/osme.js` | prebuilt OSME + OSMD bundle (vendored) |
 | `serve.py` | tiny no-cache dev server |
 
 ## Known limitations
 
 - Rhythm figures are equally weighted (on/off), not yet probability-weighted.
-- Time signature is fixed at 4/4.
+- The chord progression is fixed at I–IV–V–I; it isn't selectable yet.
+- "How musical?" reads strong beats as though the meter were 4/4, so its
+  strong-beat bonus lands wrong in 3/4 and 6/8.
 
 ## Roadmap
 
 - **Letting-go mode** — hide measures as you reach them to force reading ahead.
+- Selectable chord progressions (I–V–vi–IV, ii–V–I, 12-bar blues).
 - Probability-weighted rhythm figures; rhythm chunks marked below the staff.
 - Interval/figure targeting tied to weak spots.

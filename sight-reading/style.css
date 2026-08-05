@@ -306,7 +306,8 @@ button.playing svg.state-alt { display: block; }
 /* A full-width section whose control is a bare slider stops at one column's
    width — stretched across the whole panel it reads as a scrollbar, and the
    travel becomes far finer than the setting warrants. */
-.sec-musicality .sec-row { max-width: var(--col-max); }
+.sec-musicality .sec-row,
+.sec-harmony .sec-row { max-width: var(--col-max); }
 
 /* Band pairing. Sections declare the width they want to keep; below it they
    wrap to their own line on their own. */
@@ -315,7 +316,8 @@ button.playing svg.state-alt { display: block; }
 .sec-hide       { flex: 2 1 240px; }
 .sec-step       { flex: 1 1 380px; }
 .sec-notes      { flex: 1 1 340px; }
-.sec-musicality { flex: 3 1 320px; }
+.sec-musicality { flex: 2 1 260px; }
+.sec-harmony    { flex: 2 1 260px; }
 .sec-chunks     { flex: 1 1 220px; }
 .sec-key        { flex: 1 1 300px; }
 .sec-measures   { flex: 1 1 260px; }

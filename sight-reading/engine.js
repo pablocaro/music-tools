@@ -41,9 +41,11 @@
     return moves[moves.length - 1].d;
   }
 
-  // Like pickDelta, but reweights the candidate moves by musical context — chord
-  // tones on strong beats, gap-fill after a leap, a phrase contour, and cadential
-  // pull to the tonic — scaled by `musicality` (0 = the plain weighted-random walk).
+  // Like pickDelta, but reweights the candidate moves by musical context. Two
+  // independent dials: `musicality` adds the phrasing biases (chord tones on
+  // strong beats, gap-fill after a leap, a contour, cadential pull to the
+  // tonic), `harmony` holds the line to the bar's chord. Both 0 is the plain
+  // weighted-random walk.
   function pickMusicalDelta(alpha, ctx) {
     var moves = [];
     for (var i = 0; i < STEPS.length; i++) {
@@ -55,30 +57,51 @@
       }
     }
     if (moves.length === 0) return (Math.random() < 0.5 ? -1 : 1);
-    var m = ctx.musicality, total = 0, j, r;
-    if (m > 0) {
+    var m = ctx.musicality, h = ctx.harmony || 0, total = 0, j, r;
+    if (m > 0 || h > 0) {
       var leap = Math.abs(ctx.prevDelta) >= 2;
+      // The caller reflects a move that would leave the range (oldP - delta),
+      // which throws away everything decided here — the reflected note lands
+      // wherever it lands, off the chord and off the contour. Cheaper to not
+      // pick those moves at all: zero them, and only fall back to reflection
+      // if the range leaves nothing playable.
+      var lo = (ctx.pMin != null) ? ctx.pMin : -Infinity;
+      var hi = (ctx.pMax != null) ? ctx.pMax : Infinity;
+      var last = -1;
       for (j = 0; j < moves.length; j++) {
         var mv = moves[j], np = ctx.p + mv.d, degree = ((np % ctx.N) + ctx.N) % ctx.N, bonus = 0;
-        if (ctx.strongBeat && ctx.chordTones.indexOf(degree) >= 0) bonus += 1.4;     // land on harmony
-        if (ctx.cadence > 0) {                                                        // resolve at phrase ends
-          if (degree === 0) bonus += 3.0 * ctx.cadence;
-          else if (degree === 4 || degree === 2) bonus += 0.5 * ctx.cadence;
+        if (m > 0) {
+          if (ctx.strongBeat && ctx.chordTones.indexOf(degree) >= 0) bonus += 1.4;   // land on harmony
+          if (ctx.cadence > 0) {                                                      // resolve at phrase ends
+            if (degree === 0) bonus += 3.0 * ctx.cadence;
+            else if (degree === 4 || degree === 2) bonus += 0.5 * ctx.cadence;
+          }
+          if (leap) {                                                                 // gap-fill: step back after a leap
+            if (mv.d !== 0 && Math.abs(mv.d) <= 1 && (mv.d > 0) !== (ctx.prevDelta > 0)) bonus += 1.3;
+            if (Math.abs(mv.d) >= 2) bonus -= 0.5;
+          }
+          if (ctx.targetP != null && Math.abs(np - ctx.targetP) < Math.abs(ctx.p - ctx.targetP)) bonus += 0.5; // contour
         }
-        if (leap) {                                                                   // gap-fill: step back after a leap
-          if (mv.d !== 0 && Math.abs(mv.d) <= 1 && (mv.d > 0) !== (ctx.prevDelta > 0)) bonus += 1.3;
-          if (Math.abs(mv.d) >= 2) bonus -= 0.5;
-        }
-        if (ctx.targetP != null && Math.abs(np - ctx.targetP) < Math.abs(ctx.p - ctx.targetP)) bonus += 0.5; // contour
         mv.sw = mv.w * (1 + m * bonus);
+        // Harmony pulls the line onto the bar's chord, on every note rather than
+        // only the strong ones. Off-chord moves lose weight in proportion, so at
+        // full strength what is left to move between is the chord itself — the
+        // line arpeggiates. They keep the 0.0001 floor below, so a line that has
+        // painted itself into a corner can still step out instead of dead-ending.
+        if (h > 0 && ctx.chordTones.indexOf(degree) < 0) mv.sw *= (1 - h);
         if (mv.sw < 0.0001) mv.sw = 0.0001;
+        if (np < lo || np > hi) { mv.sw = 0; continue; }
+        last = j;
         total += mv.sw;
       }
-      r = Math.random() * total;
-      for (j = 0; j < moves.length; j++) { r -= moves[j].sw; if (r <= 0) return moves[j].d; }
-      return moves[moves.length - 1].d;
+      if (total > 0) {
+        r = Math.random() * total;
+        for (j = 0; j < moves.length; j++) { r -= moves[j].sw; if (r <= 0 && moves[j].sw > 0) return moves[j].d; }
+        return moves[last].d;
+      }
     }
-    for (j = 0; j < moves.length; j++) total += moves[j].w;     // m === 0: plain weighted pick
+    // Plain weighted pick: no biases asked for, or the range left nothing.
+    for (j = 0; j < moves.length; j++) total += moves[j].w;
     r = Math.random() * total;
     for (j = 0; j < moves.length; j++) { r -= moves[j].w; if (r <= 0) return moves[j].d; }
     return moves[moves.length - 1].d;
@@ -170,22 +193,29 @@
     } else if (!makeRest) {
       var alpha = this.options.alphabet || { down: [0, 1, 0, 0, 0, 0, 0], up: [0, 1, 0, 0, 0, 0, 0] };
       var musicality = this.options.musicality || 0;
+      var harmony = this.options.harmony || 0;
       var oldP = this._p, delta;
-      if (musicality > 0) {
+      if (musicality > 0 || harmony > 0) {
+        // Which chord this bar sits on. One chord per bar, looping — so the
+        // progression is meter-independent, unlike the beat maths below it.
+        var prog = this.options.progression || [0, 3, 4, 0];   // I – IV – V – I, scale-degree roots
+        var mi = this._measureIdx || 0, totalM = this.options.measure_count || 8;
+        var root = prog[mi % prog.length];
+        var chordTones = [root % N, (root + 2) % N, (root + 4) % N];
+
         // Position-aware context for the musical biases.
         var beatF = startPosition.RealValue * 4;       // 0..4 in 4/4
         var bi = Math.round(beatF);
         var strongBeat = (Math.abs(beatF - bi) < 0.05) && (bi % 2 === 0);   // beat 1 or 3
-        var mi = this._measureIdx || 0, totalM = this.options.measure_count || 8;
         var phrasePos = mi % 4;
-        var root = [0, 3, 4, 0][phrasePos];            // I – IV – V – I, in scale-degree roots
-        var chordTones = [root % N, (root + 2) % N, (root + 4) % N];
         var lastM = (mi === totalM - 1);
         var cadence = ((phrasePos === 3 || lastM) && beatF >= 2) ? (lastM ? 1.5 : 0.8) : 0;
         var progress = Math.max(0, Math.min(1, (mi + beatF / 4) / totalM));
         var targetP = PMIN + (PMAX - PMIN) * (0.35 + 0.4 * Math.sin(Math.PI * progress));   // gentle arch
         delta = pickMusicalDelta(alpha, {
-          musicality: musicality, p: oldP, N: N, strongBeat: strongBeat, chordTones: chordTones,
+          musicality: musicality, harmony: harmony, p: oldP, N: N,
+          pMin: PMIN, pMax: PMAX,
+          strongBeat: strongBeat, chordTones: chordTones,
           cadence: cadence, targetP: targetP, prevDelta: this._prevDelta || 0
         });
       } else {

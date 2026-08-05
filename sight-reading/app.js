@@ -90,18 +90,27 @@
   var BUILTIN = {
     "steps only":   [0, 4, 0, 0, 0, 0, 0, 0],
     "thirds drill": [1, 2, 4, 1, 1, 0, 0, 0],
-    "wide leaps":   [0, 1, 2, 3, 3, 2, 1, 2]
+    "wide leaps":   [0, 1, 2, 3, 3, 2, 1, 2],
+    "arpeggios":    [0, 1, 4, 3, 2, 1, 0, 0]
   };
 
   // What a built-in leaves alone would otherwise be whatever the last drill
   // happened to use, so each one carries the same five fields a saved preset
   // does — the alphabet it's named for, plus the neutral staff to read it on.
-  var BUILTIN_DEFAULTS = { musicality: "0", key: "major_0-0", clef: "treble", timesig: "4/4", measures: "16" };
+  var BUILTIN_DEFAULTS = { musicality: "0", harmony: "0", key: "major_0-0", clef: "treble", timesig: "4/4", measures: "16" };
+
+  // Arpeggios is the one drill the alphabet alone can't describe: chord-shaped
+  // intervals still wander off the chord unless the harmony pull is all the way
+  // up, so it overrides that one default. Everything else stays neutral.
+  var BUILTIN_EXTRA = {
+    "arpeggios": { harmony: "100" }
+  };
 
   function builtinPreset(name) {
-    var w = BUILTIN[name];
+    var w = BUILTIN[name], extra = BUILTIN_EXTRA[name] || {};
     var p = { alphabet: { down: w.slice(), up: w.slice() }, range: defaultRange() };
     Object.keys(BUILTIN_DEFAULTS).forEach(function (k) { p[k] = BUILTIN_DEFAULTS[k]; });
+    Object.keys(extra).forEach(function (k) { p[k] = extra[k]; });
     return p;
   }
 
@@ -238,6 +247,7 @@
     if (p.timesig != null) timesigEl.value = p.timesig;
     if (p.measures != null) measuresEl.value = String(Math.max(8, parseInt(p.measures, 10) || 16));
     if (p.musicality != null) musicalityEl.value = p.musicality;
+    if (p.harmony != null) harmonyEl.value = p.harmony;
     syncBeatsFamily();   // meter may have just changed the figure grid — rebuild
                          // before applyBeats looks for checkboxes in it
     if (p.beats) applyBeats(p.beats);
@@ -267,6 +277,7 @@
       alphabet: readAlphabet(),
       range: JSON.parse(JSON.stringify(rangeState)),
       musicality: musicalityEl.value,
+      harmony: harmonyEl.value,
       key: currentKeyCode(),
       clef: clefEl.value,
       timesig: timesigEl.value,
@@ -401,6 +412,7 @@
   var clefEl       = document.getElementById("clef");
   var timesigEl    = document.getElementById("timesig");
   var musicalityEl    = document.getElementById("musicality");
+  var harmonyEl       = document.getElementById("harmony");
 
   // The scale key as a "<mode>_<symbol>-<acc>" code (the form makeScaleKey reads).
   function currentKeyCode() { return keyModeEl.value + "_" + keyTonicEl.value; }
@@ -881,7 +893,8 @@
       rangeMin: bounds.min,
       rangeMax: bounds.max,
       beatPatterns: buildBeatPatterns(),
-      musicality: (+musicalityEl.value) / 100
+      musicality: (+musicalityEl.value) / 100,
+      harmony: (+harmonyEl.value) / 100
     };
   }
 
@@ -923,7 +936,7 @@
   // go, and putting a value back restores the name instead of stranding it on
   // "Custom". Only fields the preset actually defines are compared, mirroring
   // applyPreset — so a preset saved before a field existed still matches.
-  var PRESET_FIELDS = ["musicality", "key", "clef", "timesig", "measures"];
+  var PRESET_FIELDS = ["musicality", "harmony", "key", "clef", "timesig", "measures"];
 
   function presetMatchesPanel(p) {
     var cur = readPresetConfig();
@@ -2020,7 +2033,7 @@
   // ===========================================================================
   var HELP_SECTIONS = ["exercise", "transport", "presets", "tempo", "accomp",
                        "hide", "rhythm", "step", "notes", "musicality",
-                       "chunks", "staff"];
+                       "harmony", "chunks", "staff"];
 
   function buildHelpBody() {
     var host = document.getElementById("help-body");
@@ -2519,7 +2532,7 @@
   function showError(msg) { errorEl.textContent = msg; errorEl.hidden = false; }
   function clearError() { errorEl.hidden = true; errorEl.textContent = ""; }
 
-  [keyTonicEl, keyModeEl, measuresEl, musicalityEl].forEach(function (el) { el.addEventListener("change", generate); });
+  [keyTonicEl, keyModeEl, measuresEl, musicalityEl, harmonyEl].forEach(function (el) { el.addEventListener("change", generate); });
   showChunksEl.addEventListener("change", drawOverlay);
   generateBtn.addEventListener("click", function () { generate(); });
   playBtn.addEventListener("click", function () {

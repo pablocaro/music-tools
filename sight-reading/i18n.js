@@ -19,6 +19,7 @@ window.SR_I18N = {
     "sec.step":        "Intervals",
     "sec.notes":       "Notes",
     "sec.musicality":  "How Musical?",
+    "sec.harmony":     "Follow Chords?",
     "sec.chunks":      "Highlight Patterns",
     "sec.staff":       "Clef & Key",
     "sec.measures":    "Measures",
@@ -58,6 +59,7 @@ window.SR_I18N = {
     "preset.steps only":   "Steps Only",
     "preset.thirds drill": "Thirds Drill",
     "preset.wide leaps":   "Wide Leaps",
+    "preset.arpeggios":    "Arpeggios",
 
     // control names, used for aria-label and therefore the hover tooltip
     "aria.settings":     "Settings",
@@ -82,6 +84,7 @@ window.SR_I18N = {
     "aria.accidental":   "Accidental",
     "aria.chunks":       "Show chunk highlights",
     "aria.musicality":   "Musicality",
+    "aria.harmony":      "Follow chords",
     "aria.octave":       "Octave",
     "aria.updatePreset": "Update with current settings",
     "aria.deletePreset": "Delete preset",
@@ -168,6 +171,9 @@ window.SR_I18N = {
     "help.g.musicality": "How Musical?",
     "help.musicality":  "At zero the line is a plain random walk. Higher, it starts behaving like a melody — phrases turn back on themselves and leaps resolve instead of wandering.",
 
+    "help.g.harmony":   "Follow Chords?",
+    "help.harmony":     "Each bar sits on a chord — the line walks I, IV, V, I and back. At zero the chords are ignored. Higher, the notes stick to them, and at the top the line is pure arpeggio.",
+
     "help.g.chunks":    "Highlight Patterns",
     "help.chunks":      "Highlights the patterns on the staff: cyan for stepwise runs, lime for leaps. Use it to check what your eye is catching, then switch it off and see whether you still catch them.",
 
@@ -206,6 +212,7 @@ window.SR_I18N = {
     "sec.step":        "Intervalos",
     "sec.notes":       "Notas",
     "sec.musicality":  "¿Qué tan musical?",
+    "sec.harmony":     "¿Seguir acordes?",
     "sec.chunks":      "Resaltar patrones",
     "sec.staff":       "Clave y tonalidad",
     "sec.measures":    "Compases",
@@ -239,6 +246,7 @@ window.SR_I18N = {
     "preset.steps only":   "Solo grados",
     "preset.thirds drill": "Terceras",
     "preset.wide leaps":   "Saltos amplios",
+    "preset.arpeggios":    "Arpegios",
 
     "aria.settings":     "Ajustes",
     "aria.fromTop":      "Desde el principio",
@@ -262,6 +270,7 @@ window.SR_I18N = {
     "aria.accidental":   "Alteración",
     "aria.chunks":       "Mostrar patrones",
     "aria.musicality":   "Musicalidad",
+    "aria.harmony":      "Seguir acordes",
     "aria.octave":       "Octava",
     "aria.updatePreset": "Actualizar con los ajustes actuales",
     "aria.deletePreset": "Eliminar preset",
@@ -342,6 +351,9 @@ window.SR_I18N = {
 
     "help.g.musicality": "¿Qué tan musical?",
     "help.musicality":  "En cero la línea es un recorrido al azar. Más arriba empieza a comportarse como una melodía: las frases se repliegan y los saltos se resuelven en vez de vagar.",
+
+    "help.g.harmony":   "¿Seguir acordes?",
+    "help.harmony":     "Cada compás se apoya en un acorde: la línea recorre I, IV, V, I y vuelve. En cero se ignoran los acordes. Más arriba las notas se ciñen a ellos, y al tope la línea es puro arpegio.",
 
     "help.g.chunks":    "Resaltar patrones",
     "help.chunks":      "Resalta los patrones sobre el pentagrama: cian para grados conjuntos, verde lima para saltos. Úsalo para comprobar qué está viendo tu ojo, y luego quítalo para ver si los sigues viendo.",
