@@ -97,13 +97,13 @@
   // What a built-in leaves alone would otherwise be whatever the last drill
   // happened to use, so each one carries the same five fields a saved preset
   // does — the alphabet it's named for, plus the neutral staff to read it on.
-  var BUILTIN_DEFAULTS = { musicality: "0", harmony: "0", key: "major_0-0", clef: "treble", timesig: "4/4", measures: "16" };
+  var BUILTIN_DEFAULTS = { musicality: "0", key: "major_0-0", clef: "treble", timesig: "4/4", measures: "16" };
 
   // Arpeggios is the one drill the alphabet alone can't describe: chord-shaped
-  // intervals still wander off the chord unless the harmony pull is all the way
-  // up, so it overrides that one default. Everything else stays neutral.
+  // intervals still wander off the chord unless every note is asked to be an
+  // arrival, so it pins the dial to the top. Everything else stays neutral.
   var BUILTIN_EXTRA = {
-    "arpeggios": { harmony: "100" }
+    "arpeggios": { musicality: "100" }
   };
 
   function builtinPreset(name) {
@@ -247,7 +247,11 @@
     if (p.timesig != null) timesigEl.value = p.timesig;
     if (p.measures != null) measuresEl.value = String(Math.max(8, parseInt(p.measures, 10) || 16));
     if (p.musicality != null) musicalityEl.value = p.musicality;
-    if (p.harmony != null) harmonyEl.value = p.harmony;
+    // Musicality and chord-following used to be two dials. A preset saved
+    // then carries both; the survivor is whichever was set higher, so an old
+    // "follow the chords hard, never mind the phrasing" preset still reads as
+    // a strong setting rather than collapsing to zero.
+    if (p.harmony != null) musicalityEl.value = String(Math.max(+musicalityEl.value || 0, +p.harmony || 0));
     syncBeatsFamily();   // meter may have just changed the figure grid — rebuild
                          // before applyBeats looks for checkboxes in it
     if (p.beats) applyBeats(p.beats);
@@ -277,7 +281,6 @@
       alphabet: readAlphabet(),
       range: JSON.parse(JSON.stringify(rangeState)),
       musicality: musicalityEl.value,
-      harmony: harmonyEl.value,
       key: currentKeyCode(),
       clef: clefEl.value,
       timesig: timesigEl.value,
@@ -412,7 +415,6 @@
   var clefEl       = document.getElementById("clef");
   var timesigEl    = document.getElementById("timesig");
   var musicalityEl    = document.getElementById("musicality");
-  var harmonyEl       = document.getElementById("harmony");
 
   // The scale key as a "<mode>_<symbol>-<acc>" code (the form makeScaleKey reads).
   function currentKeyCode() { return keyModeEl.value + "_" + keyTonicEl.value; }
@@ -589,6 +591,12 @@
     for (var i = 0; i < TIME_SIGS.length; i++) if (TIME_SIGS[i].id === id) return TIME_SIGS[i];
     return TIME_SIGS[2];   // 4/4
   }
+
+  // One felt pulse, in quarter notes — what a reader counts. A quarter in the
+  // simple meters, a dotted quarter in 6/8, which is why 6/8 gets two pulses to
+  // a bar rather than six. The generator anchors chord tones to these, so "on
+  // the beat" has to mean the same thing in every meter.
+  function pulseBeats() { return timeSigDef(timesigEl.value).compound ? 1.5 : 1; }
 
   // Rewrite the exported score's clef. The exporter emits exactly one
   // <clef><sign>G</sign><line>2</line></clef> per part, at the first measure.
@@ -906,7 +914,7 @@
       rangeMax: bounds.max,
       beatPatterns: buildBeatPatterns(),
       musicality: (+musicalityEl.value) / 100,
-      harmony: (+harmonyEl.value) / 100,
+      pulseBeats: pulseBeats(),
       progression: PROGRESSIONS[keyModeEl.value] || PROGRESSIONS.major
     };
   }
@@ -949,7 +957,7 @@
   // go, and putting a value back restores the name instead of stranding it on
   // "Custom". Only fields the preset actually defines are compared, mirroring
   // applyPreset — so a preset saved before a field existed still matches.
-  var PRESET_FIELDS = ["musicality", "harmony", "key", "clef", "timesig", "measures"];
+  var PRESET_FIELDS = ["musicality", "key", "clef", "timesig", "measures"];
 
   function presetMatchesPanel(p) {
     var cur = readPresetConfig();
@@ -2046,7 +2054,7 @@
   // ===========================================================================
   var HELP_SECTIONS = ["exercise", "transport", "presets", "tempo", "accomp",
                        "hide", "rhythm", "step", "notes", "musicality",
-                       "harmony", "chunks", "staff"];
+                       "chunks", "staff"];
 
   function buildHelpBody() {
     var host = document.getElementById("help-body");
@@ -2545,7 +2553,7 @@
   function showError(msg) { errorEl.textContent = msg; errorEl.hidden = false; }
   function clearError() { errorEl.hidden = true; errorEl.textContent = ""; }
 
-  [keyTonicEl, keyModeEl, measuresEl, musicalityEl, harmonyEl].forEach(function (el) { el.addEventListener("change", generate); });
+  [keyTonicEl, keyModeEl, measuresEl, musicalityEl].forEach(function (el) { el.addEventListener("change", generate); });
   showChunksEl.addEventListener("change", drawOverlay);
   generateBtn.addEventListener("click", function () { generate(); });
   playBtn.addEventListener("click", function () {

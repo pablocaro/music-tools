@@ -52,12 +52,22 @@ controls ──► OSME generates a sheet ──► export MusicXML ──► OS
   values are in play. 6/8 swaps in a compound-time figure set built on the
   dotted-quarter pulse.
 - **Notes:** which pitches the line may reach, by octave or one at a time.
-- **How musical?** — 0 is a plain weighted random walk. Higher, contour,
-  gap-fill and cadence biases start shaping the line into phrases.
-- **Follow chords?** — each bar sits on a chord, looping: I–IV–V–I in a major
-  key, i–VI–VII–i in a minor one. At 0 the chords are ignored; at the top every
-  note is a chord tone and the line arpeggiates. This is what the *Arpeggios*
-  preset turns all the way up.
+- **How musical?** — one dial over two mechanisms. 0 is a plain weighted random
+  walk. Rising, the *phrasing* biases come in (contour arch, gap-fill after a
+  leap, cadence at phrase ends). Past ~30 the line also starts landing on the
+  bar's chord — each bar sits on one, looping I–IV–V–I in major and i–VI–VII–i
+  in minor. Which notes have to be chord tones widens as the dial climbs:
+  downbeats first, then every beat, then every note.
+
+  The chord is a target for *arrival*, not a filter on every note — the ones in
+  between pass through freely. Two guards keep that honest: the pull is dropped
+  when no move can reach a chord tone (a stepwise alphabet can never step
+  between them — they sit a 3rd apart), and a unison never counts as arriving,
+  or standing still would be the cheapest way to obey and the line would drone.
+
+  So the same dial position means different things depending on the alphabet: a
+  chord-shaped one comes out as arpeggios, a stepwise one as a scale study that
+  lands on the chord at the beats.
 - **Clef & key, Measures, Highlight patterns.**
 
 ## Files
@@ -75,6 +85,10 @@ controls ──► OSME generates a sheet ──► export MusicXML ──► OS
 
 - Rhythm figures are equally weighted (on/off), not yet probability-weighted.
 - One progression per mode, not selectable.
+- Chord anchoring has no lookahead: it prefers a chord tone on the beat it is
+  currently placing, but never sets up the approach a note early. With a
+  stepwise alphabet that caps how often the beats can land on the chord, since
+  no step leads from one chord tone to another.
 - Everything generated is diatonic — the app has no way to write an accidental
   yet. That's why minor keys cadence i–VI–VII–i: a true V would need the 7th
   raised, and the raised 7th isn't a position on the diatonic ladder.

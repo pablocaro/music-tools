@@ -19,7 +19,6 @@ window.SR_I18N = {
     "sec.step":        "Intervals",
     "sec.notes":       "Notes",
     "sec.musicality":  "How Musical?",
-    "sec.harmony":     "Follow Chords?",
     "sec.chunks":      "Highlight Patterns",
     "sec.staff":       "Clef & Key",
     "sec.measures":    "Measures",
@@ -84,7 +83,6 @@ window.SR_I18N = {
     "aria.accidental":   "Accidental",
     "aria.chunks":       "Show chunk highlights",
     "aria.musicality":   "Musicality",
-    "aria.harmony":      "Follow chords",
     "aria.octave":       "Octave",
     "aria.updatePreset": "Update with current settings",
     "aria.deletePreset": "Delete preset",
@@ -169,10 +167,7 @@ window.SR_I18N = {
     "help.notes":       "Which pitches the line may use. Tick a whole octave with the box on the left, or single notes in the grid.",
 
     "help.g.musicality": "How Musical?",
-    "help.musicality":  "At zero the line is a plain random walk. Higher, it starts behaving like a melody — phrases turn back on themselves and leaps resolve instead of wandering.",
-
-    "help.g.harmony":   "Follow Chords?",
-    "help.harmony":     "Each bar sits on a chord — I, IV, V, I in a major key, i, VI, VII, i in a minor one. At zero the chords are ignored. Higher, the notes stick to them, and at the top the line is pure arpeggio.",
+    "help.musicality":  "At zero the line is a plain random walk. Higher, it starts shaping itself — leaps resolve, phrases arch and settle. Past halfway it also begins landing on the bar’s chord: first on downbeats, then on every beat, until a chord-shaped set of intervals comes out as pure arpeggios. What you tick under Intervals decides whether that reads as a scale study or an arpeggio study.",
 
     "help.g.chunks":    "Highlight Patterns",
     "help.chunks":      "Highlights the patterns on the staff: cyan for stepwise runs, lime for leaps. Use it to check what your eye is catching, then switch it off and see whether you still catch them.",
@@ -212,7 +207,6 @@ window.SR_I18N = {
     "sec.step":        "Intervalos",
     "sec.notes":       "Notas",
     "sec.musicality":  "¿Qué tan musical?",
-    "sec.harmony":     "¿Seguir acordes?",
     "sec.chunks":      "Resaltar patrones",
     "sec.staff":       "Clave y tonalidad",
     "sec.measures":    "Compases",
@@ -270,7 +264,6 @@ window.SR_I18N = {
     "aria.accidental":   "Alteración",
     "aria.chunks":       "Mostrar patrones",
     "aria.musicality":   "Musicalidad",
-    "aria.harmony":      "Seguir acordes",
     "aria.octave":       "Octava",
     "aria.updatePreset": "Actualizar con los ajustes actuales",
     "aria.deletePreset": "Eliminar preset",
@@ -350,10 +343,7 @@ window.SR_I18N = {
     "help.notes":       "Qué alturas puede usar la línea. Marca una octava entera con la casilla de la izquierda, o notas sueltas en la cuadrícula.",
 
     "help.g.musicality": "¿Qué tan musical?",
-    "help.musicality":  "En cero la línea es un recorrido al azar. Más arriba empieza a comportarse como una melodía: las frases se repliegan y los saltos se resuelven en vez de vagar.",
-
-    "help.g.harmony":   "¿Seguir acordes?",
-    "help.harmony":     "Cada compás se apoya en un acorde: I, IV, V, I en tonalidad mayor; i, VI, VII, i en menor. En cero se ignoran los acordes. Más arriba las notas se ciñen a ellos, y al tope la línea es puro arpegio.",
+    "help.musicality":  "En cero la línea es un recorrido al azar. Más arriba empieza a tomar forma: los saltos se resuelven y las frases trazan un arco. Pasada la mitad también empieza a apoyarse en el acorde del compás: primero en el primer tiempo, luego en cada uno, hasta que un conjunto de intervalos con forma de acorde sale como puro arpegio. Lo que marques en Intervalos decide si eso suena a estudio de escalas o de arpegios.",
 
     "help.g.chunks":    "Resaltar patrones",
     "help.chunks":      "Resalta los patrones sobre el pentagrama: cian para grados conjuntos, verde lima para saltos. Úsalo para comprobar qué está viendo tu ojo, y luego quítalo para ver si los sigues viendo.",
