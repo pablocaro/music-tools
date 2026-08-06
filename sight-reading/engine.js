@@ -45,6 +45,21 @@
   // being shaped, not harmonised.
   var CHORD_KNEE = 0.3;
 
+  // The chord pull is a preference, never a veto. At a full 1.0 an off-chord
+  // move is multiplied to zero and survives only on the 0.0001 floor, which
+  // puts it four orders of magnitude behind anything that reaches the chord —
+  // enough to overturn the interval weights completely. Tick 2nds at 4 and 3rds
+  // at 1 and you would get 88% 3rds, the exact inverse of what you asked for.
+  // Capping it keeps off-chord moves rare rather than impossible, so the
+  // interval matrix still decides the character of the drill.
+  var PULL_MAX = 0.85;
+
+  // Even at the top of the dial, notes between the beats stay looser than the
+  // beats themselves — that gap is what a passing tone lives in. Without it the
+  // top of the dial anchors every note, and a stepwise alphabet has nowhere to
+  // put a step.
+  var OFFBEAT_ANCHOR = 0.7;
+
   // 0 below `a`, 1 above `b`, straight line between — used to bring each class
   // of metric position under the chord one after another as the dial climbs.
   function ramp(v, a, b) { return Math.max(0, Math.min(1, (v - a) / (b - a))); }
@@ -257,7 +272,7 @@
         // arrival and a chord-shaped alphabet comes out as pure arpeggios.
         var anchor = onDownbeat ? 1
                    : onPulse   ? ramp(musicality, 0.45, 0.75)
-                   :             ramp(musicality, 0.75, 1.0);
+                   :             ramp(musicality, 0.75, 1.0) * OFFBEAT_ANCHOR;
 
         var phrasePos = mi % 4;
         var lastM = (mi === totalM - 1);
@@ -265,7 +280,7 @@
         var progress = Math.max(0, Math.min(1, (mi + beatF / 4) / totalM));
         var targetP = PMIN + (PMAX - PMIN) * (0.35 + 0.4 * Math.sin(Math.PI * progress));   // gentle arch
         delta = pickMusicalDelta(alpha, {
-          phrase: phrase, pull: chord * anchor, p: oldP, N: N,
+          phrase: phrase, pull: chord * anchor * PULL_MAX, p: oldP, N: N,
           pMin: PMIN, pMax: PMAX, chordTones: chordTones,
           cadence: cadence, targetP: targetP, prevDelta: this._prevDelta || 0
         });
