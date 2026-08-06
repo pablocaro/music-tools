@@ -48,11 +48,19 @@
   // The chord pull is a preference, never a veto. At a full 1.0 an off-chord
   // move is multiplied to zero and survives only on the 0.0001 floor, which
   // puts it four orders of magnitude behind anything that reaches the chord —
-  // enough to overturn the interval weights completely. Tick 2nds at 4 and 3rds
-  // at 1 and you would get 88% 3rds, the exact inverse of what you asked for.
-  // Capping it keeps off-chord moves rare rather than impossible, so the
-  // interval matrix still decides the character of the drill.
-  var PULL_MAX = 0.85;
+  // enough to overturn the interval weights completely.
+  var PULL_MAX = 0.95;
+
+  // …but capping it alone only moves the damage around: loose enough to keep a
+  // stepwise alphabet honest is too loose for an arpeggio to hold its shape.
+  // The way out is that the pull should only ever redistribute *within* what
+  // the student asked for. So it is scaled by how much of the alphabet's weight
+  // can actually reach a chord tone from here. Tick mostly 3rds and the line is
+  // held firmly, because holding it costs nothing you didn't ask for; tick
+  // mostly 2nds and the pull barely registers, because enforcing it would mean
+  // overruling the matrix. It reaches full strength once this share of the
+  // weight can reach the chord — beyond that, more reachability changes nothing.
+  var REACH_SAT = 0.4;
 
   // Even at the top of the dial, notes between the beats stay looser than the
   // beats themselves — that gap is what a passing tone lives in. Without it the
@@ -109,13 +117,20 @@
       function degreeAt(d) { var np = ctx.p + d; return ((np % ctx.N) + ctx.N) % ctx.N; }
       function inRange(d) { var np = ctx.p + d; return np >= lo && np <= hi; }
 
-      if (pull > 0) {                                  // guard 1: is the chord reachable at all?
-        var canReach = false;
+      // Guard 1: scale the pull by the share of the alphabet's weight that can
+      // reach a chord tone from here. This subsumes the old "is it reachable at
+      // all?" test — nothing reachable means a share of zero means no pull —
+      // and it also handles the case that test missed, where the chord *is*
+      // reachable but only by an interval the student barely asked for.
+      if (pull > 0) {
+        var reachW = 0, totalW = 0;
         for (j = 0; j < moves.length; j++) {
           var q = moves[j];
-          if (q.d !== 0 && inRange(q.d) && tones.indexOf(degreeAt(q.d)) >= 0) { canReach = true; break; }
+          if (!inRange(q.d)) continue;
+          totalW += q.w;
+          if (q.d !== 0 && tones.indexOf(degreeAt(q.d)) >= 0) reachW += q.w;
         }
-        if (!canReach) pull = 0;
+        pull *= (totalW > 0) ? Math.min(1, (reachW / totalW) / REACH_SAT) : 0;
       }
 
       var last = -1;
