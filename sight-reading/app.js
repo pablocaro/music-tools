@@ -280,6 +280,11 @@
       // reloading the preset turned them all back on.
       alphabet: readAlphabet(),
       range: JSON.parse(JSON.stringify(rangeState)),
+      // Which figures are in play is as much a part of the drill as which
+      // intervals are: "thirds, in dotted rhythms" is one exercise and "thirds,
+      // in even quarters" is another. applyPreset has always restored these;
+      // they were just never being written, so saving quietly dropped them.
+      beats: readBeatIds(),
       musicality: musicalityEl.value,
       key: currentKeyCode(),
       clef: clefEl.value,
@@ -292,7 +297,6 @@
   // controls, so a reload picks up exactly where practice left off.
   function readConfig() {
     var cfg = readPresetConfig();
-    cfg.beats = readBeatIds();
     cfg.tempo = tempoEl.value;
     cfg.cursor = cursorModeEl.value;
     cfg.metronome = clickOnEl.checked;
@@ -964,6 +968,7 @@
     var alpha = p.alphabet || ((p.down || p.up) ? { down: p.down, up: p.up } : null);
     if (alpha && JSON.stringify(alpha) !== JSON.stringify(cur.alphabet)) return false;
     if (p.range && JSON.stringify(p.range) !== JSON.stringify(cur.range)) return false;
+    if (p.beats && JSON.stringify(p.beats) !== JSON.stringify(cur.beats)) return false;
     for (var i = 0; i < PRESET_FIELDS.length; i++) {
       var f = PRESET_FIELDS[i];
       if (p[f] != null && String(p[f]) !== String(cur[f])) return false;
