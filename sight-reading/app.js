@@ -1897,7 +1897,14 @@
   var LETTERS = ["C", "D", "E", "F", "G", "A", "B"];          // key-code symbols 0–6
   var ACCS = [{ v: "0", label: "♮" }, { v: "#", label: "♯" }, { v: "b", label: "♭" }];
   var MODES = ["major", "minor"];
-  var HIDE_MAX = 8;
+  // The lead is stored in beats, so the ceiling belongs in beats too — matching
+  // the hide-lead range input's max. The stepper's own limit is then derived
+  // per unit, which keeps a unit toggle lossless: 8 measures and 32 beats are
+  // the same setting, and converting between them can't run off the end.
+  var HIDE_MAX_BEATS = 32;
+  function hideMaxN() {
+    return hideUnitIsMeasures() ? Math.floor(HIDE_MAX_BEATS / barBeats()) : HIDE_MAX_BEATS;
+  }
 
   // Which letter+accidental combinations OSME can actually build a scale from.
   // ScaleKey.create doesn't reject an impossible key (D♯ major and friends) — it
@@ -1989,10 +1996,16 @@
     hideValEl.textContent = n === 0 ? t("val.off") : String(n);
     hideUnitEl.textContent = hideUnitIsMeasures() ? t("val.measures") : t("val.beats");
     hideBehindEl.checked = n > 0;
-    hideLeadEl.value = Math.min(HIDE_MAX, hideUnitIsMeasures() ? n * barBeats() : n);
+    // The stepper's number is in whatever unit is showing; the lead is always
+    // in beats. Clamping the product by the stepper's own limit made every
+    // setting above two measures behave like two, and hideFromState then read
+    // the clamped value back and rewrote the stepper to match — so the setting
+    // didn't just misbehave, it changed under you. hideMaxN() bounds n per
+    // unit instead, which keeps the product in range without a second clamp.
+    hideLeadEl.value = hideUnitIsMeasures() ? n * barBeats() : n;
   }
   function setHide(n, unit) {
-    hideValEl.dataset.n = Math.max(0, Math.min(HIDE_MAX, n));
+    hideValEl.dataset.n = Math.max(0, Math.min(hideMaxN(), n));
     if (unit) hideUnitEl.dataset.unit = unit;
     syncHide();
   }
@@ -2514,8 +2527,16 @@
       setHide((parseInt(hideValEl.dataset.n, 10) || 0) + 1); persistSession();
     });
     hideUnitEl.addEventListener("click", function () {
-      hideUnitEl.dataset.unit = hideUnitIsMeasures() ? "beats" : "measures";
-      syncHide(); persistSession();
+      // Convert, don't reinterpret. The number on the stepper means something
+      // different in each unit, so carrying it across unchanged silently
+      // quadrupled the lead — "2 beats" became "2 measures". Coarsening to
+      // measures rounds, so 2 beats comes back as 1 measure rather than 2.
+      var lead = parseInt(hideLeadEl.value, 10) || 0;      // always beats
+      var toMeasures = !hideUnitIsMeasures();
+      hideUnitEl.dataset.unit = toMeasures ? "measures" : "beats";
+      if (lead > 0) setHide(toMeasures ? Math.max(1, Math.round(lead / barBeats())) : lead);
+      else syncHide();
+      persistSession();
     });
 
     // --- chunks + cursor ---

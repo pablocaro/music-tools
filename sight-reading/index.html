@@ -103,7 +103,10 @@
         <input type="checkbox" id="play-along">
         <input type="range" id="volume" min="0" max="100" step="5" value="80">
         <input type="checkbox" id="hide-behind">
-        <input type="range" id="hide-lead" min="0" max="8" step="1" value="0">
+        <!-- Stored in beats, so its ceiling is HIDE_MAX stepper units x the longest
+             bar (8 measures x 4 beats). A range input clamps its own value, so a max
+             of 8 here quietly capped every measures-mode setting at two bars. -->
+        <input type="range" id="hide-lead" min="0" max="32" step="1" value="0">
         <input type="checkbox" id="show-chunks">
         <select id="instrument">
           <option data-i18n="inst.organ" value="organ">Organ</option>
