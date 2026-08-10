@@ -1158,7 +1158,7 @@
   // Seeing mode: read the rendered noteheads back out and highlight the chunks
   // ===========================================================================
   function collectNotes() {
-    var out = [];
+    var out = [], noteIdx = 0;
     var measureList = osmd.graphic && osmd.graphic.MeasureList;
     if (!measureList) return out;
     for (var m = 0; m < measureList.length; m++) {
@@ -1182,7 +1182,10 @@
             // Which engraved system this note landed on, so a run that wraps at
             // a line break can be highlighted once per line.
             var sys = el ? el.closest(".staffline") : null;
-            out.push({ isRest: isRest, halfTone: halfTone, el: el, head: head, sys: sys, measure: m });
+            // idx counts voice entries in the same order the playback cursor
+            // walks them, so it indexes straight into the session's onsets[].
+            out.push({ isRest: isRest, halfTone: halfTone, el: el, head: head, sys: sys,
+                       measure: m, idx: noteIdx++ });
           }
         }
       }
@@ -1297,6 +1300,7 @@
         rect.setAttribute("rx", HL_RADIUS);
         rect.setAttribute("fill", color);
         rect.dataset.measure = part[0].measure;
+        rect.dataset.note = part[0].idx;   // the curtain hides by note, not by bar
         overlay.appendChild(rect);
       });
     });
@@ -1307,11 +1311,13 @@
   // Blocks empty out with the measures they sit on, so "hide behind" leaves a
   // clean bar instead of a slab of ink floating over nothing. A block is keyed
   // to the measure its run starts in.
-  function syncHighlights(count) {
+  // `upto` is the index of the first note still showing; a block goes when the
+  // note it starts on goes, so the highlight retreats with the notes it marks.
+  function syncHighlights(upto) {
     var ov = document.getElementById("chunk-overlay");
     if (!ov) return;
     ov.querySelectorAll("rect").forEach(function (r) {
-      r.style.visibility = (+r.dataset.measure < count) ? "hidden" : "";
+      r.style.visibility = (+r.dataset.note < upto) ? "hidden" : "";
     });
   }
 
@@ -1644,14 +1650,31 @@
     syncHighlights(Infinity);
   }
 
-  // Hide the ink in measures [0, count); show it in the rest.
-  function hideMeasures(measureInk, count) {
-    for (var i = 0; i < measureInk.length; i++) {
-      var vis = (i < count) ? "hidden" : "";
-      var nodes = measureInk[i];
-      for (var j = 0; j < nodes.length; j++) nodes[j].style.visibility = vis;
+  // Hide the notes before `upto`, show the rest — a curtain that moves one note
+  // at a time rather than a bar at a time. It used to erase whole measures, so
+  // asking for a two-beat lead only changed *when* an entire bar blinked out;
+  // half a bar was not something the setting could express.
+  //
+  // Beams and ledger lines are drawn as siblings of the notes, not inside them,
+  // so they are matched by horizontal position. A beam waits until every note
+  // it spans has gone: dropping it with its first note would leave the notes
+  // still showing stripped of their beam, reading as quarters instead of
+  // eighths. The cost is a beam stub reaching back over blank paper, which is
+  // cosmetic rather than misleading.
+  function hideBefore(ink, upto) {
+    var notes = ink.notes, cut = -Infinity;
+    for (var i = 0; i < notes.length; i++) {
+      var hidden = i < upto;
+      notes[i].el.style.visibility = hidden ? "hidden" : "";
+      if (hidden) cut = Math.max(cut, notes[i].right);
     }
-    syncHighlights(count);
+    for (var b = 0; b < ink.spans.length; b++) {           // beams: gone once fully passed
+      ink.spans[b].el.style.visibility = (ink.spans[b].right <= cut) ? "hidden" : "";
+    }
+    for (var l = 0; l < ink.marks.length; l++) {           // ledgers: gone with their note
+      ink.marks[l].el.style.visibility = (ink.marks[l].mid <= cut) ? "hidden" : "";
+    }
+    syncHighlights(upto);
   }
 
   // Full reset to the top: stop, hide the cursor, rewind to the first note.
@@ -1745,16 +1768,27 @@
       beatNote[b] = jb;
     }
 
-    var measureInk = Array.prototype.map.call(
-      sheetEl.querySelectorAll(".vf-measure"),
-      function (g) { return g.querySelectorAll(INK_SEL); }
-    );
+    // The ink, indexed the way the curtain needs it. Notes come out in document
+    // order, which is the order the cursor walked above, so index i is onsets[i]
+    // — verified against the model: the cursor's entry count and the rendered
+    // .vf-stavenote count agree, rests included.
+    var sRect = sheetEl.getBoundingClientRect(), sx = sheetEl.scrollLeft || 0;
+    function spanOf(el) {
+      var r = el.getBoundingClientRect();
+      return { el: el, left: r.left - sRect.left + sx, right: r.right - sRect.left + sx,
+               mid: (r.left + r.right) / 2 - sRect.left + sx };
+    }
+    var ink = {
+      notes: Array.prototype.map.call(sheetEl.querySelectorAll(".vf-stavenote"), spanOf),
+      spans: Array.prototype.map.call(sheetEl.querySelectorAll(".vf-beam"), spanOf),
+      marks: Array.prototype.map.call(sheetEl.querySelectorAll(".vf-ledgers"), spanOf)
+    };
     showAllInk();
 
     var countIn = noCountIn ? 0 : bpb;     // 1-bar count-in, skipped on auto-advance
     session = {
       cur: cur, measureFirst: measureFirst, melody: melody, beatNote: beatNote,
-      measureInk: measureInk, totalBeats: totalBeats, barBeats: bpb,
+      ink: ink, onsets: onsets, totalBeats: totalBeats, barBeats: bpb,
       elapsed: -countIn,       // count-in beats are negative
       nextBeat: -countIn,
       cursorIdx: 0,
@@ -1864,10 +1898,15 @@
     if (cur.cursorElement) cur.cursorElement.style.display = (cursorModeEl.value === "off") ? "none" : "";
 
     if (curBeat >= 0) {
-      var hideCount = hideBehindEl.checked
-        ? Math.floor((curBeat + (+hideLeadEl.value)) / s.barBeats)
-        : 0;
-      if (hideCount !== s.hideState) { hideMeasures(s.measureInk, hideCount); s.hideState = hideCount; }
+      // The lead says how far in front of the cursor the curtain sits; the unit
+      // on the panel only chooses how that distance is typed in. Resolve it to
+      // a note index so the curtain moves note by note in either unit.
+      var hideCount = 0;
+      if (hideBehindEl.checked) {
+        var curtain = curBeat + (+hideLeadEl.value);
+        while (hideCount < s.onsets.length && s.onsets[hideCount] < curtain - 1e-6) hideCount++;
+      }
+      if (hideCount !== s.hideState) { hideBefore(s.ink, hideCount); s.hideState = hideCount; }
       followCursor();   // scroll once the cursor reaches the last visible line
     }
     if (curBeat >= s.totalBeats) { if (playing) advanceAndPlay(); return; }  // line done — keep practicing
