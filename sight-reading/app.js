@@ -1655,24 +1655,29 @@
   // asking for a two-beat lead only changed *when* an entire bar blinked out;
   // half a bar was not something the setting could express.
   //
-  // Beams and ledger lines are drawn as siblings of the notes, not inside them,
-  // so they are matched by horizontal position. A beam waits until every note
-  // it spans has gone: dropping it with its first note would leave the notes
-  // still showing stripped of their beam, reading as quarters instead of
-  // eighths. The cost is a beam stub reaching back over blank paper, which is
-  // cosmetic rather than misleading.
+  // Beams, ledger lines and beamed-note stems are drawn as siblings of the
+  // notes, not inside them, so they are matched by horizontal position. A beam
+  // goes the moment its first note goes: the survivors briefly read as
+  // quarters, but they are under a beat from vanishing themselves, and the
+  // alternative — a beam stub reaching back over blank paper — parks debris
+  // exactly where the eye checks the curtain's edge.
   function hideBefore(ink, upto) {
-    var notes = ink.notes, cut = -Infinity;
+    var notes = ink.notes, cut = [];   // rightmost hidden notehead, per system
     for (var i = 0; i < notes.length; i++) {
       var hidden = i < upto;
       notes[i].el.style.visibility = hidden ? "hidden" : "";
-      if (hidden) cut = Math.max(cut, notes[i].right);
+      if (hidden) {
+        var L = notes[i].line;
+        cut[L] = (cut[L] == null) ? notes[i].right : Math.max(cut[L], notes[i].right);
+      }
     }
-    for (var b = 0; b < ink.spans.length; b++) {           // beams: gone once fully passed
-      ink.spans[b].el.style.visibility = (ink.spans[b].right <= cut) ? "hidden" : "";
+    for (var b = 0; b < ink.spans.length; b++) {           // beams: gone with their first note
+      var bc = cut[ink.spans[b].line];
+      ink.spans[b].el.style.visibility = (bc != null && ink.spans[b].left < bc) ? "hidden" : "";
     }
-    for (var l = 0; l < ink.marks.length; l++) {           // ledgers: gone with their note
-      ink.marks[l].el.style.visibility = (ink.marks[l].mid <= cut) ? "hidden" : "";
+    for (var l = 0; l < ink.marks.length; l++) {           // stems + ledgers: gone with their note
+      var mc = cut[ink.marks[l].line];
+      ink.marks[l].el.style.visibility = (mc != null && ink.marks[l].mid <= mc) ? "hidden" : "";
     }
     syncHighlights(upto);
   }
@@ -1773,15 +1778,26 @@
     // — verified against the model: the cursor's entry count and the rendered
     // .vf-stavenote count agree, rests included.
     var sRect = sheetEl.getBoundingClientRect(), sx = sheetEl.scrollLeft || 0;
+    // Every element remembers which engraved system it sits on: x-coordinates
+    // restart at the left margin on each line, so a single "everything left of
+    // here" cut is only meaningful within one system. Compared globally, a
+    // fully-hidden first line put its cut at the right margin and swallowed
+    // every stem and beam on the lines below it.
+    var sysList = Array.prototype.slice.call(sheetEl.querySelectorAll(".staffline"));
     function spanOf(el) {
       var r = el.getBoundingClientRect();
-      return { el: el, left: r.left - sRect.left + sx, right: r.right - sRect.left + sx,
+      return { el: el, line: sysList.indexOf(el.closest(".staffline")),
+               left: r.left - sRect.left + sx, right: r.right - sRect.left + sx,
                mid: (r.left + r.right) / 2 - sRect.left + sx };
     }
+    // Stems are collected here too: a beamed note's stem is drawn as a sibling
+    // of the note group, not inside it (the DOM shows half the stems outside
+    // any .vf-stavenote), so hiding the note alone left its stem standing on
+    // the page like a fence post.
     var ink = {
       notes: Array.prototype.map.call(sheetEl.querySelectorAll(".vf-stavenote"), spanOf),
       spans: Array.prototype.map.call(sheetEl.querySelectorAll(".vf-beam"), spanOf),
-      marks: Array.prototype.map.call(sheetEl.querySelectorAll(".vf-ledgers"), spanOf)
+      marks: Array.prototype.map.call(sheetEl.querySelectorAll(".vf-ledgers, .vf-stem"), spanOf)
     };
     showAllInk();
 
