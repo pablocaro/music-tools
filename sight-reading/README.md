@@ -50,7 +50,11 @@ controls ──► OSME generates a sheet ──► export MusicXML ──► OS
   up. Presets save to the browser (`localStorage`).
 - **Rhythm — the figures:** the meter (2/4, 3/4, 4/4, 6/8) plus which note
   values are in play. 6/8 swaps in a compound-time figure set built on the
-  dotted-quarter pulse.
+  dotted-quarter pulse. Two units are in play throughout the code and they are
+  worth keeping straight: the clock counts *quarter notes* everywhere, which is
+  what makes a tempo mean the same speed in every meter, while a *beat* is the
+  pulse a reader counts — a quarter in the simple meters, a dotted quarter in
+  6/8. The metronome, the cursor and Hide Ahead all follow the pulse.
 - **Notes:** which pitches the line may reach, by octave or one at a time.
 - **How musical?** — one dial over two mechanisms. 0 is a plain weighted random
   walk. Rising, the *phrasing* biases come in (contour arch, gap-fill after a
@@ -68,6 +72,11 @@ controls ──► OSME generates a sheet ──► export MusicXML ──► OS
   So the same dial position means different things depending on the alphabet: a
   chord-shaped one comes out as arpeggios, a stepwise one as a scale study that
   lands on the chord at the beats.
+- **Hide Ahead:** clears the page behind you to force reading forward. The unit
+  sets two things at once — how far ahead the curtain sits, *and* how big a
+  block goes at a time. Beats clears a beat at a time, Measures clears a bar.
+  Blocks therefore land where the music is already grouped, so a beamed group
+  is never cut in half.
 - **Clef & key, Measures, Highlight patterns.**
 
 ## Files
@@ -84,20 +93,27 @@ controls ──► OSME generates a sheet ──► export MusicXML ──► OS
 ## Known limitations
 
 - Rhythm figures are equally weighted (on/off), not yet probability-weighted.
+- The tempo number is a quarter note in every meter, so 6/8 at 80 runs at 80
+  quarters rather than the 80 dotted quarters its tempo marking would imply.
+  The click and Hide Ahead both follow the felt pulse (two to a 6/8 bar); only
+  the tempo number itself still counts quarters.
 - One progression per mode, not selectable.
 - Chord anchoring has no lookahead: it prefers a chord tone on the beat it is
   currently placing, but never sets up the approach a note early. With a
   stepwise alphabet that caps how often the beats can land on the chord, since
-  no step leads from one chord tone to another.
+  no step leads from one chord tone to another (measured: ~62% of beats).
 - Everything generated is diatonic — the app has no way to write an accidental
   yet. That's why minor keys cadence i–VI–VII–i: a true V would need the 7th
   raised, and the raised 7th isn't a position on the diatonic ladder.
-- "How musical?" reads strong beats as though the meter were 4/4, so its
-  strong-beat bonus lands wrong in 3/4 and 6/8.
+- "How musical?" is only half meter-aware. Its chord anchoring follows the felt
+  pulse correctly, but two phrasing biases still assume a four-quarter bar: the
+  cadence fires in the "second half" of a bar hardcoded as beat 2, and the
+  contour arch divides the bar by 4. Both land early in 3/4 and 6/8.
 
 ## Roadmap
 
-- **Letting-go mode** — hide measures as you reach them to force reading ahead.
+- **Letting-go mode** — Hide Ahead is the first half of this; what's missing is
+  pressure that adapts (speeding up, or widening the curtain, as you succeed).
 - Accidentals — starting with a real dominant in minor (raise the 7th in V bars).
 - Selectable chord progressions (I–V–vi–IV, ii–V–I, 12-bar blues).
 - Probability-weighted rhythm figures; rhythm chunks marked below the staff.

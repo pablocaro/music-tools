@@ -1765,11 +1765,18 @@
     cur.reset(); cur.show();
     scrollSheetTop();                              // start at the top
 
-    // The note sounding on each beat, so the cursor pulses on the beat instead
-    // of darting across every subdivision (and holds through sustained notes).
+    // The note sounding on each felt pulse, so the cursor moves on the beat
+    // instead of darting across every subdivision (and holds through sustained
+    // notes). The clock counts quarters throughout — that is what keeps a tempo
+    // meaning the same speed in every meter — but a *beat* is the pulse a
+    // reader counts, which in 6/8 is the dotted quarter. Counting 6/8 in
+    // quarters gave three clicks to the bar and put the cursor on the middle
+    // eighth of each beamed triplet, reading the bar as if it were 3/4.
+    var pulse = pulseBeats();
     var beatNote = [], jb = 0;
-    for (var b = 0; b < Math.ceil(totalBeats); b++) {
-      while (jb + 1 < onsets.length && onsets[jb + 1] <= b + 1e-6) jb++;
+    for (var b = 0; b < Math.ceil(totalBeats / pulse); b++) {
+      var at = b * pulse;
+      while (jb + 1 < onsets.length && onsets[jb + 1] <= at + 1e-6) jb++;
       beatNote[b] = jb;
     }
 
@@ -1801,12 +1808,14 @@
     };
     showAllInk();
 
+    // The count-in still lasts exactly one bar; only how many clicks fall inside
+    // it changes with the meter — four in 4/4, two in 6/8.
     var countIn = noCountIn ? 0 : bpb;     // 1-bar count-in, skipped on auto-advance
     session = {
       cur: cur, measureFirst: measureFirst, melody: melody, beatNote: beatNote,
-      ink: ink, onsets: onsets, totalBeats: totalBeats, barBeats: bpb,
+      ink: ink, onsets: onsets, totalBeats: totalBeats, barBeats: bpb, pulse: pulse,
       elapsed: -countIn,       // count-in beats are negative
-      nextBeat: -countIn,
+      nextBeat: -Math.round(countIn / pulse),   // counts pulses, not quarters
       cursorIdx: 0,
       hideState: -1,
       rafId: null
@@ -1896,7 +1905,9 @@
     var curBeat = (now - s.t0) / s.bms;
     s.elapsed = curBeat;
 
-    while (s.nextBeat <= Math.floor(curBeat) && s.nextBeat < s.totalBeats) {
+    // nextBeat counts felt pulses; multiply by s.pulse to get the clock's own
+    // quarter-note units.
+    while (s.nextBeat * s.pulse <= curBeat + 1e-6 && s.nextBeat * s.pulse < s.totalBeats) {
       if (clickOnEl.checked) flipMetro();             // the glyph mirrors on the beat
       if (s.nextBeat < 0) {                          // count-in
         if (clickOnEl.checked) tick(COUNTIN_FREQ);
@@ -1904,7 +1915,7 @@
       } else {                                       // playing
         if (clickOnEl.checked) tick(PLAY_FREQ);
         var target = (cursorModeEl.value === "measure")
-          ? s.measureFirst[Math.min(Math.floor(s.nextBeat / s.barBeats), s.measureFirst.length - 1)]
+          ? s.measureFirst[Math.min(Math.floor(s.nextBeat * s.pulse / s.barBeats), s.measureFirst.length - 1)]
           : s.beatNote[Math.min(s.nextBeat, s.beatNote.length - 1)];
         while (s.cursorIdx < target) { try { cur.next(); } catch (e) {} s.cursorIdx++; }
       }
@@ -1914,13 +1925,17 @@
     if (cur.cursorElement) cur.cursorElement.style.display = (cursorModeEl.value === "off") ? "none" : "";
 
     if (curBeat >= 0) {
-      // The lead says how far in front of the cursor the curtain sits; the unit
-      // on the panel only chooses how that distance is typed in. Resolve it to
-      // a note index so the curtain moves note by note in either unit.
+      // The unit sets both the distance and the size of the block that goes:
+      // pick Beats and the page clears a beat at a time, pick Measures and it
+      // clears a bar at a time. So the curtain is snapped back to the last
+      // boundary of whichever unit is showing, and everything before that edge
+      // retires together. Blocks then land where the music is already grouped —
+      // on beam boundaries — so a group is never cut in half.
       var hideCount = 0;
       if (hideBehindEl.checked) {
-        var curtain = curBeat + (+hideLeadEl.value);
-        while (hideCount < s.onsets.length && s.onsets[hideCount] < curtain - 1e-6) hideCount++;
+        var q = unitBeats();
+        var edge = Math.floor((curBeat + (+hideLeadEl.value)) / q + 1e-6) * q;
+        while (hideCount < s.onsets.length && s.onsets[hideCount] < edge - 1e-6) hideCount++;
       }
       if (hideCount !== s.hideState) { hideBefore(s.ink, hideCount); s.hideState = hideCount; }
       followCursor();   // scroll once the cursor reaches the last visible line
@@ -1957,9 +1972,13 @@
   // per unit, which keeps a unit toggle lossless: 8 measures and 32 beats are
   // the same setting, and converting between them can't run off the end.
   var HIDE_MAX_BEATS = 32;
-  function hideMaxN() {
-    return hideUnitIsMeasures() ? Math.floor(HIDE_MAX_BEATS / barBeats()) : HIDE_MAX_BEATS;
-  }
+
+  // One step of whichever unit is showing, in the clock's quarter-note units.
+  // Everything about Hide Ahead falls out of this one number: the distance a
+  // step buys, the size of the block that disappears, and how far the stepper
+  // can climb before it runs past the stored ceiling.
+  function unitBeats() { return hideUnitIsMeasures() ? barBeats() : pulseBeats(); }
+  function hideMaxN() { return Math.floor(HIDE_MAX_BEATS / unitBeats()); }
 
   // Which letter+accidental combinations OSME can actually build a scale from.
   // ScaleKey.create doesn't reject an impossible key (D♯ major and friends) — it
@@ -2052,12 +2071,13 @@
     hideUnitEl.textContent = hideUnitIsMeasures() ? t("val.measures") : t("val.beats");
     hideBehindEl.checked = n > 0;
     // The stepper's number is in whatever unit is showing; the lead is always
-    // in beats. Clamping the product by the stepper's own limit made every
-    // setting above two measures behave like two, and hideFromState then read
-    // the clamped value back and rewrote the stepper to match — so the setting
-    // didn't just misbehave, it changed under you. hideMaxN() bounds n per
-    // unit instead, which keeps the product in range without a second clamp.
-    hideLeadEl.value = hideUnitIsMeasures() ? n * barBeats() : n;
+    // in the clock's quarter-note units. Clamping the product by the stepper's
+    // own limit made every setting above two measures behave like two, and
+    // hideFromState then read the clamped value back and rewrote the stepper to
+    // match — so the setting didn't just misbehave, it changed under you.
+    // hideMaxN() bounds n per unit instead, which keeps the product in range
+    // without a second clamp.
+    hideLeadEl.value = n * unitBeats();
   }
   function setHide(n, unit) {
     hideValEl.dataset.n = Math.max(0, Math.min(hideMaxN(), n));
@@ -2066,10 +2086,9 @@
   }
   // Restore the stepper from the stored beats-lead + on/off flag.
   function hideFromState() {
-    var lead = parseInt(hideLeadEl.value, 10) || 0;
+    var lead = parseFloat(hideLeadEl.value) || 0;
     if (!hideBehindEl.checked) { setHide(0); return; }
-    if (hideUnitIsMeasures()) setHide(Math.max(1, Math.round(lead / barBeats())));
-    else setHide(Math.max(1, lead));
+    setHide(Math.max(1, Math.round(lead / unitBeats())));
   }
 
   function syncInstrument() {
@@ -2586,10 +2605,10 @@
       // different in each unit, so carrying it across unchanged silently
       // quadrupled the lead — "2 beats" became "2 measures". Coarsening to
       // measures rounds, so 2 beats comes back as 1 measure rather than 2.
-      var lead = parseInt(hideLeadEl.value, 10) || 0;      // always beats
+      var lead = parseFloat(hideLeadEl.value) || 0;        // clock units (quarters)
       var toMeasures = !hideUnitIsMeasures();
       hideUnitEl.dataset.unit = toMeasures ? "measures" : "beats";
-      if (lead > 0) setHide(toMeasures ? Math.max(1, Math.round(lead / barBeats())) : lead);
+      if (lead > 0) setHide(Math.max(1, Math.round(lead / unitBeats())));
       else syncHide();
       persistSession();
     });
