@@ -88,6 +88,7 @@
      than by a number, like every other measure in here. */
   --radius-sheet: 20px;                                            /* help / onboarding card */
   --radius-card:  16px;                                            /* popovers hung off a button */
+  --radius-menu:  12px;                                            /* a menu opened from inside one */
   --shadow-sheet: 0 18px 60px rgba(0, 0, 0, 0.22);
   --shadow-pop:   0 1px 2px rgba(0, 0, 0, 0.06), 0 12px 32px rgba(0, 0, 0, 0.16);
   --pop-w:   248px;                                                /* popover min width */
@@ -943,31 +944,44 @@ button.secondary {
 .pop-tempo { display: flex; align-items: center; gap: 10px; }
 .pop-tempo .stepper-range { flex: 1 1 auto; min-width: 0; }
 
-/* A select styled into the panel's own control family: same fill, same radius,
-   same height as a cycle button, with the native chevron replaced by one drawn
-   in the ink colour. Only the dropped-open list is the OS's — the price of
-   showing five choices at once in a control this narrow. */
-.sel {
+/* A menu opened from a control inside a popover — one more step down the same
+   surface family. It hangs off its trigger's row rather than the popover, so it
+   lands under the pill that opened it whatever else the panel is showing. */
+.menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 150px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  border-radius: var(--radius-menu);
+  background: var(--paper);
+  box-shadow: var(--shadow-pop);
+}
+.menu[hidden] { display: none; }
+.menu-item {
   appearance: none;
-  -webkit-appearance: none;
-  height: var(--ctl-h);
-  padding: 0 30px 0 14px;
-  border: var(--ctl-border) solid transparent;
-  border-radius: var(--ctl-radius);
-  background-color: var(--ctl-fill);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5l5-5' fill='none' stroke='%231a1a1a' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 11px 7px;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 12px;
+  background: transparent;
   color: var(--ink);
   font: inherit;
   font-size: var(--type-label);
   font-weight: var(--weight-prominent);
+  text-align: left;
+  white-space: nowrap;
   cursor: pointer;
-  transition: background-color 0.15s;
+  transition: background 0.12s, color 0.12s;
 }
-.sel:hover { background-color: var(--ctl-fill-hover); }
-.sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.menu-item:hover { background: var(--ctl-fill); }
+/* Selected wears the same tint every other chosen control in the app does. */
+.menu-item.on { background: var(--ctl-on-tint); color: var(--ctl-on); }
+
+/* The row that owns a menu anchors it. */
+.pop-row { position: relative; }
 
 /* Every other row is label-left, control-right, so the controls stack into one
    clean right-hand edge however long the labels run. */

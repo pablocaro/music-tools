@@ -1336,6 +1336,8 @@
   var clickOnEl    = document.getElementById("click-on");
   var playAlongEl  = document.getElementById("play-along");
   var instrumentEl = document.getElementById("instrument");
+  var voiceBtnEl   = document.getElementById("voice-btn");
+  var voiceMenuEl  = document.getElementById("voice-menu");
   var volumeEl     = document.getElementById("volume");
   var hideBehindEl = document.getElementById("hide-behind");
   var cursorModeEl = document.getElementById("cursor-mode");
@@ -2090,9 +2092,12 @@
     setHide(Math.max(1, Math.round(lead / unitBeats())));
   }
 
-  // The voice is a real <select> now, so it renders its own current value and
-  // there is nothing to mirror onto a button face.
-  function syncInstrument() {}
+  // The pill shows the chosen voice; the hidden <select> holds it. Same split
+  // the clef and key controls use — form element for state, custom control for
+  // the face — so the session snapshot reads one thing and the panel draws it.
+  function syncInstrument() {
+    if (voiceBtnEl) voiceBtnEl.textContent = t("inst." + instrumentEl.value);
+  }
   function syncChunks() {
     chunksBtnEl.textContent = showChunksEl.checked ? t("val.on") : t("val.off");
     chunksBtnEl.classList.toggle("on", showChunksEl.checked);
@@ -2576,8 +2581,50 @@
     document.getElementById("tempo-up").addEventListener("click", function () { bumpTempo(1); });
 
     // --- accompaniment ---
-    // Picking a voice is a real gesture, so it's a good moment to unlock audio.
-    instrumentEl.addEventListener("change", ensureAudio);
+    // The voice menu is built at open time rather than kept in sync: the list,
+    // which entry is ticked, and the translations all come off the <select>'s
+    // own options, so there is no second copy to drift.
+    function buildVoiceMenu() {
+      voiceMenuEl.innerHTML = "";
+      Array.prototype.forEach.call(instrumentEl.options, function (o) {
+        var item = document.createElement("button");
+        item.type = "button";
+        item.className = "menu-item";
+        item.setAttribute("role", "option");
+        item.textContent = t("inst." + o.value);
+        var chosen = o.value === instrumentEl.value;
+        item.classList.toggle("on", chosen);
+        item.setAttribute("aria-selected", chosen ? "true" : "false");
+        item.addEventListener("click", function () {
+          ensureAudio();          // a real gesture — a good moment to unlock audio
+          instrumentEl.value = o.value;
+          instrumentEl.dispatchEvent(new Event("change"));
+          syncInstrument();
+          closeVoiceMenu();
+          persistSession();
+        });
+        voiceMenuEl.appendChild(item);
+      });
+    }
+    function closeVoiceMenu() {
+      voiceMenuEl.hidden = true;
+      voiceBtnEl.setAttribute("aria-expanded", "false");
+    }
+    voiceBtnEl.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (!voiceMenuEl.hidden) { closeVoiceMenu(); return; }
+      buildVoiceMenu();
+      voiceMenuEl.hidden = false;
+      voiceBtnEl.setAttribute("aria-expanded", "true");
+    });
+    // A tap anywhere else in the popover dismisses the menu but leaves the
+    // popover up; the popover already stops its own clicks reaching document.
+    document.getElementById("accomp-pop").addEventListener("click", function (e) {
+      if (!voiceMenuEl.hidden && !voiceMenuEl.contains(e.target)) closeVoiceMenu();
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !voiceMenuEl.hidden) { e.stopPropagation(); closeVoiceMenu(); }
+    }, true);
     volumeUiEl.addEventListener("input", function () {
       volumeEl.value = volumeUiEl.value;
       volumeEl.dispatchEvent(new Event("input"));
