@@ -1138,17 +1138,17 @@
     updateGap();
   }
 
-  // Reflect the transport toggles' state on their buttons (blue tint when active).
-  // Both the metronome and the accompaniment have two faces — the transport bar
-  // and their own section in the panel — so every .js-metro / .js-accomp button
-  // tracks the one checkbox.
+  // Two classes, deliberately. A *-face button only shows the state — those are
+  // the header buttons, whose tap opens a popover instead of toggling. A plain
+  // .js-metro / .js-accomp button toggles. Both wear the tint, so the header
+  // still reports on/off without being opened.
   function syncMetroPill() {
-    document.querySelectorAll(".js-metro").forEach(function (b) {
+    document.querySelectorAll(".js-metro, .js-metro-face").forEach(function (b) {
       b.classList.toggle("on", clickOnEl.checked);
     });
   }
   function syncAccompBtn() {
-    document.querySelectorAll(".js-accomp").forEach(function (b) {
+    document.querySelectorAll(".js-accomp, .js-accomp-face").forEach(function (b) {
       b.classList.toggle("on", playAlongEl.checked);
     });
   }
@@ -1866,7 +1866,7 @@
   // the beat rather than free-running.
   var metroFlipped = false;
 
-  function metroGlyphs() { return document.querySelectorAll(".js-metro .ic-metro.state-on"); }
+  function metroGlyphs() { return document.querySelectorAll(".js-metro .ic-metro.state-on, .js-metro-face .ic-metro.state-on"); }
 
   function flipMetro() {
     metroFlipped = !metroFlipped;
@@ -2665,7 +2665,9 @@
   document.getElementById("from-top").addEventListener("click", resetTop);
   setPlayIcon(false);
 
-  // Either 🎼 button (transport bar or Tempo section) toggles the metronome.
+  // Only the toggles inside the popovers flip the state; the header buttons that
+  // carry the same glyph are disclosures (see openPop) and are matched by the
+  // -face classes instead.
   document.querySelectorAll(".js-metro").forEach(function (b) {
     b.addEventListener("click", function () {
       clickOnEl.checked = !clickOnEl.checked;
@@ -2674,7 +2676,7 @@
   });
   clickOnEl.addEventListener("change", function () { syncMetroPill(); syncSwing(); });
 
-  // Either ♩ button (transport bar or Accompaniment section) toggles play-along.
+  // Same split for play-along.
   document.querySelectorAll(".js-accomp").forEach(function (b) {
     b.addEventListener("click", function () {
       ensureAudio();   // this is a real gesture — a good moment to unlock/prime audio
@@ -2684,6 +2686,45 @@
   });
   playAlongEl.addEventListener("change", syncAccompBtn);
   syncTransport();
+
+  // ===========================================================================
+  // Header popovers — pace and play-along
+  //
+  // Each header button owns one popover. Only one is ever open, and anything
+  // that starts a new action closes them: the pocket is modal, so a popover and
+  // the settings panel can never be up at once, which is why there is a single
+  // anchor position and no second set of states to reason about.
+  // ===========================================================================
+  var POPS = [
+    { btn: document.getElementById("metro-toggle"),  pop: document.getElementById("pace-pop") },
+    { btn: document.getElementById("accomp-toggle"), pop: document.getElementById("accomp-pop") }
+  ].filter(function (x) { return x.btn && x.pop; });
+
+  function closePops() {
+    POPS.forEach(function (x) {
+      x.pop.hidden = true;
+      x.btn.setAttribute("aria-expanded", "false");
+      x.btn.classList.remove("open");
+    });
+  }
+  function popOpen() { return POPS.some(function (x) { return !x.pop.hidden; }); }
+
+  function openPop(which) {
+    var wasOpen = !which.pop.hidden;
+    closePops();
+    if (wasOpen) return;                      // second tap on the same button closes
+    setPanel(false);                          // the pocket is modal; a tap out here dismisses it
+    which.pop.hidden = false;
+    which.btn.setAttribute("aria-expanded", "true");
+    which.btn.classList.add("open");
+  }
+
+  POPS.forEach(function (x) {
+    x.btn.addEventListener("click", function (e) { e.stopPropagation(); openPop(x); });
+    x.pop.addEventListener("click", function (e) { e.stopPropagation(); });
+  });
+  document.addEventListener("click", function () { if (popOpen()) closePops(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && popOpen()) closePops(); });
 
   // Collapsible settings. The control bar (Play / New line) is always visible;
   // the sidebar is a drawer that shows only when .panel-open — closed by default

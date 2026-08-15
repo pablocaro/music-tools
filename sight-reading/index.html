@@ -73,6 +73,9 @@
         <button id="settings-toggle" class="cb-icon" aria-label="Settings" data-i18n-aria="aria.settings">
           <svg class="ic ic-settings"><use href="#ic-settings"/></svg>
         </button>
+        <!-- One family: start this line over, run it, or fetch a different one.
+             The two sound toggles moved to the header, where a popover can hang
+             off them from a position that doesn't move when the pocket opens. -->
         <div class="cb-center">
           <button id="from-top" class="cb-icon" aria-label="From the top" data-i18n-aria="aria.fromTop">
             <svg class="ic ic-restart"><use href="#ic-restart"/></svg>
@@ -81,15 +84,10 @@
             <svg class="ic ic-play state-rest"><use href="#ic-play"/></svg>
             <svg class="ic ic-pause state-alt"><use href="#ic-pause"/></svg>
           </button>
-          <button id="accomp" class="cb-icon js-accomp" aria-label="Accompaniment on/off" data-i18n-aria="aria.accomp">
-            <svg class="ic ic-accomp state-off"><use href="#ic-accomp-off"/></svg>
-            <svg class="ic ic-accomp state-on"><use href="#ic-accomp-on"/></svg>
+          <button id="generate" class="cb-icon" aria-label="New exercise" data-i18n-aria="aria.newExercise">
+            <svg class="ic ic-regenerate"><use href="#ic-regenerate"/></svg>
           </button>
         </div>
-        <button id="metro-toggle" class="cb-icon cb-right js-metro" aria-label="Metronome on/off" data-i18n-aria="aria.metronome">
-          <svg class="ic ic-metro state-off"><use href="#ic-metro-off"/></svg>
-            <svg class="ic ic-metro state-on"><use href="#ic-metro-on"/></svg>
-        </button>
       </div>
 
       <div class="pocket-body">
@@ -167,60 +165,6 @@
         </section>
       </div>
 
-      <!-- TEMPO · ACCOMPANIMENT · HIDE AHEAD -->
-      <div class="band">
-        <section class="sec sec-tempo">
-          <h2 class="sec-h" data-i18n="sec.tempo">Tempo</h2>
-          <div class="sec-row unit">
-            <button class="icon-toggle js-metro" type="button" aria-label="Metronome on/off" data-i18n-aria="aria.metronome">
-              <svg class="ic ic-metro state-off"><use href="#ic-metro-off"/></svg>
-            <svg class="ic ic-metro state-on"><use href="#ic-metro-on"/></svg>
-            </button>
-            <button id="cursor-toggle" class="icon-toggle" type="button" aria-label="Cursor on/off" data-i18n-aria="aria.cursor">
-              <svg class="ic ic-eye state-off"><use href="#ic-eye-off"/></svg>
-              <svg class="ic ic-eye state-on"><use href="#ic-eye-on"/></svg>
-            </button>
-            <div class="stepper">
-              <span class="stepper-val" id="tempo-val">80</span>
-              <input type="range" class="stepper-range" id="tempo-ui" min="40" max="180" step="5" value="80" aria-label="Tempo" data-i18n-aria="aria.tempo">
-              <span class="step-pair">
-                <button id="tempo-down" class="step-btn" type="button" aria-label="Slower" data-i18n-aria="aria.slower">&#8722;</button>
-                <button id="tempo-up" class="step-btn" type="button" aria-label="Faster" data-i18n-aria="aria.faster">+</button>
-              </span>
-            </div>
-          </div>
-        </section>
-
-        <section class="sec sec-accomp">
-          <h2 class="sec-h" data-i18n="sec.accomp">Play Along</h2>
-          <div class="sec-row unit">
-            <button class="icon-toggle js-accomp" type="button" aria-label="Accompaniment on/off" data-i18n-aria="aria.accomp">
-              <svg class="ic ic-accomp state-off"><use href="#ic-accomp-off"/></svg>
-              <svg class="ic ic-accomp state-on"><use href="#ic-accomp-on"/></svg>
-            </button>
-            <button id="instrument-cycle" class="cycle" type="button" aria-label="Voice" data-i18n-aria="aria.voice" data-i18n="inst.piano">Piano</button>
-            <div class="stepper stepper-plain">
-              <svg class="vol-glyph" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-              <input type="range" class="stepper-range" id="volume-ui" min="0" max="100" step="5" value="80" aria-label="Volume" data-i18n-aria="aria.volume">
-            </div>
-          </div>
-        </section>
-
-        <section class="sec sec-hide">
-          <h2 class="sec-h" data-i18n="sec.hideAhead">Hide Ahead</h2>
-          <div class="sec-row unit">
-            <div class="stepper stepper-fit">
-              <span class="stepper-val" id="hide-val" data-i18n="val.off">Off</span>
-              <span class="step-pair">
-                <button id="hide-down" class="step-btn" type="button" aria-label="Less" data-i18n-aria="aria.less">&#8722;</button>
-                <button id="hide-up" class="step-btn" type="button" aria-label="More" data-i18n-aria="aria.more">+</button>
-              </span>
-            </div>
-            <button id="hide-unit" class="cycle" type="button" aria-label="Hide ahead unit" data-i18n-aria="aria.hideUnit" data-i18n="val.beats">Beats</button>
-          </div>
-        </section>
-      </div>
-
       <!-- RHYTHM — the beat figures -->
       <div class="band">
         <section class="sec">
@@ -241,18 +185,39 @@
           <div class="matrix" id="matrix"></div>
         </section>
 
-        <section class="sec sec-notes">
-          <h2 class="sec-h" data-i18n="sec.notes">Notes</h2>
-          <div id="range-grid"></div>
-        </section>
+        <!-- Notes and How Musical stack in one column: the interval matrix runs
+             eight rows deep and the pitch grid six, so the right-hand side has
+             room going spare, and the dial belongs with the line it shapes. -->
+        <div class="sec-col">
+          <section class="sec sec-notes">
+            <h2 class="sec-h" data-i18n="sec.notes">Notes</h2>
+            <div id="range-grid"></div>
+          </section>
+
+          <section class="sec sec-musicality">
+            <h2 class="sec-h" data-i18n="sec.musicality">How Musical?</h2>
+            <div class="sec-row">
+              <input type="range" class="stepper-range bare-range" id="musicality" min="0" max="100" step="5" value="0" aria-label="Musicality" data-i18n-aria="aria.musicality">
+            </div>
+          </section>
+        </div>
       </div>
 
-      <!-- MUSICALITY · CHUNKS -->
+      <!-- READING AIDS — both are training wheels rather than part of the
+           exercise: one shows you more, the other shows you less, and both
+           come off as the reading improves. Neither is saved in a preset. -->
       <div class="band">
-        <section class="sec sec-musicality">
-          <h2 class="sec-h" data-i18n="sec.musicality">How Musical?</h2>
-          <div class="sec-row">
-            <input type="range" class="stepper-range bare-range" id="musicality" min="0" max="100" step="5" value="0" aria-label="Musicality" data-i18n-aria="aria.musicality">
+        <section class="sec sec-hide">
+          <h2 class="sec-h" data-i18n="sec.hideAhead">Hide Ahead</h2>
+          <div class="sec-row unit">
+            <div class="stepper stepper-fit">
+              <span class="stepper-val" id="hide-val" data-i18n="val.off">Off</span>
+              <span class="step-pair">
+                <button id="hide-down" class="step-btn" type="button" aria-label="Less" data-i18n-aria="aria.less">&#8722;</button>
+                <button id="hide-up" class="step-btn" type="button" aria-label="More" data-i18n-aria="aria.more">+</button>
+              </span>
+            </div>
+            <button id="hide-unit" class="cycle" type="button" aria-label="Hide ahead unit" data-i18n-aria="aria.hideUnit" data-i18n="val.beats">Beats</button>
           </div>
         </section>
 
@@ -310,9 +275,64 @@
         <h1 id="sh-title"></h1>
         <div id="sh-sub"></div>
       </div>
-      <button id="generate" class="tb-btn" aria-label="New exercise" data-i18n-aria="aria.newExercise">
-        <svg class="ic ic-regenerate"><use href="#ic-regenerate"/></svg>
-      </button>
+      <!-- Pace and accompaniment. These live in the header rather than the
+           control bar because the bar IS the pocket's top edge and travels with
+           it: a popover hung off it would need two anchors and two sets of
+           states. The header holds still, so there is one position and one code
+           path. Each button still shows its own on/off at a glance, so reading
+           the state never costs a tap. -->
+      <div class="tb-actions">
+        <button id="metro-toggle" class="tb-btn js-metro-face" aria-label="Metronome" data-i18n-aria="aria.metronome" aria-expanded="false" aria-controls="pace-pop">
+          <svg class="ic ic-metro state-off"><use href="#ic-metro-off"/></svg>
+          <svg class="ic ic-metro state-on"><use href="#ic-metro-on"/></svg>
+        </button>
+        <button id="accomp-toggle" class="tb-btn js-accomp-face" aria-label="Play along" data-i18n-aria="aria.accomp" aria-expanded="false" aria-controls="accomp-pop">
+          <svg class="ic ic-accomp state-off"><use href="#ic-accomp-off"/></svg>
+          <svg class="ic ic-accomp state-on"><use href="#ic-accomp-on"/></svg>
+        </button>
+
+        <div id="pace-pop" class="pop" hidden>
+          <div class="pop-tempo">
+            <span class="stepper-val" id="tempo-val">80</span>
+            <input type="range" class="stepper-range" id="tempo-ui" min="40" max="180" step="5" value="80" aria-label="Tempo" data-i18n-aria="aria.tempo">
+            <span class="step-pair">
+              <button id="tempo-down" class="step-btn" type="button" aria-label="Slower" data-i18n-aria="aria.slower">&#8722;</button>
+              <button id="tempo-up" class="step-btn" type="button" aria-label="Faster" data-i18n-aria="aria.faster">+</button>
+            </span>
+          </div>
+          <div class="pop-row">
+            <button class="icon-toggle js-metro" type="button" aria-label="Metronome on/off" data-i18n-aria="aria.metronome">
+              <svg class="ic ic-metro state-off"><use href="#ic-metro-off"/></svg>
+              <svg class="ic ic-metro state-on"><use href="#ic-metro-on"/></svg>
+            </button>
+            <span class="pop-label" data-i18n="lbl.click">Click</span>
+          </div>
+          <div class="pop-row">
+            <button id="cursor-toggle" class="icon-toggle" type="button" aria-label="Cursor on/off" data-i18n-aria="aria.cursor">
+              <svg class="ic ic-eye state-off"><use href="#ic-eye-off"/></svg>
+              <svg class="ic ic-eye state-on"><use href="#ic-eye-on"/></svg>
+            </button>
+            <span class="pop-label" data-i18n="lbl.cursor">Cursor</span>
+          </div>
+        </div>
+
+        <div id="accomp-pop" class="pop" hidden>
+          <div class="pop-row">
+            <button class="icon-toggle js-accomp" type="button" aria-label="Accompaniment on/off" data-i18n-aria="aria.accomp">
+              <svg class="ic ic-accomp state-off"><use href="#ic-accomp-off"/></svg>
+              <svg class="ic ic-accomp state-on"><use href="#ic-accomp-on"/></svg>
+            </button>
+            <span class="pop-label" data-i18n="lbl.playAlong">Play along</span>
+          </div>
+          <div class="pop-row">
+            <button id="instrument-cycle" class="cycle" type="button" aria-label="Voice" data-i18n-aria="aria.voice" data-i18n="inst.piano">Piano</button>
+          </div>
+          <div class="pop-row">
+            <svg class="vol-glyph" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <input type="range" class="stepper-range" id="volume-ui" min="0" max="100" step="5" value="80" aria-label="Volume" data-i18n-aria="aria.volume">
+          </div>
+        </div>
+      </div>
     </header>
     <main class="sheet-area">
       <div id="sheet-stage">

@@ -83,6 +83,9 @@ window.SR_I18N = {
     "aria.accidental":   "Accidental",
     "aria.chunks":       "Show chunk highlights",
     "aria.musicality":   "Musicality",
+    "lbl.click":         "Click",
+    "lbl.cursor":        "Cursor",
+    "lbl.playAlong":     "Play along",
     "aria.octave":       "Octave",
     "aria.updatePreset": "Update with current settings",
     "aria.deletePreset": "Delete preset",
@@ -143,16 +146,16 @@ window.SR_I18N = {
     "help.exercise":    "The title is whichever preset is loaded, with its key and length beneath. Tap ↻ for another line built from the same settings — take a new one as soon as the old one starts to feel familiar.",
 
     "help.g.transport": "Along the bottom",
-    "help.transport":   "Restart returns to the first bar. Play runs the piece at your tempo, after a one-bar count-in, and moves on to a fresh line when it reaches the end. The note button plays the melody with you; the metronome clicks the beat. Both can be on or off in any combination.",
+    "help.transport":   "Restart returns to the first bar, Play runs the piece after a one-bar count-in and moves on to a fresh line at the end, and the circular arrow fetches a new exercise. The metronome and play-along buttons sit up in the header instead, each opening a small panel.",
 
     "help.g.presets":   "Presets",
     "help.presets":     "A preset holds the material — the intervals, the notes, the key, the clef and the length. It deliberately leaves tempo, metronome, accompaniment and rhythm alone, so you can change how you are practising without disturbing what you are practising. + save keeps the current setup under a name of your own.",
 
     "help.g.tempo":     "Tempo",
-    "help.tempo":       "Beats per minute, plus two toggles: the metronome, and the eye, which shows or hides the cursor that follows the beat. Reading without the cursor is harder and worth doing.",
+    "help.tempo":       "Behind the metronome button in the header: beats per minute, the click itself, and the eye, which shows or hides the cursor that follows the beat. Reading without the cursor is harder and worth doing.",
 
     "help.g.accomp":    "Play Along",
-    "help.accomp":      "The voice that plays the line, and how loud. Useful for checking yourself; turn it off once you trust your ear.",
+    "help.accomp":      "Behind the second header button: the voice that plays the line with you, and how loud. Useful for checking yourself; turn it off once you trust your ear.",
 
     "help.g.hide":      "Hide ahead",
     "help.hide":        "Empties each bar as you reach it, so you are forced to look further along the line than you are playing. Start at one beat. This is the whole point of the tool, and it will feel wrong before it feels useful.",
@@ -264,6 +267,9 @@ window.SR_I18N = {
     "aria.accidental":   "Alteración",
     "aria.chunks":       "Mostrar patrones",
     "aria.musicality":   "Musicalidad",
+    "lbl.click":         "Clic",
+    "lbl.cursor":        "Cursor",
+    "lbl.playAlong":     "Acompañar",
     "aria.octave":       "Octava",
     "aria.updatePreset": "Actualizar con los ajustes actuales",
     "aria.deletePreset": "Eliminar preset",
@@ -319,16 +325,16 @@ window.SR_I18N = {
     "help.exercise":    "El título es el preset cargado, con su tonalidad y duración debajo. Toca ↻ para otra línea con los mismos ajustes — cambia en cuanto la anterior empiece a resultarte familiar.",
 
     "help.g.transport": "Abajo",
-    "help.transport":   "Reiniciar vuelve al primer compás. Reproducir toca la pieza a tu tempo, tras un compás de entrada, y sigue con una línea nueva al llegar al final. El botón de nota toca la melodía contigo; el metrónomo marca el pulso. Puedes usarlos en cualquier combinación.",
+    "help.transport":   "Reiniciar vuelve al primer compás, Reproducir toca la pieza tras un compás de entrada y sigue con una línea nueva al final, y la flecha circular trae un ejercicio nuevo. El metrónomo y el acompañamiento están arriba, en la cabecera, y cada uno abre su propio panel.",
 
     "help.g.presets":   "Presets",
     "help.presets":     "Un preset guarda el material — los intervalos, las notas, la tonalidad, la clave y la duración. A propósito no toca el tempo, el metrónomo, el acompañamiento ni el ritmo, para que puedas cambiar cómo practicas sin alterar qué practicas. Con + guardar creas el tuyo con el nombre que quieras.",
 
     "help.g.tempo":     "Tempo",
-    "help.tempo":       "Pulsos por minuto, más dos botones: el metrónomo y el ojo, que muestra u oculta el cursor que sigue el pulso. Leer sin cursor cuesta más y vale la pena.",
+    "help.tempo":       "Detrás del botón de metrónomo, en la cabecera: pulsaciones por minuto, el clic, y el ojo, que muestra u oculta el cursor que sigue el pulso. Leer sin cursor es más difícil y vale la pena.",
 
     "help.g.accomp":    "Tocar contigo",
-    "help.accomp":      "El instrumento que toca la línea, y a qué volumen. Sirve para comprobarte; quítalo cuando te fíes de tu oído.",
+    "help.accomp":      "Detrás del segundo botón de la cabecera: la voz que toca la línea contigo, y a qué volumen. Útil para comprobarte; quítalo cuando te fíes de tu oído.",
 
     "help.g.hide":      "Ocultar adelante",
     "help.hide":        "Vacía cada compás según llegas a él, así te obliga a mirar más adelante de lo que estás tocando. Empieza por un tiempo. En esto consiste la herramienta, y te resultará incómodo antes de resultarte útil.",

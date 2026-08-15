@@ -133,7 +133,12 @@ body {
 .controlbar {
   flex-shrink: 0;
   display: grid;
-  grid-template-columns: 1fr auto 1fr;   /* settings | centered trio | balance */
+  /* settings | centred trio | deliberately empty. The third column carries no
+     button any more — the sound toggles moved to the header — but it stays in
+     the grid so the trio centres on the viewport rather than on the space left
+     of it. A lone icon at one edge reads as anchored; a trio drifting off
+     centre reads as broken. */
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   padding: 14px 24px 22px;
   background: transparent;
@@ -310,13 +315,21 @@ button.playing svg.state-alt { display: block; }
 
 /* Band pairing. Sections declare the width they want to keep; below it they
    wrap to their own line on their own. */
-.sec-tempo      { flex: 3 1 320px; }
-.sec-accomp     { flex: 2 1 260px; }
-.sec-hide       { flex: 2 1 240px; }
+.sec-hide       { flex: 1 1 260px; }
 .sec-step       { flex: 1 1 380px; }
-.sec-notes      { flex: 1 1 340px; }
-.sec-musicality { flex: 3 1 320px; }
-.sec-chunks     { flex: 1 1 220px; }
+.sec-chunks     { flex: 1 1 260px; }
+
+/* Notes and How Musical share one column beside the interval matrix. The
+   column takes the flex width; the sections inside it stack at their natural
+   height instead of stretching to fill it. */
+.sec-col {
+  flex: 1 1 340px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.sec-col > .sec { flex: 0 0 auto; }
 .sec-key        { flex: 1 1 300px; }
 .sec-measures   { flex: 1 1 260px; }
 
@@ -890,6 +903,32 @@ button.secondary {
 .tb-titles { min-width: 0; }
 #sh-title { font-size: var(--type-title); font-weight: var(--weight-strong); color: var(--ink); letter-spacing: 0.2px; line-height: 1.15; }
 #sh-sub   { font-size: var(--type-lead); font-weight: var(--weight-prominent); color: var(--muted); margin-top: 5px; }
+
+/* The header's action cluster and the popovers that hang from it. Anchored to
+   the cluster, not the page, so the same rule places them on a phone and a wide
+   window; right-aligned because their owners sit at the right edge. */
+.tb-actions { position: relative; flex-shrink: 0; display: flex; gap: 8px; }
+
+.pop {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 40;
+  min-width: 232px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius-card);
+  background: var(--paper);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06), 0 12px 32px rgba(0,0,0,0.16);
+}
+.pop[hidden] { display: none; }
+.pop-tempo { display: flex; align-items: center; gap: 10px; }
+.pop-tempo .stepper-range { flex: 1 1 auto; min-width: 0; }
+.pop-row { display: flex; align-items: center; gap: 10px; }
+.pop-row .stepper-range { flex: 1 1 auto; min-width: 0; }
+.pop-label { font-size: var(--type-lead); font-weight: var(--weight-prominent); color: var(--ink); }
 
 /* Regenerate — same rounded-icon family as the transport, set in paper-dim. */
 .tb-btn {
