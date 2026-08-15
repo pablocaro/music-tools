@@ -97,7 +97,7 @@
   // What a built-in leaves alone would otherwise be whatever the last drill
   // happened to use, so each one carries the same five fields a saved preset
   // does — the alphabet it's named for, plus the neutral staff to read it on.
-  var BUILTIN_DEFAULTS = { musicality: "0", key: "major_0-0", clef: "treble", timesig: "4/4", measures: "16" };
+  var BUILTIN_DEFAULTS = { musicality: "0", progression: "I-IV-V-I", key: "major_0-0", clef: "treble", timesig: "4/4", measures: "16" };
 
   // Arpeggios is the one drill the alphabet alone can't describe: chord-shaped
   // intervals still wander off the chord unless every note is asked to be an
@@ -251,6 +251,9 @@
     if (p.timesig != null) timesigEl.value = p.timesig;
     if (p.measures != null) measuresEl.value = String(Math.max(8, parseInt(p.measures, 10) || 16));
     if (p.musicality != null) musicalityEl.value = p.musicality;
+    // Validated through progressionDef: an id saved under the other mode falls
+    // back to this mode's first entry instead of sticking as a dead string.
+    if (p.progression != null) progressionEl.value = progressionDef(p.progression).id;
     // Musicality and chord-following used to be two dials. A preset saved
     // then carries both; the survivor is whichever was set higher, so an old
     // "follow the chords hard, never mind the phrasing" preset still reads as
@@ -269,6 +272,7 @@
     if (p.hideLead != null) hideLeadEl.value = p.hideLead;
     if (p.hideUnit != null) hideUnitEl.dataset.unit = p.hideUnit;
     if (p.showChunks != null) showChunksEl.checked = p.showChunks;
+    if (p.showChords != null) showChordsEl.checked = p.showChords;
   }
 
   // What a *preset* defines: the melodic material itself — which intervals,
@@ -290,6 +294,7 @@
       // they were just never being written, so saving quietly dropped them.
       beats: readBeatIds(),
       musicality: musicalityEl.value,
+      progression: progressionEl.value,
       key: currentKeyCode(),
       clef: clefEl.value,
       timesig: timesigEl.value,
@@ -311,6 +316,7 @@
     cfg.hideLead = hideLeadEl.value;
     cfg.hideUnit = hideUnitEl.dataset.unit || "beats";
     cfg.showChunks = showChunksEl.checked;
+    cfg.showChords = showChordsEl.checked;
     return cfg;
   }
 
@@ -426,6 +432,7 @@
   var clefEl       = document.getElementById("clef");
   var timesigEl    = document.getElementById("timesig");
   var musicalityEl    = document.getElementById("musicality");
+  var progressionEl   = document.getElementById("progression");
 
   // The scale key as a "<mode>_<symbol>-<acc>" code (the form makeScaleKey reads).
   function currentKeyCode() { return keyModeEl.value + "_" + keyTonicEl.value; }
@@ -439,6 +446,7 @@
   }
   var beatsEl      = document.getElementById("beats");
   var showChunksEl = document.getElementById("show-chunks");
+  var showChordsEl = document.getElementById("show-chords");
   var generateBtn  = document.getElementById("generate");
   var errorEl      = document.getElementById("error-msg");
   var sheetEl      = document.getElementById("sheet");
@@ -1005,9 +1013,32 @@
   // rather than a cadence. Until the app can raise that 7th (it would be the
   // first accidental it generates), minor gets a progression that means to stay
   // inside the key signature: i – VI – VII – i, the natural-minor cadence.
+  // Each entry's roots are scale degrees; the engine builds the triads
+  // diatonically, so qualities (major/minor/diminished) come free from the
+  // mode. Minor stays inside the key signature until accidentals exist —
+  // its "V" chords are really v, which is why the Andalusian entry sounds
+  // modal for now. Twelve-bar blues waits for the flat 7.
   var PROGRESSIONS = {
-    major: [0, 3, 4, 0],   // I – IV – V   – I
-    minor: [0, 5, 6, 0]    // i – VI – VII – i
+    major: [
+      { id: "I-IV-V-I",   roots: [0, 3, 4, 0] },
+      { id: "I-V-vi-IV",  roots: [0, 4, 5, 3] },
+      { id: "ii-V-I",     roots: [1, 4, 0] }
+    ],
+    minor: [
+      { id: "i-VI-VII-i", roots: [0, 5, 6, 0] },
+      { id: "i-VII-VI-V", roots: [0, 6, 5, 4] }   // Andalusian
+    ]
+  };
+  function progressionList() { return PROGRESSIONS[keyModeEl.value] || PROGRESSIONS.major; }
+  function progressionDef(id) {
+    var list = progressionList();
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return list[0];   // an id from the other mode falls back to the mode's first
+  }
+  // Triad quality by degree, per mode — for the chord symbols above the staff.
+  var TRIAD_QUALITY = {
+    major: ["", "m", "m", "", "", "m", "\u00b0"],
+    minor: ["m", "\u00b0", "", "m", "m", "", ""]
   };
 
   function buildOptions() {
@@ -1031,9 +1062,11 @@
       beatPatterns: buildBeatPatterns(),
       musicality: (+musicalityEl.value) / 100,
       pulseBeats: pulseBeats(),
-      progression: PROGRESSIONS[keyModeEl.value] || PROGRESSIONS.major
+      progression: progressionDef(progressionEl.value).roots
     };
   }
+
+  var lastFifths = 0;   // <fifths> from the last exported score
 
   function generate(after) {
     clearError();
@@ -1043,6 +1076,8 @@
       currentSheet = plugin.generate();
       var xml = applyClefToXml(new XMLSourceExporter().export(currentSheet));
       if (timeSigDef(timesigEl.value).compound) xml = applyBeamsToXml(xml);
+      var fm = /<fifths>(-?\d+)<\/fifths>/.exec(xml);
+      lastFifths = fm ? +fm[1] : 0;   // the chord names spell themselves from this
       osmd.load(xml).then(function () {
         renderLoaded();
         persistSession();
@@ -1073,7 +1108,7 @@
   // go, and putting a value back restores the name instead of stranding it on
   // "Custom". Only fields the preset actually defines are compared, mirroring
   // applyPreset — so a preset saved before a field existed still matches.
-  var PRESET_FIELDS = ["musicality", "key", "clef", "timesig", "measures"];
+  var PRESET_FIELDS = ["musicality", "progression", "key", "clef", "timesig", "measures"];
 
   function presetMatchesPanel(p) {
     var cur = readPresetConfig();
@@ -1124,6 +1159,7 @@
       if (w > avail + 1) { osmd.zoom *= (avail / w) * 0.99; osmd.render(); }
     }
     drawOverlay();
+    drawChordOverlay();
     applyObBlank();     // a fresh SVG has fresh ink; re-empty it if onboarding is up
     updateHeader();
     computeLines();
@@ -1141,6 +1177,9 @@
   var lineYs = [];               // {top, bottom} of each system, in content-Y
   var lastScrollTarget = -1;     // de-dupe scrollTo during a smooth scroll
   var TOP_PAD = 14;              // breathing room above the line scrolled to top
+  var CHORD_LIFT = 22;           // a line's band grows upward by this when chord
+                                 // names are on — the label strip is part of the
+                                 // line, or the paper covers mask it
   var LINE_OVERLAP = 6;          // px a measure must overlap a system's band to join it
   var coverTopEl = document.getElementById("cover-top");
   var coverBotEl = document.getElementById("cover-bot");
@@ -1182,6 +1221,12 @@
         lineYs[li].bottom = Math.max(lineYs[li].bottom, bot);
       }
     });
+    // With chord names on, each line's band grows upward to include its label
+    // strip — otherwise the paper cover that masks partial lines masks the
+    // first system's labels too.
+    if (document.getElementById("chord-overlay")) {
+      lineYs.forEach(function (l) { l.top = Math.max(0, l.top - CHORD_LIFT); });
+    }
   }
 
   // The system the cursor currently sits on, as an index into lineYs.
@@ -1427,10 +1472,71 @@
   // note it starts on goes, so the highlight retreats with the notes it marks.
   function syncHighlights(upto) {
     var ov = document.getElementById("chunk-overlay");
-    if (!ov) return;
-    ov.querySelectorAll("rect").forEach(function (r) {
+    if (ov) ov.querySelectorAll("rect").forEach(function (r) {
       r.style.visibility = (+r.dataset.note < upto) ? "hidden" : "";
     });
+    // Chord names retreat with the curtain too, keyed on their bar's first note.
+    var co = document.getElementById("chord-overlay");
+    if (co) co.querySelectorAll("text").forEach(function (x) {
+      x.style.visibility = (+x.dataset.note < upto) ? "hidden" : "";
+    });
+  }
+
+  // The name of the chord a bar sits on: letter from tonic + degree, accidental
+  // from the key signature the exporter already computed (<fifths>), quality
+  // from the mode's diatonic triad table. No note-reading needed.
+  var SHARP_ORDER = [3, 0, 4, 1, 5, 2, 6];   // F C G D A E B, as letter indices
+  function chordName(rootDegree) {
+    var LETTERS = ["C", "D", "E", "F", "G", "A", "B"];
+    var tonicSym = parseInt(keyTonicEl.value, 10) || 0;     // "5-0" -> 5 (A)
+    var li = (tonicSym + rootDegree) % 7;
+    var acc = "";
+    if (lastFifths > 0 && SHARP_ORDER.indexOf(li) < lastFifths) acc = "\u266f";
+    if (lastFifths < 0 && SHARP_ORDER.slice().reverse().indexOf(li) < -lastFifths) acc = "\u266d";
+    var q = (TRIAD_QUALITY[keyModeEl.value] || TRIAD_QUALITY.major)[rootDegree] || "";
+    return LETTERS[li] + acc + q;
+  }
+
+  // Whether the names should be on screen at all: the toggle owns intent, and
+  // the dial owns relevance — with the harmony off, naming chords the line is
+  // ignoring would be labelling something that isn't happening.
+  function chordNamesActive() {
+    return showChordsEl.checked && (+musicalityEl.value) > 0;
+  }
+
+  function drawChordOverlay() {
+    var old = document.getElementById("chord-overlay");
+    if (old) old.remove();
+    if (!chordNamesActive()) return;
+    var notes = collectNotes();
+    if (!notes.length) return;
+    var roots = progressionDef(progressionEl.value).roots;
+
+    var cRect = sheetEl.getBoundingClientRect();
+    var scrollLeft = sheetEl.scrollLeft || 0, scrollTop = sheetEl.scrollTop || 0;
+    var NS = "http://www.w3.org/2000/svg";
+    var overlay = document.createElementNS(NS, "svg");
+    overlay.setAttribute("id", "chord-overlay");
+    overlay.setAttribute("width", sheetEl.scrollWidth);
+    overlay.setAttribute("height", sheetEl.scrollHeight);
+
+    var seen = {};
+    notes.forEach(function (n) {
+      if (n.isRest || !n.head || seen[n.measure]) return;   // first sounding note of the bar
+      seen[n.measure] = true;
+      var box = n.head.getBoundingClientRect();
+      var sysBox = n.sys ? n.sys.getBoundingClientRect() : box;
+      var label = document.createElementNS(NS, "text");
+      label.setAttribute("class", "chord-name");
+      label.setAttribute("x", box.left - cRect.left + scrollLeft);
+      // Clamped: the first system sits near the sheet's top edge, and an
+      // unclamped baseline put its labels above the overlay, invisibly.
+      label.setAttribute("y", Math.max(12, sysBox.top - cRect.top + scrollTop - 6));
+      label.dataset.note = n.idx;
+      label.textContent = chordName(roots[n.measure % roots.length]);
+      overlay.appendChild(label);
+    });
+    sheetEl.appendChild(overlay);
   }
 
   // ===========================================================================
@@ -2606,6 +2712,36 @@
     });
   }
 
+  // The progression picker — rebuilt when the mode flips, since each mode has
+  // its own list. Roman-numeral labels are language-neutral.
+  function buildProgressionPills() {
+    var host = document.getElementById("progression-pills");
+    if (!host) return;
+    host.innerHTML = "";
+    progressionList().forEach(function (pr) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "opt";
+      b.textContent = pr.id.replace(/-/g, "\u2013");   // I-IV-V-I -> I–IV–V–I
+      b.dataset.prog = pr.id;
+      b.addEventListener("click", function () {
+        progressionEl.value = pr.id;
+        syncProgressionPills();
+        generate();
+      });
+      host.appendChild(b);
+    });
+    syncProgressionPills();
+  }
+  function syncProgressionPills() {
+    var host = document.getElementById("progression-pills");
+    if (!host) return;
+    var cur = progressionDef(progressionEl.value).id;
+    Array.prototype.forEach.call(host.children, function (b) {
+      b.classList.toggle("on", b.dataset.prog === cur);
+    });
+  }
+
   function buildLangPills() {
     var host = document.getElementById("lang-pills");
     if (!host) return;
@@ -2701,6 +2837,8 @@
     modeCycleEl.addEventListener("click", function () {
       var i = MODES.indexOf(keyModeEl.value);
       keyModeEl.value = MODES[(i + 1) % MODES.length];
+      progressionEl.value = progressionDef(progressionEl.value).id;   // remap across modes
+      buildProgressionPills();
       syncKeyRow(); generate();
     });
     clefCycleEl.addEventListener("click", function () {
@@ -2800,6 +2938,18 @@
       else syncHide();
       persistSession();
     });
+
+    // --- chord names ---
+    var chordsBtnEl = document.getElementById("chords-toggle");
+    function syncChordsBtn() { chordsBtnEl.textContent = showChordsEl.checked ? t("val.on") : t("val.off"); }
+    chordsBtnEl.addEventListener("click", function () {
+      showChordsEl.checked = !showChordsEl.checked;
+      syncChordsBtn();
+      drawChordOverlay();
+      if (session) syncHighlights(Math.max(0, session.hideState));
+      persistSession();
+    });
+    syncChordsBtn();
 
     // --- chunks + cursor ---
     chunksBtnEl.addEventListener("click", function () {
@@ -2999,6 +3149,7 @@
   buildTimesigPills();
   buildLangPills();
   buildInstrumentPills();
+  buildProgressionPills();
   wirePanel();
   wireHelp();
   setWeights(BUILTIN["thirds drill"]);

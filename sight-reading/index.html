@@ -109,6 +109,8 @@
              the bounds live in one place, hideMaxN(). -->
         <input type="hidden" id="hide-lead" value="0">
         <input type="checkbox" id="show-chunks">
+        <input type="hidden" id="progression" value="I-IV-V-I">
+        <input type="checkbox" id="show-chords" checked>
         <select id="instrument">
           <option data-i18n="inst.organ" value="organ">Organ</option>
           <option data-i18n="inst.piano" value="piano" selected>Piano</option>
@@ -201,6 +203,9 @@
             <div class="sec-row">
               <input type="range" class="stepper-range bare-range" id="musicality" min="0" max="100" step="5" value="0" aria-label="Musicality" data-i18n-aria="aria.musicality">
             </div>
+            <!-- Which chords the bars sit on, once the dial brings the harmony
+                 in. Roman numerals are language-neutral, so no i18n keys. -->
+            <div class="sec-row" id="progression-pills"></div>
           </section>
         </div>
       </div>
@@ -220,6 +225,13 @@
               </span>
             </div>
             <button id="hide-unit" class="cycle" type="button" aria-label="Hide ahead unit" data-i18n-aria="aria.hideUnit" data-i18n="val.beats">Beats</button>
+          </div>
+        </section>
+
+        <section class="sec sec-chordnames">
+          <h2 class="sec-h" data-i18n="sec.chordNames">Chord Names</h2>
+          <div class="sec-row">
+            <button id="chords-toggle" class="cycle" type="button" aria-label="Show chord names" data-i18n-aria="aria.chordNames" data-i18n="val.on">On</button>
           </div>
         </section>
 
