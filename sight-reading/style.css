@@ -332,6 +332,7 @@ button.playing svg.state-alt { display: block; }
    wrap to their own line on their own. */
 .sec-hide       { flex: 1 1 240px; }
 .sec-chordnames { flex: 1 1 180px; }
+.sec-ramp       { flex: 1 1 140px; }
 .sec-step       { flex: 1 1 380px; }
 .sec-chunks     { flex: 1 1 260px; }
 

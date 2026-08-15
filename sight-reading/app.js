@@ -289,6 +289,7 @@
     if (p.hideUnit != null) hideUnitEl.dataset.unit = p.hideUnit;
     if (p.showChunks != null) showChunksEl.checked = p.showChunks;
     if (p.showChords != null) showChordsEl.checked = p.showChords;
+    if (p.ramp != null) rampOnEl.checked = p.ramp;
   }
 
   // What a *preset* defines: the melodic material itself — which intervals,
@@ -334,6 +335,7 @@
     cfg.hideUnit = hideUnitEl.dataset.unit || "beats";
     cfg.showChunks = showChunksEl.checked;
     cfg.showChords = showChordsEl.checked;
+    cfg.ramp = rampOnEl.checked;
     return cfg;
   }
 
@@ -465,6 +467,7 @@
   var beatsEl      = document.getElementById("beats");
   var showChunksEl = document.getElementById("show-chunks");
   var showChordsEl = document.getElementById("show-chords");
+  var rampOnEl     = document.getElementById("ramp-on");
   var generateBtn  = document.getElementById("generate");
   var errorEl      = document.getElementById("error-msg");
   var sheetEl      = document.getElementById("sheet");
@@ -2054,6 +2057,14 @@
   // playing flag set, generate a fresh line, and play it with a fresh count-in
   // so every new line gets its own countdown, until the user pauses or resets.
   function advanceAndPlay() {
+    // Letting-go, v1: finishing a line is the only signal the app has, so the
+    // ramp spends it here — one more unit of curtain per completed line, up to
+    // the ceiling. It widens Hide Ahead when it's on; it never switches it on,
+    // so the pressure is something you opted into twice.
+    if (rampOnEl.checked && hideBehindEl.checked) {
+      var cur = parseInt(hideValEl.dataset.n, 10) || 0;
+      if (cur < hideMaxN()) setHide(cur + 1);
+    }
     if (session && session.rafId) cancelAnimationFrame(session.rafId);
     rafId = null;
     pinTop = true;   // hold the top through the re-render + count-in of the fresh line
@@ -2483,7 +2494,7 @@
   // guide top to bottom walks the panel top to bottom. Copy lives in i18n.js.
   // ===========================================================================
   var HELP_SECTIONS = ["exercise", "transport", "presets", "tempo", "accomp",
-                       "hide", "rhythm", "step", "notes", "musicality",
+                       "hide", "ramp", "rhythm", "step", "notes", "musicality",
                        "chroma", "chunks", "staff"];
 
   function buildHelpBody() {
@@ -3057,6 +3068,16 @@
       else syncHide();
       persistSession();
     });
+
+    // --- ramp ---
+    var rampBtnEl = document.getElementById("ramp-toggle");
+    function syncRampBtn() { rampBtnEl.textContent = rampOnEl.checked ? t("val.on") : t("val.off"); }
+    rampBtnEl.addEventListener("click", function () {
+      rampOnEl.checked = !rampOnEl.checked;
+      syncRampBtn();
+      persistSession();
+    });
+    syncRampBtn();
 
     // --- chord names ---
     var chordsBtnEl = document.getElementById("chords-toggle");

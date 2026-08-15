@@ -118,8 +118,9 @@ controls ──► OSME generates a sheet ──► export MusicXML ──► OS
 
 ## Roadmap
 
-- **Letting-go mode** — Hide Ahead is the first half of this; what's missing is
-  pressure that adapts (speeding up, or widening the curtain, as you succeed).
+- **Letting-go mode** — Hide Ahead plus the Ramp cover the time-based half;
+  what's missing is pressure that responds to *how you're doing*, which needs
+  an input the app doesn't have yet (tap-along scoring is the likely first).
 - Melodic minor ascending; 12-bar blues once the harmony can ask for a flat 7.
 - Rhythm chunks marked below the staff.
 - Interval/figure targeting tied to weak spots.

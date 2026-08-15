@@ -79,7 +79,7 @@ low = leading tones, higher = passing chromatics. The Notes grid governs
 scale degrees; accidentals ride along with their degree. Notation is free —
 emit `<alter>` and OSMD draws the sharp from the key signature.
 
-### 3 · Rhythm depth
+### 3 · Rhythm depth — DONE
 - Triplets: durations already work ([1,12]); add the `<time-modification>`
   XML pass so brackets and the 3 render. Same technique as the 6/8 beams.
 - Weighted figures: a cell's tap cycles off → ✓ → ×2 → ×4, mirroring the
@@ -93,7 +93,7 @@ emit `<alter>` and OSMD draws the sharp from the key signature.
   counterpart to the musicality dial, and the thing that stops generated
   lines sounding generated.
 
-### 5 · The feedback loop (needs a decision)
+### 5 · The feedback loop — ramp DONE; the rest needs a decision
 Adaptive letting-go and weak-spot targeting both need the app to know how
 you're doing, and it currently has no input at all. Options, cheapest first:
 time-based ramping (no input; a workout, not an assessment), tap-along
