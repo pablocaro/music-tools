@@ -221,6 +221,44 @@
     return p.map(function (e) { return { n: e.n, d: e.d, rest: !!e.rest }; });
   }
 
+  // ---------------------------------------------------------------------------
+  // Rhythmic memory. Melody got phrasing from the musicality dial long ago;
+  // rhythm was still a bag of cells, every beat an independent draw, which is
+  // why generated lines sounded generated — real music states a rhythmic idea
+  // and repeats it, varied. So a bar drawn at a phrase start is remembered,
+  // and the bars after it reuse the idea in proportion to the same dial,
+  // usually with one beat's cell swapped for a fresh one of the same length
+  // (the "varied" half of "repeat it, varied").
+  // ---------------------------------------------------------------------------
+  function copyCell(cell) { return cell.map(function (e) { return { n: e.n, d: e.d, rest: !!e.rest }; }); }
+  function cellBeats(cell) {
+    var t = 0;
+    for (var i = 0; i < cell.length; i++) t += cell[i].n / cell[i].d;
+    return t;
+  }
+
+  function drawFreshBar(patterns, barBeats) {
+    var cells = [], rem = barBeats;
+    while (rem > 1e-6) {
+      var c = nextBeat(patterns, rem);
+      cells.push(c);
+      rem -= cellBeats(c);
+    }
+    return cells;
+  }
+
+  // Swap one cell for a fresh draw of the same length, so the bar still sums.
+  function varyBar(cells, patterns) {
+    var i = Math.floor(Math.random() * cells.length);
+    var target = cellBeats(cells[i]);
+    var fits = (patterns || []).filter(function (pt) { return Math.abs(patternTotal(pt) - target) < 1e-6; });
+    if (fits.length) {
+      var pick = fits[Math.floor(Math.random() * fits.length)];
+      cells[i] = pick.map(function (e) { return { n: e.n, d: e.d, rest: !!e.rest }; });
+    }
+    return cells;
+  }
+
   // Diatonic ladder: position -> octave (per key) + displayed semitone height,
   // so "lowest / highest note" bounds resolve correctly in any key.
   function buildLadder(scaleKey) {
@@ -280,7 +318,28 @@
     }
     if (!this._beatQueue || this._beatQueue.length === 0) {
       var remaining = currentMeasure.Duration.RealValue - startPosition.RealValue;
-      this._beatQueue = nextBeat(this.options.beatPatterns, remaining);
+      if (startPosition.RealValue === 0) {
+        // A whole bar is drawn at once so its rhythm can be remembered and
+        // reused. Phrase starts (every 4th bar) state the idea; the bars after
+        // them echo it in proportion to the musicality dial, usually with one
+        // cell swapped for a fresh one of the same length.
+        var mm = this.options.musicality || 0;
+        var phrasePosR = (this._measureIdx || 0) % 4;
+        var cells;
+        if (mm > 0 && phrasePosR > 0 && this._motifCells && Math.random() < mm * 0.85) {
+          cells = this._motifCells.map(copyCell);
+          if (Math.random() < 0.4) cells = varyBar(cells, this.options.beatPatterns);
+        } else {
+          cells = drawFreshBar(this.options.beatPatterns, remaining);
+          if (mm > 0 && phrasePosR === 0) this._motifCells = cells.map(copyCell);
+        }
+        this._beatQueue = [];
+        for (var ci = 0; ci < cells.length; ci++) this._beatQueue = this._beatQueue.concat(cells[ci]);
+      } else {
+        // Mid-bar refills keep the old per-beat draw (only reachable if a cell
+        // ran short, e.g. the fallback quarter).
+        this._beatQueue = nextBeat(this.options.beatPatterns, remaining);
+      }
     }
     var ev = this._beatQueue.shift();
     var duration = new O.Fraction(ev.n, ev.d);
