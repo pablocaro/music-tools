@@ -82,6 +82,20 @@
   --glyph-md: 21px;
   --glyph-lg: 26px;
 
+  /* Floating surfaces — anything that lifts off the paper. The radius steps
+     down with the surface: a full sheet reads as a card, a popover as a chip
+     of one, and the shadow softens to match. Named for what they are rather
+     than by a number, like every other measure in here. */
+  --radius-sheet: 20px;                                            /* help / onboarding card */
+  --radius-card:  16px;                                            /* popovers hung off a button */
+  --radius-menu:  12px;                                            /* a menu opened from inside one */
+  --shadow-sheet: 0 18px 60px rgba(0, 0, 0, 0.22);
+  --shadow-pop:   0 1px 2px rgba(0, 0, 0, 0.06), 0 12px 32px rgba(0, 0, 0, 0.16);
+  --pop-w:   248px;                                                /* popover min width */
+  --pop-pad: 16px;
+  --pop-gap: 12px;                                                 /* between a popover's rows */
+  --tb-gap:  12px;                                                 /* between the header's action buttons */
+
   /* How long the pointer must rest on a control before it names itself, so
      crossing the transport doesn't set off a run of tooltips. Leaving hides
      it with no delay at all. */
@@ -133,7 +147,12 @@ body {
 .controlbar {
   flex-shrink: 0;
   display: grid;
-  grid-template-columns: 1fr auto 1fr;   /* settings | centered trio | balance */
+  /* settings | centred trio | deliberately empty. The third column carries no
+     button any more — the sound toggles moved to the header — but it stays in
+     the grid so the trio centres on the viewport rather than on the space left
+     of it. A lone icon at one edge reads as anchored; a trio drifting off
+     centre reads as broken. */
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   padding: 14px 24px 22px;
   background: transparent;
@@ -306,19 +325,32 @@ button.playing svg.state-alt { display: block; }
 /* A full-width section whose control is a bare slider stops at one column's
    width — stretched across the whole panel it reads as a scrollbar, and the
    travel becomes far finer than the setting warrants. */
-.sec-musicality .sec-row { max-width: var(--col-max); }
+.sec-musicality .sec-row,
+.sec-chroma .sec-row { max-width: var(--col-max); }
 
 /* Band pairing. Sections declare the width they want to keep; below it they
    wrap to their own line on their own. */
-.sec-tempo      { flex: 3 1 320px; }
-.sec-accomp     { flex: 2 1 260px; }
-.sec-hide       { flex: 2 1 240px; }
+.sec-hide       { flex: 1 1 240px; }
+.sec-chordnames { flex: 1 1 180px; }
+.sec-ramp       { flex: 1 1 140px; }
 .sec-step       { flex: 1 1 380px; }
-.sec-notes      { flex: 1 1 340px; }
-.sec-musicality { flex: 3 1 320px; }
-.sec-chunks     { flex: 1 1 220px; }
+.sec-chunks     { flex: 1 1 260px; }
+
+/* Notes and How Musical share one column beside the interval matrix. The
+   column takes the flex width; the sections inside it stack at their natural
+   height instead of stretching to fill it. */
+.sec-col {
+  flex: 1 1 340px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.sec-col > .sec { flex: 0 0 auto; }
 .sec-key        { flex: 1 1 300px; }
 .sec-measures   { flex: 1 1 260px; }
+.sec-instrument { flex: 3 1 420px; }
+.sec-language   { flex: 1 1 160px; }
 
 /* Scrim: dims the music behind the open pocket; tap it to close. */
 .scrim {
@@ -707,10 +739,46 @@ button.secondary {
 .cell input[type="range"] { flex: 1; }
 
 /* Rhythm figures: a flat grid of notation cells toggled on/off, name on hover */
+/* Figures are grouped by whether they stay inside a beat or reach across one.
+   The heading is dropped when only one group is on screen — it would be naming
+   the only thing there. */
+.fig-group + .fig-group { margin-top: 14px; }
+.fig-group[hidden] { display: none; }
+.fig-h {
+  font-size: var(--type-caption);
+  font-weight: var(--weight-prominent);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.beats.one-group .fig-h { display: none; }
+
+/* The bowing row sits under the figure grid: a caption-styled label, then the
+   pills. The label reuses the group-heading style — it names a set of options
+   the same way BASIC and MORE do. */
+.bowing-row { align-items: center; gap: 12px; margin-top: 2px; }
+.bowing-row .fig-h { margin-bottom: 0; }
+#bowing-pills { display: flex; gap: 8px; }
+
 .fig-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));
   gap: 6px;
+}
+
+/* A two-beat figure takes two cells' worth of width, so how wide it sits in the
+   grid is how long it lasts in the bar. */
+.fig-cell.wide { grid-column: span 2; }
+
+/* A figure's weight badge — ×2 / ×4 in the cell's corner. Weight 1 shows
+   nothing: the lit cell already says "in play". */
+.fig-cell .wt {
+  position: absolute;
+  top: 3px; right: 6px;
+  font-size: var(--type-micro);
+  font-weight: var(--weight-strong);
+  pointer-events: none;
 }
 
 .fig-cell {
@@ -891,6 +959,77 @@ button.secondary {
 #sh-title { font-size: var(--type-title); font-weight: var(--weight-strong); color: var(--ink); letter-spacing: 0.2px; line-height: 1.15; }
 #sh-sub   { font-size: var(--type-lead); font-weight: var(--weight-prominent); color: var(--muted); margin-top: 5px; }
 
+/* The header's action cluster and the popovers that hang from it. Anchored to
+   the cluster, not the page, so the same rule places them on a phone and a wide
+   window; right-aligned because their owners sit at the right edge. */
+.tb-actions { position: relative; flex-shrink: 0; display: flex; gap: var(--tb-gap); }
+
+.pop {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 40;
+  min-width: var(--pop-w);
+  display: flex;
+  flex-direction: column;
+  gap: var(--pop-gap);
+  padding: var(--pop-pad);
+  border-radius: var(--radius-card);
+  background: var(--paper);
+  box-shadow: var(--shadow-pop);
+}
+.pop[hidden] { display: none; }
+
+/* Tempo leads its panel: it is what the panel is named for and what you opened
+   it to change, so it gets the full width and no label of its own. */
+.pop-tempo { display: flex; align-items: center; gap: 10px; }
+.pop-tempo .stepper-range { flex: 1 1 auto; min-width: 0; }
+
+/* A menu opened from a control inside a popover — one more step down the same
+   surface family. It hangs off its trigger's row rather than the popover, so it
+   lands under the pill that opened it whatever else the panel is showing. */
+.menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 150px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  border-radius: var(--radius-menu);
+  background: var(--paper);
+  box-shadow: var(--shadow-pop);
+}
+.menu[hidden] { display: none; }
+.menu-item {
+  appearance: none;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 12px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--type-label);
+  font-weight: var(--weight-prominent);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.menu-item:hover { background: var(--ctl-fill); }
+/* Selected wears the same tint every other chosen control in the app does. */
+.menu-item.on { background: var(--ctl-on-tint); color: var(--ctl-on); }
+
+/* The row that owns a menu anchors it. */
+.pop-row { position: relative; }
+
+/* Every other row is label-left, control-right, so the controls stack into one
+   clean right-hand edge however long the labels run. */
+.pop-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pop-row .stepper-range { flex: 0 1 140px; min-width: 0; }
+.pop-label { font-size: var(--type-label); font-weight: var(--weight-prominent); color: var(--ink); }
+
 /* Regenerate — same rounded-icon family as the transport, set in paper-dim. */
 .tb-btn {
   flex-shrink: 0;
@@ -908,6 +1047,14 @@ button.secondary {
 }
 .tb-btn:hover { background: #e7e7ec; opacity: 1; }
 .tb-btn:active { transform: scale(0.94); opacity: 1; }
+
+/* Chord names above the staff — drawn on their own overlay, positioned off
+   the engraved geometry the way the chunk blocks are. */
+#chord-overlay { position: absolute; top: 0; left: 0; pointer-events: none; }
+#chord-overlay .chord-name {
+  font: var(--weight-prominent) 13px system-ui, sans-serif;
+  fill: var(--muted);
+}
 
 /* Chunk highlighter. Multiply is how pigment actually behaves: the pale block
    darkens white paper but leaves black notation and the staff lines reading
@@ -1059,8 +1206,8 @@ button.secondary {
     transform: translate(-50%, -50%);
     width: min(600px, calc(100vw - 64px));
     max-height: 82dvh;
-    border-radius: 20px;
-    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.22);
+    border-radius: var(--radius-sheet);
+    box-shadow: var(--shadow-sheet);
   }
 }
 
@@ -1167,7 +1314,7 @@ button.secondary {
     max-height: 86dvh;
     background: var(--paper);
     border-radius: 22px;
-    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.22);
+    box-shadow: var(--shadow-sheet);
     padding: 34px 34px 26px;
   }
 }

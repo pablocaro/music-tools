@@ -49,7 +49,8 @@ controls ──► OSME generates a sheet ──► export MusicXML ──► OS
   Tick it to allow the move, and slide *less → more* to set how often it turns
   up. Presets save to the browser (`localStorage`).
 - **Rhythm — the figures:** the meter (2/4, 3/4, 4/4, 6/8) plus which note
-  values are in play. 6/8 swaps in a compound-time figure set built on the
+  values are in play — and how often: a cell's tap cycles off → on → ×2 → ×4,
+  so you can drill dotted rhythms *mostly* rather than *only*. 6/8 swaps in a compound-time figure set built on the
   dotted-quarter pulse. Two units are in play throughout the code and they are
   worth keeping straight: the clock counts *quarter notes* everywhere, which is
   what makes a tempo mean the same speed in every meter, while a *beat* is the
@@ -72,6 +73,13 @@ controls ──► OSME generates a sheet ──► export MusicXML ──► OS
   So the same dial position means different things depending on the alphabet: a
   chord-shaped one comes out as arpeggios, a stepwise one as a scale study that
   lands on the chord at the beats.
+- **How chromatic?** — 0 stays in the key. Higher, chromatic passing tones
+  fill whole steps and neighbour notes dip a semitone and return. Minor keys
+  raise their 7th in dominant bars regardless — that one is what makes a
+  cadence lean, not an option.
+- **Follow the chords:** pick the progression (roman-numeral pills under the
+  musicality dial), and the bar-by-bar chord names draw above the staff while
+  the harmony is in play.
 - **Hide Ahead:** clears the page behind you to force reading forward. The unit
   sets two things at once — how far ahead the curtain sits, *and* how big a
   block goes at a time. Beats clears a beat at a time, Measures clears a bar.
@@ -92,29 +100,27 @@ controls ──► OSME generates a sheet ──► export MusicXML ──► OS
 
 ## Known limitations
 
-- Rhythm figures are equally weighted (on/off), not yet probability-weighted.
 - The tempo number is a quarter note in every meter, so 6/8 at 80 runs at 80
   quarters rather than the 80 dotted quarters its tempo marking would imply.
   The click and Hide Ahead both follow the felt pulse (two to a 6/8 bar); only
   the tempo number itself still counts quarters.
-- One progression per mode, not selectable.
+- Progressions are selectable per mode but fixed in content; 12-bar blues
+  still waits on a flat 7 the harmony layer can ask for.
 - Chord anchoring has no lookahead: it prefers a chord tone on the beat it is
   currently placing, but never sets up the approach a note early. With a
   stepwise alphabet that caps how often the beats can land on the chord, since
   no step leads from one chord tone to another (measured: ~62% of beats).
-- Everything generated is diatonic — the app has no way to write an accidental
-  yet. That's why minor keys cadence i–VI–VII–i: a true V would need the 7th
-  raised, and the raised 7th isn't a position on the diatonic ladder.
-- "How musical?" is only half meter-aware. Its chord anchoring follows the felt
-  pulse correctly, but two phrasing biases still assume a four-quarter bar: the
-  cadence fires in the "second half" of a bar hardcoded as beat 2, and the
-  contour arch divides the bar by 4. Both land early in 3/4 and 6/8.
+- Accidentals are figures, not free pitches: the raised 7th in minor dominant
+  bars, chromatic passing tones and chromatic neighbours ("How chromatic?").
+  Ascending melodic minor (raised 6th+7th outside dominant bars) isn't there
+  yet, and neither are double accidentals — a raise that would need one is
+  skipped.
 
 ## Roadmap
 
-- **Letting-go mode** — Hide Ahead is the first half of this; what's missing is
-  pressure that adapts (speeding up, or widening the curtain, as you succeed).
-- Accidentals — starting with a real dominant in minor (raise the 7th in V bars).
-- Selectable chord progressions (I–V–vi–IV, ii–V–I, 12-bar blues).
-- Probability-weighted rhythm figures; rhythm chunks marked below the staff.
+- **Letting-go mode** — Hide Ahead plus the Ramp cover the time-based half;
+  what's missing is pressure that responds to *how you're doing*, which needs
+  an input the app doesn't have yet (tap-along scoring is the likely first).
+- Melodic minor ascending; 12-bar blues once the harmony can ask for a flat 7.
+- Rhythm chunks marked below the staff.
 - Interval/figure targeting tied to weak spots.

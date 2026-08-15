@@ -72,6 +72,42 @@
   // of metric position under the chord one after another as the dial climbs.
   function ramp(v, a, b) { return Math.max(0, Math.min(1, (v - a) / (b - a))); }
 
+  // ---------------------------------------------------------------------------
+  // Accidentals. The walk stays diatonic — positions are scale degrees and the
+  // interval matrix keeps meaning what it means. An alteration is a decision
+  // made per emitted note, one semitone at most, on top of whatever accidental
+  // the scale tone already carries (so C minor's Bb raised is B natural, and
+  // E minor's D raised is D sharp). Notation is free: the exporter writes the
+  // <alter>, and OSMD decides how to draw it against the key signature.
+  // ---------------------------------------------------------------------------
+  // The bundle doesn't export Pitch or AccidentalEnum, so the class comes from
+  // the instance and the enum values are used numerically — decoded empirically
+  // from F major's tones (naturals carry 2, Bb carries 1) and the semitone
+  // shifts each value produces: SHARP=0, FLAT=1, NONE=2, NATURAL=3. A change
+  // that would need a double accidental is skipped rather than guessed at.
+  var ACC_SHARP = 0, ACC_FLAT = 1, ACC_NONE = 2, ACC_NATURAL = 3;
+  function alterPitch(pitch, dir) {
+    var cur = pitch.Accidental, next = null;
+    if (dir > 0) next = (cur === ACC_NONE || cur === ACC_NATURAL) ? ACC_SHARP
+                      : (cur === ACC_FLAT) ? ACC_NATURAL : null;
+    else         next = (cur === ACC_NONE || cur === ACC_NATURAL) ? ACC_FLAT
+                      : (cur === ACC_SHARP) ? ACC_NATURAL : null;
+    if (next == null) return pitch;
+    var Ctor = pitch.constructor;
+    return new Ctor(pitch.FundamentalNote, pitch.Octave, next);
+  }
+
+  // Semitone gap between two ladder positions — decides whether a chromatic
+  // note can fit between them (only a whole step has room).
+  function semitoneGap(tones, ladder, N, a, b) {
+    function ht(pos) {
+      var d = ((pos % N) + N) % N;
+      var oct = (ladder && ladder.octaveOf[pos] != null) ? ladder.octaveOf[pos] : (BASE_OCTAVE + Math.floor(pos / N));
+      return tones[d].toPitch(oct).getHalfTone();
+    }
+    return Math.abs(ht(a) - ht(b));
+  }
+
   // Like pickDelta, but reweights the candidate moves by musical context, all of
   // it driven by the single `musicality` dial the caller splits into two:
   //
@@ -185,6 +221,44 @@
     return p.map(function (e) { return { n: e.n, d: e.d, rest: !!e.rest }; });
   }
 
+  // ---------------------------------------------------------------------------
+  // Rhythmic memory. Melody got phrasing from the musicality dial long ago;
+  // rhythm was still a bag of cells, every beat an independent draw, which is
+  // why generated lines sounded generated — real music states a rhythmic idea
+  // and repeats it, varied. So a bar drawn at a phrase start is remembered,
+  // and the bars after it reuse the idea in proportion to the same dial,
+  // usually with one beat's cell swapped for a fresh one of the same length
+  // (the "varied" half of "repeat it, varied").
+  // ---------------------------------------------------------------------------
+  function copyCell(cell) { return cell.map(function (e) { return { n: e.n, d: e.d, rest: !!e.rest }; }); }
+  function cellBeats(cell) {
+    var t = 0;
+    for (var i = 0; i < cell.length; i++) t += cell[i].n / cell[i].d;
+    return t;
+  }
+
+  function drawFreshBar(patterns, barBeats) {
+    var cells = [], rem = barBeats;
+    while (rem > 1e-6) {
+      var c = nextBeat(patterns, rem);
+      cells.push(c);
+      rem -= cellBeats(c);
+    }
+    return cells;
+  }
+
+  // Swap one cell for a fresh draw of the same length, so the bar still sums.
+  function varyBar(cells, patterns) {
+    var i = Math.floor(Math.random() * cells.length);
+    var target = cellBeats(cells[i]);
+    var fits = (patterns || []).filter(function (pt) { return Math.abs(patternTotal(pt) - target) < 1e-6; });
+    if (fits.length) {
+      var pick = fits[Math.floor(Math.random() * fits.length)];
+      cells[i] = pick.map(function (e) { return { n: e.n, d: e.d, rest: !!e.rest }; });
+    }
+    return cells;
+  }
+
   // Diatonic ladder: position -> octave (per key) + displayed semitone height,
   // so "lowest / highest note" bounds resolve correctly in any key.
   function buildLadder(scaleKey) {
@@ -244,7 +318,28 @@
     }
     if (!this._beatQueue || this._beatQueue.length === 0) {
       var remaining = currentMeasure.Duration.RealValue - startPosition.RealValue;
-      this._beatQueue = nextBeat(this.options.beatPatterns, remaining);
+      if (startPosition.RealValue === 0) {
+        // A whole bar is drawn at once so its rhythm can be remembered and
+        // reused. Phrase starts (every 4th bar) state the idea; the bars after
+        // them echo it in proportion to the musicality dial, usually with one
+        // cell swapped for a fresh one of the same length.
+        var mm = this.options.musicality || 0;
+        var phrasePosR = (this._measureIdx || 0) % 4;
+        var cells;
+        if (mm > 0 && phrasePosR > 0 && this._motifCells && Math.random() < mm * 0.85) {
+          cells = this._motifCells.map(copyCell);
+          if (Math.random() < 0.4) cells = varyBar(cells, this.options.beatPatterns);
+        } else {
+          cells = drawFreshBar(this.options.beatPatterns, remaining);
+          if (mm > 0 && phrasePosR === 0) this._motifCells = cells.map(copyCell);
+        }
+        this._beatQueue = [];
+        for (var ci = 0; ci < cells.length; ci++) this._beatQueue = this._beatQueue.concat(cells[ci]);
+      } else {
+        // Mid-bar refills keep the old per-beat draw (only reachable if a cell
+        // ran short, e.g. the fallback quarter).
+        this._beatQueue = nextBeat(this.options.beatPatterns, remaining);
+      }
     }
     var ev = this._beatQueue.shift();
     var duration = new O.Fraction(ev.n, ev.d);
@@ -291,8 +386,13 @@
 
         var phrasePos = mi % 4;
         var lastM = (mi === totalM - 1);
-        var cadence = ((phrasePos === 3 || lastM) && beatF >= 2) ? (lastM ? 1.5 : 0.8) : 0;
-        var progress = Math.max(0, Math.min(1, (mi + beatF / 4) / totalM));
+        // The bar's real length, so "second half of the bar" and "how far
+        // through the piece" stop assuming four quarters — hardcoded 2 and /4
+        // made the cadence fire early and the contour arch run fast in 3/4
+        // and 6/8.
+        var barQ = currentMeasure.Duration.RealValue * 4;
+        var cadence = ((phrasePos === 3 || lastM) && beatF >= barQ / 2) ? (lastM ? 1.5 : 0.8) : 0;
+        var progress = Math.max(0, Math.min(1, (mi + beatF / barQ) / totalM));
         var targetP = PMIN + (PMAX - PMIN) * (0.35 + 0.4 * Math.sin(Math.PI * progress));   // gentle arch
         delta = pickMusicalDelta(alpha, {
           phrase: phrase, pull: chord * anchor * PULL_MAX, p: oldP, N: N,
@@ -302,18 +402,64 @@
       } else {
         delta = pickDelta(alpha);
       }
+
+      // -----------------------------------------------------------------------
+      // Chromatic figures. A figure spans two notes — the altered one and its
+      // resolution — so starting one stores an obligation (_forced) that the
+      // next sounding note honours instead of walking. A rest arriving in
+      // between simply drops the obligation: the figure doesn't complete, which
+      // is rare and reads as an ordinary chromatic tone.
+      // -----------------------------------------------------------------------
+      var alterDir = 0;
+      var chroma = this.options.chroma || 0;
+      if (this._forced != null) {
+        delta = this._forced;
+        this._forced = null;
+      } else if (chroma > 0) {
+        if (delta === 0 && Math.random() < chroma * 0.5 && oldP - 1 >= PMIN
+            && semitoneGap(tones, ladder, N, oldP - 1, oldP) === 2) {
+          // Chromatic lower neighbour: instead of repeating the note, dip to
+          // the scale step below raised a semitone (G -> F# -> G), which is the
+          // correct spelling, then the obligation returns us home.
+          delta = -1; alterDir = +1; this._forced = +1;
+        } else if (Math.abs(delta) === 1 && Math.random() < chroma * 0.35
+            && semitoneGap(tones, ladder, N, oldP, oldP + delta) === 2) {
+          // Chromatic passing tone: the chosen step is delayed one slot and the
+          // gap is filled — D -> D# -> E ascending (sharp side), E -> Eb -> D
+          // descending (flat side). Spelled as the old note altered toward the
+          // target, which is the conventional spelling for each direction.
+          this._forced = delta;
+          alterDir = (delta > 0) ? +1 : -1;
+          delta = 0;
+        }
+      }
+
       var np = oldP + delta;
-      if (np > PMAX || np < PMIN) np = oldP - delta; // reflect at edges
+      if (np > PMAX || np < PMIN) { np = oldP - delta; this._forced = null; } // reflect breaks any figure
       if (np > PMAX) np = PMAX;
       if (np < PMIN) np = PMIN;
       this._prevDelta = np - oldP;
       this._p = np;
+      this._alterDir = alterDir;
     }
+    if (makeRest) this._forced = null;   // a rest interrupts a chromatic figure
 
     var p = this._p;
     var degree = ((p % N) + N) % N;
     var octave = (ladder && ladder.octaveOf[p] != null) ? ladder.octaveOf[p] : (BASE_OCTAVE + Math.floor(p / N));
     var pitch = tones[degree].toPitch(octave);
+
+    // The leading tone: in minor, a dominant bar raises its 7th, which is what
+    // turns the diatonic v into a real V and gives the cadence somewhere to
+    // lean. Applied at emission, so it needs no help from the harmony dial.
+    var alt = (!makeRest && this._alterDir) ? this._alterDir : 0;
+    if (!makeRest && !alt && this.options.mode === "minor" && degree === 6) {
+      var prg = this.options.progression || [0, 5, 6, 0];
+      if (prg[(this._measureIdx || 0) % prg.length] === 4) alt = +1;
+    }
+    if (alt) pitch = alterPitch(pitch, alt);
+    this._alterDir = 0;
+
     if (makeRest) { pitch.__rest = true; } // flag carried through to generateEntry
 
     return { Pitch: pitch, Duration: duration };
