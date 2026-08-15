@@ -97,7 +97,7 @@
   // What a built-in leaves alone would otherwise be whatever the last drill
   // happened to use, so each one carries the same five fields a saved preset
   // does — the alphabet it's named for, plus the neutral staff to read it on.
-  var BUILTIN_DEFAULTS = { musicality: "0", progression: "I-IV-V-I", key: "major_0-0", clef: "treble", timesig: "4/4", measures: "16" };
+  var BUILTIN_DEFAULTS = { musicality: "0", progression: "I-IV-V-I", chroma: "0", key: "major_0-0", clef: "treble", timesig: "4/4", measures: "16" };
 
   // Arpeggios is the one drill the alphabet alone can't describe: chord-shaped
   // intervals still wander off the chord unless every note is asked to be an
@@ -254,6 +254,7 @@
     // Validated through progressionDef: an id saved under the other mode falls
     // back to this mode's first entry instead of sticking as a dead string.
     if (p.progression != null) progressionEl.value = progressionDef(p.progression).id;
+    if (p.chroma != null) chromaEl.value = p.chroma;
     // Musicality and chord-following used to be two dials. A preset saved
     // then carries both; the survivor is whichever was set higher, so an old
     // "follow the chords hard, never mind the phrasing" preset still reads as
@@ -295,6 +296,7 @@
       beats: readBeatIds(),
       musicality: musicalityEl.value,
       progression: progressionEl.value,
+      chroma: chromaEl.value,
       key: currentKeyCode(),
       clef: clefEl.value,
       timesig: timesigEl.value,
@@ -433,6 +435,7 @@
   var timesigEl    = document.getElementById("timesig");
   var musicalityEl    = document.getElementById("musicality");
   var progressionEl   = document.getElementById("progression");
+  var chromaEl        = document.getElementById("chroma");
 
   // The scale key as a "<mode>_<symbol>-<acc>" code (the form makeScaleKey reads).
   function currentKeyCode() { return keyModeEl.value + "_" + keyTonicEl.value; }
@@ -1061,6 +1064,8 @@
       rangeMax: bounds.max,
       beatPatterns: buildBeatPatterns(),
       musicality: (+musicalityEl.value) / 100,
+      chroma: (+chromaEl.value) / 100,
+      mode: keyModeEl.value,
       pulseBeats: pulseBeats(),
       progression: progressionDef(progressionEl.value).roots
     };
@@ -1108,7 +1113,7 @@
   // go, and putting a value back restores the name instead of stranding it on
   // "Custom". Only fields the preset actually defines are compared, mirroring
   // applyPreset — so a preset saved before a field existed still matches.
-  var PRESET_FIELDS = ["musicality", "progression", "key", "clef", "timesig", "measures"];
+  var PRESET_FIELDS = ["musicality", "progression", "chroma", "key", "clef", "timesig", "measures"];
 
   function presetMatchesPanel(p) {
     var cur = readPresetConfig();
@@ -2365,7 +2370,7 @@
   // ===========================================================================
   var HELP_SECTIONS = ["exercise", "transport", "presets", "tempo", "accomp",
                        "hide", "rhythm", "step", "notes", "musicality",
-                       "chunks", "staff"];
+                       "chroma", "chunks", "staff"];
 
   function buildHelpBody() {
     var host = document.getElementById("help-body");
@@ -2991,7 +2996,7 @@
   function showError(msg) { errorEl.textContent = msg; errorEl.hidden = false; }
   function clearError() { errorEl.hidden = true; errorEl.textContent = ""; }
 
-  [keyTonicEl, keyModeEl, measuresEl, musicalityEl].forEach(function (el) { el.addEventListener("change", generate); });
+  [keyTonicEl, keyModeEl, measuresEl, musicalityEl, chromaEl].forEach(function (el) { el.addEventListener("change", generate); });
   showChunksEl.addEventListener("change", drawOverlay);
   generateBtn.addEventListener("click", function () { generate(); });
   playBtn.addEventListener("click", function () {

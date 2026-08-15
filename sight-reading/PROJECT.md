@@ -47,27 +47,27 @@ opinionless elements. Three separate bugs came from ignoring this.
 
 Phased so each unblocks the next. ~ one session each unless noted.
 
-### 0 · Groundwork (half a session)
+### 0 · Groundwork — DONE
 - Commit the browser test harnesses as `test/` — they were being rewritten
   from scratch each session, and twice gave false signals.
 - Flip `OB_ALWAYS` so onboarding shows once.
 - Hide Ahead's lead moves out of a range input (see caveat above).
 - The cadence trigger and contour arch still assume a four-quarter bar.
 
-### 0.5 · Instrument onboarding
+### 0.5 · Instrument onboarding — DONE
 "What do you play?" as an onboarding page — melodic instruments plus Other.
 Sets clef and range; stored as an app-level preference that `BUILTIN_DEFAULTS`
 derives its clef from, so clicking a built-in preset stops stomping a
 cellist back into treble. Changeable later from the panel.
 
-### 1 · Harmony you can see
+### 1 · Harmony you can see — DONE (blues waits on the flat 7)
 - Selectable progressions (data + a picker near How Musical?): I–IV–V–I,
   I–V–vi–IV, ii–V–I; i–VI–VII–i, i–VII–VI–V.
 - Chord symbols drawn above the staff, so Follow Chords stops being a
   mystery dial and reading symbols becomes a skill of its own.
 - 12-bar blues waits for accidentals (needs the flat 7).
 
-### 2 · Accidentals (one–two sessions)
+### 2 · Accidentals — DONE except melodic minor (rule 2)
 The structural one. The walk stays diatonic; each note gains an alteration
 (−1/0/+1) chosen by rule:
 1. raised 7th in minor V bars — the leading tone; minor finally cadences

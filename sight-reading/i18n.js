@@ -21,6 +21,7 @@ window.SR_I18N = {
     "sec.step":        "Intervals",
     "sec.notes":       "Notes",
     "sec.musicality":  "How Musical?",
+    "sec.chroma":      "How Chromatic?",
     "sec.chordNames":  "Chord Names",
     "sec.chunks":      "Highlight Patterns",
     "sec.staff":       "Clef & Key",
@@ -96,6 +97,7 @@ window.SR_I18N = {
     "aria.key":          "Key",
     "aria.mode":         "Mode",
     "aria.accidental":   "Accidental",
+    "aria.chroma":       "Chromaticism",
     "aria.chordNames":   "Show chord names",
     "aria.chunks":       "Show chunk highlights",
     "aria.musicality":   "Musicality",
@@ -194,6 +196,8 @@ window.SR_I18N = {
     "help.g.musicality": "How Musical?",
     "help.musicality":  "At zero the line is a plain random walk. Higher, it starts shaping itself — leaps resolve, phrases arch and settle. Past halfway it also begins landing on the bar’s chord: first on downbeats, then on every beat, until a chord-shaped set of intervals comes out as pure arpeggios. What you tick under Intervals decides whether that reads as a scale study or an arpeggio study.",
 
+    "help.g.chroma":    "How Chromatic?",
+    "help.chroma":      "At zero everything stays in the key. Higher, chromatic passing tones start filling whole steps and neighbour notes dip a semitone and return \u2014 the accidentals you actually meet on real pages. Minor keys raise their 7th in dominant bars regardless: that one is what makes a cadence lean.",
     "help.g.chunks":    "Highlight Patterns",
     "help.chunks":      "Highlights the patterns on the staff: cyan for stepwise runs, lime for leaps. Use it to check what your eye is catching, then switch it off and see whether you still catch them.",
 
@@ -236,6 +240,7 @@ window.SR_I18N = {
     "sec.step":        "Intervalos",
     "sec.notes":       "Notas",
     "sec.musicality":  "¿Qué tan musical?",
+    "sec.chroma":      "\u00bfQu\u00e9 tan crom\u00e1tico?",
     "sec.chordNames":  "Nombres de acordes",
     "sec.chunks":      "Resaltar patrones",
     "sec.staff":       "Clave y tonalidad",
@@ -304,6 +309,7 @@ window.SR_I18N = {
     "aria.key":          "Tonalidad",
     "aria.mode":         "Modo",
     "aria.accidental":   "Alteración",
+    "aria.chroma":       "Cromatismo",
     "aria.chordNames":   "Mostrar nombres de acordes",
     "aria.chunks":       "Mostrar patrones",
     "aria.musicality":   "Musicalidad",
@@ -397,6 +403,8 @@ window.SR_I18N = {
     "help.g.musicality": "¿Qué tan musical?",
     "help.musicality":  "En cero la línea es un recorrido al azar. Más arriba empieza a tomar forma: los saltos se resuelven y las frases trazan un arco. Pasada la mitad también empieza a apoyarse en el acorde del compás: primero en el primer tiempo, luego en cada uno, hasta que un conjunto de intervalos con forma de acorde sale como puro arpegio. Lo que marques en Intervalos decide si eso suena a estudio de escalas o de arpegios.",
 
+    "help.g.chroma":    "\u00bfQu\u00e9 tan crom\u00e1tico?",
+    "help.chroma":      "En cero todo queda dentro de la tonalidad. M\u00e1s arriba aparecen notas de paso crom\u00e1ticas entre tonos enteros y bordaduras que bajan medio tono y vuelven \u2014 las alteraciones que de verdad encuentras en una partitura. En menor, el 7\u00ba grado se eleva en los compases de dominante siempre: eso es lo que hace que la cadencia se apoye.",
     "help.g.chunks":    "Resaltar patrones",
     "help.chunks":      "Resalta los patrones sobre el pentagrama: cian para grados conjuntos, verde lima para saltos. Úsalo para comprobar qué está viendo tu ojo, y luego quítalo para ver si los sigues viendo.",
 

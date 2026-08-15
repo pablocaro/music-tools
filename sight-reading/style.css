@@ -325,7 +325,8 @@ button.playing svg.state-alt { display: block; }
 /* A full-width section whose control is a bare slider stops at one column's
    width — stretched across the whole panel it reads as a scrollbar, and the
    travel becomes far finer than the setting warrants. */
-.sec-musicality .sec-row { max-width: var(--col-max); }
+.sec-musicality .sec-row,
+.sec-chroma .sec-row { max-width: var(--col-max); }
 
 /* Band pairing. Sections declare the width they want to keep; below it they
    wrap to their own line on their own. */
