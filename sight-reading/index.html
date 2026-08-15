@@ -107,13 +107,6 @@
              and a whole-number step would round 6/8's dotted-quarter lead away. -->
         <input type="range" id="hide-lead" min="0" max="32" step="0.5" value="0">
         <input type="checkbox" id="show-chunks">
-        <select id="instrument">
-          <option data-i18n="inst.organ" value="organ">Organ</option>
-          <option data-i18n="inst.piano" value="piano" selected>Piano</option>
-          <option data-i18n="inst.marimba" value="marimba">Marimba</option>
-          <option data-i18n="inst.vibraphone" value="vibraphone">Vibraphone</option>
-          <option data-i18n="inst.synth" value="synth">Synth</option>
-        </select>
         <select id="cursor-mode">
           <option value="beat" selected>Beat</option>
           <option value="measure">Measure</option>
@@ -328,7 +321,18 @@
           </div>
           <div class="pop-row">
             <span class="pop-label" data-i18n="lbl.voice">Voice</span>
-            <button id="instrument-cycle" class="cycle" type="button" aria-label="Voice" data-i18n-aria="aria.voice" data-i18n="inst.piano">Piano</button>
+            <!-- A real select rather than a cycle button: five voices meant up to
+                 four taps to reach one, with the list discoverable only by
+                 cycling through it. Everywhere else the panel switches to pills
+                 past three options, but five pills don't fit a popover this
+                 narrow, so this is the one control that shows an OS-drawn list. -->
+            <select id="instrument" class="sel" aria-label="Voice" data-i18n-aria="aria.voice">
+              <option data-i18n="inst.organ" value="organ">Organ</option>
+              <option data-i18n="inst.piano" value="piano" selected>Piano</option>
+              <option data-i18n="inst.marimba" value="marimba">Marimba</option>
+              <option data-i18n="inst.vibraphone" value="vibraphone">Vibraphone</option>
+              <option data-i18n="inst.synth" value="synth">Synth</option>
+            </select>
           </div>
           <!-- The label replaces the speaker glyph that stood in for one when
                these rows had no room for words. -->

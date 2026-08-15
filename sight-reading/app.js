@@ -1957,7 +1957,6 @@
   var timesigPillsEl = document.getElementById("timesig-pills");
   var hideUnitEl   = document.getElementById("hide-unit");
   var hideValEl    = document.getElementById("hide-val");
-  var instCycleEl  = document.getElementById("instrument-cycle");
   var chunksBtnEl  = document.getElementById("chunks-toggle");
   var cursorBtnEl  = document.getElementById("cursor-toggle");
   var tempoUiEl    = document.getElementById("tempo-ui");
@@ -2091,10 +2090,9 @@
     setHide(Math.max(1, Math.round(lead / unitBeats())));
   }
 
-  function syncInstrument() {
-    var o = instrumentEl.options[instrumentEl.selectedIndex];
-    instCycleEl.textContent = t("inst." + instrumentEl.value);
-  }
+  // The voice is a real <select> now, so it renders its own current value and
+  // there is nothing to mirror onto a button face.
+  function syncInstrument() {}
   function syncChunks() {
     chunksBtnEl.textContent = showChunksEl.checked ? t("val.on") : t("val.off");
     chunksBtnEl.classList.toggle("on", showChunksEl.checked);
@@ -2128,8 +2126,6 @@
     var optionText = function (sel) {
       return Array.prototype.map.call(sel.options, function (o) { return o.textContent; });
     };
-    lockCycleWidth(instCycleEl, Array.prototype.map.call(instrumentEl.options,
-      function (o) { return t("inst." + o.value); }));
     lockCycleWidth(modeCycleEl, MODES.map(function (m) { return t("mode." + m); }));
     lockCycleWidth(hideUnitEl, [t("val.beats"), t("val.measures")]);
     lockCycleWidth(tonicCycleEl, LETTERS);
@@ -2580,13 +2576,8 @@
     document.getElementById("tempo-up").addEventListener("click", function () { bumpTempo(1); });
 
     // --- accompaniment ---
-    instCycleEl.addEventListener("click", function () {
-      ensureAudio();
-      var n = instrumentEl.options.length;
-      instrumentEl.selectedIndex = (instrumentEl.selectedIndex + 1) % n;
-      instrumentEl.dispatchEvent(new Event("change"));
-      syncInstrument();
-    });
+    // Picking a voice is a real gesture, so it's a good moment to unlock audio.
+    instrumentEl.addEventListener("change", ensureAudio);
     volumeUiEl.addEventListener("input", function () {
       volumeEl.value = volumeUiEl.value;
       volumeEl.dispatchEvent(new Event("input"));
