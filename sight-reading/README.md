@@ -1,9 +1,9 @@
-# Sight Reading — Seeing Mode
+# Prima Vista — Seeing Mode
 
 A practice tool for building sight-reading **fluency** on violin. You define a
 *vocabulary* — which melodic intervals and which rhythmic figures are allowed —
 and the engine generates endless fresh exercises from it. Recognizable patterns
-are bracketed over the staff (blue = stepwise, coral = leaps) to train the eye
+are highlighted on the staff (cyan = stepwise, lime = leaps) to train the eye
 to read in chunks instead of note-by-note.
 
 This is **Seeing mode**: pattern recognition with no time pressure. It's the
@@ -26,7 +26,7 @@ Or any static server (`python3 -m http.server`, etc.).
 ## How it works
 
 ```
-controls ──► OSME generates a sheet ──► export MusicXML ──► OSMD load + render ──► bracket the chunks
+controls ──► OSME generates a sheet ──► export MusicXML ──► OSMD load + render ──► highlight the chunks
              (pitch picker overridden)                      (standard pipeline)
 ```
 
@@ -38,18 +38,46 @@ controls ──► OSME generates a sheet ──► export MusicXML ──► OS
   staying in key and inside the chosen note range.
 - Generation goes out as MusicXML and back in through OSMD's standard
   `load() → render()` so render options (auto-beaming, layout) actually apply.
-- After rendering, `app.js` reads each note's SVG position back out of OSMD and
-  draws the chunk brackets on an overlay.
+- After rendering, `app.js` reads each notehead's SVG position back out of OSMD
+  and draws the chunk highlights on an overlay. Each run's first and last
+  noteheads are opposite corners of a block, which multiply-blends so the
+  notation reads straight through the colour.
 
 ## Controls
 
-- **Notes — the alphabet:** a matrix of intervals (unison…octave) × direction
-  (down/up). Each weight (0–4) is how *often* that move is used. Presets save to
-  the browser (`localStorage`).
-- **Rhythm — the figures:** check which note values are in play (whole … sixteenth),
-  plus an option to include rests.
-- **Range:** lowest and highest note the melody may reach.
-- **Key, Measures, Show chunks.**
+- **Intervals — the melodic alphabet:** one row per interval (unison…octave).
+  Tick it to allow the move, and slide *less → more* to set how often it turns
+  up. Presets save to the browser (`localStorage`).
+- **Rhythm — the figures:** the meter (2/4, 3/4, 4/4, 6/8) plus which note
+  values are in play. 6/8 swaps in a compound-time figure set built on the
+  dotted-quarter pulse. Two units are in play throughout the code and they are
+  worth keeping straight: the clock counts *quarter notes* everywhere, which is
+  what makes a tempo mean the same speed in every meter, while a *beat* is the
+  pulse a reader counts — a quarter in the simple meters, a dotted quarter in
+  6/8. The metronome, the cursor and Hide Ahead all follow the pulse.
+- **Notes:** which pitches the line may reach, by octave or one at a time.
+- **How musical?** — one dial over two mechanisms. 0 is a plain weighted random
+  walk. Rising, the *phrasing* biases come in (contour arch, gap-fill after a
+  leap, cadence at phrase ends). Past ~30 the line also starts landing on the
+  bar's chord — each bar sits on one, looping I–IV–V–I in major and i–VI–VII–i
+  in minor. Which notes have to be chord tones widens as the dial climbs:
+  downbeats first, then every beat, then every note.
+
+  The chord is a target for *arrival*, not a filter on every note — the ones in
+  between pass through freely. Two guards keep that honest: the pull is dropped
+  when no move can reach a chord tone (a stepwise alphabet can never step
+  between them — they sit a 3rd apart), and a unison never counts as arriving,
+  or standing still would be the cheapest way to obey and the line would drone.
+
+  So the same dial position means different things depending on the alphabet: a
+  chord-shaped one comes out as arpeggios, a stepwise one as a scale study that
+  lands on the chord at the beats.
+- **Hide Ahead:** clears the page behind you to force reading forward. The unit
+  sets two things at once — how far ahead the curtain sits, *and* how big a
+  block goes at a time. Beats clears a beat at a time, Measures clears a bar.
+  Blocks therefore land where the music is already grouped, so a beamed group
+  is never cut in half.
+- **Clef & key, Measures, Highlight patterns.**
 
 ## Files
 
@@ -57,19 +85,36 @@ controls ──► OSME generates a sheet ──► export MusicXML ──► OS
 |------|------|
 | `index.html` / `style.css` | markup + styling |
 | `engine.js` | generation layer — OSME overrides, interval walk, diatonic ladder |
-| `app.js` | UI, render pipeline, Seeing-mode bracket overlay |
+| `app.js` | UI, render pipeline, Seeing-mode highlight overlay |
+| `i18n.js` | the English/Spanish string catalogue |
 | `lib/osme.js` | prebuilt OSME + OSMD bundle (vendored) |
 | `serve.py` | tiny no-cache dev server |
 
 ## Known limitations
 
-- Chunk brackets that would span a line wrap are skipped (drawn within each
-  system, not across).
 - Rhythm figures are equally weighted (on/off), not yet probability-weighted.
-- Time signature is fixed at 4/4.
+- The tempo number is a quarter note in every meter, so 6/8 at 80 runs at 80
+  quarters rather than the 80 dotted quarters its tempo marking would imply.
+  The click and Hide Ahead both follow the felt pulse (two to a 6/8 bar); only
+  the tempo number itself still counts quarters.
+- One progression per mode, not selectable.
+- Chord anchoring has no lookahead: it prefers a chord tone on the beat it is
+  currently placing, but never sets up the approach a note early. With a
+  stepwise alphabet that caps how often the beats can land on the chord, since
+  no step leads from one chord tone to another (measured: ~62% of beats).
+- Everything generated is diatonic — the app has no way to write an accidental
+  yet. That's why minor keys cadence i–VI–VII–i: a true V would need the 7th
+  raised, and the raised 7th isn't a position on the diatonic ladder.
+- "How musical?" is only half meter-aware. Its chord anchoring follows the felt
+  pulse correctly, but two phrasing biases still assume a four-quarter bar: the
+  cadence fires in the "second half" of a bar hardcoded as beat 2, and the
+  contour arch divides the bar by 4. Both land early in 3/4 and 6/8.
 
 ## Roadmap
 
-- **Letting-go mode** — hide measures as you reach them to force reading ahead.
-- Probability-weighted rhythm figures; rhythm brackets below the staff.
+- **Letting-go mode** — Hide Ahead is the first half of this; what's missing is
+  pressure that adapts (speeding up, or widening the curtain, as you succeed).
+- Accidentals — starting with a real dominant in minor (raise the 7th in V bars).
+- Selectable chord progressions (I–V–vi–IV, ii–V–I, 12-bar blues).
+- Probability-weighted rhythm figures; rhythm chunks marked below the staff.
 - Interval/figure targeting tied to weak spots.

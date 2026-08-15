@@ -3,10 +3,66 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sight Reading — Seeing Mode</title>
+  <title>Prima Vista — Seeing Mode</title>
+  <!-- Home-screen naming: the <title> is too long for the icon label under it,
+       so iOS/Android are given the short form directly. -->
+  <meta name="application-name" content="Prima Vista">
+  <meta name="apple-mobile-web-app-title" content="Prima Vista">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+  <!-- Icon sprite: one definition per glyph, referenced by <use>, which still
+       inherits currentColor so buttons colour their own icon.
+       Sources live in _assets/icons/. -->
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="ic-settings" viewBox="0 0 21.3135 15.5762">
+      <path d="M6.61133 15.1221L19.7998 15.1221C20.4395 15.1221 20.9521 14.5801 20.9521 13.9453C20.9521 13.2959 20.4443 12.7734 19.7998 12.7734L6.61133 12.7734C5.96191 12.7734 5.46387 13.3105 5.46387 13.9453C5.46387 14.5654 5.97168 15.1221 6.61133 15.1221Z"/>
+      <path d="M1.62598 15.5713C2.52441 15.5713 3.25684 14.8389 3.25684 13.9453C3.25684 13.0518 2.52441 12.3193 1.62598 12.3193C0.732422 12.3193 0 13.0518 0 13.9453C0 14.8389 0.732422 15.5713 1.62598 15.5713Z"/>
+      <path d="M6.61133 8.95996L19.7998 8.95996C20.4395 8.95996 20.9521 8.41797 20.9521 7.78809C20.9521 7.13867 20.4443 6.61133 19.7998 6.61133L6.61133 6.61133C5.96191 6.61133 5.46387 7.15332 5.46387 7.78809C5.46387 8.4082 5.97168 8.95996 6.61133 8.95996Z"/>
+      <path d="M1.62598 9.41406C2.52441 9.41406 3.25684 8.68652 3.25684 7.78809C3.25684 6.88965 2.52441 6.16211 1.62598 6.16211C0.732422 6.16211 0 6.88965 0 7.78809C0 8.68652 0.732422 9.41406 1.62598 9.41406Z"/>
+      <path d="M6.61133 2.80273L19.7998 2.80273C20.4395 2.80273 20.9521 2.26074 20.9521 1.62598C20.9521 0.981445 20.4443 0.454102 19.7998 0.454102L6.61133 0.454102C5.96191 0.454102 5.46387 0.991211 5.46387 1.62598C5.46387 2.25098 5.97168 2.80273 6.61133 2.80273Z"/>
+      <path d="M1.62598 3.25684C2.52441 3.25684 3.25684 2.52441 3.25684 1.62598C3.25684 0.732422 2.52441 0 1.62598 0C0.732422 0 0 0.732422 0 1.62598C0 2.52441 0.732422 3.25684 1.62598 3.25684Z"/>
+    </symbol>
+    <symbol id="ic-restart" viewBox="0 0 18.4277 14.9316">
+      <path d="M18.0664 13.5645L18.0664 1.34766C18.0664 0.429688 17.5293 0 16.9043 0C16.6211 0 16.3379 0.078125 16.0547 0.244141L5.79102 6.2207C5.05859 6.65039 4.77539 6.97266 4.77539 7.46094C4.77539 7.94922 5.05859 8.27148 5.79102 8.70117L16.0547 14.6777C16.3379 14.834 16.6211 14.9219 16.9043 14.9219C17.5293 14.9219 18.0664 14.4824 18.0664 13.5645ZM3.52539 14.8633C4.375 14.8633 4.82422 14.4141 4.82422 13.5547L4.82422 1.35742C4.82422 0.498047 4.375 0.0488281 3.52539 0.0488281L1.29883 0.0488281C0.449219 0.0488281 0 0.458984 0 1.35742L0 13.5547C0 14.4141 0.449219 14.8633 1.29883 14.8633Z"/>
+    </symbol>
+    <symbol id="ic-play" viewBox="0 0 16.2891 16.416">
+      <path d="M1.70898 14.9805C1.70898 15.9473 2.26562 16.4062 2.92969 16.4062C3.22266 16.4062 3.52539 16.3086 3.82812 16.1523L15.2051 9.50195C16.0156 9.0332 16.2891 8.71094 16.2891 8.20312C16.2891 7.68555 16.0156 7.37305 15.2051 6.9043L3.82812 0.253906C3.52539 0.0878906 3.22266 0 2.92969 0C2.26562 0 1.70898 0.458984 1.70898 1.42578Z"/>
+    </symbol>
+    <symbol id="ic-pause" viewBox="0 0 12.2754 16.1621">
+      <path d="M1.29883 16.1523L3.52539 16.1523C4.375 16.1523 4.82422 15.7031 4.82422 14.8438L4.82422 1.29883C4.82422 0.400391 4.375 0 3.52539 0L1.29883 0C0.449219 0 0 0.439453 0 1.29883L0 14.8438C0 15.7031 0.449219 16.1523 1.29883 16.1523ZM8.39844 16.1523L10.6152 16.1523C11.4746 16.1523 11.9141 15.7031 11.9141 14.8438L11.9141 1.29883C11.9141 0.400391 11.4746 0 10.6152 0L8.39844 0C7.53906 0 7.08984 0.439453 7.08984 1.29883L7.08984 14.8438C7.08984 15.7031 7.53906 16.1523 8.39844 16.1523Z"/>
+    </symbol>
+    <symbol id="ic-regenerate" viewBox="0 0 18.1299 24.0723">
+      <path d="M8.88672 21.6016C13.7939 21.6016 17.7686 17.6221 17.7686 12.71C17.7686 12.0215 17.207 11.4551 16.5186 11.4551C15.8252 11.4551 15.2588 12.0215 15.2588 12.71C15.2588 16.2256 12.4023 19.082 8.88672 19.082C5.36621 19.082 2.51465 16.2256 2.51465 12.71C2.51465 9.18945 5.36621 6.33789 8.88672 6.33789C9.58496 6.33789 10.2588 6.4502 10.8838 6.66504C11.6211 6.92383 12.5635 6.45508 12.5684 5.49316C12.5732 4.84863 12.1143 4.42383 11.6309 4.27246C10.7812 3.98438 9.85352 3.82812 8.88672 3.82812C3.97461 3.82812 0 7.80762 0 12.7148C0 17.6221 3.97461 21.6016 8.88672 21.6016ZM11.2109 5.26367L7.85645 8.5791C7.63672 8.79395 7.50977 9.04785 7.50977 9.38965C7.50977 10.0781 8.04688 10.6152 8.72559 10.6152C9.06738 10.6152 9.35059 10.4932 9.57031 10.2783L13.5596 6.24023C13.8232 5.97656 13.9502 5.67383 13.9502 5.32715C13.9502 4.99512 13.8135 4.67773 13.5596 4.41895L9.5752 0.361328C9.34082 0.126953 9.06738 0 8.72559 0C8.04688 0 7.50977 0.556641 7.50977 1.24512C7.50977 1.58691 7.62695 1.86035 7.85156 2.06543Z"/>
+    </symbol>
+    <symbol id="ic-accomp-on" viewBox="0 0 12.2754 20.0684">
+      <path d="M11.9141 4.89258L11.9141 1.2207C11.9141 0.703125 11.4941 0.371094 10.9961 0.46875L5.97656 1.5625C5.35156 1.69922 5.00977 2.04102 5.00977 2.58789L5.0293 13.4473C5.07812 13.9258 4.85352 14.2383 4.42383 14.3262L2.87109 14.6484C0.917969 15.0586 0 16.0547 0 17.5293C0 19.0234 1.15234 20.0684 2.77344 20.0684C4.20898 20.0684 6.35742 19.0137 6.35742 16.1719L6.35742 7.23633C6.35742 6.71875 6.45508 6.61133 6.91406 6.51367L11.377 5.53711C11.709 5.46875 11.9141 5.21484 11.9141 4.89258Z"/>
+    </symbol>
+    <symbol id="ic-accomp-off" viewBox="0 0 19.0015 20.7471">
+      <path d="M9.72046 15.1802L9.72046 16.5113C9.72046 19.353 7.57203 20.4077 6.13648 20.4077C4.51539 20.4077 3.36304 19.3628 3.36304 17.8687C3.36304 16.3941 4.28101 15.398 6.2439 14.9878L7.79664 14.6655C8.19496 14.5822 8.41755 14.2967 8.39725 13.8589ZM15.2771 1.56008L15.2771 5.23196C15.2771 5.55422 15.072 5.80813 14.7498 5.87649L10.2771 6.85305C9.81812 6.95071 9.72046 7.05813 9.72046 7.57571L9.72046 9.27614L8.38709 7.94461L8.38257 2.92727C8.38257 2.38039 8.71461 2.0386 9.33961 1.90188L14.3591 0.808127C14.8572 0.710471 15.2771 1.0425 15.2771 1.56008Z"/>
+      <path d="M15.6287 19.1968C15.9216 19.4898 16.4099 19.4898 16.6931 19.1968C16.9763 18.8941 16.9861 18.4253 16.6931 18.1323L2.62086 4.06985C2.32789 3.77688 1.84937 3.76711 1.54664 4.06985C1.26343 4.35305 1.26343 4.84133 1.54664 5.1343Z"/>
+    </symbol>
+    <symbol id="ic-metro-off" viewBox="0 0 21.3941 18.6621">
+      <path d="M12.7918 1.33789L20.3699 14.541C20.6238 14.9707 20.7507 15.4492 20.7507 15.9082C20.7507 17.4023 19.7449 18.5547 18.0945 18.5547L2.948 18.5547C1.28785 18.5547 0.281988 17.4023 0.281988 15.9082C0.281988 15.4492 0.408941 14.9805 0.662847 14.541L3.69811 9.25278L4.82086 10.3744L3.61269 12.4805L2.92847 12.4805L2.00074 13.9941L2.74486 13.9933L2.0105 15.2734C1.90308 15.4785 1.86402 15.7129 1.86402 15.8984C1.86402 16.4941 2.28394 17.0215 2.95777 17.0215L18.0652 17.0215C18.7488 17.0215 19.1785 16.4941 19.1785 15.8984C19.1785 15.7129 19.1199 15.4883 19.0125 15.2832L18.2629 13.9755L19.0515 13.9746L18.1238 12.4805L17.4059 12.4805L11.4441 2.08008C11.239 1.71875 10.8777 1.5625 10.5164 1.5625C10.155 1.5625 9.78394 1.71875 9.57886 2.08008L7.00277 6.57079L5.88079 5.44997L8.24097 1.33789C8.74878 0.449219 9.62769 0 10.5164 0C11.4148 0 12.2937 0.449219 12.7918 1.33789Z"/>
+      <path d="M11.2976 4.89258L11.2976 10.8611L9.74488 9.31003L9.74488 4.89258C9.74488 4.4043 10.0378 4.0918 10.5164 4.0918C11.0046 4.0918 11.2976 4.4043 11.2976 4.89258Z"/>
+      <path d="M19.0515 13.9746L2.00074 13.9941L2.92847 12.4805L8.82414 12.4805L10.0183 13.6719L11.1218 12.5586L11.0436 12.4805L18.1238 12.4805Z"/>
+      <path d="M10.0183 13.6719L11.1218 12.5586L2.6941 4.14062C2.36207 3.81836 1.93238 3.80859 1.59058 4.14062C1.23902 4.48242 1.25855 4.93164 1.59058 5.26367Z"/>
+    </symbol>
+    <symbol id="ic-metro-on" viewBox="0 0 21.3745 18.6621">
+      <path d="M20.3796 14.541C20.6238 14.9707 20.7605 15.4492 20.7605 15.9082C20.7605 17.4023 19.7546 18.5547 18.0945 18.5547L2.948 18.5547C1.29761 18.5547 0.291753 17.4023 0.291753 15.9082C0.291753 15.4492 0.408941 14.9805 0.672613 14.541L1.05937 13.8672L19.9929 13.8672ZM7.03003 12.5879L1.79364 12.5879L3.70315 9.26101ZM12.8015 1.33789L19.2586 12.5879L13.025 12.5879L11.2878 10.8524L11.2878 4.4043C11.2878 3.91602 10.9949 3.60352 10.5164 3.60352C10.0281 3.60352 9.73511 3.91602 9.73511 4.4043L9.73511 9.30106L5.88689 5.45635L8.25074 1.33789C8.74878 0.449219 9.62769 0 10.5261 0C11.4148 0 12.2937 0.449219 12.8015 1.33789Z"/>
+      <path d="M9.11011 12.7734L11.2976 12.7539L2.68433 4.14062C2.36207 3.81836 1.93238 3.80859 1.58082 4.14062C1.23902 4.48242 1.25855 4.93164 1.58082 5.26367Z"/>
+    </symbol>
+    <symbol id="ic-eye-on" viewBox="0 0 26.8359 16.6113">
+      <path d="M13.2422 16.6016C21.0645 16.6016 26.4746 10.2734 26.4746 8.30078C26.4746 6.31836 21.0547 0 13.2422 0C5.51758 0 0 6.31836 0 8.30078C0 10.2734 5.51758 16.6016 13.2422 16.6016ZM13.2422 13.7598C10.2246 13.7598 7.7832 11.3086 7.7832 8.30078C7.7832 5.2832 10.2246 2.8418 13.2422 2.8418C16.25 2.8418 18.7012 5.2832 18.7012 8.30078C18.7012 11.3086 16.25 13.7598 13.2422 13.7598ZM13.2422 10.293C14.3457 10.293 15.2344 9.4043 15.2344 8.30078C15.2344 7.19727 14.3457 6.30859 13.2422 6.30859C12.1387 6.30859 11.25 7.19727 11.25 8.30078C11.25 9.4043 12.1387 10.293 13.2422 10.293Z"/>
+    </symbol>
+    <symbol id="ic-eye-off" viewBox="0 0 27.0508 20.9473">
+      <path d="M6.09793 5.95835C3.42007 7.66597 1.70898 9.81222 1.70898 10.4785C1.70898 11.8555 6.91406 17.3047 13.3496 17.3047C14.591 17.3047 15.788 17.1001 16.909 16.7565L18.1743 18.0203C16.7125 18.5373 15.0905 18.8477 13.3496 18.8477C5.55664 18.8477 0 12.4707 0 10.4785C0 9.32842 1.83709 6.73767 4.88274 4.74461ZM26.6895 10.4785C26.6895 11.5922 24.9865 14.0762 22.1037 16.0495L20.9104 14.857C23.4019 13.2226 24.9805 11.2354 24.9805 10.4785C24.9805 9.31641 19.7559 3.65234 13.3496 3.65234C12.2418 3.65234 11.1704 3.82019 10.1598 4.11277L8.8762 2.82995C10.2502 2.37722 11.7533 2.10938 13.3496 2.10938C21.2305 2.10938 26.6895 8.47656 26.6895 10.4785ZM15.6012 15.4502C14.9162 15.7648 14.1532 15.9375 13.3496 15.9375C10.3223 15.9375 7.86133 13.4863 7.86133 10.459C7.86133 9.65555 8.03466 8.8927 8.35013 8.20785ZM18.8281 10.459C18.8281 11.148 18.7011 11.8072 18.4638 12.4118L11.3933 5.34558C11.9993 5.10775 12.6598 4.98047 13.3496 4.98047C16.377 4.98047 18.8281 7.43164 18.8281 10.459Z"/>
+      <path d="M20.9766 18.9355C21.2793 19.2383 21.7383 19.2578 22.041 18.9355C22.3633 18.6133 22.3438 18.1738 22.041 17.8711L5.71289 1.55273C5.41992 1.25977 4.94141 1.25977 4.63867 1.55273C4.35547 1.83594 4.35547 2.33398 4.63867 2.61719Z"/>
+    </symbol>
+  </svg>
 
   <div class="layout">
 
@@ -14,169 +70,228 @@
       <!-- The control bar IS the sheet's top edge / handle. Closed, only this row
            peeks at the screen bottom; ⚙ slides the whole sheet up to reveal the grid. -->
       <div class="controlbar">
-        <button id="settings-toggle" class="cb-icon" aria-label="Settings">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <line x1="7" y1="3" x2="7" y2="21"/><line x1="17" y1="3" x2="17" y2="21"/>
-            <circle cx="7" cy="9" r="2.6" fill="var(--paper-dim)"/><circle cx="17" cy="15" r="2.6" fill="var(--paper-dim)"/>
-          </svg>
+        <button id="settings-toggle" class="cb-icon" aria-label="Settings" data-i18n-aria="aria.settings">
+          <svg class="ic ic-settings"><use href="#ic-settings"/></svg>
         </button>
         <div class="cb-center">
-          <button id="from-top" class="cb-icon" aria-label="From the top">
-            <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="2.6" height="14" rx="1.1"/><path d="M20 5.6v12.8L9.4 12z"/></svg>
+          <button id="from-top" class="cb-icon" aria-label="From the top" data-i18n-aria="aria.fromTop">
+            <svg class="ic ic-restart"><use href="#ic-restart"/></svg>
           </button>
-          <button id="play" class="cb-icon" aria-label="Play">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5v14l12-7z"/></svg>
+          <button id="play" class="cb-icon" aria-label="Play" data-i18n-aria="aria.play">
+            <svg class="ic ic-play state-rest"><use href="#ic-play"/></svg>
+            <svg class="ic ic-pause state-alt"><use href="#ic-pause"/></svg>
           </button>
-          <button id="generate" class="cb-icon" aria-label="New line">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/></svg>
+          <button id="accomp" class="cb-icon js-accomp" aria-label="Accompaniment on/off" data-i18n-aria="aria.accomp">
+            <svg class="ic ic-accomp state-off"><use href="#ic-accomp-off"/></svg>
+            <svg class="ic ic-accomp state-on"><use href="#ic-accomp-on"/></svg>
           </button>
         </div>
+        <button id="metro-toggle" class="cb-icon cb-right js-metro" aria-label="Metronome on/off" data-i18n-aria="aria.metronome">
+          <svg class="ic ic-metro state-off"><use href="#ic-metro-off"/></svg>
+            <svg class="ic ic-metro state-on"><use href="#ic-metro-on"/></svg>
+        </button>
       </div>
 
       <div class="pocket-body">
-      <div class="pocket-grid">
 
-      <!-- SETUPS: presets that snapshot the whole panel -->
-      <details class="group" data-group="setups" open>
-        <summary>Setups</summary>
-        <div class="group-body">
+      <!-- Settings read/write these elements; the visible pills, steppers and
+           grids above are the UI that drives them. Keeping them as real form
+           controls means the preset / session snapshot logic is unchanged. -->
+      <div class="state" hidden>
+        <input type="range" id="tempo" min="40" max="180" step="1" value="80">
+        <input type="checkbox" id="click-on">
+        <input type="checkbox" id="play-along">
+        <input type="range" id="volume" min="0" max="100" step="5" value="80">
+        <input type="checkbox" id="hide-behind">
+        <!-- Stored in beats, so its ceiling is HIDE_MAX stepper units x the longest
+             bar (8 measures x 4 beats). A range input clamps its own value and snaps to its
+             step, so a max of 8 capped every measures-mode setting at two bars,
+             and a whole-number step would round 6/8's dotted-quarter lead away. -->
+        <input type="range" id="hide-lead" min="0" max="32" step="0.5" value="0">
+        <input type="checkbox" id="show-chunks">
+        <select id="instrument">
+          <option data-i18n="inst.organ" value="organ">Organ</option>
+          <option data-i18n="inst.piano" value="piano" selected>Piano</option>
+          <option data-i18n="inst.marimba" value="marimba">Marimba</option>
+          <option data-i18n="inst.vibraphone" value="vibraphone">Vibraphone</option>
+          <option data-i18n="inst.synth" value="synth">Synth</option>
+        </select>
+        <select id="cursor-mode">
+          <option value="beat" selected>Beat</option>
+          <option value="measure">Measure</option>
+          <option value="off">Off</option>
+        </select>
+        <select id="key-tonic">
+          <option value="0-0" selected>C</option>
+          <option value="1-0">D</option>
+          <option value="2-0">E</option>
+          <option value="3-0">F</option>
+          <option value="4-0">G</option>
+          <option value="5-0">A</option>
+          <option value="6-0">B</option>
+        </select>
+        <select id="key-mode">
+          <option data-i18n="mode.major" value="major" selected>Major</option>
+          <option data-i18n="mode.minor" value="minor">Minor</option>
+        </select>
+        <select id="measures">
+          <option value="8">8</option>
+          <option value="12">12</option>
+          <option value="16" selected>16</option>
+          <option value="24">24</option>
+          <option value="32">32</option>
+        </select>
+        <select id="clef">
+          <option data-i18n="clef.treble" value="treble" selected>Treble</option>
+          <option data-i18n="clef.alto" value="alto">Alto</option>
+          <option data-i18n="clef.tenor" value="tenor">Tenor</option>
+          <option data-i18n="clef.bass" value="bass">Bass</option>
+        </select>
+        <select id="timesig">
+          <option value="2/4">2/4</option>
+          <option value="3/4">3/4</option>
+          <option value="4/4" selected>4/4</option>
+          <option value="6/8">6/8</option>
+        </select>
+      </div>
+
+      <!-- PRESETS — snapshots of the whole panel -->
+      <div class="band">
+        <section class="sec">
+          <div class="sec-head">
+            <h2 class="sec-h" data-i18n="sec.presets">Presets</h2>
+            <button id="help-open" class="help-btn" type="button"
+                    aria-label="How this works" data-i18n-aria="help.open">?</button>
+          </div>
           <div class="presets" id="presets"></div>
-        </div>
-      </details>
+        </section>
+      </div>
 
-      <!-- NOTES: the alphabet matrix + range grid -->
-      <details class="group" data-group="notes" open>
-        <summary>Notes</summary>
-        <div class="group-body">
+      <!-- TEMPO · ACCOMPANIMENT · HIDE AHEAD -->
+      <div class="band">
+        <section class="sec sec-tempo">
+          <h2 class="sec-h" data-i18n="sec.tempo">Tempo</h2>
+          <div class="sec-row unit">
+            <button class="icon-toggle js-metro" type="button" aria-label="Metronome on/off" data-i18n-aria="aria.metronome">
+              <svg class="ic ic-metro state-off"><use href="#ic-metro-off"/></svg>
+            <svg class="ic ic-metro state-on"><use href="#ic-metro-on"/></svg>
+            </button>
+            <button id="cursor-toggle" class="icon-toggle" type="button" aria-label="Cursor on/off" data-i18n-aria="aria.cursor">
+              <svg class="ic ic-eye state-off"><use href="#ic-eye-off"/></svg>
+              <svg class="ic ic-eye state-on"><use href="#ic-eye-on"/></svg>
+            </button>
+            <div class="stepper">
+              <span class="stepper-val" id="tempo-val">80</span>
+              <input type="range" class="stepper-range" id="tempo-ui" min="40" max="180" step="5" value="80" aria-label="Tempo" data-i18n-aria="aria.tempo">
+              <span class="step-pair">
+                <button id="tempo-down" class="step-btn" type="button" aria-label="Slower" data-i18n-aria="aria.slower">&#8722;</button>
+                <button id="tempo-up" class="step-btn" type="button" aria-label="Faster" data-i18n-aria="aria.faster">+</button>
+              </span>
+            </div>
+          </div>
+        </section>
+
+        <section class="sec sec-accomp">
+          <h2 class="sec-h" data-i18n="sec.accomp">Play Along</h2>
+          <div class="sec-row unit">
+            <button class="icon-toggle js-accomp" type="button" aria-label="Accompaniment on/off" data-i18n-aria="aria.accomp">
+              <svg class="ic ic-accomp state-off"><use href="#ic-accomp-off"/></svg>
+              <svg class="ic ic-accomp state-on"><use href="#ic-accomp-on"/></svg>
+            </button>
+            <button id="instrument-cycle" class="cycle" type="button" aria-label="Voice" data-i18n-aria="aria.voice" data-i18n="inst.piano">Piano</button>
+            <div class="stepper stepper-plain">
+              <svg class="vol-glyph" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              <input type="range" class="stepper-range" id="volume-ui" min="0" max="100" step="5" value="80" aria-label="Volume" data-i18n-aria="aria.volume">
+            </div>
+          </div>
+        </section>
+
+        <section class="sec sec-hide">
+          <h2 class="sec-h" data-i18n="sec.hideAhead">Hide Ahead</h2>
+          <div class="sec-row unit">
+            <div class="stepper stepper-fit">
+              <span class="stepper-val" id="hide-val" data-i18n="val.off">Off</span>
+              <span class="step-pair">
+                <button id="hide-down" class="step-btn" type="button" aria-label="Less" data-i18n-aria="aria.less">&#8722;</button>
+                <button id="hide-up" class="step-btn" type="button" aria-label="More" data-i18n-aria="aria.more">+</button>
+              </span>
+            </div>
+            <button id="hide-unit" class="cycle" type="button" aria-label="Hide ahead unit" data-i18n-aria="aria.hideUnit" data-i18n="val.beats">Beats</button>
+          </div>
+        </section>
+      </div>
+
+      <!-- RHYTHM — the beat figures -->
+      <div class="band">
+        <section class="sec">
+          <h2 class="sec-h" data-i18n="sec.rhythm">Rhythm</h2>
+          <div class="sec-row" id="timesig-pills"></div>
+          <div class="beats" id="beats"></div>
+        </section>
+      </div>
+
+      <!-- STEP · NOTES — the melodic alphabet and the pitches it may use -->
+      <div class="band">
+        <section class="sec sec-step">
+          <h2 class="sec-h" data-i18n="sec.step">Intervals</h2>
           <div class="matrix-head">
-            <span></span>
-            <span>up</span>
-            <span>down</span>
+            <span></span><span></span>
+            <span class="axis"><em data-i18n="col.less">less</em><em data-i18n="col.more">more</em></span>
           </div>
           <div class="matrix" id="matrix"></div>
+        </section>
+
+        <section class="sec sec-notes">
+          <h2 class="sec-h" data-i18n="sec.notes">Notes</h2>
           <div id="range-grid"></div>
-          <section>
-            <label for="musicality">Musicality <span id="musicality-val">0</span></label>
-            <input type="range" id="musicality" min="0" max="100" step="5" value="0">
-          </section>
-        </div>
-      </details>
+        </section>
+      </div>
 
-      <!-- RHYTHM: the beat patterns -->
-      <details class="group" data-group="rhythm" open>
-        <summary>Rhythm</summary>
-        <div class="group-body">
-          <div class="beats" id="beats"></div>
-        </div>
-      </details>
+      <!-- MUSICALITY · CHUNKS -->
+      <div class="band">
+        <section class="sec sec-musicality">
+          <h2 class="sec-h" data-i18n="sec.musicality">How Musical?</h2>
+          <div class="sec-row">
+            <input type="range" class="stepper-range bare-range" id="musicality" min="0" max="100" step="5" value="0" aria-label="Musicality" data-i18n-aria="aria.musicality">
+          </div>
+        </section>
 
-      <!-- KEY & LENGTH -->
-      <details class="group" data-group="key" open>
-        <summary>Key &amp; length</summary>
-        <div class="group-body">
-          <section>
-            <label>Key</label>
-            <div class="key-row">
-              <select id="key-tonic">
-                <option value="0-0" selected>C</option>
-                <option value="4-0">G</option>
-                <option value="1-0">D</option>
-                <option value="5-0">A</option>
-                <option value="2-0">E</option>
-                <option value="6-0">B</option>
-                <option value="3-0">F</option>
-                <option value="6-b">B&#9837;</option>
-                <option value="2-b">E&#9837;</option>
-                <option value="5-b">A&#9837;</option>
-              </select>
-              <select id="key-mode">
-                <option value="major" selected>Major</option>
-                <option value="minor">Minor</option>
-                <option value="harmonic">Harmonic min</option>
-                <option value="melodic">Melodic min</option>
-              </select>
-            </div>
-          </section>
+        <section class="sec sec-chunks">
+          <h2 class="sec-h" data-i18n="sec.chunks">Highlight Patterns</h2>
+          <div class="sec-row">
+            <button id="chunks-toggle" class="cycle" type="button" aria-label="Show chunk highlights" data-i18n-aria="aria.chunks" data-i18n="val.off">Off</button>
+            <span class="legend">
+              <span class="legend-item"><span class="swatch swatch-step"></span> <span data-i18n="legend.steps">steps</span></span>
+              <span class="legend-item"><span class="swatch swatch-leap"></span> <span data-i18n="legend.leaps">leaps</span></span>
+            </span>
+          </div>
+        </section>
+      </div>
 
-          <section>
-            <label for="measures">Measures</label>
-            <select id="measures">
-              <option value="8">8</option>
-              <option value="12">12</option>
-              <option value="16" selected>16</option>
-              <option value="24">24</option>
-              <option value="32">32</option>
-              <option value="48">48</option>
-            </select>
-          </section>
-        </div>
-      </details>
+      <!-- STAFF, KEY AND LENGTH · MEASURES -->
+      <div class="band">
+        <section class="sec sec-key">
+          <h2 class="sec-h" data-i18n="sec.staff">Clef &amp; Key</h2>
+          <div class="sec-row unit">
+            <button id="clef-cycle" class="cycle cycle-clef cycle-glyph" type="button" aria-label="Clef" data-i18n-aria="aria.clef"></button>
+            <button id="tonic-cycle" class="cycle" type="button" aria-label="Key" data-i18n-aria="aria.key">C</button>
+            <button id="mode-cycle" class="cycle" type="button" aria-label="Mode" data-i18n-aria="aria.mode" data-i18n="mode.major">Major</button>
+            <button id="acc-cycle" class="cycle cycle-glyph" type="button" aria-label="Accidental" data-i18n-aria="aria.accidental">&#9838;</button>
+          </div>
+        </section>
 
-      <!-- PLAYBACK: the moving clock -->
-      <details class="group" data-group="playback" open>
-        <summary>Playback</summary>
-        <div class="group-body">
-          <section>
-            <label for="tempo">Tempo <span id="tempo-val">80</span></label>
-            <input type="range" id="tempo" min="40" max="160" step="1" value="80">
-          </section>
+        <section class="sec sec-measures">
+          <h2 class="sec-h" data-i18n="sec.measures">Measures</h2>
+          <div class="sec-row" id="measures-pills"></div>
+        </section>
+      </div>
 
-          <section class="toggle-row">
-            <label for="click-on">Metronome</label>
-            <input type="checkbox" id="click-on">
-          </section>
-
-          <section class="toggle-row">
-            <label for="play-along">Play along</label>
-            <input type="checkbox" id="play-along">
-          </section>
-
-          <section>
-            <label for="instrument">Voice</label>
-            <select id="instrument">
-              <option value="organ">Organ</option>
-              <option value="piano" selected>Piano</option>
-              <option value="marimba">Marimba</option>
-              <option value="vibraphone">Vibraphone</option>
-              <option value="synth">Synth</option>
-            </select>
-          </section>
-
-          <section>
-            <label for="volume">Volume <span id="volume-val">80</span></label>
-            <input type="range" id="volume" min="0" max="100" step="5" value="80">
-          </section>
-
-          <section>
-            <label for="cursor-mode">Cursor</label>
-            <select id="cursor-mode">
-              <option value="beat" selected>Beat</option>
-              <option value="measure">Measure</option>
-              <option value="off">Off</option>
-            </select>
-          </section>
-
-          <section class="toggle-row">
-            <label for="hide-behind">Hide behind</label>
-            <input type="checkbox" id="hide-behind">
-          </section>
-
-          <section>
-            <label for="hide-lead">Hide lead <span id="hide-lead-val">0</span></label>
-            <input type="range" id="hide-lead" min="0" max="8" step="1" value="0">
-          </section>
-
-          <section class="toggle-row">
-            <label for="show-chunks">Show chunks</label>
-            <input type="checkbox" id="show-chunks">
-          </section>
-        </div>
-      </details>
-      </div><!-- /pocket-grid -->
-
-      <div class="legend">
-        <span class="legend-item"><span class="swatch swatch-scale"></span> stepwise</span>
-        <span class="legend-item"><span class="swatch swatch-chord"></span> leaps</span>
+      <!-- LANGUAGE — an app-level choice, so it sits apart at the end -->
+      <div class="band">
+        <section class="sec sec-language">
+          <h2 class="sec-h" data-i18n="sec.language">Language</h2>
+          <div class="sec-row" id="lang-pills"></div>
+        </section>
       </div>
 
       <p id="error-msg" class="error" hidden></p>
@@ -187,27 +302,19 @@
          music whether it's centered (drawer closed/overlaid) or pushed (drawer
          reserving space on a wide window). -->
     <div class="content">
-    <main class="sheet-area">
-      <div id="sheet-top">
-        <div id="sheet-head">
-          <div id="sh-title"></div>
-          <div id="sh-sub"></div>
-          <div id="sh-notes"></div>
-        </div>
-        <div id="tempo-pill">
-          <button id="metro-toggle" type="button" aria-label="Metronome on/off">
-            <svg id="metro-glyph" viewBox="0 0 29 28" fill="none" stroke="currentColor" stroke-width="1.68" stroke-linecap="round" aria-hidden="true">
-              <path d="M18.8888 7.18696C18.724 6.38266 18.6417 5.98051 18.4934 5.6471C18.0595 4.67132 17.1876 3.95991 16.1445 3.73067C15.7882 3.65234 15.3777 3.65234 14.5567 3.65234H14.1749C12.9945 3.65234 12.4044 3.65234 11.9031 3.81339C11.1011 4.07107 10.4251 4.62064 10.0091 5.3532C9.74914 5.81103 9.62867 6.38876 9.38773 7.54422L7.20432 18.0151C6.74206 20.232 6.51093 21.3404 6.80579 22.2088C7.06439 22.9704 7.58759 23.6139 8.28034 24.0225C9.07026 24.4885 10.2025 24.4885 12.4671 24.4885H15.9205C18.1779 24.4885 19.3066 24.4885 20.0953 24.0243C20.7871 23.6173 21.3103 22.976 21.5703 22.2166C21.8666 21.3507 21.6401 20.245 21.1871 18.0336L19.9871 12.1762"/>
-              <line x1="15.3552" y1="17.8517" x2="24.6724" y2="6.49723"/>
-              <line x1="13.3625" y1="12.2303" x2="15.1141" y2="12.2303"/>
-              <line x1="12.6916" y1="9.10532" x2="15.785" y2="9.10532"/>
-            </svg>
-          </button>
-          <span id="tempo-pill-val">80</span>
-          <button id="tempo-down" class="tp-btn" aria-label="Slower">&#8722;</button>
-          <button id="tempo-up" class="tp-btn" aria-label="Faster">+</button>
-        </div>
+    <header class="topbar">
+      <div class="tb-titles">
+        <!-- The app's name, not the mode's — stays the same in every language,
+             like the note letters do. Mirrors the help sheet's kicker. -->
+        <p class="kicker">Prima Vista</p>
+        <h1 id="sh-title"></h1>
+        <div id="sh-sub"></div>
       </div>
+      <button id="generate" class="tb-btn" aria-label="New exercise" data-i18n-aria="aria.newExercise">
+        <svg class="ic ic-regenerate"><use href="#ic-regenerate"/></svg>
+      </button>
+    </header>
+    <main class="sheet-area">
       <div id="sheet-stage">
         <div id="sheet"></div>
       </div>
@@ -217,11 +324,48 @@
     </main>
     </div><!-- /content -->
 
+    <!-- Help — a scrim plus a sheet. Content is written from the catalogue so it
+         follows the language like everything else. -->
+    <div class="help-scrim" id="help-scrim" hidden></div>
+    <div class="help-sheet" id="help-sheet" role="dialog" aria-modal="true"
+         aria-labelledby="help-title" hidden>
+      <div class="help-top">
+        <div class="help-titles">
+          <!-- The app's name, not the mode's — stays the same in every language,
+               like the note letters do. The only place it appears in the UI. -->
+          <p class="kicker">Prima Vista</p>
+          <h2 id="help-title" data-i18n="help.title">How this works</h2>
+        </div>
+        <button id="help-close" class="help-btn" type="button"
+                aria-label="Close" data-i18n-aria="help.close">&#215;</button>
+      </div>
+      <div class="help-body" id="help-body"></div>
+    </div>
+
     <div class="scrim" id="scrim"></div>
+
+    <!-- Onboarding — shown once (sr_onboarded), then never again. It doubles as
+         a tour of the settings panel: each page uses the real control it is
+         naming, so the student recognises it when they open ⚙ later. Pages are
+         built in JS so they follow the language like everything else. -->
+    <div class="ob" id="ob" role="dialog" aria-modal="true"
+         aria-labelledby="ob-title" tabindex="-1" hidden>
+      <div class="ob-card">
+        <div class="ob-body" id="ob-body"></div>
+        <div class="ob-foot">
+          <div class="ob-dots" id="ob-dots" aria-hidden="true"></div>
+          <button id="ob-skip" class="ob-skip" type="button"
+                  data-i18n="ob.skip">Skip</button>
+          <button id="ob-next" class="ob-next" type="button"
+                  data-i18n="ob.next">Next</button>
+        </div>
+      </div>
+    </div>
 
   </div>
 
   <script src="lib/osme.js"></script>
+  <script src="i18n.js"></script>
   <script src="engine.js"></script>
   <script src="samples/instruments.js"></script>
   <script src="app.js"></script>

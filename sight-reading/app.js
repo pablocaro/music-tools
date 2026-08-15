@@ -3,7 +3,7 @@
  *
  * Pipeline: read the controls -> ask OSME to generate a sheet (pitch selection
  * is overridden in engine.js) -> export to MusicXML -> load + render via OSMD's
- * standard path -> draw chunk brackets over the result.
+ * standard path -> highlight the chunks over the result.
  */
 (function () {
   "use strict";
@@ -20,20 +20,54 @@
   var Fraction                 = O.Fraction;
   var XMLSourceExporter        = O.XMLSourceExporter;
 
+  // ===========================================================================
+  // Language
+  //
+  // Strings live in i18n.js. Markup declares what it needs with data-i18n (text)
+  // and data-i18n-aria (label, which the hover tooltip also reads), so switching
+  // language is one pass over the document plus a re-render of anything built at
+  // runtime. Note letters stay English in both languages.
+  // ===========================================================================
+  var LANG_KEY = "sr_lang";
+  var LANGS = [{ id: "en", label: "ENG" }, { id: "es", label: "ESP" }];
+  var I18N = window.SR_I18N || { en: {} };
+  var lang = "en";
+  // A first visit has no stored choice, and onboarding runs before the student
+  // can reach the language pills — so the browser's own language picks the
+  // opening one. An explicit choice, once made, always wins.
+  var navLang = (navigator.language || "").slice(0, 2).toLowerCase();
+  if (I18N[navLang]) lang = navLang;
+  try { if (I18N[localStorage.getItem(LANG_KEY)]) lang = localStorage.getItem(LANG_KEY); } catch (e) {}
+
+  // Look up a string, filling {placeholders}. Falls back through English to the
+  // key itself, so a missing translation degrades to something readable.
+  function t(key, vars) {
+    var s = (I18N[lang] && I18N[lang][key]) || (I18N.en && I18N.en[key]) || key;
+    if (vars) {
+      Object.keys(vars).forEach(function (k) {
+        s = s.replace("{" + k + "}", vars[k]);
+      });
+    }
+    return s;
+  }
+
   // ---- config ----
-  var COLOR_SCALE = "#9aa0a8";   // neutral grey — stepwise motion
-  var COLOR_CHORD = "#0a84ff";   // iOS blue — leaps / arpeggios
+  // Chunk ink, mirroring the --chunk-* tokens. One register only: the dot beside
+  // an interval in the panel is the exact colour that will highlight it on the
+  // staff, so the code is learned in one place and recognised in the other.
+  var HL_STEP = "#4fd9ef";       // highlighter cyan — stepwise motion
+  var HL_LEAP = "#a8e63c";       // highlighter lime — leaps / arpeggios
+  var WEIGHT_MIN = 1;            // min per-interval slider weight (the checkbox owns off)
   var WEIGHT_MAX = 4;            // max per-interval slider weight
   var MEASURES_PER_LINE = 6;     // cap on a wide screen
   var MIN_PER_LINE = 2;          // never fewer than this; shrink to fit if needed
   var MEASURE_PX = 175;          // ~full-size measure width (FixedMeasureWidth keeps it stable)
   var CLEF_PX = 88;              // ~clef + key + time prefix at a line start
-  var BRACKET_GAP = 10;         // px the bracket sits above the highest notehead
-  var BRACKET_TICK = 6;         // px length of the bracket's end ticks
-  var SYSTEM_BREAK_PX = 40;     // vertical gap that signals a line wrap
+  var HL_PAD_X = 4;             // px the block runs past the first/last notehead
+  var HL_PAD_Y = 6;             // px above the top notehead and below the bottom
+  var HL_RADIUS = 6;            // corner radius — a highlighter stroke, not a pill
   var STORE_KEY = "sr_presets";
   var SESSION_KEY = "sr_session";  // last-used settings, restored on reload
-  var GROUPS_KEY = "sr_groups";    // collapsed/expanded state of panel groups
   var COUNTIN_FREQ = 1568;      // count-in click pitch (G6) — distinct from play
   var PLAY_FREQ = 784;          // in-piece click pitch (G5)
 
@@ -42,21 +76,43 @@
   // ===========================================================================
   var INTERVALS = [
     { n: "unison", c: "#888780" },
-    { n: "2nd",    c: COLOR_SCALE },
-    { n: "3rd",    c: COLOR_CHORD },
-    { n: "4th",    c: COLOR_CHORD },
-    { n: "5th",    c: COLOR_CHORD },
-    { n: "6th",    c: COLOR_CHORD },
-    { n: "7th",    c: COLOR_CHORD },
-    { n: "octave", c: COLOR_CHORD }
+    { n: "2nd",    c: HL_STEP },
+    { n: "3rd",    c: HL_LEAP },
+    { n: "4th",    c: HL_LEAP },
+    { n: "5th",    c: HL_LEAP },
+    { n: "6th",    c: HL_LEAP },
+    { n: "7th",    c: HL_LEAP },
+    { n: "octave", c: HL_LEAP }
   ];
 
   // built-in presets (same weight applied to down + up): [uni,2,3,4,5,6,7,oct]
+  // The alphabet each built-in drill is built around (same weight up and down).
   var BUILTIN = {
     "steps only":   [0, 4, 0, 0, 0, 0, 0, 0],
     "thirds drill": [1, 2, 4, 1, 1, 0, 0, 0],
-    "wide leaps":   [0, 1, 2, 3, 3, 2, 1, 2]
+    "wide leaps":   [0, 1, 2, 3, 3, 2, 1, 2],
+    "arpeggios":    [0, 1, 4, 3, 2, 1, 0, 0]
   };
+
+  // What a built-in leaves alone would otherwise be whatever the last drill
+  // happened to use, so each one carries the same five fields a saved preset
+  // does — the alphabet it's named for, plus the neutral staff to read it on.
+  var BUILTIN_DEFAULTS = { musicality: "0", key: "major_0-0", clef: "treble", timesig: "4/4", measures: "16" };
+
+  // Arpeggios is the one drill the alphabet alone can't describe: chord-shaped
+  // intervals still wander off the chord unless every note is asked to be an
+  // arrival, so it pins the dial to the top. Everything else stays neutral.
+  var BUILTIN_EXTRA = {
+    "arpeggios": { musicality: "100" }
+  };
+
+  function builtinPreset(name) {
+    var w = BUILTIN[name], extra = BUILTIN_EXTRA[name] || {};
+    var p = { alphabet: { down: w.slice(), up: w.slice() }, range: defaultRange() };
+    Object.keys(BUILTIN_DEFAULTS).forEach(function (k) { p[k] = BUILTIN_DEFAULTS[k]; });
+    Object.keys(extra).forEach(function (k) { p[k] = extra[k]; });
+    return p;
+  }
 
   // Migrate an old 7-entry alphabet ([..,6th,octave]) to 8 entries by inserting
   // a 0 for the new 7th slot, so saved presets/sessions keep their octave weight.
@@ -64,53 +120,86 @@
     return (a && a.length === 7) ? a.slice(0, 6).concat([0], a.slice(6)) : a;
   }
 
-  var downInputs = [], upInputs = [];
+  // One weight per interval. There used to be two — an up column and a down one
+  // — but the pair couldn't express the only directional drill worth having
+  // ("descending 3rds only"): the slider floors at WEIGHT_MIN and the checkbox
+  // owns the whole row, so neither direction could be zeroed on its own. It
+  // cost eight extra sliders to offer ratios nobody reaches for. The engine
+  // still takes {down, up}; readAlphabet just emits the same value for both.
+  var weightInputs = [], stepChecks = [], matrixRows = [];
   var matrixEl  = document.getElementById("matrix");
   var presetsEl = document.getElementById("presets");
 
+  // Row labels live in the catalogue: they used to be bare digits, which needed
+  // no translating, but ordinals do — Spanish writes 2ª where English writes
+  // 2nd. All eight are three characters wide, so the column stays narrow.
+  function stepLabel(i) { return t("step." + i); }
+
+  // No numeric readout: 1–4 named nothing a student could act on, and the
+  // less/more header above the column already says which way the slider runs.
+  // The value still reaches assistive tech through the range input itself.
   function makeCell(arr) {
     var cell = document.createElement("div");
     cell.className = "cell";
     var input = document.createElement("input");
-    input.type = "range"; input.min = 0; input.max = WEIGHT_MAX; input.step = 1; input.value = 0;
-    var ro = document.createElement("span");
-    ro.className = "ro"; ro.textContent = "0";
-    input.addEventListener("input", function () { ro.textContent = input.value; });
+    input.type = "range"; input.min = WEIGHT_MIN; input.max = WEIGHT_MAX; input.step = 1; input.value = WEIGHT_MIN;
     input.addEventListener("change", generate);
-    cell.appendChild(input); cell.appendChild(ro);
+    cell.appendChild(input);
     arr.push(input);
     return cell;
   }
 
+  // Each interval row: a checkbox (is it in play?) + its weight.
+  // The checkbox owns on/off, so a weight never has to mean "never" — it floors
+  // at WEIGHT_MIN and readAlphabet() zeroes out unchecked rows instead.
   function buildMatrix() {
-    INTERVALS.forEach(function (iv) {
+    INTERVALS.forEach(function (iv, i) {
       var row = document.createElement("div");
       row.className = "matrix-row";
+
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.setAttribute("aria-label", t("interval." + i));
+      cb.addEventListener("change", function () { syncStepRow(i); generate(); });
+      stepChecks.push(cb);
+      row.appendChild(cb);
+
       var label = document.createElement("div");
       label.className = "row-label";
-      label.innerHTML = '<span class="dot" style="background:' + iv.c + '"></span>' + iv.n;
+      label.innerHTML = '<span class="dot" style="background:' + iv.c + '"></span>'
+                      + '<span class="row-name"></span>';
+      label.querySelector(".row-name").textContent = stepLabel(i);
       row.appendChild(label);
-      row.appendChild(makeCell(upInputs));
-      row.appendChild(makeCell(downInputs));
+
+      row.appendChild(makeCell(weightInputs));
+      matrixRows.push(row);
       matrixEl.appendChild(row);
     });
   }
 
-  function setWeights(weights) {
-    weights = fix7(weights);
-    for (var i = 0; i < weights.length; i++) {
-      downInputs[i].value = weights[i];
-      upInputs[i].value = weights[i];
-      downInputs[i].nextElementSibling.textContent = weights[i];
-      upInputs[i].nextElementSibling.textContent = weights[i];
-    }
+  function syncStepRow(i) {
+    if (matrixRows[i]) matrixRows[i].classList.toggle("off", !stepChecks[i].checked);
   }
 
+  // Apply a weight to a row. 0 means "not in play" — the checkbox goes off and
+  // the slider rests at the floor.
+  function setRow(i, w) {
+    var on = w > 0, v = on ? Math.max(WEIGHT_MIN, Math.min(WEIGHT_MAX, w)) : WEIGHT_MIN;
+    stepChecks[i].checked = on;
+    weightInputs[i].value = v;
+    syncStepRow(i);
+  }
+
+  function setWeights(weights) {
+    weights = fix7(weights);
+    for (var i = 0; i < weights.length && i < INTERVALS.length; i++) setRow(i, +weights[i] || 0);
+  }
+
+  // An unchecked interval contributes 0, which is what the engine's weighted
+  // draw already understands — so nothing downstream needed to change.
   function readAlphabet() {
-    return {
-      down: downInputs.map(function (x) { return +x.value; }),
-      up:   upInputs.map(function (x) { return +x.value; })
-    };
+    var w = weightInputs.map(function (x, i) { return stepChecks[i].checked ? +x.value : 0; });
+    return { down: w.slice(), up: w.slice() };   // engine still wants both; they're symmetric now
   }
 
   // ---- presets (built-in + saved in localStorage) ----
@@ -119,63 +208,106 @@
   // built-in acts as an editable override; deleting it reverts to the built-in.
   var activePreset = null;
 
+  // Built-ins are keyed by a stable English id, which is also what a saved
+  // preset uses if it shadows one — so only the label translates and nothing in
+  // localStorage has to move. A preset the student named shows as they typed it.
+  function presetLabel(name) {
+    if (!name) return "";
+    return BUILTIN.hasOwnProperty(name) ? t("preset." + name) : name;
+  }
+
   function loadSaved() {
     try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; }
     catch (e) { return {}; }
   }
 
+  // A row is in play when either direction carries weight. Presets saved while
+  // the panel had separate up/down columns can still be asymmetric, so they
+  // collapse to their louder direction rather than silently losing the row.
   function applyAlphabet(a) {
     var down = fix7(a.down), up = fix7(a.up);
     for (var i = 0; i < INTERVALS.length; i++) {
-      var d = (down && down[i]) || 0, u = (up && up[i]) || 0;
-      downInputs[i].value = d; upInputs[i].value = u;
-      downInputs[i].nextElementSibling.textContent = d;
-      upInputs[i].nextElementSibling.textContent = u;
+      var w = Math.max((down && +down[i]) || 0, (up && +up[i]) || 0);
+      setRow(i, w);
     }
   }
 
   // A preset/session may carry any subset of the panel's state; apply what's
   // present. Built-ins (and legacy saves) are plain symmetric alphabet arrays.
+  // A preset never carries the session-only fields (see readConfig), so this
+  // stays one function: applying a preset just leaves them untouched, and
+  // applying a session naturally restores them too.
   function applyPreset(p) {
     if (Array.isArray(p)) { setWeights(p); return; }
     if (p.alphabet) applyAlphabet(p.alphabet);
     else if (p.down || p.up) applyAlphabet(p);              // legacy {down, up}
     if (p.range) applyRange(p.range);
-    if (p.beats) applyBeats(p.beats);
     if (p.key != null) setKeyFromCode(p.key);
+    if (p.clef != null) clefEl.value = p.clef;
+    if (p.timesig != null) timesigEl.value = p.timesig;
     if (p.measures != null) measuresEl.value = String(Math.max(8, parseInt(p.measures, 10) || 16));
-    if (p.musicality != null) { musicalityEl.value = p.musicality; musicalityValEl.textContent = p.musicality; }
+    if (p.musicality != null) musicalityEl.value = p.musicality;
+    // Musicality and chord-following used to be two dials. A preset saved
+    // then carries both; the survivor is whichever was set higher, so an old
+    // "follow the chords hard, never mind the phrasing" preset still reads as
+    // a strong setting rather than collapsing to zero.
+    if (p.harmony != null) musicalityEl.value = String(Math.max(+musicalityEl.value || 0, +p.harmony || 0));
+    syncBeatsFamily();   // meter may have just changed the figure grid — rebuild
+                         // before applyBeats looks for checkboxes in it
+    if (p.beats) applyBeats(p.beats);
     if (p.tempo != null) { tempoEl.value = p.tempo; tempoValEl.textContent = p.tempo; }
     if (p.cursor != null) cursorModeEl.value = p.cursor;
-    // metronome is intentionally NOT restored — it always starts off each load
+    if (p.metronome != null) clickOnEl.checked = p.metronome;
     if (p.playAlong != null) playAlongEl.checked = p.playAlong;
     if (p.instrument != null) instrumentEl.value = p.instrument;
-    if (p.volume != null) { volumeEl.value = p.volume; volumeValEl.textContent = p.volume; }
+    if (p.volume != null) volumeEl.value = p.volume;
     if (p.hideBehind != null) hideBehindEl.checked = p.hideBehind;
-    if (p.hideLead != null) { hideLeadEl.value = p.hideLead; hideLeadValEl.textContent = p.hideLead; }
+    if (p.hideLead != null) hideLeadEl.value = p.hideLead;
+    if (p.hideUnit != null) hideUnitEl.dataset.unit = p.hideUnit;
     if (p.showChunks != null) showChunksEl.checked = p.showChunks;
   }
 
-  // The full panel snapshot — what a preset and the remembered session store.
-  function readConfig() {
+  // What a *preset* defines: the melodic material itself — which intervals,
+  // which pitches, how musical, and the staff it's written on. Playback
+  // controls (tempo, metronome, accompaniment, hide-ahead, rhythm, chunks)
+  // are the student's in-the-moment choices, not part of the drill, so a
+  // saved preset leaves them alone — whatever's currently set stays set.
+  function readPresetConfig() {
     return {
-      alphabet: { down: downInputs.map(function (x) { return +x.value; }),
-                  up:   upInputs.map(function (x) { return +x.value; }) },
+      // readAlphabet, not the raw sliders: an unchecked row's slider still
+      // reads WEIGHT_MIN (the checkbox owns off, the slider floors at 1), so
+      // reading it raw saved every switched-off interval as weight 1 — and
+      // reloading the preset turned them all back on.
+      alphabet: readAlphabet(),
       range: JSON.parse(JSON.stringify(rangeState)),
+      // Which figures are in play is as much a part of the drill as which
+      // intervals are: "thirds, in dotted rhythms" is one exercise and "thirds,
+      // in even quarters" is another. applyPreset has always restored these;
+      // they were just never being written, so saving quietly dropped them.
       beats: readBeatIds(),
-      key: currentKeyCode(),
-      measures: measuresEl.value,
       musicality: musicalityEl.value,
-      tempo: tempoEl.value,
-      cursor: cursorModeEl.value,
-      metronome: clickOnEl.checked,
-      playAlong: playAlongEl.checked,
-      instrument: instrumentEl.value,
-      volume: volumeEl.value,
-      hideBehind: hideBehindEl.checked,
-      hideLead: hideLeadEl.value,
-      showChunks: showChunksEl.checked
+      key: currentKeyCode(),
+      clef: clefEl.value,
+      timesig: timesigEl.value,
+      measures: measuresEl.value
     };
+  }
+
+  // The full panel snapshot — everything a preset defines, plus the session-only
+  // controls, so a reload picks up exactly where practice left off.
+  function readConfig() {
+    var cfg = readPresetConfig();
+    cfg.tempo = tempoEl.value;
+    cfg.cursor = cursorModeEl.value;
+    cfg.metronome = clickOnEl.checked;
+    cfg.playAlong = playAlongEl.checked;
+    cfg.instrument = instrumentEl.value;
+    cfg.volume = volumeEl.value;
+    cfg.hideBehind = hideBehindEl.checked;
+    cfg.hideLead = hideLeadEl.value;
+    cfg.hideUnit = hideUnitEl.dataset.unit || "beats";
+    cfg.showChunks = showChunksEl.checked;
+    return cfg;
   }
 
   function persistSession() {
@@ -191,55 +323,60 @@
     presetsEl.innerHTML = "";
     var saved = loadSaved();
     var all = {};
-    Object.keys(BUILTIN).forEach(function (k) { all[k] = BUILTIN[k]; });
+    Object.keys(BUILTIN).forEach(function (k) { all[k] = builtinPreset(k); });
     Object.keys(saved).forEach(function (k) { all[k] = saved[k]; });
 
     Object.keys(all).forEach(function (name) {
       var pill = document.createElement("button");
       pill.className = "pill";
       var label = document.createElement("span");
-      label.textContent = name;
+      label.textContent = presetLabel(name);
       pill.appendChild(label);
       pill.addEventListener("click", function () {
         applyPreset(all[name]);
+        syncPanel();              // a preset can move any control — re-read them all
         activePreset = name;
-        markActive(pill);
-        generate();
+        generate();               // renderLoaded -> updateHeader -> syncActivePill
       });
       if (saved.hasOwnProperty(name)) {                // user preset/override: updatable + deletable
         var upd = document.createElement("span");
-        upd.className = "upd"; upd.textContent = "↻"; upd.title = "Update with current settings";
+        upd.className = "upd"; upd.textContent = "↻"; upd.setAttribute("aria-label", t("aria.updatePreset"));
         upd.addEventListener("click", function (e) {
           e.stopPropagation();
           updatePreset(name);
         });
         pill.appendChild(upd);
         var del = document.createElement("span");
-        del.className = "del"; del.textContent = "×"; del.title = "Delete preset";
+        del.className = "del"; del.textContent = "×"; del.setAttribute("aria-label", t("aria.deletePreset"));
         del.addEventListener("click", function (e) {
           e.stopPropagation();
           deletePreset(name);
         });
         pill.appendChild(del);
       }
-      if (name === activePreset) pill.classList.add("active");
+      pill.dataset.preset = name;
       presetsEl.appendChild(pill);
     });
 
     var save = document.createElement("button");
-    save.className = "pill save"; save.textContent = "+ save";
+    save.className = "pill save"; save.textContent = t("val.save");
     save.addEventListener("click", saveCurrent);
     presetsEl.appendChild(save);
     updateHeader();
   }
 
-  function markActive(pill) {
-    presetsEl.querySelectorAll(".pill").forEach(function (p) { p.classList.remove("active"); });
-    if (pill) pill.classList.add("active");
+  // The lit pill follows the same rule as the title: it marks the preset the
+  // panel currently *is*, not merely the last one clicked, so the two can't
+  // disagree once a control has been touched.
+  function syncActivePill() {
+    var live = loadedPresetName();
+    presetsEl.querySelectorAll(".pill").forEach(function (p) {
+      p.classList.toggle("active", !!live && p.dataset.preset === live);
+    });
   }
 
   function deletePreset(name) {
-    if (!confirm("Delete preset “" + name + "”?")) return;
+    if (!confirm(t("msg.deletePreset", { name: presetLabel(name) }))) return;
     var saved = loadSaved();
     delete saved[name];
     localStorage.setItem(STORE_KEY, JSON.stringify(saved));
@@ -247,11 +384,13 @@
     renderPresets();
   }
 
-  // Overwrite an existing preset with the whole current panel state.
+  // Overwrite an existing preset with the drill-defining part of the panel
+  // (see readPresetConfig) — not the whole panel, so it doesn't freeze in
+  // whatever tempo or metronome state happened to be set at save time.
   function updatePreset(name) {
-    if (!confirm("Update preset “" + name + "” with the current settings?")) return;
+    if (!confirm(t("msg.updatePreset", { name: presetLabel(name) }))) return;
     var saved = loadSaved();
-    saved[name] = readConfig();
+    saved[name] = readPresetConfig();
     localStorage.setItem(STORE_KEY, JSON.stringify(saved));
     activePreset = name;
     renderPresets();
@@ -260,12 +399,12 @@
   // Create a new preset from the current panel (updating an existing one is the
   // ↻ button's job). Typing an existing name still overwrites it.
   function saveCurrent() {
-    var name = prompt("New preset name:", "");
+    var name = prompt(t("msg.newPresetName"), "");
     if (name == null) return;
     name = name.trim();
     if (!name) return;
     var saved = loadSaved();
-    saved[name] = readConfig();
+    saved[name] = readPresetConfig();
     localStorage.setItem(STORE_KEY, JSON.stringify(saved));
     activePreset = name;
     renderPresets();
@@ -277,24 +416,27 @@
   var keyTonicEl   = document.getElementById("key-tonic");
   var keyModeEl    = document.getElementById("key-mode");
   var measuresEl   = document.getElementById("measures");
+  var clefEl       = document.getElementById("clef");
+  var timesigEl    = document.getElementById("timesig");
   var musicalityEl    = document.getElementById("musicality");
 
   // The scale key as a "<mode>_<symbol>-<acc>" code (the form makeScaleKey reads).
   function currentKeyCode() { return keyModeEl.value + "_" + keyTonicEl.value; }
+  // Restore a "<mode>_<symbol>-<acc>" code, ignoring anything the current build
+  // doesn't offer (a preset saved before a key list changed shouldn't wedge the app).
   function setKeyFromCode(code) {
     var parts = String(code).split("_");
-    if (parts.length === 2) { keyModeEl.value = parts[0]; keyTonicEl.value = parts[1]; }
+    if (parts.length !== 2) return;
+    if (keyModeEl.querySelector('option[value="' + parts[0] + '"]')) keyModeEl.value = parts[0];
+    if (keyTonicEl.querySelector('option[value="' + parts[1] + '"]')) keyTonicEl.value = parts[1];
   }
-  var musicalityValEl = document.getElementById("musicality-val");
   var beatsEl      = document.getElementById("beats");
   var showChunksEl = document.getElementById("show-chunks");
   var generateBtn  = document.getElementById("generate");
   var errorEl      = document.getElementById("error-msg");
   var sheetEl      = document.getElementById("sheet");
-  var sheetHeadEl  = document.getElementById("sheet-head");
   var shTitleEl    = document.getElementById("sh-title");
   var shSubEl      = document.getElementById("sh-sub");
-  var shNotesEl    = document.getElementById("sh-notes");
 
   // ===========================================================================
   // Note range grid
@@ -309,17 +451,23 @@
   var rangeState = {};   // { [oct]: [bool × 7] }
   var rangeCells = {};   // { "oct-i": button }
 
-  function initRangeState() {
+  // Treble's home octaves — the starting selection, and what a built-in resets to.
+  function defaultRange() {
+    var r = {};
     RANGE_OCTAVES.forEach(function (oct) {
-      rangeState[oct] = NOTE_COLS.map(function () { return oct === 4 || oct === 5; });
+      r[oct] = NOTE_COLS.map(function () { return oct === 4 || oct === 5; });
     });
+    return r;
   }
+
+  function initRangeState() { rangeState = defaultRange(); }
 
   function syncRangeCells(oct) {
     NOTE_COLS.forEach(function (nc, i) {
       var cell = rangeCells[oct + "-" + i];
       if (cell) cell.className = "note-cell" + (rangeState[oct][i] ? " on" : "");
     });
+    syncOctCheck(oct);
   }
 
   function applyRange(r) {
@@ -331,13 +479,22 @@
     });
   }
 
+  // Octave checkbox: on when any note in the row is picked; toggling it turns the
+  // whole octave on or off (matching the Step rows' checkbox-owns-the-row idea).
+  var octChecks = {};
+
+  function syncOctCheck(oct) {
+    if (octChecks[oct]) octChecks[oct].checked = rangeState[oct].some(Boolean);
+  }
+
   function buildRangeGrid() {
     var container = document.getElementById("range-grid");
     container.innerHTML = "";
     // column headers
     var hdr = document.createElement("div");
     hdr.className = "note-row";
-    hdr.appendChild(document.createElement("span")); // empty corner
+    hdr.appendChild(document.createElement("span")); // checkbox corner
+    hdr.appendChild(document.createElement("span")); // octave-label corner
     NOTE_COLS.forEach(function (nc) {
       var h = document.createElement("span");
       h.className = "note-col-hdr"; h.textContent = nc.name;
@@ -348,15 +505,26 @@
     RANGE_OCTAVES.forEach(function (oct) {
       var row = document.createElement("div");
       row.className = "note-row";
-      var lbl = document.createElement("button");
-      lbl.className = "note-row-lbl"; lbl.textContent = "C" + oct;
-      lbl.addEventListener("click", function () {
-        var allOn = rangeState[oct].every(Boolean);
-        rangeState[oct] = rangeState[oct].map(function () { return !allOn; });
-        syncRangeCells(oct);
-        generate();
-      });
+
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = rangeState[oct].some(Boolean);
+      cb.setAttribute("aria-label", t("aria.octave") + " " + oct);
+      (function (o) {
+        cb.addEventListener("change", function () {
+          var on = cb.checked;
+          rangeState[o] = rangeState[o].map(function () { return on; });
+          syncRangeCells(o);
+          generate();
+        });
+      })(oct);
+      octChecks[oct] = cb;
+      row.appendChild(cb);
+
+      var lbl = document.createElement("span");
+      lbl.className = "note-row-lbl"; lbl.textContent = String(oct);
       row.appendChild(lbl);
+
       NOTE_COLS.forEach(function (nc, i) {
         var cell = document.createElement("button");
         cell.className = "note-cell" + (rangeState[oct][i] ? " on" : "");
@@ -390,6 +558,142 @@
   }
 
   // ===========================================================================
+  // Clef
+  //
+  // OSME always exports a treble clef, so we swap the <clef> element in the
+  // MusicXML on its way to OSMD — render-side only, no generator changes.
+  // Each clef also carries the octave pair the melody should sit in, so
+  // switching clef moves the notes onto the staff instead of onto ledger lines.
+  // ===========================================================================
+  var CLEFS = [
+    { id: "treble", label: "𝄞", sign: "G", line: 2, octaves: [4, 5] },   // 𝄞
+    { id: "alto",   label: "𝄡", sign: "C", line: 3, octaves: [3, 4] },   // 𝄡
+    { id: "tenor",  label: "𝄡", sign: "C", line: 4, octaves: [3, 4] },
+    { id: "bass",   label: "𝄢", sign: "F", line: 4, octaves: [2, 3] }    // 𝄢
+  ];
+  function clefDef(id) {
+    for (var i = 0; i < CLEFS.length; i++) if (CLEFS[i].id === id) return CLEFS[i];
+    return CLEFS[0];
+  }
+
+  // ===========================================================================
+  // Time signature. num/den are what's printed on the staff — passed straight
+  // through to the generator. The playback clock's own notion of "how many
+  // beats make a bar" is separate; see barBeats() below.
+  //
+  // "compound" marks 6/8-family meters, where the beat groups in 3s and the
+  // Rhythm figure palette swaps to the dotted-quarter-beat set
+  // (BEAT_FIGURES_COMPOUND).
+  // ===========================================================================
+  var TIME_SIGS = [
+    { id: "2/4", num: 2, den: 4 },
+    { id: "3/4", num: 3, den: 4 },
+    { id: "4/4", num: 4, den: 4 },
+    { id: "6/8", num: 6, den: 8, compound: true }
+  ];
+  function timeSigDef(id) {
+    for (var i = 0; i < TIME_SIGS.length; i++) if (TIME_SIGS[i].id === id) return TIME_SIGS[i];
+    return TIME_SIGS[2];   // 4/4
+  }
+
+  // One felt pulse, in quarter notes — what a reader counts. A quarter in the
+  // simple meters, a dotted quarter in 6/8, which is why 6/8 gets two pulses to
+  // a bar rather than six. The generator anchors chord tones to these, so "on
+  // the beat" has to mean the same thing in every meter.
+  function pulseBeats() { return timeSigDef(timesigEl.value).compound ? 1.5 : 1; }
+
+  // Rewrite the exported score's clef. The exporter emits exactly one
+  // <clef><sign>G</sign><line>2</line></clef> per part, at the first measure.
+  function applyClefToXml(xml) {
+    var c = clefDef(clefEl.value);
+    if (c.id === "treble") return xml;
+    return xml.replace(/<clef>[\s\S]*?<\/clef>/g,
+      "<clef><sign>" + c.sign + "</sign><line>" + c.line + "</line></clef>");
+  }
+
+  // OSMD's auto-beam produces zero beams for any /8 meter (empirically
+  // confirmed: identical eighth-note content beams cleanly in 3/4, not at all
+  // in 6/8) — the exporter never emits explicit <beam> elements for anything,
+  // so simple meters only ever looked beamed because OSMD's own guesswork
+  // happened to work there. For compound meters we write the beams ourselves.
+  //
+  // Walk each measure's notes in eighth-note position order and group
+  // consecutive beamable notes (eighth or shorter, not rests, not chord
+  // tones) that fall inside the same 3-eighth pulse — 6/8's two real beats —
+  // stopping a group at a rest, a longer note, or the pulse boundary itself.
+  // A lone beamable note (no partner in its pulse) is left with a flag.
+  var BEAMABLE_TYPES = { eighth: true, "16th": true, "32nd": true, "64th": true };
+
+  function child(el, tag) {
+    for (var i = 0; i < el.children.length; i++) {
+      if (el.children[i].tagName === tag) return el.children[i];
+    }
+    return null;
+  }
+
+  function applyBeamsToXml(xml) {
+    var doc = new DOMParser().parseFromString(xml, "application/xml");
+    if (doc.querySelector("parsererror")) return xml;   // never risk a blank score over beaming
+    var divisions = null;
+
+    Array.prototype.forEach.call(doc.getElementsByTagName("measure"), function (measure) {
+      var attrs = child(measure, "attributes");
+      var divEl = attrs && child(attrs, "divisions");
+      if (divEl) divisions = +divEl.textContent;
+      if (!divisions) return;
+      var eighthTicks = divisions / 2;
+
+      var pos = 0, run = [], runPulse = -1;
+      function flush() {
+        if (run.length >= 2) {
+          run.forEach(function (n, i) {
+            var beam = doc.createElement("beam");
+            beam.setAttribute("number", "1");
+            beam.textContent = i === 0 ? "begin" : (i === run.length - 1 ? "end" : "continue");
+            n.appendChild(beam);
+          });
+        }
+        run = [];
+      }
+
+      Array.prototype.forEach.call(measure.children, function (el) {
+        if (el.tagName !== "note") return;
+        var isChord = !!child(el, "chord");
+        var isRest = !!child(el, "rest");
+        var durEl = child(el, "duration");
+        var dur = durEl ? +durEl.textContent : 0;
+        var typeEl = child(el, "type");
+        var type = typeEl ? typeEl.textContent : "";
+        var pulse = Math.floor((pos + 1e-6) / 3);
+
+        if (!isChord && !isRest && BEAMABLE_TYPES[type]) {
+          if (run.length && pulse !== runPulse) flush();
+          runPulse = pulse;
+          run.push(el);
+        } else {
+          flush();
+        }
+        if (!isChord) pos += dur / eighthTicks;
+      });
+      flush();
+    });
+
+    return new XMLSerializer().serializeToString(doc);
+  }
+
+  // Move the picked notes onto the new clef's staff: select every pitch in that
+  // clef's two octaves. (Hand-picking afterwards is untouched until the next
+  // clef change.)
+  function shiftRangeToClef(id) {
+    var octs = clefDef(id).octaves;
+    RANGE_OCTAVES.forEach(function (oct) {
+      var on = (octs.indexOf(oct) >= 0);
+      rangeState[oct] = NOTE_COLS.map(function () { return on; });
+      syncRangeCells(oct);
+    });
+  }
+
+  // ===========================================================================
   // OSMD renderer
   // ===========================================================================
   var osmd = new OpenSheetMusicDisplay(sheetEl, {
@@ -411,35 +715,22 @@
   // major / minor (natural) / harmonic / melodic.
   // (OSME's fromStringCode only understands major, so we build it ourselves.)
   var SCALE_TYPES = {
-    major:    function () { return O.ScaleType.MAJOR; },
-    minor:    function () { return O.ScaleType.MINOR_NATURAL; },
-    harmonic: function () { return O.ScaleType.MINOR_HARMONIC; },
-    melodic:  function () { return O.ScaleType.MINOR_MELODIC; }
+    major: function () { return O.ScaleType.MAJOR; },
+    minor: function () { return O.ScaleType.MINOR_NATURAL; }
   };
   function makeScaleKey(code) {
     var parts = code.split("_");
     var typeFn = SCALE_TYPES[parts[0]] || SCALE_TYPES.major;
-    var type = typeFn();
     var tp = parts[1].split("-");
     var symbol = parseInt(tp[0], 10);
     var acc = (tp[1] === "b") ? -1 : (tp[1] === "#") ? 1 : 0;
-    var tone = O.Tone.getToneFromSymbol(symbol, acc);
-    var sk = ScaleKey.create(type, tone);
-
-    // Harmonic/melodic minor: the raised 6th/7th are accidentals, not part of
-    // the key signature. Force the signature to natural minor's; the raised
-    // tones then render as accidentals on each note.
-    if (type === O.ScaleType.MINOR_HARMONIC || type === O.ScaleType.MINOR_MELODIC) {
-      var naturalNum = ScaleKey.create(O.ScaleType.MINOR_NATURAL, tone).getKeyNumber();
-      sk.getKeyNumber = function () { return naturalNum; };
-    }
-    return sk;
+    return ScaleKey.create(typeFn(), O.Tone.getToneFromSymbol(symbol, acc));
   }
 
   // Rhythm figures, in display order. Each event is [num, den] or [num, den,
   // true] for a rest; a figure's events sum to one beat (1/4) unless it's a
   // multi-beat cell (whole/half). Rendered as a flat grid of notation cells.
-  var BEAT_FIGURES = [
+  var BEAT_FIGURES_SIMPLE = [
     // plain figures
     { id: "w",    name: "whole",                  events: [[1,1]] },
     { id: "h",    name: "half",       def: true,  events: [[1,2]] },
@@ -459,7 +750,24 @@
     { id: "er",   name: "eighth + 8th rest",      events: [[1,8],[1,8,true]] }
   ];
 
-  var BEAT_PATTERNS = {}; // id -> [{n,d,rest}]
+  // 6/8's beat is a dotted quarter (3 eighths), not a quarter — so the simple
+  // set's figures (built around a quarter-note beat) don't tile a compound bar
+  // cleanly, and the beat-level figures here read wrong. Each figure below is
+  // sized to one full beat (a dotted quarter, 3/8) or the whole two-beat bar
+  // (a dotted half, 3/4), the same way the simple set's figures are each one
+  // beat (1/4) or the whole bar (1, the whole note).
+  var BEAT_FIGURES_COMPOUND = [
+    { id: "dq",  name: "dotted quarter",          def: true,  events: [[3,8]] },
+    { id: "eee", name: "three eighths",           def: true,  events: [[1,8],[1,8],[1,8]] },
+    { id: "qe",  name: "quarter + eighth",        def: true,  events: [[1,4],[1,8]] },
+    { id: "eq",  name: "eighth + quarter",                    events: [[1,8],[1,4]] },
+    { id: "dh",  name: "dotted half",                         events: [[3,4]] },
+    { id: "dqr", name: "dotted quarter rest",                 events: [[3,8,true]] },
+    { id: "ree", name: "8th rest + 2 eighths",                events: [[1,8,true],[1,8],[1,8]] },
+    { id: "eer", name: "2 eighths + 8th rest",                events: [[1,8],[1,8],[1,8,true]] }
+  ];
+
+  var BEAT_PATTERNS = {}; // id -> [{n,d,rest}], populated for both sets up front
 
   // A tiny notation glyph (inline SVG, currentColor so it inverts when the cell
   // is on) for each rhythm figure — noteheads, stems, beams, dots, rests.
@@ -491,6 +799,15 @@
       case "qr":   g = rest4(22); break;
       case "re":   g = rest8(13) + head(30, 0) + stem(30) + flag(30); break;
       case "er":   g = head(14, 0) + stem(14) + flag(14) + rest8(33); break;
+      // compound (6/8-family) figures
+      case "dq":   g = head(22, false) + stem(22) + dot(22); break;
+      case "eee":  g = head(10, 0) + head(22, 0) + head(34, 0) + stem(10) + stem(22) + stem(34) + beam(12.6, 36.6, TOP); break;
+      case "qe":   g = head(11, false) + stem(11) + head(30, 0) + stem(30) + flag(30); break;
+      case "eq":   g = head(11, 0) + stem(11) + flag(11) + head(30, false) + stem(30); break;
+      case "dh":   g = head(22, true) + stem(22) + dot(22); break;
+      case "dqr":  g = rest4(22) + dot(22); break;
+      case "ree":  g = rest8(11) + head(23, 0) + head(34, 0) + stem(23) + stem(34) + beam(25.6, 36.6, TOP); break;
+      case "eer":  g = head(11, 0) + head(22, 0) + stem(11) + stem(22) + beam(13.6, 24.6, TOP) + rest8(35); break;
       default:     g = head(22, false) + stem(22);
     }
     return '<svg viewBox="0 0 44 28" class="fig-svg">' + g + "</svg>";
@@ -499,17 +816,30 @@
   // Flat grid of rhythm figures — each cell is a notation glyph toggled on/off,
   // its name revealed on hover. A hidden .beat checkbox keeps the read/apply
   // path (buildBeatPatterns / readBeatIds / applyBeats) unchanged.
-  function buildBeatsPalette() {
-    var grid = document.createElement("div");
-    grid.className = "fig-grid";
-    BEAT_FIGURES.forEach(function (item) {
+  // Every figure's pattern is known up front, from both sets, regardless of
+  // which one is currently on screen — only the visible grid (and therefore
+  // what readBeatIds/applyBeats see as "in play") changes with the meter.
+  [BEAT_FIGURES_SIMPLE, BEAT_FIGURES_COMPOUND].forEach(function (set) {
+    set.forEach(function (item) {
       BEAT_PATTERNS[item.id] = item.events.map(function (e) {
         return { n: e[0], d: e[1], rest: !!e[2] };
       });
+    });
+  });
+
+  function currentBeatFigures() {
+    return timeSigDef(timesigEl.value).compound ? BEAT_FIGURES_COMPOUND : BEAT_FIGURES_SIMPLE;
+  }
+
+  function buildBeatsPalette(figures) {
+    beatsEl.innerHTML = "";
+    beatsEl.dataset.family = timeSigDef(timesigEl.value).compound ? "compound" : "simple";
+    var grid = document.createElement("div");
+    grid.className = "fig-grid";
+    figures.forEach(function (item) {
       var cell = document.createElement("label");
       cell.className = "fig-cell";
-      cell.setAttribute("data-name", item.name);
-      cell.setAttribute("aria-label", item.name);
+      cell.setAttribute("aria-label", t("fig." + item.id));
       var cb = document.createElement("input");
       cb.type = "checkbox"; cb.className = "beat"; cb.value = item.id; cb.checked = !!item.def; cb.hidden = true;
       if (cb.checked) cell.classList.add("on");
@@ -519,6 +849,16 @@
       grid.appendChild(cell);
     });
     beatsEl.appendChild(grid);
+  }
+
+  // Only rebuilds (and resets to that family's defaults) when the meter
+  // actually crosses the simple/compound line — cycling among 2/4, 3/4 and
+  // 4/4 shares one grid and leaves whatever is checked alone.
+  function syncBeatsFamily() {
+    var wantCompound = !!timeSigDef(timesigEl.value).compound;
+    var have = beatsEl.dataset.family === "compound";
+    if (wantCompound === have) return;
+    buildBeatsPalette(currentBeatFigures());
   }
 
   function buildBeatPatterns() {
@@ -546,6 +886,18 @@
     });
   }
 
+  // One chord per bar, written as scale-degree roots into the diatonic ladder.
+  // Major gets I – IV – V – I. Minor can't reuse it: the fifth degree of a
+  // natural minor scale builds a *minor* v, so there is no leading tone and the
+  // phrase never leans home — i – iv – v – i comes out sounding like a drone
+  // rather than a cadence. Until the app can raise that 7th (it would be the
+  // first accidental it generates), minor gets a progression that means to stay
+  // inside the key signature: i – VI – VII – i, the natural-minor cadence.
+  var PROGRESSIONS = {
+    major: [0, 3, 4, 0],   // I – IV – V   – I
+    minor: [0, 5, 6, 0]    // i – VI – VII – i
+  };
+
   function buildOptions() {
     var scaleKey = makeScaleKey(currentKeyCode());
     var ladder = SREngine.buildLadder(scaleKey);
@@ -556,7 +908,7 @@
       complexity: 0.5,  // required by OSME; pitch/rhythm are driven by our settings
       measure_count: parseInt(measuresEl.value, 10),
       tempo: 80,
-      time_signature: new RhythmInstruction(new Fraction(4, 4, 0, false), RhythmSymbolEnum.NONE),
+      time_signature: new RhythmInstruction(new Fraction(timeSigDef(timesigEl.value).num, timeSigDef(timesigEl.value).den, 0, false), RhythmSymbolEnum.NONE),
       scale_key: scaleKey,
       instruments: [DefaultInstrumentOptions.get("trumpet")],
       pitch_settings: ComplexityMap.getPitchSettings(0.5), // unused (overridden) but kept valid
@@ -565,7 +917,9 @@
       rangeMin: bounds.min,
       rangeMax: bounds.max,
       beatPatterns: buildBeatPatterns(),
-      musicality: (+musicalityEl.value) / 100
+      musicality: (+musicalityEl.value) / 100,
+      pulseBeats: pulseBeats(),
+      progression: PROGRESSIONS[keyModeEl.value] || PROGRESSIONS.major
     };
   }
 
@@ -575,13 +929,14 @@
     try {
       var plugin = new ExampleSourceGenerator(buildOptions());
       currentSheet = plugin.generate();
-      var xml = new XMLSourceExporter().export(currentSheet);
+      var xml = applyClefToXml(new XMLSourceExporter().export(currentSheet));
+      if (timeSigDef(timesigEl.value).compound) xml = applyBeamsToXml(xml);
       osmd.load(xml).then(function () {
         renderLoaded();
         persistSession();
         if (typeof after === "function") after();
       }).catch(function (e) {
-        showError("Load failed: " + (e.message || e));
+        showError(t("msg.loadFailed", { detail: (e.message || e) }));
         console.error(e);
       });
     } catch (e) {
@@ -596,61 +951,49 @@
   }
 
   // ===========================================================================
-  // Summary header — title / digest / notes, reflecting the current settings
+  // Summary header — the drill's name + key/length digest
   // ===========================================================================
-  var MODE_SHORT = { major: "maj", minor: "min", harmonic: "harm", melodic: "mel" };
 
-  function titleCase(s) {
-    return String(s).replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+  // The top bar: drill name, then "Key Mode – N Bars".
+  // A preset's name belongs on the title only while the panel still matches it.
+  // Comparing the config beats clearing activePreset from every control's change
+  // handler: it can't miss a control, needs no upkeep as preset fields come and
+  // go, and putting a value back restores the name instead of stranding it on
+  // "Custom". Only fields the preset actually defines are compared, mirroring
+  // applyPreset — so a preset saved before a field existed still matches.
+  var PRESET_FIELDS = ["musicality", "key", "clef", "timesig", "measures"];
+
+  function presetMatchesPanel(p) {
+    var cur = readPresetConfig();
+    var alpha = p.alphabet || ((p.down || p.up) ? { down: p.down, up: p.up } : null);
+    if (alpha && JSON.stringify(alpha) !== JSON.stringify(cur.alphabet)) return false;
+    if (p.range && JSON.stringify(p.range) !== JSON.stringify(cur.range)) return false;
+    if (p.beats && JSON.stringify(p.beats) !== JSON.stringify(cur.beats)) return false;
+    for (var i = 0; i < PRESET_FIELDS.length; i++) {
+      var f = PRESET_FIELDS[i];
+      if (p[f] != null && String(p[f]) !== String(cur[f])) return false;
+    }
+    return true;
   }
 
-  // "{n} Rhythms" — the count of selected beat figures.
-  function rhythmSummary() {
-    var n = readBeatIds().length;
-    return n ? n + " Rhythm" + (n !== 1 ? "s" : "") : "";
-  }
-
-  // The selected pitches: a span ("C4–B5") when contiguous, an explicit list
-  // ("A5,B5,D6,G6") when a few are scattered, else a count.
-  function noteSummary() {
-    var sel = [];
-    RANGE_OCTAVES.forEach(function (oct) {
-      NOTE_COLS.forEach(function (nc, ci) {
-        if (rangeState[oct] && rangeState[oct][ci]) {
-          sel.push({ oct: oct, ci: ci, name: nc.name + oct, h: oct * 12 + nc.semi });
-        }
-      });
-    });
-    if (!sel.length) return "no notes";
-    sel.sort(function (a, b) { return a.h - b.h; });
-    var lo = sel[0], hi = sel[sel.length - 1];
-    if (sel.length === 1) return lo.name;
-    var between = 0;
-    RANGE_OCTAVES.forEach(function (oct) {
-      NOTE_COLS.forEach(function (nc) {
-        var h = oct * 12 + nc.semi;
-        if (h >= lo.h && h <= hi.h) between++;
-      });
-    });
-    if (between === sel.length) return lo.name + "–" + hi.name;     // contiguous block
-    if (sel.length <= 8) return sel.map(function (s) { return s.name; }).join(",");
-    return sel.length + " notes";
-  }
-
-  function updateTempoPill() {
-    if (tempoPillValEl) tempoPillValEl.textContent = tempoEl.value;
+  function loadedPresetName() {
+    if (!activePreset) return null;
+    var saved = loadSaved();
+    var p = saved.hasOwnProperty(activePreset) ? saved[activePreset]
+          : (BUILTIN[activePreset] ? builtinPreset(activePreset) : null);
+    return (p && presetMatchesPanel(p)) ? activePreset : null;
   }
 
   function updateHeader() {
-    var tonic = keyTonicEl.options[keyTonicEl.selectedIndex].textContent;
-    var mode = MODE_SHORT[keyModeEl.value] || "";
-    if (mode) mode = mode.charAt(0).toUpperCase() + mode.slice(1);
-    shTitleEl.textContent = titleCase(activePreset || "Custom") + " · " + tonic + " " + mode;
-    shSubEl.textContent = measuresEl.value + " Bars, " + noteSummary();
-    var r = rhythmSummary();
-    if (+musicalityEl.value > 0) r += (r ? ", " : "") + "Musical";
-    shNotesEl.textContent = r;
-    updateTempoPill();
+    var sel = keyTonicEl.options[keyTonicEl.selectedIndex];
+    var tonic = sel ? sel.textContent : "C";
+    var mode = t("mode." + keyModeEl.value);
+    // Onboarding blanks the staff; the title would leak the same thing in words.
+    shTitleEl.textContent = obBlanking ? "" : (presetLabel(loadedPresetName()) || t("val.custom"));
+    shSubEl.textContent = obBlanking ? ""
+      : tonic + " " + mode + " – " + measuresEl.value + " " + t("val.bars");
+    syncActivePill();
+    syncTransport();
   }
 
   // Reflow to fit the width: pick a measures-per-line target (never below
@@ -669,11 +1012,11 @@
       if (w > avail + 1) { osmd.zoom *= (avail / w) * 0.99; osmd.render(); }
     }
     drawOverlay();
+    applyObBlank();     // a fresh SVG has fresh ink; re-empty it if onboarding is up
     updateHeader();
     computeLines();
     if (playing && !advancing) { lastScrollTarget = -1; followCursor(); }  // keep the cursor in view on a mid-play reflow
     else scrollSheetTop();                                                  // …but an auto-advanced fresh line resets to the top
-    alignHeader();
   }
 
   // ===========================================================================
@@ -795,32 +1138,27 @@
     updateGap();
   }
 
-  // Inset the header row so the title lines up with the music's left edge and the
-  // tempo pill lines up with its right edge.
-  function alignHeader() {
-    var ms = sheetEl.querySelectorAll(".vf-measure");
-    if (!ms.length || !sheetTopEl) return;
-    var topRect = sheetTopEl.getBoundingClientRect();
-    var left = Infinity, right = -Infinity;
-    Array.prototype.forEach.call(ms, function (m) {
-      var r = m.getBoundingClientRect();
-      if (r.left < left) left = r.left;
-      if (r.right > right) right = r.right;
-    });
-    sheetTopEl.style.paddingLeft = Math.max(0, left - topRect.left) + "px";
-    sheetTopEl.style.paddingRight = Math.max(0, topRect.right - right) + "px";
-  }
-
-  // Reflect the metronome on/off state in the tempo pill.
+  // Reflect the transport toggles' state on their buttons (blue tint when active).
+  // Both the metronome and the accompaniment have two faces — the transport bar
+  // and their own section in the panel — so every .js-metro / .js-accomp button
+  // tracks the one checkbox.
   function syncMetroPill() {
-    if (tempoPillEl) tempoPillEl.classList.toggle("metro-on", clickOnEl.checked);
+    document.querySelectorAll(".js-metro").forEach(function (b) {
+      b.classList.toggle("on", clickOnEl.checked);
+    });
   }
+  function syncAccompBtn() {
+    document.querySelectorAll(".js-accomp").forEach(function (b) {
+      b.classList.toggle("on", playAlongEl.checked);
+    });
+  }
+  function syncTransport() { syncMetroPill(); syncAccompBtn(); }
 
   // ===========================================================================
-  // Seeing mode: read the rendered notes back out and bracket the chunks
+  // Seeing mode: read the rendered noteheads back out and highlight the chunks
   // ===========================================================================
   function collectNotes() {
-    var out = [];
+    var out = [], noteIdx = 0;
     var measureList = osmd.graphic && osmd.graphic.MeasureList;
     if (!measureList) return out;
     for (var m = 0; m < measureList.length; m++) {
@@ -837,7 +1175,17 @@
             var halfTone = (!isRest && src.Pitch) ? src.Pitch.getHalfTone() : null;
             var el = null;
             try { el = gn.getSVGGElement ? gn.getSVGGElement() : null; } catch (err) { el = null; }
-            out.push({ isRest: isRest, halfTone: halfTone, el: el });
+            // The notehead alone anchors the highlighter — a note's own <g>
+            // stretches 35px up or down for the stem, which would swell every
+            // block far past the notes it is marking.
+            var head = el ? (el.querySelector(".vf-notehead") || el) : null;
+            // Which engraved system this note landed on, so a run that wraps at
+            // a line break can be highlighted once per line.
+            var sys = el ? el.closest(".staffline") : null;
+            // idx counts voice entries in the same order the playback cursor
+            // walks them, so it indexes straight into the session's onsets[].
+            out.push({ isRest: isRest, halfTone: halfTone, el: el, head: head, sys: sys,
+                       measure: m, idx: noteIdx++ });
           }
         }
       }
@@ -845,20 +1193,45 @@
     return out;
   }
 
-  // group maximal same-direction runs; classify scale (steps) vs chord (leaps)
+  // A chunk is what the eye can take in at once: consecutive notes moving the
+  // same way, by the same kind of interval. Direction alone isn't a fine enough
+  // grouping — classifying a whole run by its widest interval painted "C D E G"
+  // entirely as a leap when three quarters of it is a scale.
+  //
+  // So a direction-run is split again wherever steps meet leaps. The two
+  // segments share the note between them and blocks must not overlap, so the
+  // leap keeps it: a jump is the more salient event and the one worth seeing
+  // marked. A step fragment left holding a single note isn't a chunk, and drops.
+  var LEAP_SEMITONES = 3;   // a minor 3rd or wider; every diatonic step is 1 or 2
+
   function analyzeChunks(notes) {
     var chunks = [], run = [], dir = 0;
+
     function flush() {
       if (run.length >= 2) {
-        var maxStep = 0;
-        for (var i = 1; i < run.length; i++) maxStep = Math.max(maxStep, Math.abs(run[i].halfTone - run[i - 1].halfTone));
-        chunks.push({ notes: run.slice(), type: maxStep >= 3 ? "chord" : "scale" });
+        var leap = [];    // one entry per interval: is it a leap?
+        for (var i = 1; i < run.length; i++) {
+          leap.push(Math.abs(run[i].halfTone - run[i - 1].halfTone) >= LEAP_SEMITONES);
+        }
+        // Walk maximal same-kind stretches of intervals. Intervals [a, b) span
+        // notes [a, b], so neighbouring stretches meet on a shared note.
+        var a = 0;
+        for (var b = 1; b <= leap.length; b++) {
+          if (b < leap.length && leap[b] === leap[a]) continue;
+          var isLeap = leap[a], lo = a, hi = b;
+          if (!isLeap) {
+            if (a > 0) lo++;                // yield the note shared with the leap before
+            if (b < leap.length) hi--;      // …and the one shared with the leap after
+          }
+          if (hi > lo) chunks.push({ notes: run.slice(lo, hi + 1), type: isLeap ? "chord" : "scale" });
+          a = b;
+        }
       }
       run = []; dir = 0;
     }
     for (var i = 0; i < notes.length; i++) {
       var note = notes[i];
-      if (note.isRest || note.halfTone == null || !note.el) { flush(); continue; }
+      if (note.isRest || note.halfTone == null || !note.head) { flush(); continue; }
       if (run.length === 0) { run = [note]; dir = 0; continue; }
       var diff = note.halfTone - run[run.length - 1].halfTone;
       if (diff === 0) { flush(); run = [note]; continue; }
@@ -871,6 +1244,25 @@
     return chunks;
   }
 
+  // Split a run at system boundaries, keeping order. A run that straddles a
+  // line break gets one block per line — which is what a highlighter does when
+  // a phrase wraps, and it retires the old "skip chunks that wrap" limitation.
+  function splitBySystem(notes) {
+    var parts = [], cur = null, sys;
+    for (var i = 0; i < notes.length; i++) {
+      if (!cur || notes[i].sys !== sys) { cur = []; parts.push(cur); sys = notes[i].sys; }
+      cur.push(notes[i]);
+    }
+    return parts;
+  }
+
+  // Each chunk is drawn as a highlighter block whose opposite corners are the
+  // run's first and last noteheads. Runs are strictly monotonic — analyzeChunks
+  // ends one the moment direction reverses — so those two notes are always the
+  // pitch extremes, and the block is exactly the bounding box of the run's
+  // noteheads with the melodic contour tracing its diagonal. Consecutive chunks
+  // therefore always run opposite ways and their blocks step past each other,
+  // so two same-coloured runs never read as one.
   function drawOverlay() {
     var old = document.getElementById("chunk-overlay");
     if (old) old.remove();
@@ -888,30 +1280,45 @@
     overlay.setAttribute("height", sheetEl.scrollHeight);
 
     chunks.forEach(function (chunk) {
-      var left = Infinity, right = -Infinity, top = Infinity, firstTop = null, sameLine = true;
-      chunk.notes.forEach(function (note) {
-        var r = note.el.getBoundingClientRect();
-        if (firstTop === null) firstTop = r.top;
-        if (Math.abs(r.top - firstTop) > SYSTEM_BREAK_PX) sameLine = false;
-        left = Math.min(left, r.left); right = Math.max(right, r.right); top = Math.min(top, r.top);
+      var color = chunk.type === "chord" ? HL_LEAP : HL_STEP;
+      splitBySystem(chunk.notes).forEach(function (part) {
+        // A wrapped run can leave one note stranded on the far side of the line
+        // break. A block around a single note says nothing on its own and reads
+        // as a stray chip of colour, so only the substantial side is marked.
+        if (part.length < 2) return;
+        var l = Infinity, r = -Infinity, t = Infinity, b = -Infinity;
+        for (var i = 0; i < part.length; i++) {
+          var box = part[i].head.getBoundingClientRect();
+          l = Math.min(l, box.left); r = Math.max(r, box.right);
+          t = Math.min(t, box.top);  b = Math.max(b, box.bottom);
+        }
+        var rect = document.createElementNS(NS, "rect");
+        rect.setAttribute("x", l - cRect.left + scrollLeft - HL_PAD_X);
+        rect.setAttribute("y", t - cRect.top + scrollTop - HL_PAD_Y);
+        rect.setAttribute("width",  (r - l) + HL_PAD_X * 2);
+        rect.setAttribute("height", (b - t) + HL_PAD_Y * 2);
+        rect.setAttribute("rx", HL_RADIUS);
+        rect.setAttribute("fill", color);
+        rect.dataset.measure = part[0].measure;
+        rect.dataset.note = part[0].idx;   // the curtain hides by note, not by bar
+        overlay.appendChild(rect);
       });
-      if (!sameLine) return; // skip chunks that wrap across a system line break
-
-      var x1 = left - cRect.left + scrollLeft;
-      var x2 = right - cRect.left + scrollLeft;
-      var y = top - cRect.top + scrollTop - BRACKET_GAP;
-      var color = chunk.type === "chord" ? COLOR_CHORD : COLOR_SCALE;
-      var path = document.createElementNS(NS, "path");
-      path.setAttribute("d", "M " + x1 + " " + (y + BRACKET_TICK) + " L " + x1 + " " + y +
-                             " L " + x2 + " " + y + " L " + x2 + " " + (y + BRACKET_TICK));
-      path.setAttribute("fill", "none");
-      path.setAttribute("stroke", color);
-      path.setAttribute("stroke-width", "2");
-      path.setAttribute("stroke-linecap", "round");
-      path.setAttribute("stroke-linejoin", "round");
-      overlay.appendChild(path);
     });
     sheetEl.appendChild(overlay);
+    syncHighlights(session ? Math.max(0, session.hideState) : 0);
+  }
+
+  // Blocks empty out with the measures they sit on, so "hide behind" leaves a
+  // clean bar instead of a slab of ink floating over nothing. A block is keyed
+  // to the measure its run starts in.
+  // `upto` is the index of the first note still showing; a block goes when the
+  // note it starts on goes, so the highlight retreats with the notes it marks.
+  function syncHighlights(upto) {
+    var ov = document.getElementById("chunk-overlay");
+    if (!ov) return;
+    ov.querySelectorAll("rect").forEach(function (r) {
+      r.style.visibility = (+r.dataset.note < upto) ? "hidden" : "";
+    });
   }
 
   // ===========================================================================
@@ -926,31 +1333,34 @@
   // ===========================================================================
   var tempoEl      = document.getElementById("tempo");
   var tempoValEl   = document.getElementById("tempo-val");
-  var tempoPillValEl = document.getElementById("tempo-pill-val");
-  var tempoPillEl  = document.getElementById("tempo-pill");
-  var metroToggleEl = document.getElementById("metro-toggle");
-  var sheetTopEl   = document.getElementById("sheet-top");
   var clickOnEl    = document.getElementById("click-on");
   var playAlongEl  = document.getElementById("play-along");
   var instrumentEl = document.getElementById("instrument");
   var volumeEl     = document.getElementById("volume");
-  var volumeValEl  = document.getElementById("volume-val");
   var hideBehindEl = document.getElementById("hide-behind");
   var cursorModeEl = document.getElementById("cursor-mode");
   var hideLeadEl   = document.getElementById("hide-lead");
-  var hideLeadValEl = document.getElementById("hide-lead-val");
   var countdownEl  = document.getElementById("countdown");
   var playBtn      = document.getElementById("play");
 
-  // Play / Pause icons swapped into the control-bar button by state.
-  var ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5v14l12-7z"/></svg>';
-  var ICON_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="5" width="4" height="14" rx="1.3"/><rect x="13.5" y="5" width="4" height="14" rx="1.3"/></svg>';
+  // Play / Pause: both glyphs live in the button; .playing picks which shows.
   function setPlayIcon(playingNow) {
-    playBtn.innerHTML = playingNow ? ICON_PAUSE : ICON_PLAY;
-    playBtn.setAttribute("aria-label", playingNow ? "Pause" : "Play");
+    playBtn.classList.toggle("playing", !!playingNow);
+    playBtn.setAttribute("aria-label", t(playingNow ? "aria.pause" : "aria.play"));
   }
 
-  var BEATS_PER_BAR = 4;        // 4/4, fixed
+  // The playback clock (elapsed/nextBeat/onsets, everywhere below) always counts
+  // in quarter-note beats — that's what ties it to the tempo slider's BPM number,
+  // and it must stay fixed regardless of meter so the same tempo value plays at
+  // the same real speed in 3/4 as in 6/8. Only "how many of those beats make a
+  // bar" varies: 4 for /4 meters (unchanged from before this was configurable),
+  // 3 for 6/8 (a 6/8 bar is 3/4 of a whole note — 3 quarter-beats long, exactly
+  // as many as a 3/4 bar, since duration is duration regardless of how the bar
+  // is felt). barBeats() is that one number; nothing else here is meter-aware.
+  function barBeats() {
+    var ts = timeSigDef(timesigEl.value);
+    return ts.num * 4 / ts.den;
+  }
   var playing = false;
   var paused = false;           // frozen mid-line, resumable from the same beat
   var advancing = false;        // mid auto-advance regen (keeps playback alive)
@@ -961,9 +1371,7 @@
   var playVoices = [];          // scheduled play-along oscillators, killed on stop
 
   tempoEl.addEventListener("input", function () { tempoValEl.textContent = tempoEl.value; updateHeader(); retempo(); });
-  hideLeadEl.addEventListener("input", function () { hideLeadValEl.textContent = hideLeadEl.value; });
   volumeEl.addEventListener("input", function () {
-    volumeValEl.textContent = volumeEl.value;
     if (bus) bus.master.gain.value = volume();        // live while playing
   });
 
@@ -1128,14 +1536,19 @@
     if (sampleBuffers[name] || sampleLoading[name] || sampleFailed[name]) return;
     var set = SAMPLE_SETS[name], data = window[set.data];
     ensureAudio();
-    if (!audioCtx || !data) { sampleFailed[name] = true; showError(name + " samples unavailable."); return; }
+    if (!audioCtx || !data) { sampleFailed[name] = true; showError(t("msg.noSamples", { name: t("inst." + name) })); return; }
     sampleLoading[name] = true;
     var map = {}, pending = set.notes.length, ok = 0;
     var done = function () {
       if (--pending > 0) return;
       sampleLoading[name] = false;
-      if (ok > 0) { sampleBuffers[name] = map; }
-      else { sampleFailed[name] = true; showError(name + " samples failed to decode — using the organ instead."); }
+      if (ok > 0) {
+        sampleBuffers[name] = map;
+        // Chosen mid-line: the queued notes are sounding the organ stand-in, so
+        // re-voice them now that the real samples are decoded.
+        if (playing && instrumentEl.value === name) scheduleAhead();
+      }
+      else { sampleFailed[name] = true; showError(t("msg.badSamples", { name: t("inst." + name) })); }
     };
     set.notes.forEach(function (nm) {
       var b64 = data[nm[0]];
@@ -1219,15 +1632,54 @@
 
   function showAllInk() {
     sheetEl.querySelectorAll(INK_SEL).forEach(function (el) { el.style.visibility = ""; });
+    syncHighlights(0);
   }
 
-  // Hide the ink in measures [0, count); show it in the rest.
-  function hideMeasures(measureInk, count) {
-    for (var i = 0; i < measureInk.length; i++) {
-      var vis = (i < count) ? "hidden" : "";
-      var nodes = measureInk[i];
-      for (var j = 0; j < nodes.length; j++) nodes[j].style.visibility = vis;
+  // Onboarding renders over a real exercise, so the walkthrough would otherwise
+  // be talking about choices the student can already see made for them. The
+  // same ink-hiding trick empties the staff completely — clef, time signature,
+  // barlines and staff lines stay, everything written on them goes, including
+  // the measure numbers that would give the length away. Re-applied after every
+  // render (a resize reflows mid-walkthrough) and lifted when onboarding ends.
+  var OB_BLANK_SEL = INK_SEL + ", .measure-number";
+  var obBlanking = false;
+
+  function applyObBlank() {
+    if (!obBlanking) return;
+    sheetEl.querySelectorAll(OB_BLANK_SEL).forEach(function (el) { el.style.visibility = "hidden"; });
+    syncHighlights(Infinity);
+  }
+
+  // Hide the notes before `upto`, show the rest — a curtain that moves one note
+  // at a time rather than a bar at a time. It used to erase whole measures, so
+  // asking for a two-beat lead only changed *when* an entire bar blinked out;
+  // half a bar was not something the setting could express.
+  //
+  // Beams, ledger lines and beamed-note stems are drawn as siblings of the
+  // notes, not inside them, so they are matched by horizontal position. A beam
+  // goes the moment its first note goes: the survivors briefly read as
+  // quarters, but they are under a beat from vanishing themselves, and the
+  // alternative — a beam stub reaching back over blank paper — parks debris
+  // exactly where the eye checks the curtain's edge.
+  function hideBefore(ink, upto) {
+    var notes = ink.notes, cut = [];   // rightmost hidden notehead, per system
+    for (var i = 0; i < notes.length; i++) {
+      var hidden = i < upto;
+      notes[i].el.style.visibility = hidden ? "hidden" : "";
+      if (hidden) {
+        var L = notes[i].line;
+        cut[L] = (cut[L] == null) ? notes[i].right : Math.max(cut[L], notes[i].right);
+      }
     }
+    for (var b = 0; b < ink.spans.length; b++) {           // beams: gone with their first note
+      var bc = cut[ink.spans[b].line];
+      ink.spans[b].el.style.visibility = (bc != null && ink.spans[b].left < bc) ? "hidden" : "";
+    }
+    for (var l = 0; l < ink.marks.length; l++) {           // stems + ledgers: gone with their note
+      var mc = cut[ink.marks[l].line];
+      ink.marks[l].el.style.visibility = (mc != null && ink.marks[l].mid <= mc) ? "hidden" : "";
+    }
+    syncHighlights(upto);
   }
 
   // Full reset to the top: stop, hide the cursor, rewind to the first note.
@@ -1236,6 +1688,7 @@
     if (session && session.rafId) cancelAnimationFrame(session.rafId);
     session = null; rafId = null;
     setPlayIcon(false);
+    syncSwing();
     blinkCursor(false);
     try { osmd.cursor.hide(); osmd.cursor.reset(); } catch (e) {}
     hideCountdown();
@@ -1255,6 +1708,7 @@
     blinkCursor(false);
     hideCountdown();
     setPlayIcon(false);
+    syncSwing();
   }
 
   // A line finished while playing: tear down its timers/cursor but keep the
@@ -1280,7 +1734,7 @@
   function startPlay(noCountIn) {
     if (!currentSheet) return;
     var cur = osmd.cursor;
-    if (!cur) { showError("Cursor unavailable."); return; }
+    if (!cur) { showError(t("msg.noCursor")); return; }
     pinTop = true;   // hold the top until the new line's downbeat (released in frame)
 
     ensureAudio();
@@ -1288,12 +1742,16 @@
     // Precompute note onsets (in beats) by walking the cursor once. Capture the
     // melody (pitched notes only) at the same time, for the play-along voice.
     cur.reset();
+    var bpb = barBeats();   // fixed for this session — a regenerate rebuilds it fresh
     var onsets = [], measureFirst = [], melody = [], beat = 0, idx = 0;
     while (!cur.Iterator.EndReached) {
       var ves = cur.Iterator.CurrentVoiceEntries;
       var note = ves && ves[0] && ves[0].Notes && ves[0].Notes[0];
-      var durBeats = (note ? note.Length.RealValue : 0.25) * BEATS_PER_BAR;
-      var meas = Math.floor(beat / BEATS_PER_BAR + 1e-6);
+      // Always quarter-beats (RealValue is a fraction of a whole note, and a
+      // quarter is always 1/4 of one) — this is the tempo clock's own unit
+      // and must not vary with meter; see barBeats() above.
+      var durBeats = (note ? note.Length.RealValue : 0.25) * 4;
+      var meas = Math.floor(beat / bpb + 1e-6);
       if (measureFirst[meas] == null) measureFirst[meas] = idx;
       if (note && !note.isRest() && note.Pitch) {
         melody.push({ onset: beat, dur: durBeats, freq: note.Pitch.Frequency });
@@ -1307,26 +1765,57 @@
     cur.reset(); cur.show();
     scrollSheetTop();                              // start at the top
 
-    // The note sounding on each beat, so the cursor pulses on the beat instead
-    // of darting across every subdivision (and holds through sustained notes).
+    // The note sounding on each felt pulse, so the cursor moves on the beat
+    // instead of darting across every subdivision (and holds through sustained
+    // notes). The clock counts quarters throughout — that is what keeps a tempo
+    // meaning the same speed in every meter — but a *beat* is the pulse a
+    // reader counts, which in 6/8 is the dotted quarter. Counting 6/8 in
+    // quarters gave three clicks to the bar and put the cursor on the middle
+    // eighth of each beamed triplet, reading the bar as if it were 3/4.
+    var pulse = pulseBeats();
     var beatNote = [], jb = 0;
-    for (var b = 0; b < Math.ceil(totalBeats); b++) {
-      while (jb + 1 < onsets.length && onsets[jb + 1] <= b + 1e-6) jb++;
+    for (var b = 0; b < Math.ceil(totalBeats / pulse); b++) {
+      var at = b * pulse;
+      while (jb + 1 < onsets.length && onsets[jb + 1] <= at + 1e-6) jb++;
       beatNote[b] = jb;
     }
 
-    var measureInk = Array.prototype.map.call(
-      sheetEl.querySelectorAll(".vf-measure"),
-      function (g) { return g.querySelectorAll(INK_SEL); }
-    );
+    // The ink, indexed the way the curtain needs it. Notes come out in document
+    // order, which is the order the cursor walked above, so index i is onsets[i]
+    // — verified against the model: the cursor's entry count and the rendered
+    // .vf-stavenote count agree, rests included.
+    var sRect = sheetEl.getBoundingClientRect(), sx = sheetEl.scrollLeft || 0;
+    // Every element remembers which engraved system it sits on: x-coordinates
+    // restart at the left margin on each line, so a single "everything left of
+    // here" cut is only meaningful within one system. Compared globally, a
+    // fully-hidden first line put its cut at the right margin and swallowed
+    // every stem and beam on the lines below it.
+    var sysList = Array.prototype.slice.call(sheetEl.querySelectorAll(".staffline"));
+    function spanOf(el) {
+      var r = el.getBoundingClientRect();
+      return { el: el, line: sysList.indexOf(el.closest(".staffline")),
+               left: r.left - sRect.left + sx, right: r.right - sRect.left + sx,
+               mid: (r.left + r.right) / 2 - sRect.left + sx };
+    }
+    // Stems are collected here too: a beamed note's stem is drawn as a sibling
+    // of the note group, not inside it (the DOM shows half the stems outside
+    // any .vf-stavenote), so hiding the note alone left its stem standing on
+    // the page like a fence post.
+    var ink = {
+      notes: Array.prototype.map.call(sheetEl.querySelectorAll(".vf-stavenote"), spanOf),
+      spans: Array.prototype.map.call(sheetEl.querySelectorAll(".vf-beam"), spanOf),
+      marks: Array.prototype.map.call(sheetEl.querySelectorAll(".vf-ledgers, .vf-stem"), spanOf)
+    };
     showAllInk();
 
-    var countIn = noCountIn ? 0 : BEATS_PER_BAR;     // 1-bar count-in, skipped on auto-advance
+    // The count-in still lasts exactly one bar; only how many clicks fall inside
+    // it changes with the meter — four in 4/4, two in 6/8.
+    var countIn = noCountIn ? 0 : bpb;     // 1-bar count-in, skipped on auto-advance
     session = {
       cur: cur, measureFirst: measureFirst, melody: melody, beatNote: beatNote,
-      measureInk: measureInk, totalBeats: totalBeats,
+      ink: ink, onsets: onsets, totalBeats: totalBeats, barBeats: bpb, pulse: pulse,
       elapsed: -countIn,       // count-in beats are negative
-      nextBeat: -countIn,
+      nextBeat: -Math.round(countIn / pulse),   // counts pulses, not quarters
       cursorIdx: 0,
       hideState: -1,
       rafId: null
@@ -1347,21 +1836,48 @@
 
     blinkCursor(fresh && s.elapsed < 0 && cursorModeEl.value !== "off", bms);
 
-    stopVoices();
-    if (playAlongEl.checked && audioCtx) {
-      var secPerBeat = bms / 1000;
-      s.melody.forEach(function (n) {
-        if (n.onset + n.dur <= s.elapsed) return;    // already finished
-        var startBeat = Math.max(n.onset, s.elapsed);
-        var st = audioCtx.currentTime + (startBeat - s.elapsed) * secPerBeat;
-        var en = audioCtx.currentTime + (n.onset + n.dur - s.elapsed) * secPerBeat;
-        scheduleNote(n.freq, st, en);
-      });
-    }
+    scheduleAhead();
 
     playing = true; paused = false;
     setPlayIcon(true);
+    syncSwing();
     s.rafId = rafId = requestAnimationFrame(frame);
+  }
+
+  // (Re)schedule the play-along voice for everything still ahead of the playhead,
+  // dropping whatever was already queued. Anything that changes how the melody
+  // should sound from here on — tempo, instrument, the accompaniment toggle —
+  // just calls this and the change takes effect without interrupting playback.
+  function scheduleAhead() {
+    var s = session;
+    stopVoices();
+    if (!s || !playAlongEl.checked || !audioCtx) return;
+    var secPerBeat = s.bms / 1000;
+    s.melody.forEach(function (n) {
+      if (n.onset + n.dur <= s.elapsed) return;      // already finished
+      var startBeat = Math.max(n.onset, s.elapsed);
+      scheduleNote(n.freq, audioCtx.currentTime + (startBeat - s.elapsed) * secPerBeat,
+                           audioCtx.currentTime + (n.onset + n.dur - s.elapsed) * secPerBeat);
+    });
+  }
+
+  // The metronome beats by mirroring: each beat flips the glyph so the pendulum
+  // snaps to its other side. Called from the play loop, so it lands exactly on
+  // the beat rather than free-running.
+  var metroFlipped = false;
+
+  function metroGlyphs() { return document.querySelectorAll(".js-metro .ic-metro.state-on"); }
+
+  function flipMetro() {
+    metroFlipped = !metroFlipped;
+    metroGlyphs().forEach(function (el) { el.classList.toggle("flip", metroFlipped); });
+  }
+
+  // Back to rest — the pendulum shouldn't stay parked on one side once we stop.
+  function syncSwing() {
+    if (playing && clickOnEl.checked) return;
+    metroFlipped = false;
+    metroGlyphs().forEach(function (el) { el.classList.remove("flip"); });
   }
 
   function resumePlay() {
@@ -1379,16 +1895,8 @@
     s.elapsed = (now - s.t0) / s.bms;      // exact current beat under the old rate
     s.bms = 60000 / (+tempoEl.value);
     s.t0 = now - s.elapsed * s.bms;         // same beat, new rate
-    if (playAlongEl.checked && audioCtx) {
-      stopVoices();
-      var secPerBeat = s.bms / 1000;
-      s.melody.forEach(function (n) {
-        if (n.onset + n.dur <= s.elapsed) return;
-        var startBeat = Math.max(n.onset, s.elapsed);
-        scheduleNote(n.freq, audioCtx.currentTime + (startBeat - s.elapsed) * secPerBeat,
-                             audioCtx.currentTime + (n.onset + n.dur - s.elapsed) * secPerBeat);
-      });
-    }
+    scheduleAhead();
+    syncSwing();                            // the pendulum tracks the new tempo
   }
 
   function frame(now) {
@@ -1397,14 +1905,17 @@
     var curBeat = (now - s.t0) / s.bms;
     s.elapsed = curBeat;
 
-    while (s.nextBeat <= Math.floor(curBeat) && s.nextBeat < s.totalBeats) {
+    // nextBeat counts felt pulses; multiply by s.pulse to get the clock's own
+    // quarter-note units.
+    while (s.nextBeat * s.pulse <= curBeat + 1e-6 && s.nextBeat * s.pulse < s.totalBeats) {
+      if (clickOnEl.checked) flipMetro();             // the glyph mirrors on the beat
       if (s.nextBeat < 0) {                          // count-in
         if (clickOnEl.checked) tick(COUNTIN_FREQ);
         showCountdown(-s.nextBeat);
       } else {                                       // playing
         if (clickOnEl.checked) tick(PLAY_FREQ);
         var target = (cursorModeEl.value === "measure")
-          ? s.measureFirst[Math.min(Math.floor(s.nextBeat / BEATS_PER_BAR), s.measureFirst.length - 1)]
+          ? s.measureFirst[Math.min(Math.floor(s.nextBeat * s.pulse / s.barBeats), s.measureFirst.length - 1)]
           : s.beatNote[Math.min(s.nextBeat, s.beatNote.length - 1)];
         while (s.cursorIdx < target) { try { cur.next(); } catch (e) {} s.cursorIdx++; }
       }
@@ -1414,15 +1925,727 @@
     if (cur.cursorElement) cur.cursorElement.style.display = (cursorModeEl.value === "off") ? "none" : "";
 
     if (curBeat >= 0) {
-      var hideCount = hideBehindEl.checked
-        ? Math.floor((curBeat + (+hideLeadEl.value)) / BEATS_PER_BAR)
-        : 0;
-      if (hideCount !== s.hideState) { hideMeasures(s.measureInk, hideCount); s.hideState = hideCount; }
+      // The unit sets both the distance and the size of the block that goes:
+      // pick Beats and the page clears a beat at a time, pick Measures and it
+      // clears a bar at a time. So the curtain is snapped back to the last
+      // boundary of whichever unit is showing, and everything before that edge
+      // retires together. Blocks then land where the music is already grouped —
+      // on beam boundaries — so a group is never cut in half.
+      var hideCount = 0;
+      if (hideBehindEl.checked) {
+        var q = unitBeats();
+        var edge = Math.floor((curBeat + (+hideLeadEl.value)) / q + 1e-6) * q;
+        while (hideCount < s.onsets.length && s.onsets[hideCount] < edge - 1e-6) hideCount++;
+      }
+      if (hideCount !== s.hideState) { hideBefore(s.ink, hideCount); s.hideState = hideCount; }
       followCursor();   // scroll once the cursor reaches the last visible line
     }
     if (curBeat >= s.totalBeats) { if (playing) advanceAndPlay(); return; }  // line done — keep practicing
     s.rafId = rafId = requestAnimationFrame(frame);
   }
+
+  // ===========================================================================
+  // Panel controls
+  //
+  // The visible pills / steppers / grids drive the hidden form elements, which
+  // remain the single source of truth the preset + session snapshot reads.
+  // ===========================================================================
+  var tonicCycleEl = document.getElementById("tonic-cycle");
+  var accCycleEl   = document.getElementById("acc-cycle");
+  var modeCycleEl  = document.getElementById("mode-cycle");
+  var clefCycleEl  = document.getElementById("clef-cycle");
+  var timesigPillsEl = document.getElementById("timesig-pills");
+  var hideUnitEl   = document.getElementById("hide-unit");
+  var hideValEl    = document.getElementById("hide-val");
+  var instCycleEl  = document.getElementById("instrument-cycle");
+  var chunksBtnEl  = document.getElementById("chunks-toggle");
+  var cursorBtnEl  = document.getElementById("cursor-toggle");
+  var tempoUiEl    = document.getElementById("tempo-ui");
+  var volumeUiEl   = document.getElementById("volume-ui");
+  var measuresPillsEl = document.getElementById("measures-pills");
+
+  var LETTERS = ["C", "D", "E", "F", "G", "A", "B"];          // key-code symbols 0–6
+  var ACCS = [{ v: "0", label: "♮" }, { v: "#", label: "♯" }, { v: "b", label: "♭" }];
+  var MODES = ["major", "minor"];
+  // The lead is stored in beats, so the ceiling belongs in beats too — matching
+  // the hide-lead range input's max. The stepper's own limit is then derived
+  // per unit, which keeps a unit toggle lossless: 8 measures and 32 beats are
+  // the same setting, and converting between them can't run off the end.
+  var HIDE_MAX_BEATS = 32;
+
+  // One step of whichever unit is showing, in the clock's quarter-note units.
+  // Everything about Hide Ahead falls out of this one number: the distance a
+  // step buys, the size of the block that disappears, and how far the stepper
+  // can climb before it runs past the stored ceiling.
+  function unitBeats() { return hideUnitIsMeasures() ? barBeats() : pulseBeats(); }
+  function hideMaxN() { return Math.floor(HIDE_MAX_BEATS / unitBeats()); }
+
+  // Which letter+accidental combinations OSME can actually build a scale from.
+  // ScaleKey.create doesn't reject an impossible key (D♯ major and friends) — it
+  // hands back tones the ladder then chokes on — so probe by actually building
+  // the ladder in every mode and keeping only the keys that survive.
+  var validAcc = {};
+  function keyWorks(sym, acc) {
+    for (var m = 0; m < MODES.length; m++) {
+      try {
+        var sk = makeScaleKey(MODES[m] + "_" + sym + "-" + acc);
+        var tones = sk.getTones();
+        if (!tones || tones.length < 7) return false;
+        for (var t = 0; t < tones.length; t++) {
+          if (!tones[t] || typeof tones[t].getSymbol !== "function") return false;
+        }
+        SREngine.buildLadder(sk);
+      } catch (e) { return false; }
+    }
+    return true;
+  }
+
+  // Probe, then rebuild the hidden <select> to hold exactly the valid keys — so
+  // any code a saved preset carries can still be restored onto it.
+  function probeKeys() {
+    var current = keyTonicEl.value;
+    keyTonicEl.innerHTML = "";
+    for (var s = 0; s < 7; s++) {
+      validAcc[s] = [];
+      ACCS.forEach(function (a) {
+        if (!keyWorks(s, a.v)) return;
+        validAcc[s].push(a.v);
+        var o = document.createElement("option");
+        o.value = s + "-" + a.v;
+        o.textContent = LETTERS[s] + (a.v === "#" ? "♯" : a.v === "b" ? "♭" : "");
+        keyTonicEl.appendChild(o);
+      });
+      if (!validAcc[s].length) validAcc[s] = ["0"];
+    }
+    keyTonicEl.value = keyTonicEl.querySelector('option[value="' + current + '"]') ? current : "0-0";
+  }
+
+  function keyParts() {
+    var tp = String(keyTonicEl.value).split("-");
+    return { sym: parseInt(tp[0], 10) || 0, acc: tp[1] || "0" };
+  }
+  function setKeyParts(sym, acc) {
+    if (validAcc[sym] && validAcc[sym].indexOf(acc) < 0) acc = validAcc[sym][0];
+    keyTonicEl.value = sym + "-" + acc;   // probeKeys() guarantees the option exists
+  }
+
+  function syncKeyRow() {
+    var k = keyParts();
+    tonicCycleEl.textContent = LETTERS[k.sym];
+    var a = ACCS.filter(function (x) { return x.v === k.acc; })[0] || ACCS[0];
+    accCycleEl.textContent = a.label;
+    accCycleEl.classList.toggle("on", k.acc !== "0");
+    modeCycleEl.textContent = t("mode." + keyModeEl.value);
+    clefCycleEl.textContent = clefDef(clefEl.value).label;
+  }
+
+  function buildTimesigPills() {
+    timesigPillsEl.innerHTML = "";
+    TIME_SIGS.forEach(function (ts) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "opt";
+      b.textContent = ts.id;
+      b.addEventListener("click", function () {
+        timesigEl.value = ts.id;
+        syncTimesigPills();
+        syncBeatsFamily();    // swaps the figure grid only if simple<->compound changed
+        generate();
+      });
+      timesigPillsEl.appendChild(b);
+    });
+    syncTimesigPills();
+  }
+  function syncTimesigPills() {
+    Array.prototype.forEach.call(timesigPillsEl.children, function (b, i) {
+      b.classList.toggle("on", TIME_SIGS[i].id === timesigEl.value);
+    });
+  }
+
+  // Hide Ahead: 0 reads as "Off" — that's what replaces the old hide-behind
+  // checkbox, so any value above 0 means hiding is on with that much lead.
+  function hideUnitIsMeasures() { return hideUnitEl.dataset.unit === "measures"; }
+  function syncHide() {
+    var n = parseInt(hideValEl.dataset.n, 10) || 0;
+    hideValEl.textContent = n === 0 ? t("val.off") : String(n);
+    hideUnitEl.textContent = hideUnitIsMeasures() ? t("val.measures") : t("val.beats");
+    hideBehindEl.checked = n > 0;
+    // The stepper's number is in whatever unit is showing; the lead is always
+    // in the clock's quarter-note units. Clamping the product by the stepper's
+    // own limit made every setting above two measures behave like two, and
+    // hideFromState then read the clamped value back and rewrote the stepper to
+    // match — so the setting didn't just misbehave, it changed under you.
+    // hideMaxN() bounds n per unit instead, which keeps the product in range
+    // without a second clamp.
+    hideLeadEl.value = n * unitBeats();
+  }
+  function setHide(n, unit) {
+    hideValEl.dataset.n = Math.max(0, Math.min(hideMaxN(), n));
+    if (unit) hideUnitEl.dataset.unit = unit;
+    syncHide();
+  }
+  // Restore the stepper from the stored beats-lead + on/off flag.
+  function hideFromState() {
+    var lead = parseFloat(hideLeadEl.value) || 0;
+    if (!hideBehindEl.checked) { setHide(0); return; }
+    setHide(Math.max(1, Math.round(lead / unitBeats())));
+  }
+
+  function syncInstrument() {
+    var o = instrumentEl.options[instrumentEl.selectedIndex];
+    instCycleEl.textContent = t("inst." + instrumentEl.value);
+  }
+  function syncChunks() {
+    chunksBtnEl.textContent = showChunksEl.checked ? t("val.on") : t("val.off");
+    chunksBtnEl.classList.toggle("on", showChunksEl.checked);
+  }
+  function syncCursorBtn() {
+    cursorBtnEl.classList.toggle("on", cursorModeEl.value !== "off");
+  }
+  function syncTempoUi() {
+    tempoUiEl.value = tempoEl.value;
+    tempoValEl.textContent = tempoEl.value;
+    paintRange(tempoUiEl);        // the ± steppers move the slider without an input event
+  }
+
+  // A cycle's label changes as you tap through it, which would make the pill
+  // jump between "Piano" and "Vibraphone" (or "Major" and "Harmonic Minor") and
+  // shove its neighbours around. Measure every value it can show and pin the
+  // width to the widest, so the row stays put.
+  function lockCycleWidth(btn, labels) {
+    if (!btn || !labels.length) return;
+    var prev = btn.textContent, max = 0;
+    btn.style.minWidth = "";
+    labels.forEach(function (t) {
+      btn.textContent = t;
+      max = Math.max(max, btn.getBoundingClientRect().width);
+    });
+    btn.textContent = prev;
+    btn.style.minWidth = Math.ceil(max) + "px";
+  }
+
+  function lockCycleWidths() {
+    var optionText = function (sel) {
+      return Array.prototype.map.call(sel.options, function (o) { return o.textContent; });
+    };
+    lockCycleWidth(instCycleEl, Array.prototype.map.call(instrumentEl.options,
+      function (o) { return t("inst." + o.value); }));
+    lockCycleWidth(modeCycleEl, MODES.map(function (m) { return t("mode." + m); }));
+    lockCycleWidth(hideUnitEl, [t("val.beats"), t("val.measures")]);
+    lockCycleWidth(tonicCycleEl, LETTERS);
+    lockCycleWidth(accCycleEl, ACCS.map(function (a) { return a.label; }));
+    lockCycleWidth(clefCycleEl, CLEFS.map(function (c) { return c.label; }));
+    lockCycleWidth(chunksBtnEl, [t("val.off"), t("val.on")]);
+  }
+
+  // ===========================================================================
+  // Help
+  //
+  // The sections, in the order they appear in the interface, so reading the
+  // guide top to bottom walks the panel top to bottom. Copy lives in i18n.js.
+  // ===========================================================================
+  var HELP_SECTIONS = ["exercise", "transport", "presets", "tempo", "accomp",
+                       "hide", "rhythm", "step", "notes", "musicality",
+                       "chunks", "staff"];
+
+  function buildHelpBody() {
+    var host = document.getElementById("help-body");
+    if (!host) return;
+    host.innerHTML = "";
+
+    var intro = document.createElement("p");
+    intro.className = "help-intro";
+    intro.textContent = t("help.intro");
+    host.appendChild(intro);
+
+    HELP_SECTIONS.forEach(function (id) {
+      var item = document.createElement("div");
+      item.className = "help-item";
+      var h = document.createElement("h3");
+      h.textContent = t("help.g." + id);
+      var p = document.createElement("p");
+      p.textContent = t("help." + id);
+      item.appendChild(h); item.appendChild(p);
+      host.appendChild(item);
+    });
+  }
+
+  function setHelp(open) {
+    var scrim = document.getElementById("help-scrim");
+    var sheet = document.getElementById("help-sheet");
+    if (!scrim || !sheet) return;
+    if (open) buildHelpBody();          // rebuild so it's always in the current language
+    scrim.hidden = !open;
+    sheet.hidden = !open;
+    if (open) {
+      sheet.querySelector(".help-body").scrollTop = 0;
+      var close = document.getElementById("help-close");
+      if (close) close.focus();
+    }
+  }
+
+  function wireHelp() {
+    var open = document.getElementById("help-open");
+    var close = document.getElementById("help-close");
+    var scrim = document.getElementById("help-scrim");
+    if (open) open.addEventListener("click", function () { setHelp(true); });
+    if (close) close.addEventListener("click", function () { setHelp(false); });
+    if (scrim) scrim.addEventListener("click", function () { setHelp(false); });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") setHelp(false);
+    });
+  }
+
+  // ===========================================================================
+  // Onboarding — shown once on a first visit, then never again.
+  //
+  // It is a tour of the settings panel as much as a setup step: the goal is
+  // that when the student opens ⚙ for the first time they already recognise
+  // the shapes in it. So the pages use the panel's own controls, wired to the
+  // same hidden inputs, rather than simplified stand-ins that would teach a
+  // model the panel then contradicts.
+  //
+  // One page carries choices, and it's skippable — whatever else a beginner
+  // skips, they should still be told where the settings live, so Skip lands
+  // on the closing page rather than dismissing outright.
+  //
+  // Clef was cut as a page on its own: "which clef do you read" assumes one
+  // answer, and a violist reads two. Clef stays a panel setting, defaulted
+  // and changeable there, just never asked up front.
+  // ===========================================================================
+  var OB_KEY  = "sr_onboarded";
+  // TEMPORARY — while the walkthrough is being reviewed it runs on every load.
+  // Set to false to restore once-per-visitor behaviour; the flag is still
+  // written on finish, so nothing else has to change.
+  var OB_ALWAYS = true;
+  var OB_PAGES = ["intro", "vocab"];
+  // The plain note values plus one rest: the first six cells of the real rhythm
+  // grid, in the same order, so the grid is recognisable when the rest appear.
+  var OB_FIGS = ["w", "h", "q", "ee", "ssss", "qr"];
+  var obPage = 0;
+
+  function obSetFigure(id, on) {
+    var cb = beatsEl.querySelector('.beat[value="' + id + '"]');
+    if (!cb) return;
+    cb.checked = on;
+    cb.parentNode.classList.toggle("on", on);
+  }
+
+  function obFigureOn(id) {
+    var cb = beatsEl.querySelector('.beat[value="' + id + '"]');
+    return !!(cb && cb.checked);
+  }
+
+  // A row of pills that behave like the panel control they stand for —
+  // intervals here are independent toggles, same as the Step checkboxes.
+  function obPills(host, items, isOn, onPick, cls) {
+    var row = document.createElement("div");
+    row.className = "ob-pills";
+    items.forEach(function (item) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "opt" + (cls ? " " + cls : "");
+      b.innerHTML = item.html;
+      b.classList.toggle("on", isOn(item));
+      b.addEventListener("click", function () {
+        onPick(item);
+        row.querySelectorAll(".opt").forEach(function (el, i) {
+          el.classList.toggle("on", isOn(items[i]));
+        });
+      });
+      row.appendChild(b);
+    });
+    host.appendChild(row);
+    return row;
+  }
+
+  function obGroup(host, titleKey) {
+    var g = document.createElement("div");
+    g.className = "ob-group";
+    var h = document.createElement("h3");
+    h.textContent = t(titleKey);
+    g.appendChild(h);
+    host.appendChild(g);
+    return g;
+  }
+
+  function obPara(host, key, cls) {
+    var p = document.createElement("p");
+    if (cls) p.className = cls;
+    p.textContent = t(key);
+    host.appendChild(p);
+    return p;
+  }
+
+  // Same, but with {icon} swapped for the actual settings glyph — pointing at
+  // the real button beats naming a gear the interface doesn't have. The token
+  // lets each language put it wherever its own word order wants it.
+  function obIconPara(host, key, cls) {
+    var p = document.createElement("p");
+    if (cls) p.className = cls;
+    var parts = t(key).split("{icon}");
+    parts.forEach(function (chunk, i) {
+      if (i) p.insertAdjacentHTML("beforeend",
+        '<svg class="ic ic-settings ob-ic" aria-hidden="true"><use href="#ic-settings"/></svg>');
+      p.appendChild(document.createTextNode(chunk));
+    });
+    host.appendChild(p);
+    return p;
+  }
+
+  function buildObPage() {
+    var host = document.getElementById("ob-body");
+    var page = OB_PAGES[obPage];
+    host.innerHTML = "";
+    host.scrollTop = 0;
+
+    if (page === "intro") {
+      var mark = document.createElement("p");
+      mark.className = "ob-wordmark";
+      mark.id = "ob-title";
+      mark.textContent = "Prima Vista";     // the app's name, untranslated
+      host.appendChild(mark);
+      obPara(host, "ob.pitch");
+
+    } else if (page === "vocab") {
+      obHeading(host, "ob.vocabTitle");
+
+      var rg = obGroup(host, "ob.vocabRhythm");
+      var grid = document.createElement("div");
+      grid.className = "fig-grid";
+      rg.appendChild(grid);
+      OB_FIGS.forEach(function (id) {
+        var cell = document.createElement("button");
+        cell.type = "button";
+        cell.className = "fig-cell";
+        cell.setAttribute("aria-label", t("fig." + id));
+        cell.innerHTML = figureGlyph(id);
+        cell.classList.toggle("on", obFigureOn(id));
+        cell.addEventListener("click", function () {
+          obSetFigure(id, !obFigureOn(id));
+          cell.classList.toggle("on", obFigureOn(id));
+        });
+        grid.appendChild(cell);
+      });
+
+      // Unison is left out: a repeated note is the least useful thing a
+      // beginner can switch on, and dropping it makes the row read cleanly.
+      var ig = obGroup(host, "ob.vocabSteps");
+      var ivs = [];
+      for (var i = 1; i < INTERVALS.length; i++) ivs.push({ i: i, html:
+        '<span class="dot" style="background:' + INTERVALS[i].c + '"></span>' + stepLabel(i) });
+      obPills(ig, ivs,
+        function (it) { return stepChecks[it.i].checked; },
+        function (it) { stepChecks[it.i].checked = !stepChecks[it.i].checked; syncStepRow(it.i); },
+        "ob-int");
+
+      obIconPara(host, "ob.vocabNote", "ob-note");
+    }
+
+    var dots = document.getElementById("ob-dots");
+    dots.innerHTML = "";
+    OB_PAGES.forEach(function (_, i) {
+      var d = document.createElement("i");
+      if (i === obPage) d.className = "on";
+      dots.appendChild(d);
+    });
+
+    var last = obPage === OB_PAGES.length - 1;
+    var next = document.getElementById("ob-next");
+    next.textContent = t(last ? "ob.go" : "ob.next");
+    // Skip only sits on the pages that ask something. The intro has nothing to
+    // skip past, and the closing page is already the end.
+    document.getElementById("ob-skip").hidden = (page === "intro" || last);
+  }
+
+  function obHeading(host, key) {
+    var h = document.createElement("h2");
+    h.id = "ob-title";
+    h.textContent = t(key);
+    host.appendChild(h);
+    return h;
+  }
+
+  function obGo(i) {
+    obPage = i;
+    if (obPage === 1) {
+      // Get Started puts a beginner on the gentlest built-in. It is applied as
+      // the current setup, not saved as a new preset — naming one is a later
+      // idea, and it would drag a keyboard into the first thirty seconds.
+      applyPreset(builtinPreset("steps only"));
+      activePreset = "steps only";
+      syncPanel();
+    }
+    buildObPage();
+  }
+
+  function obFinish() {
+    document.getElementById("ob").hidden = true;
+    obBlanking = false;  // the staff and title fill in with the first real exercise
+    try { localStorage.setItem(OB_KEY, "1"); } catch (e) {}
+    syncPanel();
+    persistSession();
+    generate();          // one render for everything chosen along the way
+  }
+
+  function wireOnboarding() {
+    var ob = document.getElementById("ob");
+    if (!ob) return;
+    var seen = true;
+    try { seen = !OB_ALWAYS && !!localStorage.getItem(OB_KEY); } catch (e) {}
+    document.getElementById("ob-next").addEventListener("click", function () {
+      if (obPage === OB_PAGES.length - 1) obFinish();
+      else obGo(obPage + 1);
+    });
+    // Skip lands on the closing page, not straight out — whatever else a
+    // student skips, they should still be told where the settings are.
+    document.getElementById("ob-skip").addEventListener("click", function () {
+      obGo(OB_PAGES.length - 1);
+    });
+    if (seen) return;
+    ob.hidden = false;
+    // Set before init's generate() runs, so the first render comes up empty
+    // rather than flashing a full exercise behind the card.
+    obBlanking = true;
+    buildObPage();
+    // Focus the dialog itself rather than Next: it puts keyboard and
+    // screen-reader context inside the walkthrough without painting a
+    // focus ring on a button nobody has reached for yet.
+    ob.focus();
+  }
+
+  // Re-label everything for the current language: the declarative bits from the
+  // markup, then the pieces built at runtime, then anything measured from text.
+  function applyLang() {
+    document.documentElement.setAttribute("lang", lang);
+    document.querySelectorAll("[data-i18n]").forEach(function (el) {
+      el.textContent = t(el.getAttribute("data-i18n"));
+    });
+    document.querySelectorAll("[data-i18n-aria]").forEach(function (el) {
+      el.setAttribute("aria-label", t(el.getAttribute("data-i18n-aria")));
+    });
+
+    // runtime-built labels
+    stepChecks.forEach(function (cb, i) { cb.setAttribute("aria-label", t("interval." + i)); });
+    matrixRows.forEach(function (row, i) {
+      var n = row.querySelector(".row-name");   // 2nd / 2ª — ordinals translate
+      if (n) n.textContent = stepLabel(i);
+    });
+    RANGE_OCTAVES.forEach(function (oct) {
+      if (octChecks[oct]) octChecks[oct].setAttribute("aria-label", t("aria.octave") + " " + oct);
+    });
+    beatsEl.querySelectorAll(".beat").forEach(function (cb) {
+      var cell = cb.closest(".fig-cell");
+      if (cell) cell.setAttribute("aria-label", t("fig." + cb.value));
+    });
+
+    setPlayIcon(playing);
+    renderPresets();          // preset labels and the "+ save" pill
+    var sheet = document.getElementById("help-sheet");
+    if (sheet && !sheet.hidden) buildHelpBody();
+    syncPanel();              // every value shown on a control
+    syncLangPills();
+    lockCycleWidths();        // translated labels are a different width
+  }
+
+  function setLang(next) {
+    if (!I18N[next] || next === lang) return;
+    lang = next;
+    try { localStorage.setItem(LANG_KEY, lang); } catch (e) {}
+    applyLang();
+  }
+
+  function buildLangPills() {
+    var host = document.getElementById("lang-pills");
+    if (!host) return;
+    host.innerHTML = "";
+    LANGS.forEach(function (l) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "opt";
+      b.textContent = l.label;
+      b.setAttribute("aria-label", l.label);
+      b.dataset.lang = l.id;
+      b.addEventListener("click", function () { setLang(l.id); });
+      host.appendChild(b);
+    });
+    syncLangPills();
+  }
+
+  function syncLangPills() {
+    var host = document.getElementById("lang-pills");
+    if (!host) return;
+    Array.prototype.forEach.call(host.children, function (b) {
+      b.classList.toggle("on", b.dataset.lang === lang);
+    });
+  }
+
+  function buildMeasuresPills() {
+    measuresPillsEl.innerHTML = "";
+    Array.prototype.forEach.call(measuresEl.options, function (opt) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "opt";
+      b.textContent = opt.textContent;
+      b.addEventListener("click", function () {
+        measuresEl.value = opt.value;
+        syncMeasuresPills();
+        generate();
+      });
+      measuresPillsEl.appendChild(b);
+    });
+    syncMeasuresPills();
+  }
+  function syncMeasuresPills() {
+    Array.prototype.forEach.call(measuresPillsEl.children, function (b, i) {
+      b.classList.toggle("on", measuresEl.options[i].value === measuresEl.value);
+    });
+  }
+
+  // Sliders are drawn by CSS from a gradient stop, so each one needs its filled
+  // fraction kept current. One delegated listener covers every range on the page,
+  // including the sixteen built for the Step matrix.
+  function paintRange(el) {
+    var min = +el.min || 0, max = (el.max === "" ? 100 : +el.max), v = +el.value;
+    var pct = (max > min) ? ((v - min) / (max - min)) * 100 : 0;
+    el.style.setProperty("--pct", pct + "%");
+  }
+  function paintAllRanges() {
+    document.querySelectorAll('input[type="range"]').forEach(paintRange);
+  }
+  document.addEventListener("input", function (e) {
+    if (e.target && e.target.type === "range") paintRange(e.target);
+  });
+
+  // Reflect every hidden control onto its visible counterpart. Called after any
+  // preset / session restore, so the whole panel re-reads from one place.
+  function syncPanel() {
+    syncKeyRow();
+    syncTimesigPills();
+    syncBeatsFamily();    // a preset/session restore can change meter family too
+    syncInstrument();
+    syncChunks();
+    syncCursorBtn();
+    syncTempoUi();
+    syncMeasuresPills();
+    hideFromState();
+    volumeUiEl.value = volumeEl.value;
+    syncTransport();
+    paintAllRanges();
+  }
+
+  function wirePanel() {
+    // --- key row: each pill advances through its own list ---
+    tonicCycleEl.addEventListener("click", function () {
+      var k = keyParts();
+      setKeyParts((k.sym + 1) % 7, k.acc);
+      syncKeyRow(); generate();
+    });
+    accCycleEl.addEventListener("click", function () {
+      var k = keyParts(), allowed = validAcc[k.sym] || ["0"];
+      var i = allowed.indexOf(k.acc);
+      setKeyParts(k.sym, allowed[(i + 1) % allowed.length]);
+      syncKeyRow(); generate();
+    });
+    modeCycleEl.addEventListener("click", function () {
+      var i = MODES.indexOf(keyModeEl.value);
+      keyModeEl.value = MODES[(i + 1) % MODES.length];
+      syncKeyRow(); generate();
+    });
+    clefCycleEl.addEventListener("click", function () {
+      var ids = CLEFS.map(function (c) { return c.id; });
+      var i = ids.indexOf(clefEl.value);
+      clefEl.value = ids[(i + 1) % ids.length];
+      shiftRangeToClef(clefEl.value);      // move the notes onto the new staff
+      syncKeyRow(); generate();
+    });
+
+    // --- tempo: slider drags, ±5 nudges ---
+    tempoUiEl.addEventListener("input", function () {
+      tempoEl.value = tempoUiEl.value;
+      tempoEl.dispatchEvent(new Event("input"));
+      tempoValEl.textContent = tempoEl.value;
+    });
+    tempoUiEl.addEventListener("change", persistSession);
+    // The slider is the coarse control (it steps in 5s); ± is the fine one, so
+    // a tempo between the notches is reachable. The thumb can then sit up to
+    // 2bpm off the true value it can't represent — the readout is exact.
+    function bumpTempo(d) {
+      tempoEl.value = Math.max(40, Math.min(180, (parseInt(tempoEl.value, 10) || 80) + d));
+      tempoEl.dispatchEvent(new Event("input"));
+      syncTempoUi();
+      persistSession();
+    }
+    document.getElementById("tempo-down").addEventListener("click", function () { bumpTempo(-1); });
+    document.getElementById("tempo-up").addEventListener("click", function () { bumpTempo(1); });
+
+    // --- accompaniment ---
+    instCycleEl.addEventListener("click", function () {
+      ensureAudio();
+      var n = instrumentEl.options.length;
+      instrumentEl.selectedIndex = (instrumentEl.selectedIndex + 1) % n;
+      instrumentEl.dispatchEvent(new Event("change"));
+      syncInstrument();
+    });
+    volumeUiEl.addEventListener("input", function () {
+      volumeEl.value = volumeUiEl.value;
+      volumeEl.dispatchEvent(new Event("input"));
+    });
+    volumeUiEl.addEventListener("change", persistSession);
+
+    // --- hide ahead ---
+    document.getElementById("hide-down").addEventListener("click", function () {
+      setHide((parseInt(hideValEl.dataset.n, 10) || 0) - 1); persistSession();
+    });
+    document.getElementById("hide-up").addEventListener("click", function () {
+      setHide((parseInt(hideValEl.dataset.n, 10) || 0) + 1); persistSession();
+    });
+    hideUnitEl.addEventListener("click", function () {
+      // Convert, don't reinterpret. The number on the stepper means something
+      // different in each unit, so carrying it across unchanged silently
+      // quadrupled the lead — "2 beats" became "2 measures". Coarsening to
+      // measures rounds, so 2 beats comes back as 1 measure rather than 2.
+      var lead = parseFloat(hideLeadEl.value) || 0;        // clock units (quarters)
+      var toMeasures = !hideUnitIsMeasures();
+      hideUnitEl.dataset.unit = toMeasures ? "measures" : "beats";
+      if (lead > 0) setHide(Math.max(1, Math.round(lead / unitBeats())));
+      else syncHide();
+      persistSession();
+    });
+
+    // --- chunks + cursor ---
+    chunksBtnEl.addEventListener("click", function () {
+      showChunksEl.checked = !showChunksEl.checked;
+      showChunksEl.dispatchEvent(new Event("change"));
+      syncChunks();
+    });
+    cursorBtnEl.addEventListener("click", function () {
+      cursorModeEl.value = (cursorModeEl.value === "off") ? "beat" : "off";
+      cursorModeEl.dispatchEvent(new Event("change"));
+      syncCursorBtn();
+    });
+  }
+
+  // A tooltip answers "what is this?", so it has nothing left to say once you've
+  // used the control — it would otherwise sit there through every tap while you
+  // cycle the voice or nudge the tempo. Pressing marks it spent; leaving the
+  // control re-arms it. Delegated, since rhythm tiles and preset pills are built
+  // at runtime. (pointerleave doesn't bubble, so it's caught on the way down.)
+  var TIP_SEL = ".cb-icon, .tb-btn, .icon-toggle, .cycle, .step-btn, .fig-cell, .upd, .del";
+
+  document.addEventListener("pointerdown", function (e) {
+    var el = (e.target && e.target.closest) ? e.target.closest(TIP_SEL) : null;
+    if (el) el.classList.add("tip-off");
+  }, true);
+
+  // Only a leave of the control itself re-arms it. Clicking one of these swaps
+  // its glyph, which hides the outgoing <svg> and fires pointerleave on that
+  // child — matching by closest() here would clear the flag the press just set,
+  // in the same gesture.
+  document.addEventListener("pointerleave", function (e) {
+    var el = e.target;
+    if (el && el.matches && el.matches(TIP_SEL)) el.classList.remove("tip-off");
+  }, true);
 
   // ===========================================================================
   // Wiring + init
@@ -1431,35 +2654,36 @@
   function clearError() { errorEl.hidden = true; errorEl.textContent = ""; }
 
   [keyTonicEl, keyModeEl, measuresEl, musicalityEl].forEach(function (el) { el.addEventListener("change", generate); });
-  musicalityEl.addEventListener("input", function () { musicalityValEl.textContent = musicalityEl.value; });
   showChunksEl.addEventListener("change", drawOverlay);
   generateBtn.addEventListener("click", function () { generate(); });
   playBtn.addEventListener("click", function () {
-    if (playing) pausePlay();
-    else if (paused) resumePlay();
-    else startPlay();
+    if (playing) { pausePlay(); return; }
+    if (paused) resumePlay(); else startPlay();
+    setPanel(false);   // starting or resuming clears the panel so the sheet is
+                        // uncovered while it plays; pausing leaves it as is
   });
   document.getElementById("from-top").addEventListener("click", resetTop);
   setPlayIcon(false);
 
-  // Tempo stepper pill (kept in sync with the sidebar slider). The steppers only
-  // act when the metronome is on; the sidebar slider adjusts tempo either way.
-  function bumpTempo(d) {
-    if (!clickOnEl.checked) return;
-    var v = Math.max(40, Math.min(160, (parseInt(tempoEl.value, 10) || 80) + d));
-    tempoEl.value = v;
-    tempoEl.dispatchEvent(new Event("input"));
-  }
-  document.getElementById("tempo-down").addEventListener("click", function () { bumpTempo(-5); });
-  document.getElementById("tempo-up").addEventListener("click", function () { bumpTempo(5); });
-
-  // The ♩ in the pill toggles the metronome (synced with the sidebar checkbox).
-  metroToggleEl.addEventListener("click", function () {
-    clickOnEl.checked = !clickOnEl.checked;
-    clickOnEl.dispatchEvent(new Event("change"));
+  // Either 🎼 button (transport bar or Tempo section) toggles the metronome.
+  document.querySelectorAll(".js-metro").forEach(function (b) {
+    b.addEventListener("click", function () {
+      clickOnEl.checked = !clickOnEl.checked;
+      clickOnEl.dispatchEvent(new Event("change"));
+    });
   });
-  clickOnEl.addEventListener("change", syncMetroPill);
-  syncMetroPill();
+  clickOnEl.addEventListener("change", function () { syncMetroPill(); syncSwing(); });
+
+  // Either ♩ button (transport bar or Accompaniment section) toggles play-along.
+  document.querySelectorAll(".js-accomp").forEach(function (b) {
+    b.addEventListener("click", function () {
+      ensureAudio();   // this is a real gesture — a good moment to unlock/prime audio
+      playAlongEl.checked = !playAlongEl.checked;
+      playAlongEl.dispatchEvent(new Event("change"));
+    });
+  });
+  playAlongEl.addEventListener("change", syncAccompBtn);
+  syncTransport();
 
   // Collapsible settings. The control bar (Play / New line) is always visible;
   // the sidebar is a drawer that shows only when .panel-open — closed by default
@@ -1502,27 +2726,20 @@
     el.addEventListener("change", persistSession);
   });
 
-  // Pre-load a sampled instrument as soon as it's chosen, so it's decoded by Play.
+  // Pre-load a sampled instrument as soon as it's chosen, so it's decoded by Play,
+  // and re-voice anything already queued so the change is audible immediately
+  // rather than at the next line.
   instrumentEl.addEventListener("change", function () {
     var v = instrumentEl.value;
     if (isSampled(v)) { sampleFailed[v] = false; loadSamples(v); }
+    if (playing) scheduleAhead();
   });
 
-  // Remember which panel groups are open/closed.
-  function initGroups() {
-    var state = {};
-    try { state = JSON.parse(localStorage.getItem(GROUPS_KEY)) || {}; } catch (e) {}
-    var groups = document.querySelectorAll(".group");
-    groups.forEach(function (g) {
-      var name = g.getAttribute("data-group");
-      if (state.hasOwnProperty(name)) g.open = state[name];
-      g.addEventListener("toggle", function () {
-        var s = {};
-        groups.forEach(function (gg) { s[gg.getAttribute("data-group")] = gg.open; });
-        try { localStorage.setItem(GROUPS_KEY, JSON.stringify(s)); } catch (e) {}
-      });
-    });
-  }
+  // Turning the accompaniment on or off mid-line takes effect on the spot too:
+  // scheduleAhead() queues the rest of the melody, or clears it when switched off.
+  playAlongEl.addEventListener("change", function () {
+    if (playing) scheduleAhead();
+  });
 
   var resizeTimer = null;
   window.addEventListener("resize", function () {
@@ -1544,16 +2761,24 @@
     sheetEl.parentNode.addEventListener(ev, function () { pinTop = false; }, { passive: true });
   });
 
+  probeKeys();                 // which accidentals each letter supports
   initRangeState();
   buildRangeGrid();
-  buildBeatsPalette();
+  buildBeatsPalette(currentBeatFigures());
   buildMatrix();
+  buildMeasuresPills();
+  buildTimesigPills();
+  buildLangPills();
+  wirePanel();
+  wireHelp();
   setWeights(BUILTIN["thirds drill"]);
   activePreset = "thirds drill";
   restoreSession();            // override defaults with last-used settings, if any
-  syncMetroPill();             // reflect the restored metronome state in the pill
+  applyLang();                 // label everything, sync the panel, size the pills
+  wireOnboarding();            // first visit only — built after the panel is in sync
   if (isSampled(instrumentEl.value)) loadSamples(instrumentEl.value);   // preload so it's ready before Play
-  renderPresets();
-  initGroups();
+  // Re-measure once Rubik is actually in play — the fallback font would have
+  // sized the cycle pills wrong.
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(lockCycleWidths);
   generate();
 }());
