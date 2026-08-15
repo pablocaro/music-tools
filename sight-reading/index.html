@@ -112,6 +112,7 @@
         <input type="hidden" id="progression" value="I-IV-V-I">
         <input type="checkbox" id="show-chords" checked>
         <input type="checkbox" id="ramp-on">
+        <input type="hidden" id="bowing" value="off">
         <select id="instrument">
           <option data-i18n="inst.organ" value="organ">Organ</option>
           <option data-i18n="inst.piano" value="piano" selected>Piano</option>
@@ -176,6 +177,13 @@
           <h2 class="sec-h" data-i18n="sec.rhythm">Rhythm</h2>
           <div class="sec-row" id="timesig-pills"></div>
           <div class="beats" id="beats"></div>
+          <!-- Bowing: slur the line in twos or fours. A bow instruction is a
+               real reading skill, not decoration — and it's exercise content,
+               so presets carry it. -->
+          <div class="sec-row bowing-row">
+            <span class="fig-h" data-i18n="lbl.bowing">Bowing</span>
+            <div id="bowing-pills"></div>
+          </div>
         </section>
       </div>
 

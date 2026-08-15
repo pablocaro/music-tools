@@ -754,6 +754,13 @@ button.secondary {
 }
 .beats.one-group .fig-h { display: none; }
 
+/* The bowing row sits under the figure grid: a caption-styled label, then the
+   pills. The label reuses the group-heading style — it names a set of options
+   the same way BASIC and MORE do. */
+.bowing-row { align-items: center; gap: 12px; margin-top: 2px; }
+.bowing-row .fig-h { margin-bottom: 0; }
+#bowing-pills { display: flex; gap: 8px; }
+
 .fig-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));

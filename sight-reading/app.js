@@ -102,7 +102,7 @@
   // What a built-in leaves alone would otherwise be whatever the last drill
   // happened to use, so each one carries the same five fields a saved preset
   // does — the alphabet it's named for, plus the neutral staff to read it on.
-  var BUILTIN_DEFAULTS = { musicality: "0", progression: "I-IV-V-I", chroma: "0", key: "major_0-0", clef: "treble", timesig: "4/4", measures: "16" };
+  var BUILTIN_DEFAULTS = { musicality: "0", progression: "I-IV-V-I", chroma: "0", bowing: "off", key: "major_0-0", clef: "treble", timesig: "4/4", measures: "16" };
 
   // What a drill needs beyond its alphabet. The first four interval drills
   // deliberately carry no rhythm, so switching between them leaves your
@@ -270,6 +270,7 @@
     // back to this mode's first entry instead of sticking as a dead string.
     if (p.progression != null) progressionEl.value = progressionDef(p.progression).id;
     if (p.chroma != null) chromaEl.value = p.chroma;
+    if (p.bowing != null) { bowingEl.value = p.bowing; syncBowingPills(); }
     // Musicality and chord-following used to be two dials. A preset saved
     // then carries both; the survivor is whichever was set higher, so an old
     // "follow the chords hard, never mind the phrasing" preset still reads as
@@ -313,6 +314,7 @@
       musicality: musicalityEl.value,
       progression: progressionEl.value,
       chroma: chromaEl.value,
+      bowing: bowingEl.value,
       key: currentKeyCode(),
       clef: clefEl.value,
       timesig: timesigEl.value,
@@ -468,6 +470,7 @@
   var showChunksEl = document.getElementById("show-chunks");
   var showChordsEl = document.getElementById("show-chords");
   var rampOnEl     = document.getElementById("ramp-on");
+  var bowingEl     = document.getElementById("bowing");
   var generateBtn  = document.getElementById("generate");
   var errorEl      = document.getElementById("error-msg");
   var sheetEl      = document.getElementById("sheet");
@@ -685,6 +688,38 @@
     if (c.id === "treble") return xml;
     return xml.replace(/<clef>[\s\S]*?<\/clef>/g,
       "<clef><sign>" + c.sign + "</sign><line>" + c.line + "</line></clef>");
+  }
+
+  // Bowing: slur consecutive sounding notes in groups of n, per bar. Rests
+  // break a group, and a leftover group of one gets no slur — a slur needs two
+  // ends. OSMD draws the curves from the <slur> notations natively.
+  function applySlursToXml(xml, n) {
+    var doc = new DOMParser().parseFromString(xml, "application/xml");
+    if (doc.querySelector("parsererror")) return xml;
+    doc.querySelectorAll("measure").forEach(function (measure) {
+      var run = [];
+      function flush() {
+        for (var i = 0; i + 1 < run.length; i += n) {
+          var group = run.slice(i, i + n);
+          if (group.length < 2) break;
+          [[group[0], "start"], [group[group.length - 1], "stop"]].forEach(function (pair) {
+            var nts = pair[0].querySelector("notations");
+            if (!nts) { nts = doc.createElement("notations"); pair[0].appendChild(nts); }
+            var slur = doc.createElement("slur");
+            slur.setAttribute("type", pair[1]);
+            slur.setAttribute("number", "1");
+            nts.appendChild(slur);
+          });
+        }
+        run = [];
+      }
+      Array.prototype.forEach.call(measure.querySelectorAll("note"), function (note) {
+        if (note.querySelector("rest")) flush();
+        else run.push(note);
+      });
+      flush();
+    });
+    return new XMLSerializer().serializeToString(doc);
   }
 
   // Triplet repair. The exporter cannot say a third of a beat: offered 1/12
@@ -1197,6 +1232,7 @@
       currentSheet = plugin.generate();
       var xml = applyClefToXml(new XMLSourceExporter().export(currentSheet));
       xml = applyTupletsToXml(xml);
+      if (bowingEl.value !== "off") xml = applySlursToXml(xml, parseInt(bowingEl.value, 10));
       if (timeSigDef(timesigEl.value).compound) xml = applyBeamsToXml(xml);
       var fm = /<fifths>(-?\d+)<\/fifths>/.exec(xml);
       lastFifths = fm ? +fm[1] : 0;   // the chord names spell themselves from this
@@ -1230,7 +1266,7 @@
   // go, and putting a value back restores the name instead of stranding it on
   // "Custom". Only fields the preset actually defines are compared, mirroring
   // applyPreset — so a preset saved before a field existed still matches.
-  var PRESET_FIELDS = ["musicality", "progression", "chroma", "key", "clef", "timesig", "measures"];
+  var PRESET_FIELDS = ["musicality", "progression", "chroma", "bowing", "key", "clef", "timesig", "measures"];
 
   function presetMatchesPanel(p) {
     var cur = readPresetConfig();
@@ -2842,6 +2878,35 @@
     });
   }
 
+  // Bowing choices: separate bows, slurred in twos, slurred in fours.
+  var BOWINGS = ["off", "2", "4"];
+  function buildBowingPills() {
+    var host = document.getElementById("bowing-pills");
+    if (!host) return;
+    host.innerHTML = "";
+    BOWINGS.forEach(function (bw) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "opt";
+      b.textContent = bw === "off" ? t("val.off") : bw;
+      b.dataset.bowing = bw;
+      b.addEventListener("click", function () {
+        bowingEl.value = bw;
+        syncBowingPills();
+        generate();
+      });
+      host.appendChild(b);
+    });
+    syncBowingPills();
+  }
+  function syncBowingPills() {
+    var host = document.getElementById("bowing-pills");
+    if (!host) return;
+    Array.prototype.forEach.call(host.children, function (b) {
+      b.classList.toggle("on", b.dataset.bowing === bowingEl.value);
+    });
+  }
+
   // The progression picker — rebuilt when the mode flips, since each mode has
   // its own list. Roman-numeral labels are language-neutral.
   function buildProgressionPills() {
@@ -3290,6 +3355,7 @@
   buildLangPills();
   buildInstrumentPills();
   buildProgressionPills();
+  buildBowingPills();
   wirePanel();
   wireHelp();
   setWeights(BUILTIN["thirds drill"]);
