@@ -292,6 +292,7 @@
         </button>
 
         <div id="pace-pop" class="pop" hidden>
+          <h2 class="sec-h" data-i18n="sec.tempo">Tempo</h2>
           <div class="pop-tempo">
             <span class="stepper-val" id="tempo-val">80</span>
             <input type="range" class="stepper-range" id="tempo-ui" min="40" max="180" step="5" value="80" aria-label="Tempo" data-i18n-aria="aria.tempo">
@@ -301,34 +302,38 @@
             </span>
           </div>
           <div class="pop-row">
+            <span class="pop-label" data-i18n="lbl.click">Click</span>
             <button class="icon-toggle js-metro" type="button" aria-label="Metronome on/off" data-i18n-aria="aria.metronome">
               <svg class="ic ic-metro state-off"><use href="#ic-metro-off"/></svg>
               <svg class="ic ic-metro state-on"><use href="#ic-metro-on"/></svg>
             </button>
-            <span class="pop-label" data-i18n="lbl.click">Click</span>
           </div>
           <div class="pop-row">
+            <span class="pop-label" data-i18n="lbl.cursor">Cursor</span>
             <button id="cursor-toggle" class="icon-toggle" type="button" aria-label="Cursor on/off" data-i18n-aria="aria.cursor">
               <svg class="ic ic-eye state-off"><use href="#ic-eye-off"/></svg>
               <svg class="ic ic-eye state-on"><use href="#ic-eye-on"/></svg>
             </button>
-            <span class="pop-label" data-i18n="lbl.cursor">Cursor</span>
           </div>
         </div>
 
         <div id="accomp-pop" class="pop" hidden>
+          <h2 class="sec-h" data-i18n="sec.accomp">Play Along</h2>
           <div class="pop-row">
+            <span class="pop-label" data-i18n="lbl.sound">Sound</span>
             <button class="icon-toggle js-accomp" type="button" aria-label="Accompaniment on/off" data-i18n-aria="aria.accomp">
               <svg class="ic ic-accomp state-off"><use href="#ic-accomp-off"/></svg>
               <svg class="ic ic-accomp state-on"><use href="#ic-accomp-on"/></svg>
             </button>
-            <span class="pop-label" data-i18n="lbl.playAlong">Play along</span>
           </div>
           <div class="pop-row">
+            <span class="pop-label" data-i18n="lbl.voice">Voice</span>
             <button id="instrument-cycle" class="cycle" type="button" aria-label="Voice" data-i18n-aria="aria.voice" data-i18n="inst.piano">Piano</button>
           </div>
+          <!-- The label replaces the speaker glyph that stood in for one when
+               these rows had no room for words. -->
           <div class="pop-row">
-            <svg class="vol-glyph" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <span class="pop-label" data-i18n="lbl.volume">Volume</span>
             <input type="range" class="stepper-range" id="volume-ui" min="0" max="100" step="5" value="80" aria-label="Volume" data-i18n-aria="aria.volume">
           </div>
         </div>

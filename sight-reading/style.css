@@ -82,6 +82,19 @@
   --glyph-md: 21px;
   --glyph-lg: 26px;
 
+  /* Floating surfaces — anything that lifts off the paper. The radius steps
+     down with the surface: a full sheet reads as a card, a popover as a chip
+     of one, and the shadow softens to match. Named for what they are rather
+     than by a number, like every other measure in here. */
+  --radius-sheet: 20px;                                            /* help / onboarding card */
+  --radius-card:  16px;                                            /* popovers hung off a button */
+  --shadow-sheet: 0 18px 60px rgba(0, 0, 0, 0.22);
+  --shadow-pop:   0 1px 2px rgba(0, 0, 0, 0.06), 0 12px 32px rgba(0, 0, 0, 0.16);
+  --pop-w:   248px;                                                /* popover min width */
+  --pop-pad: 16px;
+  --pop-gap: 12px;                                                 /* between a popover's rows */
+  --tb-gap:  12px;                                                 /* between the header's action buttons */
+
   /* How long the pointer must rest on a control before it names itself, so
      crossing the transport doesn't set off a run of tooltips. Leaving hides
      it with no delay at all. */
@@ -907,28 +920,34 @@ button.secondary {
 /* The header's action cluster and the popovers that hang from it. Anchored to
    the cluster, not the page, so the same rule places them on a phone and a wide
    window; right-aligned because their owners sit at the right edge. */
-.tb-actions { position: relative; flex-shrink: 0; display: flex; gap: 8px; }
+.tb-actions { position: relative; flex-shrink: 0; display: flex; gap: var(--tb-gap); }
 
 .pop {
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
   z-index: 40;
-  min-width: 232px;
+  min-width: var(--pop-w);
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 14px 16px;
+  gap: var(--pop-gap);
+  padding: var(--pop-pad);
   border-radius: var(--radius-card);
   background: var(--paper);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.06), 0 12px 32px rgba(0,0,0,0.16);
+  box-shadow: var(--shadow-pop);
 }
 .pop[hidden] { display: none; }
+
+/* Tempo leads its panel: it is what the panel is named for and what you opened
+   it to change, so it gets the full width and no label of its own. */
 .pop-tempo { display: flex; align-items: center; gap: 10px; }
 .pop-tempo .stepper-range { flex: 1 1 auto; min-width: 0; }
-.pop-row { display: flex; align-items: center; gap: 10px; }
-.pop-row .stepper-range { flex: 1 1 auto; min-width: 0; }
-.pop-label { font-size: var(--type-lead); font-weight: var(--weight-prominent); color: var(--ink); }
+
+/* Every other row is label-left, control-right, so the controls stack into one
+   clean right-hand edge however long the labels run. */
+.pop-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pop-row .stepper-range { flex: 0 1 140px; min-width: 0; }
+.pop-label { font-size: var(--type-label); font-weight: var(--weight-prominent); color: var(--ink); }
 
 /* Regenerate — same rounded-icon family as the transport, set in paper-dim. */
 .tb-btn {
@@ -1098,8 +1117,8 @@ button.secondary {
     transform: translate(-50%, -50%);
     width: min(600px, calc(100vw - 64px));
     max-height: 82dvh;
-    border-radius: 20px;
-    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.22);
+    border-radius: var(--radius-sheet);
+    box-shadow: var(--shadow-sheet);
   }
 }
 
@@ -1206,7 +1225,7 @@ button.secondary {
     max-height: 86dvh;
     background: var(--paper);
     border-radius: 22px;
-    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.22);
+    box-shadow: var(--shadow-sheet);
     padding: 34px 34px 26px;
   }
 }
