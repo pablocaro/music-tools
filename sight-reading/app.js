@@ -2280,10 +2280,9 @@
   // and changeable there, just never asked up front.
   // ===========================================================================
   var OB_KEY  = "sr_onboarded";
-  // TEMPORARY — while the walkthrough is being reviewed it runs on every load.
-  // Set to false to restore once-per-visitor behaviour; the flag is still
-  // written on finish, so nothing else has to change.
-  var OB_ALWAYS = true;
+  // Once per visitor (sr_onboarded). Flip to true while reworking the
+  // walkthrough to see it on every load without clearing storage.
+  var OB_ALWAYS = false;
   var OB_PAGES = ["intro", "vocab"];
   // The plain note values plus one rest: the first six cells of the real rhythm
   // grid, in the same order, so the grid is recognisable when the rest appear.
