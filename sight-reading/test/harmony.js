@@ -21,7 +21,11 @@ function stats(xml) {
   // divisions per quarter
   const dv = /<divisions>(\d+)<\/divisions>/.exec(xml); div = dv ? +dv[1] : 1;
   bars.forEach((b,i) => {
+    // Triad, plus the seventh on the dominant — the engine puts it in V's
+    // chord-tone set, so scoring V bars against a bare triad marked every
+    // generated seventh as a wrong note and dragged the rate down ~8 points.
     const r = prog[i%4], tones=[r%7,(r+2)%7,(r+4)%7];
+    if (r === 4) tones.push((r+6)%7);
     let t = 0;
     b.forEach(n => {
       if (!n.rest && n.d != null) {

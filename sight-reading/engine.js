@@ -68,6 +68,11 @@
   // put a step.
   var OFFBEAT_ANCHOR = 0.7;
 
+  // The dominant, as a 0-based scale degree: 0 is I, so 4 is V. Named because
+  // it is asked for in two places that must agree — the seventh added to its
+  // chord here, and the leading tone raised in its bars in minor.
+  var DOMINANT = 4;
+
   // 0 below `a`, 1 above `b`, straight line between — used to bring each class
   // of metric position under the chord one after another as the dial climbs.
   function ramp(v, a, b) { return Math.max(0, Math.min(1, (v - a) / (b - a))); }
@@ -174,8 +179,15 @@
         var mv = moves[j], np = ctx.p + mv.d, degree = degreeAt(mv.d), bonus = 0;
         if (ph > 0) {
           if (ctx.cadence > 0) {                                                      // resolve at phrase ends
-            if (degree === 0) bonus += 3.0 * ctx.cadence;
-            else if (degree === 4 || degree === 2) bonus += 0.5 * ctx.cadence;
+            // Onto the chord the phrase actually ends on, not always the
+            // tonic. A phrase ending on V is a half cadence and wants the
+            // dominant under it; pulling it to the tonic fought the harmony
+            // in exactly the bar where the chord matters most. When the last
+            // bar is I — the common case — the root is 0 and its other tones
+            // are 2 and 4, so this is the old rule unchanged.
+            var croot = (ctx.chordRoot == null) ? 0 : ctx.chordRoot;
+            if (degree === croot) bonus += 3.0 * ctx.cadence;
+            else if (tones.indexOf(degree) >= 0) bonus += 0.5 * ctx.cadence;
           }
           if (leap) {                                                                 // gap-fill: step back after a leap
             if (mv.d !== 0 && Math.abs(mv.d) <= 1 && (mv.d > 0) !== (ctx.prevDelta > 0)) bonus += 1.3;
@@ -366,6 +378,12 @@
         var mi = this._measureIdx || 0, totalM = this.options.measure_count || 8;
         var root = prog[mi % prog.length];
         var chordTones = [root % N, (root + 2) % N, (root + 4) % N];
+        // The dominant gets its seventh. That interval is the whole reason a
+        // V pulls home: with it, the chord holds the tritone that only the
+        // tonic resolves. Degree 4 alone — a seventh on every chord is a
+        // different idiom, not a stronger cadence. In minor the leading tone
+        // is already raised in these bars, so this lands as a true V7.
+        if (root === DOMINANT) chordTones.push((root + 6) % N);
 
         // Where this note falls in the bar, in felt pulses — a quarter in the
         // simple meters, a dotted quarter in 6/8, so "on the beat" means the
@@ -396,7 +414,7 @@
         var targetP = PMIN + (PMAX - PMIN) * (0.35 + 0.4 * Math.sin(Math.PI * progress));   // gentle arch
         delta = pickMusicalDelta(alpha, {
           phrase: phrase, pull: chord * anchor * PULL_MAX, p: oldP, N: N,
-          pMin: PMIN, pMax: PMAX, chordTones: chordTones,
+          pMin: PMIN, pMax: PMAX, chordTones: chordTones, chordRoot: root % N,
           cadence: cadence, targetP: targetP, prevDelta: this._prevDelta || 0
         });
       } else {
@@ -455,7 +473,7 @@
     var alt = (!makeRest && this._alterDir) ? this._alterDir : 0;
     if (!makeRest && !alt && this.options.mode === "minor" && degree === 6) {
       var prg = this.options.progression || [0, 5, 6, 0];
-      if (prg[(this._measureIdx || 0) % prg.length] === 4) alt = +1;
+      if (prg[(this._measureIdx || 0) % prg.length] === DOMINANT) alt = +1;
     }
     if (alt) pitch = alterPitch(pitch, alt);
     this._alterDir = 0;

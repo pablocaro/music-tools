@@ -1190,9 +1190,13 @@
     return list[0];   // an id from the other mode falls back to the mode's first
   }
   // Triad quality by degree, per mode — for the chord symbols above the staff.
+  // Minor's V is major, not the diatonic minor v: the engine raises the 7th
+  // degree in dominant bars (the leading tone), so a major chord is what
+  // actually sounds there and the old "m" was mislabelling it.
+  var DOMINANT = 4;                        // 0-based scale degree; matches engine.js
   var TRIAD_QUALITY = {
     major: ["", "m", "m", "", "", "m", "\u00b0"],
-    minor: ["m", "\u00b0", "", "m", "m", "", ""]
+    minor: ["m", "\u00b0", "", "m", "", "", ""]
   };
 
   function buildOptions() {
@@ -1652,6 +1656,10 @@
     if (lastFifths > 0 && SHARP_ORDER.indexOf(li) < lastFifths) acc = "\u266f";
     if (lastFifths < 0 && SHARP_ORDER.slice().reverse().indexOf(li) < -lastFifths) acc = "\u266d";
     var q = (TRIAD_QUALITY[keyModeEl.value] || TRIAD_QUALITY.major)[rootDegree] || "";
+    // The dominant is spelled as a seventh because it is generated as one —
+    // the engine puts the 7th in its chord-tone set, so the symbol says what
+    // the notes under it are actually drawn from.
+    if (rootDegree === DOMINANT) q += "7";
     return LETTERS[li] + acc + q;
   }
 
