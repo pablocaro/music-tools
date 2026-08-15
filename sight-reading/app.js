@@ -669,6 +669,63 @@
       "<clef><sign>" + c.sign + "</sign><line>" + c.line + "</line></clef>");
   }
 
+  // Triplet repair. The exporter cannot say a third of a beat: offered 1/12
+  // durations it emits <duration>10.666…</duration> and <type>WRONG</type>,
+  // and OSMD then renders nothing at all. The fix is arithmetic — scale
+  // <divisions> and every duration by 3 so a triplet eighth becomes an
+  // integer — plus the vocabulary the exporter lacked: type "eighth", a 3:2
+  // <time-modification>, and tuplet start/stop marks on each group of three
+  // (which is what makes OSMD draw the bracket and the 3).
+  function applyTupletsToXml(xml) {
+    if (xml.indexOf("<type>WRONG</type>") < 0 && !/<duration>\d+\.\d/.test(xml)) return xml;
+    var doc = new DOMParser().parseFromString(xml, "application/xml");
+    if (doc.querySelector("parsererror")) return xml;
+
+    var divisions = 0;
+    doc.querySelectorAll("divisions").forEach(function (d) {
+      divisions = Math.round(parseFloat(d.textContent) * 3);
+      d.textContent = divisions;
+    });
+    doc.querySelectorAll("duration").forEach(function (d) {
+      d.textContent = Math.round(parseFloat(d.textContent) * 3);
+    });
+
+    var tripDur = divisions / 3;   // a triplet eighth, in the new divisions
+    doc.querySelectorAll("measure").forEach(function (measure) {
+      var run = [];
+      function flush() {
+        if (run.length !== 3) { run = []; return; }
+        run.forEach(function (note, i) {
+          var type = note.querySelector("type");
+          if (type) type.textContent = "eighth";
+          var tm = doc.createElement("time-modification");
+          var an = doc.createElement("actual-notes"); an.textContent = "3";
+          var nn = doc.createElement("normal-notes"); nn.textContent = "2";
+          tm.appendChild(an); tm.appendChild(nn);
+          note.insertBefore(tm, type ? type.nextSibling : null);
+          if (i === 0 || i === 2) {
+            var nts = doc.createElement("notations");
+            var tup = doc.createElement("tuplet");
+            tup.setAttribute("type", i === 0 ? "start" : "stop");
+            tup.setAttribute("number", "1");
+            tup.setAttribute("bracket", "no");   // the beam carries the group; just the 3
+            nts.appendChild(tup);
+            note.appendChild(nts);
+          }
+        });
+        run = [];
+      }
+      Array.prototype.forEach.call(measure.querySelectorAll("note"), function (note) {
+        var d = note.querySelector("duration");
+        var isTrip = d && Math.round(parseFloat(d.textContent)) === tripDur && !note.querySelector("rest");
+        if (isTrip) { run.push(note); if (run.length === 3) flush(); }
+        else flush();
+      });
+      flush();
+    });
+    return new XMLSerializer().serializeToString(doc);
+  }
+
   // OSMD's auto-beam produces zero beams for any /8 meter (empirically
   // confirmed: identical eighth-note content beams cleanly in 3/4, not at all
   // in 6/8) — the exporter never emits explicit <beam> elements for anything,
@@ -795,6 +852,7 @@
     { id: "q",    name: "quarter",    def: true,  events: [[1,4]] },
     { id: "ee",   name: "eighths",    def: true,  events: [[1,8],[1,8]] },
     { id: "ssss", name: "sixteenths",             events: [[1,16],[1,16],[1,16],[1,16]] },
+    { id: "trip", name: "triplet eighths",        events: [[1,12],[1,12],[1,12]] },
     // mixed
     { id: "ess",  name: "eighth + 2 sixteenths",  events: [[1,8],[1,16],[1,16]] },
     { id: "sse",  name: "2 sixteenths + eighth",  events: [[1,16],[1,16],[1,8]] },
@@ -860,6 +918,8 @@
       case "h":    g = head(22, true) + stem(22); break;
       case "q":    g = head(22, false) + stem(22); break;
       case "ee":   g = head(14, 0) + head(30, 0) + stem(14) + stem(30) + beam(16.6, 32.6, TOP); break;
+      case "trip": g = head(10, 0) + head(22, 0) + head(34, 0) + stem(10) + stem(22) + stem(34)
+                     + beam(12.6, 36.6, 8) + '<text x="22" y="6.5" text-anchor="middle" font-size="7" font-style="italic" fill="currentColor">3</text>'; break;
       case "ssss": g = head(9, 0) + head(18, 0) + head(27, 0) + head(36, 0) + stem(9) + stem(18) + stem(27) + stem(36) + beam(11.6, 38.6, TOP) + beam(11.6, 38.6, SB); break;
       case "ess":  g = head(11, 0) + head(22, 0) + head(33, 0) + stem(11) + stem(22) + stem(33) + beam(13.6, 35.6, TOP) + beam(24.6, 35.6, SB); break;
       case "sse":  g = head(11, 0) + head(22, 0) + head(33, 0) + stem(11) + stem(22) + stem(33) + beam(13.6, 35.6, TOP) + beam(13.6, 24.6, SB); break;
@@ -1080,6 +1140,7 @@
       var plugin = new ExampleSourceGenerator(buildOptions());
       currentSheet = plugin.generate();
       var xml = applyClefToXml(new XMLSourceExporter().export(currentSheet));
+      xml = applyTupletsToXml(xml);
       if (timeSigDef(timesigEl.value).compound) xml = applyBeamsToXml(xml);
       var fm = /<fifths>(-?\d+)<\/fifths>/.exec(xml);
       lastFifths = fm ? +fm[1] : 0;   // the chord names spell themselves from this

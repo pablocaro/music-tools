@@ -115,10 +115,6 @@ controls ──► OSME generates a sheet ──► export MusicXML ──► OS
   Ascending melodic minor (raised 6th+7th outside dominant bars) isn't there
   yet, and neither are double accidentals — a raise that would need one is
   skipped.
-- "How musical?" is only half meter-aware. Its chord anchoring follows the felt
-  pulse correctly, but two phrasing biases still assume a four-quarter bar: the
-  cadence fires in the "second half" of a bar hardcoded as beat 2, and the
-  contour arch divides the bar by 4. Both land early in 3/4 and 6/8.
 
 ## Roadmap
 
