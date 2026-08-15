@@ -291,8 +291,13 @@
 
         var phrasePos = mi % 4;
         var lastM = (mi === totalM - 1);
-        var cadence = ((phrasePos === 3 || lastM) && beatF >= 2) ? (lastM ? 1.5 : 0.8) : 0;
-        var progress = Math.max(0, Math.min(1, (mi + beatF / 4) / totalM));
+        // The bar's real length, so "second half of the bar" and "how far
+        // through the piece" stop assuming four quarters — hardcoded 2 and /4
+        // made the cadence fire early and the contour arch run fast in 3/4
+        // and 6/8.
+        var barQ = currentMeasure.Duration.RealValue * 4;
+        var cadence = ((phrasePos === 3 || lastM) && beatF >= barQ / 2) ? (lastM ? 1.5 : 0.8) : 0;
+        var progress = Math.max(0, Math.min(1, (mi + beatF / barQ) / totalM));
         var targetP = PMIN + (PMAX - PMIN) * (0.35 + 0.4 * Math.sin(Math.PI * progress));   // gentle arch
         delta = pickMusicalDelta(alpha, {
           phrase: phrase, pull: chord * anchor * PULL_MAX, p: oldP, N: N,
