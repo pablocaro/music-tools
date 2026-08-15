@@ -763,6 +763,16 @@ button.secondary {
    grid is how long it lasts in the bar. */
 .fig-cell.wide { grid-column: span 2; }
 
+/* A figure's weight badge — ×2 / ×4 in the cell's corner. Weight 1 shows
+   nothing: the lit cell already says "in play". */
+.fig-cell .wt {
+  position: absolute;
+  top: 3px; right: 6px;
+  font-size: var(--type-micro);
+  font-weight: var(--weight-strong);
+  pointer-events: none;
+}
+
 .fig-cell {
   position: relative;
   height: 50px;

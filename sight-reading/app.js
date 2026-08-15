@@ -1000,9 +1000,28 @@
         var cb = document.createElement("input");
         cb.type = "checkbox"; cb.className = "beat"; cb.value = item.id; cb.checked = !!item.def; cb.hidden = true;
         if (cb.checked) cell.classList.add("on");
-        cb.addEventListener("change", function () { cell.classList.toggle("on", cb.checked); generate(); });
+        // A figure carries a weight, like an interval row does: how *often* it
+        // is drawn, not just whether. The checkbox still owns in-or-out (so
+        // every existing reader keeps working); the weight rides in data-w and
+        // the tap cycles off → on → ×2 → ×4 → off.
+        var badge = document.createElement("span");
+        badge.className = "wt";
+        function syncWt() {
+          var w = +cb.dataset.w || 1;
+          badge.textContent = (cb.checked && w > 1) ? "\u00d7" + w : "";
+        }
+        cb.addEventListener("change", function () { cell.classList.toggle("on", cb.checked); syncWt(); generate(); });
+        cell.addEventListener("click", function (e) {
+          e.preventDefault();      // labels re-dispatch to the checkbox; we own the cycle
+          var w = cb.checked ? (+cb.dataset.w || 1) : 0;
+          var next = (w === 0) ? 1 : (w === 1) ? 2 : (w === 2) ? 4 : 0;
+          cb.checked = next > 0;
+          cb.dataset.w = next > 0 ? next : 1;
+          cb.dispatchEvent(new Event("change"));
+        });
         cell.appendChild(cb);
         cell.insertAdjacentHTML("beforeend", figureGlyph(item.id));
+        cell.appendChild(badge);
         grid.appendChild(cell);
       });
       group.appendChild(grid);
@@ -1043,8 +1062,12 @@
   function buildBeatPatterns() {
     var out = [];
     // Scoped past hidden groups for the same reason readBeatIds is: what the
-    // panel isn't showing must not turn up in the music.
+    // panel isn't showing must not turn up in the music. A figure's weight is
+    // expressed the cheapest way possible — the cell goes into the bag that
+    // many times, and the uniform draw does the rest.
     beatsEl.querySelectorAll(".fig-group:not([hidden]) .beat:checked").forEach(function (cb) {
+      var w = +cb.dataset.w || 1;
+      for (var k = 0; k < w; k++)
       if (BEAT_PATTERNS[cb.value]) out.push(BEAT_PATTERNS[cb.value]);
     });
     if (out.length === 0) out.push([{ n: 1, d: 4 }]); // fallback: a quarter
@@ -1054,18 +1077,33 @@
   function readBeatIds() {
     var ids = [];
     // A hidden group is out of play but keeps its ticks, so the setting comes
-    // back intact when the meter allows it again.
-    beatsEl.querySelectorAll(".fig-group:not([hidden]) .beat:checked").forEach(function (cb) { ids.push(cb.value); });
+    // back intact when the meter allows it again. A weighted figure is stored
+    // as "id:w"; weight 1 stays a bare id, so presets saved before weights
+    // existed read back unchanged — and ones saved now read back in old code.
+    beatsEl.querySelectorAll(".fig-group:not([hidden]) .beat:checked").forEach(function (cb) {
+      var w = +cb.dataset.w || 1;
+      ids.push(w > 1 ? cb.value + ":" + w : cb.value);
+    });
     return ids;
   }
 
   function applyBeats(ids) {
     var set = {};
-    (ids || []).forEach(function (id) { set[id] = true; });
+    (ids || []).forEach(function (id) {
+      var parts = String(id).split(":");
+      set[parts[0]] = Math.max(1, parseInt(parts[1], 10) || 1);
+    });
     beatsEl.querySelectorAll(".beat").forEach(function (cb) {
       cb.checked = !!set[cb.value];
+      cb.dataset.w = set[cb.value] || 1;
       var cell = cb.closest(".fig-cell");
       if (cell) cell.classList.toggle("on", cb.checked);
+      // Fires the change so the weight badge redraws — but applyBeats runs
+      // inside applyPreset, whose caller generates once at the end, so the
+      // change handler's own generate() would stack regenerations. The badge
+      // sync is factored to run off the event without minding who sent it.
+      var badge = cell && cell.querySelector(".wt");
+      if (badge) badge.textContent = (cb.checked && (+cb.dataset.w || 1) > 1) ? "\u00d7" + cb.dataset.w : "";
     });
   }
 

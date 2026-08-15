@@ -49,7 +49,8 @@ controls ──► OSME generates a sheet ──► export MusicXML ──► OS
   Tick it to allow the move, and slide *less → more* to set how often it turns
   up. Presets save to the browser (`localStorage`).
 - **Rhythm — the figures:** the meter (2/4, 3/4, 4/4, 6/8) plus which note
-  values are in play. 6/8 swaps in a compound-time figure set built on the
+  values are in play — and how often: a cell's tap cycles off → on → ×2 → ×4,
+  so you can drill dotted rhythms *mostly* rather than *only*. 6/8 swaps in a compound-time figure set built on the
   dotted-quarter pulse. Two units are in play throughout the code and they are
   worth keeping straight: the clock counts *quarter notes* everywhere, which is
   what makes a tempo mean the same speed in every meter, while a *beat* is the
@@ -99,7 +100,6 @@ controls ──► OSME generates a sheet ──► export MusicXML ──► OS
 
 ## Known limitations
 
-- Rhythm figures are equally weighted (on/off), not yet probability-weighted.
 - The tempo number is a quarter note in every meter, so 6/8 at 80 runs at 80
   quarters rather than the 80 dotted quarters its tempo marking would imply.
   The click and Hide Ahead both follow the felt pulse (two to a 6/8 bar); only
@@ -121,5 +121,5 @@ controls ──► OSME generates a sheet ──► export MusicXML ──► OS
 - **Letting-go mode** — Hide Ahead is the first half of this; what's missing is
   pressure that adapts (speeding up, or widening the curtain, as you succeed).
 - Melodic minor ascending; 12-bar blues once the harmony can ask for a flat 7.
-- Probability-weighted rhythm figures; rhythm chunks marked below the staff.
+- Rhythm chunks marked below the staff.
 - Interval/figure targeting tied to weak spots.
