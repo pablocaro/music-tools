@@ -88,10 +88,15 @@
   // built-in presets (same weight applied to down + up): [uni,2,3,4,5,6,7,oct]
   // The alphabet each built-in drill is built around (same weight up and down).
   var BUILTIN = {
-    "steps only":   [0, 4, 0, 0, 0, 0, 0, 0],
-    "thirds drill": [1, 2, 4, 1, 1, 0, 0, 0],
-    "wide leaps":   [0, 1, 2, 3, 3, 2, 1, 2],
-    "arpeggios":    [0, 1, 4, 3, 2, 1, 0, 0]
+    "steps only":      [0, 4, 0, 0, 0, 0, 0, 0],
+    "thirds drill":    [1, 2, 4, 1, 1, 0, 0, 0],
+    "wide leaps":      [0, 1, 2, 3, 3, 2, 1, 2],
+    "arpeggios":       [0, 1, 4, 3, 2, 1, 0, 0],
+    "long tones":      [0, 4, 1, 0, 0, 0, 0, 0],
+    "rhythm workout":  [1, 4, 2, 0, 0, 0, 0, 0],
+    "jig":             [0, 3, 2, 1, 1, 0, 0, 0],
+    "chromatic steps": [0, 4, 0, 0, 0, 0, 0, 0],
+    "minor cadences":  [1, 3, 3, 1, 1, 0, 0, 0]
   };
 
   // What a built-in leaves alone would otherwise be whatever the last drill
@@ -99,11 +104,21 @@
   // does — the alphabet it's named for, plus the neutral staff to read it on.
   var BUILTIN_DEFAULTS = { musicality: "0", progression: "I-IV-V-I", chroma: "0", key: "major_0-0", clef: "treble", timesig: "4/4", measures: "16" };
 
-  // Arpeggios is the one drill the alphabet alone can't describe: chord-shaped
-  // intervals still wander off the chord unless every note is asked to be an
-  // arrival, so it pins the dial to the top. Everything else stays neutral.
+  // What a drill needs beyond its alphabet. The first four interval drills
+  // deliberately carry no rhythm, so switching between them leaves your
+  // figures alone; the newer ones ARE their rhythm (or their key, or their
+  // chromaticism), so they set it — a jig without 6/8 is just leaps.
   var BUILTIN_EXTRA = {
-    "arpeggios": { musicality: "100" }
+    "arpeggios":       { musicality: "100" },
+    "long tones":      { beats: ["w", "h:2"], measures: "8" },
+    // beats arrays are written in the grid's own order — presetMatchesPanel
+    // compares against readBeatIds, which reads the DOM top to bottom, and a
+    // reordered list would strand the title on "Custom".
+    "rhythm workout":  { beats: ["q", "ee", "des:2", "sde", "re", "eqe:2", "dqe:2"] },
+    "jig":             { timesig: "6/8", beats: ["dq", "eee:2", "qe"] },
+    "chromatic steps": { chroma: "60", beats: ["q:2", "ee"] },
+    "minor cadences":  { key: "minor_5-0", progression: "i-VII-VI-V", musicality: "70",
+                         beats: ["h", "q:2", "ee"] }
   };
 
   function builtinPreset(name) {

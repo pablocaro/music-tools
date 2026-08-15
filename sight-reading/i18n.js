@@ -75,6 +75,11 @@ window.SR_I18N = {
     "preset.thirds drill": "Thirds Drill",
     "preset.wide leaps":   "Wide Leaps",
     "preset.arpeggios":    "Arpeggios",
+    "preset.long tones":      "Long Tones",
+    "preset.rhythm workout":  "Rhythm Workout",
+    "preset.jig":             "Jig",
+    "preset.chromatic steps": "Chromatic Steps",
+    "preset.minor cadences":  "Minor Cadences",
 
     // control names, used for aria-label and therefore the hover tooltip
     "aria.settings":     "Settings",
@@ -289,6 +294,11 @@ window.SR_I18N = {
     "preset.thirds drill": "Terceras",
     "preset.wide leaps":   "Saltos amplios",
     "preset.arpeggios":    "Arpegios",
+    "preset.long tones":      "Notas largas",
+    "preset.rhythm workout":  "Entrenamiento r\u00edtmico",
+    "preset.jig":             "Giga",
+    "preset.chromatic steps": "Grados crom\u00e1ticos",
+    "preset.minor cadences":  "Cadencias menores",
 
     "aria.settings":     "Ajustes",
     "aria.fromTop":      "Desde el principio",
