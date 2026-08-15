@@ -65,6 +65,12 @@ cellist back into treble. Changeable later from the panel.
   I–V–vi–IV, ii–V–I; i–VI–VII–i, i–VII–VI–V.
 - Chord symbols drawn above the staff, so Follow Chords stops being a
   mystery dial and reading symbols becomes a skill of its own.
+- Dominant sevenths: V carries its 7th in both the chord-tone set and the
+  symbol. Adding it exposed a real bug — the cadence rule pulled phrase
+  endings to the *tonic* whatever the chord was, so a progression ending on
+  V (a half cadence) fought its own harmony in the bar that mattered most.
+  The bonus now targets the current chord's root; with I last, that is the
+  old constants exactly.
 - 12-bar blues waits for accidentals (needs the flat 7).
 
 ### 2 · Accidentals — DONE except melodic minor (rule 2)
@@ -85,15 +91,19 @@ emit `<alter>` and OSMD draws the sharp from the key signature.
 - Weighted figures: a cell's tap cycles off → ✓ → ×2 → ×4, mirroring the
   interval weights; the pattern bag duplicates cells by weight.
 
-### 4 · Phrasing — slurs and motifs DONE; ties remain
-- Ties across barlines: split-and-tie notes longer than the space left. The
-  one piece NOT built in the full pass: today the generator never draws a
-  cell longer than the room remaining, so ties mean deliberately allowing
-  longer draws and then splitting them — which touches playback onsets, the
-  hide curtain's note indexing (a tied pair is two rendered notes but one
-  sounding event) and the chunk analyzer. A session of its own.
-- Slurs as bowing patterns ("2 slurred 2 separate", "4 slurred") — a bow
-  instruction, so a genuine reading skill, not decoration.
+### 4 · Phrasing — DONE
+- Ties across barlines. The trick that made this cheap: don't split a long
+  note, *extend* the bar's last one by whole pulses of the next bar. Both
+  halves stay notatable and the next bar stays beat-aligned, because the tie
+  eats exactly one or two cell-sized slots off its front. The far side skips
+  the interval walk and inherits its alteration outright (deriving one would
+  return a natural for a G♯ held out of a V bar); playback merges the pair
+  into one attack; the chunk highlighter skips continuations, which would
+  otherwise read as a unison and break the run at the barline.
+- Slurs, in groups of 2, 3 or 4 — one instruction to every instrument (one
+  bow, one tongue, one breath), so a genuine reading skill, not decoration.
+  There is no group of 1: a slur over a single note is just a separate bow,
+  which is what Off means.
 - Rhythmic motifs: state an idea, repeat it varied, answer it — rhythm's
   counterpart to the musicality dial, and the thing that stops generated
   lines sounding generated.
@@ -119,7 +129,20 @@ node sight-reading/test/sweep.js      # highlighter integrity, presets × meters
 ```
 
 They measure the running app — chord-tone rates, beat crossings, hidden-note
-prefixes — because most of what matters here is invisible in a diff. Two
-lessons paid for: a test that hangs is not evidence the app is broken, and a
-test that pokes hidden form elements directly can bypass the code path users
-actually take. Drive the visible controls.
+prefixes — because most of what matters here is invisible in a diff. Three
+lessons paid for:
+
+- A test that hangs is not evidence the app is broken.
+- A test that pokes hidden form elements directly can bypass the code path
+  users actually take. Drive the visible controls — the mode remap and the
+  progression-pill rebuild hang off the cycle button's click, so setting
+  `#key-mode` directly leaves the picker showing the other mode's list.
+- A test encodes the rule it is checking, so a rule change dates it. When
+  V gained its seventh, harmony.js still scored every bar against a bare
+  triad and marked each generated seventh a wrong note — an ~8 point drop
+  that looked exactly like a regression. Check the expectation before
+  believing the number.
+
+`window.__srSession` is a read-only handle on the live play state, for the
+things only observable there: that a tied pair is one sounding event and not
+two cannot be seen in the rendered page at all.
