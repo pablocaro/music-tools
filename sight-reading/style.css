@@ -734,11 +734,30 @@ button.secondary {
 .cell input[type="range"] { flex: 1; }
 
 /* Rhythm figures: a flat grid of notation cells toggled on/off, name on hover */
+/* Figures are grouped by whether they stay inside a beat or reach across one.
+   The heading is dropped when only one group is on screen — it would be naming
+   the only thing there. */
+.fig-group + .fig-group { margin-top: 14px; }
+.fig-group[hidden] { display: none; }
+.fig-h {
+  font-size: var(--type-caption);
+  font-weight: var(--weight-prominent);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.beats.one-group .fig-h { display: none; }
+
 .fig-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));
   gap: 6px;
 }
+
+/* A two-beat figure takes two cells' worth of width, so how wide it sits in the
+   grid is how long it lasts in the bar. */
+.fig-cell.wide { grid-column: span 2; }
 
 .fig-cell {
   position: relative;

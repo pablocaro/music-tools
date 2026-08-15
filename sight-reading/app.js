@@ -747,7 +747,18 @@
     // with rests
     { id: "qr",   name: "quarter rest",           events: [[1,4,true]] },
     { id: "re",   name: "8th rest + eighth",      events: [[1,8,true],[1,8]] },
-    { id: "er",   name: "eighth + 8th rest",      events: [[1,8],[1,8,true]] }
+    { id: "er",   name: "eighth + 8th rest",      events: [[1,8],[1,8,true]] },
+
+    // Two beats long, and each one holds a note across the beat line — which is
+    // the whole point. Every figure above is exactly one beat (or a clean
+    // multiple), so nothing in the palette could ever be syncopated: the bar was
+    // tiled from beat-sized pieces and the beats always lined up. These need no
+    // engine change at all — nextBeat already draws any cell that fits the space
+    // left in the bar, and it had simply never been offered one this shape.
+    { id: "eqe",  name: "eighth + quarter + eighth", wide: true, group: "more", events: [[1,8],[1,4],[1,8]] },
+    { id: "dqe",  name: "dotted quarter + eighth",   wide: true, group: "more", events: [[3,8],[1,8]] },
+    { id: "edq",  name: "eighth + dotted quarter",   wide: true, group: "more", events: [[1,8],[3,8]] },
+    { id: "req",  name: "8th rest + eighth + quarter", wide: true, group: "more", events: [[1,8,true],[1,8],[1,4]] }
   ];
 
   // 6/8's beat is a dotted quarter (3 eighths), not a quarter — so the simple
@@ -767,7 +778,8 @@
     { id: "eer", name: "2 eighths + 8th rest",                events: [[1,8],[1,8],[1,8,true]] }
   ];
 
-  var BEAT_PATTERNS = {}; // id -> [{n,d,rest}], populated for both sets up front
+  var BEAT_PATTERNS = {};   // id -> [{n,d,rest}], populated for both sets up front
+  var WIDE_FIGURES  = {};   // id -> true for figures that span two beats
 
   // A tiny notation glyph (inline SVG, currentColor so it inverts when the cell
   // is on) for each rhythm figure — noteheads, stems, beams, dots, rests.
@@ -808,9 +820,17 @@
       case "dqr":  g = rest4(22) + dot(22); break;
       case "ree":  g = rest8(11) + head(23, 0) + head(34, 0) + stem(23) + stem(34) + beam(25.6, 36.6, TOP); break;
       case "eer":  g = head(11, 0) + head(22, 0) + stem(11) + stem(22) + beam(13.6, 24.6, TOP) + rest8(35); break;
+      // across-the-beat figures — twice as wide, so they are laid out across a
+      // doubled viewBox rather than squeezed into one cell's worth of space
+      case "eqe":  g = head(14, 0) + stem(14) + flag(14) + head(41, false) + stem(41)
+                     + head(68, 0) + stem(68) + flag(68); break;
+      case "dqe":  g = head(20, false) + stem(20) + dot(20) + head(58, 0) + stem(58) + flag(58); break;
+      case "edq":  g = head(18, 0) + stem(18) + flag(18) + head(54, false) + stem(54) + dot(54); break;
+      case "req":  g = rest8(17) + head(40, 0) + stem(40) + flag(40) + head(68, false) + stem(68); break;
       default:     g = head(22, false) + stem(22);
     }
-    return '<svg viewBox="0 0 44 28" class="fig-svg">' + g + "</svg>";
+    var w = WIDE_FIGURES[id] ? 88 : 44;
+    return '<svg viewBox="0 0 ' + w + ' 28" class="fig-svg">' + g + "</svg>";
   }
 
   // Flat grid of rhythm figures — each cell is a notation glyph toggled on/off,
@@ -824,6 +844,7 @@
       BEAT_PATTERNS[item.id] = item.events.map(function (e) {
         return { n: e[0], d: e[1], rest: !!e[2] };
       });
+      if (item.wide) WIDE_FIGURES[item.id] = true;
     });
   });
 
@@ -831,24 +852,61 @@
     return timeSigDef(timesigEl.value).compound ? BEAT_FIGURES_COMPOUND : BEAT_FIGURES_SIMPLE;
   }
 
+  // Figures are grouped, and a group can be hidden without being torn down —
+  // switching to 2/4 hides the across-the-beat set rather than rebuilding the
+  // palette, so whatever you had ticked is still ticked when you come back.
+  // Headings only appear when more than one group is showing: a lone "Basic"
+  // above the only grid on screen would be labelling nothing.
+  var FIG_GROUPS = ["basic", "more"];
+
   function buildBeatsPalette(figures) {
     beatsEl.innerHTML = "";
     beatsEl.dataset.family = timeSigDef(timesigEl.value).compound ? "compound" : "simple";
-    var grid = document.createElement("div");
-    grid.className = "fig-grid";
-    figures.forEach(function (item) {
-      var cell = document.createElement("label");
-      cell.className = "fig-cell";
-      cell.setAttribute("aria-label", t("fig." + item.id));
-      var cb = document.createElement("input");
-      cb.type = "checkbox"; cb.className = "beat"; cb.value = item.id; cb.checked = !!item.def; cb.hidden = true;
-      if (cb.checked) cell.classList.add("on");
-      cb.addEventListener("change", function () { cell.classList.toggle("on", cb.checked); generate(); });
-      cell.appendChild(cb);
-      cell.insertAdjacentHTML("beforeend", figureGlyph(item.id));
-      grid.appendChild(cell);
+    FIG_GROUPS.forEach(function (gid) {
+      var members = figures.filter(function (f) { return (f.group || "basic") === gid; });
+      if (!members.length) return;
+      var group = document.createElement("div");
+      group.className = "fig-group";
+      group.dataset.group = gid;
+      var h = document.createElement("h3");
+      h.className = "fig-h";
+      h.setAttribute("data-i18n", "grp." + gid);
+      h.textContent = t("grp." + gid);
+      group.appendChild(h);
+      var grid = document.createElement("div");
+      grid.className = "fig-grid";
+      members.forEach(function (item) {
+        var cell = document.createElement("label");
+        cell.className = "fig-cell" + (item.wide ? " wide" : "");
+        cell.setAttribute("aria-label", t("fig." + item.id));
+        var cb = document.createElement("input");
+        cb.type = "checkbox"; cb.className = "beat"; cb.value = item.id; cb.checked = !!item.def; cb.hidden = true;
+        if (cb.checked) cell.classList.add("on");
+        cb.addEventListener("change", function () { cell.classList.toggle("on", cb.checked); generate(); });
+        cell.appendChild(cb);
+        cell.insertAdjacentHTML("beforeend", figureGlyph(item.id));
+        grid.appendChild(cell);
+      });
+      group.appendChild(grid);
+      beatsEl.appendChild(group);
     });
-    beatsEl.appendChild(grid);
+    syncFigureGroups();
+  }
+
+  // A two-beat figure fills a 2/4 bar on its own, leaving no room for anything
+  // else, and compound time's syncopation is a different animal (hemiola) that
+  // this set doesn't cover. In both cases the group is hidden — and hidden
+  // means out of play, since readBeatIds skips it.
+  function syncFigureGroups() {
+    var ts = timeSigDef(timesigEl.value);
+    var allowWide = !ts.compound && ts.num > 2;
+    var shown = 0;
+    beatsEl.querySelectorAll(".fig-group").forEach(function (g) {
+      var hide = g.dataset.group === "more" && !allowWide;
+      g.hidden = hide;
+      if (!hide) shown++;
+    });
+    beatsEl.classList.toggle("one-group", shown < 2);
   }
 
   // Only rebuilds (and resets to that family's defaults) when the meter
@@ -857,13 +915,18 @@
   function syncBeatsFamily() {
     var wantCompound = !!timeSigDef(timesigEl.value).compound;
     var have = beatsEl.dataset.family === "compound";
-    if (wantCompound === have) return;
-    buildBeatsPalette(currentBeatFigures());
+    // The palette is only rebuilt when the meter crosses the simple/compound
+    // line. Every other meter change still has to re-gate the groups, though —
+    // 2/4 has no room for a two-beat figure — so that runs either way.
+    if (wantCompound !== have) buildBeatsPalette(currentBeatFigures());
+    else syncFigureGroups();
   }
 
   function buildBeatPatterns() {
     var out = [];
-    beatsEl.querySelectorAll(".beat:checked").forEach(function (cb) {
+    // Scoped past hidden groups for the same reason readBeatIds is: what the
+    // panel isn't showing must not turn up in the music.
+    beatsEl.querySelectorAll(".fig-group:not([hidden]) .beat:checked").forEach(function (cb) {
       if (BEAT_PATTERNS[cb.value]) out.push(BEAT_PATTERNS[cb.value]);
     });
     if (out.length === 0) out.push([{ n: 1, d: 4 }]); // fallback: a quarter
@@ -872,7 +935,9 @@
 
   function readBeatIds() {
     var ids = [];
-    beatsEl.querySelectorAll(".beat:checked").forEach(function (cb) { ids.push(cb.value); });
+    // A hidden group is out of play but keeps its ticks, so the setting comes
+    // back intact when the meter allows it again.
+    beatsEl.querySelectorAll(".fig-group:not([hidden]) .beat:checked").forEach(function (cb) { ids.push(cb.value); });
     return ids;
   }
 
