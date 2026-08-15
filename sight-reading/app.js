@@ -111,6 +111,10 @@
     var p = { alphabet: { down: w.slice(), up: w.slice() }, range: defaultRange() };
     Object.keys(BUILTIN_DEFAULTS).forEach(function (k) { p[k] = BUILTIN_DEFAULTS[k]; });
     Object.keys(extra).forEach(function (k) { p[k] = extra[k]; });
+    // The neutral staff is the one the player reads, not treble: without this a
+    // cellist lands back in treble every time they click a built-in drill.
+    p.clef = prefClef();
+    p.range = defaultRangeForClef(p.clef);
     return p;
   }
 
@@ -333,7 +337,10 @@
       label.textContent = presetLabel(name);
       pill.appendChild(label);
       pill.addEventListener("click", function () {
-        applyPreset(all[name]);
+        // Built-ins are materialised at click time, not at render time: they
+        // derive their clef from the instrument preference, which the player
+        // may have changed since the pills were built.
+        applyPreset(saved.hasOwnProperty(name) ? saved[name] : builtinPreset(name));
         syncPanel();              // a preset can move any control — re-read them all
         activePreset = name;
         generate();               // renderLoaded -> updateHeader -> syncActivePill
@@ -451,14 +458,18 @@
   var rangeState = {};   // { [oct]: [bool × 7] }
   var rangeCells = {};   // { "oct-i": button }
 
-  // Treble's home octaves — the starting selection, and what a built-in resets to.
-  function defaultRange() {
+  // A clef's home octaves — the starting selection, and what a built-in resets
+  // to. defaultRange() keeps its old meaning (treble) for callers that predate
+  // the instrument preference.
+  function defaultRangeForClef(clefId) {
+    var octs = clefDef(clefId).octaves;
     var r = {};
     RANGE_OCTAVES.forEach(function (oct) {
-      r[oct] = NOTE_COLS.map(function () { return oct === 4 || oct === 5; });
+      r[oct] = NOTE_COLS.map(function () { return octs.indexOf(oct) >= 0; });
     });
     return r;
   }
+  function defaultRange() { return defaultRangeForClef("treble"); }
 
   function initRangeState() { rangeState = defaultRange(); }
 
@@ -574,6 +585,42 @@
   function clefDef(id) {
     for (var i = 0; i < CLEFS.length; i++) if (CLEFS[i].id === id) return CLEFS[i];
     return CLEFS[0];
+  }
+
+  // What the player plays — an app-level preference like the language, not part
+  // of any preset. Its one job is to answer "which clef do you read?" without
+  // asking that question (a reader might read several; an instrument has one
+  // answer). Only the *written* clef matters, so transposing instruments need
+  // no special handling. Melodic instruments only, plus Other.
+  var INSTR_KEY = "sr_instrument";
+  var INSTRUMENTS = [
+    { id: "violin",   clef: "treble" },
+    { id: "viola",    clef: "alto"   },
+    { id: "cello",    clef: "bass"   },
+    { id: "flute",    clef: "treble" },
+    { id: "clarinet", clef: "treble" },
+    { id: "sax",      clef: "treble" },
+    { id: "trumpet",  clef: "treble" },
+    { id: "trombone", clef: "bass"   },
+    { id: "voice",    clef: "treble" },
+    { id: "guitar",   clef: "treble" },
+    { id: "other",    clef: "treble" }
+  ];
+  function instrumentDef(id) {
+    for (var i = 0; i < INSTRUMENTS.length; i++) if (INSTRUMENTS[i].id === id) return INSTRUMENTS[i];
+    return INSTRUMENTS[INSTRUMENTS.length - 1];   // other
+  }
+  function instrumentPref() {
+    try { return localStorage.getItem(INSTR_KEY) || "other"; } catch (e) { return "other"; }
+  }
+  function prefClef() { return instrumentDef(instrumentPref()).clef; }
+  function setInstrument(id) {
+    try { localStorage.setItem(INSTR_KEY, id); } catch (e) {}
+    clefEl.value = prefClef();
+    shiftRangeToClef(clefEl.value);     // move the notes onto the new staff
+    syncKeyRow();
+    syncInstrumentPills();
+    generate();
   }
 
   // ===========================================================================
@@ -2283,7 +2330,7 @@
   // Once per visitor (sr_onboarded). Flip to true while reworking the
   // walkthrough to see it on every load without clearing storage.
   var OB_ALWAYS = false;
-  var OB_PAGES = ["intro", "vocab"];
+  var OB_PAGES = ["intro", "instrument", "vocab"];
   // The plain note values plus one rest: the first six cells of the real rhythm
   // grid, in the same order, so the grid is recognisable when the rest appear.
   var OB_FIGS = ["w", "h", "q", "ee", "ssss", "qr"];
@@ -2372,6 +2419,17 @@
       host.appendChild(mark);
       obPara(host, "ob.pitch");
 
+    } else if (page === "instrument") {
+      obHeading(host, "ob.instrTitle");
+      var items = INSTRUMENTS.map(function (ins) {
+        return { id: ins.id, html: t("instr." + ins.id) };
+      });
+      obPills(host, items,
+        function (it) { return instrumentPref() === it.id; },
+        function (it) { setInstrument(it.id); },
+        "ob-instr");
+      obPara(host, "ob.instrNote", "ob-note");
+
     } else if (page === "vocab") {
       obHeading(host, "ob.vocabTitle");
 
@@ -2433,7 +2491,7 @@
 
   function obGo(i) {
     obPage = i;
-    if (obPage === 1) {
+    if (OB_PAGES[obPage] === "vocab") {
       // Get Started puts a beginner on the gentlest built-in. It is applied as
       // the current setup, not saved as a new preset — naming one is a later
       // idea, and it would drag a keyboard into the first thirty seconds.
@@ -2496,6 +2554,7 @@
       var n = row.querySelector(".row-name");   // 2nd / 2ª — ordinals translate
       if (n) n.textContent = stepLabel(i);
     });
+    buildInstrumentPills();   // word labels, so they re-render per language
     RANGE_OCTAVES.forEach(function (oct) {
       if (octChecks[oct]) octChecks[oct].setAttribute("aria-label", t("aria.octave") + " " + oct);
     });
@@ -2518,6 +2577,33 @@
     lang = next;
     try { localStorage.setItem(LANG_KEY, lang); } catch (e) {}
     applyLang();
+  }
+
+  // The panel's face for the instrument preference — so a wrong pick during
+  // onboarding is a tap to fix, not a mystery. Rebuilt on language change,
+  // since the labels are words rather than glyphs.
+  function buildInstrumentPills() {
+    var host = document.getElementById("instrument-pills");
+    if (!host) return;
+    host.innerHTML = "";
+    INSTRUMENTS.forEach(function (ins) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "opt";
+      b.textContent = t("instr." + ins.id);
+      b.dataset.instr = ins.id;
+      b.addEventListener("click", function () { setInstrument(ins.id); });
+      host.appendChild(b);
+    });
+    syncInstrumentPills();
+  }
+  function syncInstrumentPills() {
+    var host = document.getElementById("instrument-pills");
+    if (!host) return;
+    var cur = instrumentPref();
+    Array.prototype.forEach.call(host.children, function (b) {
+      b.classList.toggle("on", b.dataset.instr === cur);
+    });
   }
 
   function buildLangPills() {
@@ -2912,6 +2998,7 @@
   buildMeasuresPills();
   buildTimesigPills();
   buildLangPills();
+  buildInstrumentPills();
   wirePanel();
   wireHelp();
   setWeights(BUILTIN["thirds drill"]);

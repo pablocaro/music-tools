@@ -346,6 +346,8 @@ button.playing svg.state-alt { display: block; }
 .sec-col > .sec { flex: 0 0 auto; }
 .sec-key        { flex: 1 1 300px; }
 .sec-measures   { flex: 1 1 260px; }
+.sec-instrument { flex: 3 1 420px; }
+.sec-language   { flex: 1 1 160px; }
 
 /* Scrim: dims the music behind the open pocket; tap it to close. */
 .scrim {
