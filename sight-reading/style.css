@@ -96,6 +96,13 @@
   --pop-gap: 12px;                                                 /* between a popover's rows */
   --tb-gap:  12px;                                                 /* between the header's action buttons */
 
+  /* A rhythm figure's engraved preview. One note should be drawn the same
+     size in every cell, so a figure that lasts twice as long gets twice the
+     width rather than the same width at half scale — its viewBox is doubled
+     to match, and the wide cell already spans two columns. */
+  --fig-svg-w: 42px;
+  --fig-svg-h: 27px;
+
   /* How long the pointer must rest on a control before it names itself, so
      crossing the transport doesn't set off a run of tooltips. Leaving hides
      it with no delay at all. */
@@ -754,9 +761,12 @@ button.secondary {
 }
 .beats.one-group .fig-h { display: none; }
 
-/* The bowing row sits under the figure grid: a caption-styled label, then the
+/* The slurs row sits under the figure grid: a caption-styled label, then the
    pills. The label reuses the group-heading style — it names a set of options
-   the same way BASIC and MORE do. */
+   the same way BASIC and MORE do. The selector keeps the old `bowing` name,
+   as do the preset field and the hidden input: presets already saved in
+   localStorage carry that key, and renaming it would silently drop the
+   setting on every one of them. Only the word the player reads changed. */
 .bowing-row { align-items: center; gap: 12px; margin-top: 2px; }
 .bowing-row .fig-h { margin-bottom: 0; }
 #bowing-pills { display: flex; gap: 8px; }
@@ -803,7 +813,8 @@ button.secondary {
   color: var(--ctl-on-ink);
 }
 
-.fig-svg { width: 42px; height: 27px; display: block; }
+.fig-svg { width: var(--fig-svg-w); height: var(--fig-svg-h); display: block; }
+.fig-cell.wide .fig-svg { width: calc(var(--fig-svg-w) * 2); }
 
 /* ---------------------------------------------------------------------------
    PATTERN: tooltip

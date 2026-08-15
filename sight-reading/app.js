@@ -690,9 +690,9 @@
       "<clef><sign>" + c.sign + "</sign><line>" + c.line + "</line></clef>");
   }
 
-  // Bowing: slur consecutive sounding notes in groups of n, per bar. Rests
-  // break a group, and a leftover group of one gets no slur — a slur needs two
-  // ends. OSMD draws the curves from the <slur> notations natively.
+  // Slur consecutive sounding notes in groups of n, per bar. Rests break a
+  // group, and a leftover group of one gets no slur — a slur needs two ends.
+  // OSMD draws the curves from the <slur> notations natively.
   function applySlursToXml(xml, n) {
     var doc = new DOMParser().parseFromString(xml, "application/xml");
     if (doc.querySelector("parsererror")) return xml;
@@ -2878,8 +2878,11 @@
     });
   }
 
-  // Bowing choices: separate bows, slurred in twos, slurred in fours.
-  var BOWINGS = ["off", "2", "4"];
+  // Slur groups: how many notes ride under one curve. "Off" is the group of
+  // one — a slur over a single note is not notation, it is just a separate
+  // bow, so there is no 1 pill to add. 3 is the compound-time group: one slur
+  // per dotted quarter in 6/8, and the way a triplet is slurred.
+  var BOWINGS = ["off", "2", "3", "4"];
   function buildBowingPills() {
     var host = document.getElementById("bowing-pills");
     if (!host) return;
@@ -3136,7 +3139,10 @@
 
     // --- ramp ---
     var rampBtnEl = document.getElementById("ramp-toggle");
-    function syncRampBtn() { rampBtnEl.textContent = rampOnEl.checked ? t("val.on") : t("val.off"); }
+    function syncRampBtn() {
+      rampBtnEl.textContent = rampOnEl.checked ? t("val.on") : t("val.off");
+      rampBtnEl.classList.toggle("on", rampOnEl.checked);
+    }
     rampBtnEl.addEventListener("click", function () {
       rampOnEl.checked = !rampOnEl.checked;
       syncRampBtn();
@@ -3146,7 +3152,10 @@
 
     // --- chord names ---
     var chordsBtnEl = document.getElementById("chords-toggle");
-    function syncChordsBtn() { chordsBtnEl.textContent = showChordsEl.checked ? t("val.on") : t("val.off"); }
+    function syncChordsBtn() {
+      chordsBtnEl.textContent = showChordsEl.checked ? t("val.on") : t("val.off");
+      chordsBtnEl.classList.toggle("on", showChordsEl.checked);
+    }
     chordsBtnEl.addEventListener("click", function () {
       showChordsEl.checked = !showChordsEl.checked;
       syncChordsBtn();
