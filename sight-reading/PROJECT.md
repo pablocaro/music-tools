@@ -85,8 +85,13 @@ emit `<alter>` and OSMD draws the sharp from the key signature.
 - Weighted figures: a cell's tap cycles off → ✓ → ×2 → ×4, mirroring the
   interval weights; the pattern bag duplicates cells by weight.
 
-### 4 · Phrasing
-- Ties across barlines: split-and-tie notes longer than the space left.
+### 4 · Phrasing — slurs and motifs DONE; ties remain
+- Ties across barlines: split-and-tie notes longer than the space left. The
+  one piece NOT built in the full pass: today the generator never draws a
+  cell longer than the room remaining, so ties mean deliberately allowing
+  longer draws and then splitting them — which touches playback onsets, the
+  hide curtain's note indexing (a tied pair is two rendered notes but one
+  sounding event) and the chunk analyzer. A session of its own.
 - Slurs as bowing patterns ("2 slurred 2 separate", "4 slurred") — a bow
   instruction, so a genuine reading skill, not decoration.
 - Rhythmic motifs: state an idea, repeat it varied, answer it — rhythm's
