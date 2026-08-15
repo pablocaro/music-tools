@@ -73,6 +73,26 @@
   // chord here, and the leading tone raised in its bars in minor.
   var DOMINANT = 4;
 
+  // ---------------------------------------------------------------------------
+  // Ties across barlines. A note begins in one bar and holds into the next,
+  // written as two noteheads joined by a curve — the reader has to carry the
+  // sound through the barline instead of re-attacking, which is the whole
+  // skill. The generator does not split a long note: it *extends* the bar's
+  // last note by whole pulses of the following bar. That keeps both halves
+  // individually notatable (no arbitrary remainders to spell) and keeps the
+  // next bar beat-aligned, because what the tie eats is exactly one or two
+  // cell-sized slots off its front. Which bars tie is recorded here and the
+  // notation is written in app.js, the same division of labour as tuplets.
+  // ---------------------------------------------------------------------------
+  var TIE_BARS = [];        // measure indices whose last note holds over
+
+  // A held-over length, as a whole-note fraction: k felt pulses, where a pulse
+  // is a quarter in the simple meters and a dotted quarter in 6/8. Eighths
+  // divide both, so d = 8 covers every meter with an integer numerator.
+  function pulseSpan(pulseBeats, k) {
+    return { n: Math.round((pulseBeats || 1) * 2 * k), d: 8 };
+  }
+
   // 0 below `a`, 1 above `b`, straight line between — used to bring each class
   // of metric position under the chord one after another as the dial climbs.
   function ramp(v, a, b) { return Math.max(0, Math.min(1, (v - a) / (b - a))); }
@@ -325,28 +345,38 @@
     // stays metrically structured (clean groupings, beat-aligned rests). Cells
     // can span multiple beats (half, whole); we only draw one that still fits.
     if (startPosition.RealValue === 0) {              // new measure
+      if (this._measureIdx == null) { TIE_BARS = []; }  // first bar of a fresh generation
       this._beatQueue = null;                         // drop carryover
       this._measureIdx = (this._measureIdx == null) ? 0 : this._measureIdx + 1;
     }
     if (!this._beatQueue || this._beatQueue.length === 0) {
       var remaining = currentMeasure.Duration.RealValue - startPosition.RealValue;
       if (startPosition.RealValue === 0) {
+        // A note held over from the previous bar sounds first and eats the
+        // front of this one, so the bar is drawn to fill only what is left.
+        var carry = this._tieCarry || null;
+        this._tieCarry = null;
+        if (carry) remaining -= carry.n / carry.d;
+
         // A whole bar is drawn at once so its rhythm can be remembered and
         // reused. Phrase starts (every 4th bar) state the idea; the bars after
         // them echo it in proportion to the musicality dial, usually with one
-        // cell swapped for a fresh one of the same length.
+        // cell swapped for a fresh one of the same length. A bar that opens
+        // with a held note is drawn fresh and not remembered: it is short by
+        // the tie, so it is not the bar's own idea to repeat.
         var mm = this.options.musicality || 0;
         var phrasePosR = (this._measureIdx || 0) % 4;
         var cells;
-        if (mm > 0 && phrasePosR > 0 && this._motifCells && Math.random() < mm * 0.85) {
+        if (!carry && mm > 0 && phrasePosR > 0 && this._motifCells && Math.random() < mm * 0.85) {
           cells = this._motifCells.map(copyCell);
           if (Math.random() < 0.4) cells = varyBar(cells, this.options.beatPatterns);
         } else {
           cells = drawFreshBar(this.options.beatPatterns, remaining);
-          if (mm > 0 && phrasePosR === 0) this._motifCells = cells.map(copyCell);
+          if (!carry && mm > 0 && phrasePosR === 0) this._motifCells = cells.map(copyCell);
         }
-        this._beatQueue = [];
+        this._beatQueue = carry ? [carry] : [];
         for (var ci = 0; ci < cells.length; ci++) this._beatQueue = this._beatQueue.concat(cells[ci]);
+        this._maybeTieOut(currentMeasure);
       } else {
         // Mid-bar refills keep the old per-beat draw (only reachable if a cell
         // ran short, e.g. the fallback quarter).
@@ -356,10 +386,14 @@
     var ev = this._beatQueue.shift();
     var duration = new O.Fraction(ev.n, ev.d);
     var makeRest = !!ev.rest;
+    // The far side of a tie is not a new note — it is the same note still
+    // sounding. The walk is skipped entirely so the position, the previous
+    // interval and any chromatic obligation all stay exactly as they were.
+    var isTieStop = !!ev.tieStop;
 
     if (this._p === undefined || this._p === null) {
       this._p = PMIN; // start at the bottom of the chosen range
-    } else if (!makeRest) {
+    } else if (!makeRest && !isTieStop) {
       var alpha = this.options.alphabet || { down: [0, 1, 0, 0, 0, 0, 0], up: [0, 1, 0, 0, 0, 0, 0] };
       var musicality = this.options.musicality || 0;
       var oldP = this._p, delta;
@@ -475,12 +509,43 @@
       var prg = this.options.progression || [0, 5, 6, 0];
       if (prg[(this._measureIdx || 0) % prg.length] === DOMINANT) alt = +1;
     }
+    // A tie's far side inherits the alteration outright rather than deriving
+    // one. The rule above reads the *current* bar, so a leading tone held out
+    // of a V bar into a i bar would come back natural — two different pitches
+    // under one curve, which is not a tie at all.
+    if (isTieStop) alt = this._tieAlt || 0;
+    else if (ev.tieStart) this._tieAlt = alt;
     if (alt) pitch = alterPitch(pitch, alt);
     this._alterDir = 0;
 
     if (makeRest) { pitch.__rest = true; } // flag carried through to generateEntry
 
     return { Pitch: pitch, Duration: duration };
+  };
+
+  // Decide whether the bar just drawn holds its last note over the barline.
+  // Called with the queue already filled, so the last event in it is the bar's
+  // last event. A rest cannot be held, and the final bar has nothing to hold
+  // into. The held length is whole pulses so the next bar stays beat-aligned,
+  // and never the whole of it — a tie that swallows a bar leaves nothing to
+  // read there.
+  O.ExampleSourceGenerator.prototype._maybeTieOut = function (currentMeasure) {
+    var prob = this.options.ties || 0;
+    if (prob <= 0) return;
+    if ((this._measureIdx || 0) >= (this.options.measure_count || 8) - 1) return;
+    var q = this._beatQueue, lastEv = q[q.length - 1];
+    if (!lastEv || lastEv.rest) return;
+    if (Math.random() >= prob) return;
+
+    var barLen = currentMeasure.Duration.RealValue;
+    var pulse = this.options.pulseBeats || 1;
+    var two = pulseSpan(pulse, 2);
+    var span = (Math.random() < 0.25 && two.n / two.d < barLen) ? two : pulseSpan(pulse, 1);
+    if (span.n / span.d >= barLen) return;
+
+    lastEv.tieStart = true;
+    this._tieCarry = { n: span.n, d: span.d, tieStop: true };
+    TIE_BARS.push(this._measureIdx || 0);
   };
 
   // A flagged pitch becomes a rest (but keeps a real pitch object so nothing
@@ -496,6 +561,10 @@
 
   window.SREngine = {
     buildLadder: buildLadder,
-    computeBounds: computeBounds
+    computeBounds: computeBounds,
+    // Which bars hold their last note over the barline. Read once, straight
+    // after generate() and before the export is written — generation is
+    // synchronous, so take-and-clear leaves nothing behind for the next run.
+    takeTies: function () { var t = TIE_BARS.slice(); TIE_BARS = []; return t; }
   };
 }());

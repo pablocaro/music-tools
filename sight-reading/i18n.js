@@ -18,6 +18,7 @@ window.SR_I18N = {
     "sec.rhythm":      "Rhythm",
     "grp.basic":       "Basic",
     "lbl.slurs":       "Slurs",
+    "lbl.ties":        "Ties",
     "grp.more":        "More",
     "sec.step":        "Intervals",
     "sec.notes":       "Notes",
@@ -49,6 +50,8 @@ window.SR_I18N = {
     // values shown on controls
     "val.off":      "Off",
     "val.on":       "On",
+    "val.some":     "Some",
+    "val.lots":     "Lots",
     "val.beats":    "Beats",
     "val.measures": "Measures",
     "val.save":     "+ save",
@@ -248,6 +251,7 @@ window.SR_I18N = {
     "sec.rhythm":      "Ritmo",
     "grp.basic":       "Básico",
     "lbl.slurs":       "Ligaduras",
+    "lbl.ties":        "Ligaduras de unión",
     "grp.more":        "Más",
     "sec.step":        "Intervalos",
     "sec.notes":       "Notas",
@@ -277,6 +281,8 @@ window.SR_I18N = {
 
     "val.off":      "No",
     "val.on":       "Sí",
+    "val.some":     "Algunas",
+    "val.lots":     "Muchas",
     "val.beats":    "Tiempos",
     "val.measures": "Compases",
     "val.save":     "+ guardar",

@@ -113,6 +113,7 @@
         <input type="checkbox" id="show-chords" checked>
         <input type="checkbox" id="ramp-on">
         <input type="hidden" id="bowing" value="off">
+        <input type="hidden" id="ties" value="off">
         <select id="instrument">
           <option data-i18n="inst.organ" value="organ">Organ</option>
           <option data-i18n="inst.piano" value="piano" selected>Piano</option>
@@ -184,6 +185,14 @@
           <div class="sec-row bowing-row">
             <span class="fig-h" data-i18n="lbl.slurs">Slurs</span>
             <div id="bowing-pills"></div>
+          </div>
+          <!-- Ties: how often a bar holds its last note over the barline. The
+               reader has to carry the sound across instead of re-attacking,
+               which is a skill of its own — and it's exercise content, so
+               presets carry it. -->
+          <div class="sec-row bowing-row">
+            <span class="fig-h" data-i18n="lbl.ties">Ties</span>
+            <div id="ties-pills"></div>
           </div>
         </section>
       </div>

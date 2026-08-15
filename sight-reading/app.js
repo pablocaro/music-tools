@@ -102,7 +102,7 @@
   // What a built-in leaves alone would otherwise be whatever the last drill
   // happened to use, so each one carries the same five fields a saved preset
   // does — the alphabet it's named for, plus the neutral staff to read it on.
-  var BUILTIN_DEFAULTS = { musicality: "0", progression: "I-IV-V-I", chroma: "0", bowing: "off", key: "major_0-0", clef: "treble", timesig: "4/4", measures: "16" };
+  var BUILTIN_DEFAULTS = { musicality: "0", progression: "I-IV-V-I", chroma: "0", bowing: "off", ties: "off", key: "major_0-0", clef: "treble", timesig: "4/4", measures: "16" };
 
   // What a drill needs beyond its alphabet. The first four interval drills
   // deliberately carry no rhythm, so switching between them leaves your
@@ -271,6 +271,7 @@
     if (p.progression != null) progressionEl.value = progressionDef(p.progression).id;
     if (p.chroma != null) chromaEl.value = p.chroma;
     if (p.bowing != null) { bowingEl.value = p.bowing; syncBowingPills(); }
+    if (p.ties != null) { tiesEl.value = p.ties; syncTiesPills(); }
     // Musicality and chord-following used to be two dials. A preset saved
     // then carries both; the survivor is whichever was set higher, so an old
     // "follow the chords hard, never mind the phrasing" preset still reads as
@@ -315,6 +316,7 @@
       progression: progressionEl.value,
       chroma: chromaEl.value,
       bowing: bowingEl.value,
+      ties: tiesEl.value,
       key: currentKeyCode(),
       clef: clefEl.value,
       timesig: timesigEl.value,
@@ -471,6 +473,7 @@
   var showChordsEl = document.getElementById("show-chords");
   var rampOnEl     = document.getElementById("ramp-on");
   var bowingEl     = document.getElementById("bowing");
+  var tiesEl       = document.getElementById("ties");
   var generateBtn  = document.getElementById("generate");
   var errorEl      = document.getElementById("error-msg");
   var sheetEl      = document.getElementById("sheet");
@@ -688,6 +691,53 @@
     if (c.id === "treble") return xml;
     return xml.replace(/<clef>[\s\S]*?<\/clef>/g,
       "<clef><sign>" + c.sign + "</sign><line>" + c.line + "</line></clef>");
+  }
+
+  // Write the ties the engine decided on. It hands back the indices of the
+  // bars whose last note holds over, which is all the position we need: by
+  // construction the held note is a bar's last note and its continuation is
+  // the first note of the bar after. <tie> is the sounding half of it and
+  // <tied> the drawn half; OSMD needs the notation, playback needs the other.
+  // Returns the rewritten xml *and* the bars it actually tied. Playback and the
+  // chunk analyzer both have to know which noteheads are one sounding note, and
+  // deriving that twice from slightly different rules is how the two drift
+  // apart — so what got written is what they are told.
+  function applyTiesToXml(xml, bars) {
+    if (!bars || !bars.length) return { xml: xml, applied: [] };
+    var doc = new DOMParser().parseFromString(xml, "application/xml");
+    if (doc.querySelector("parsererror")) return { xml: xml, applied: [] };
+    var applied = [];
+    var measures = doc.querySelectorAll("measure");
+    function mark(note, type) {
+      if (!note || note.querySelector("rest")) return false;
+      var tie = doc.createElement("tie");
+      tie.setAttribute("type", type);
+      // MusicXML wants <tie> straight after <duration>, and <tied> inside
+      // <notations> — the same note can already carry a slur, so append.
+      var dur = note.querySelector("duration");
+      if (dur && dur.nextSibling) note.insertBefore(tie, dur.nextSibling);
+      else note.appendChild(tie);
+      var nts = note.querySelector("notations");
+      if (!nts) { nts = doc.createElement("notations"); note.appendChild(nts); }
+      var tied = doc.createElement("tied");
+      tied.setAttribute("type", type);
+      nts.appendChild(tied);
+      return true;
+    }
+    bars.forEach(function (bi) {
+      var from = measures[bi], to = measures[bi + 1];
+      if (!from || !to) return;
+      var fromNotes = from.querySelectorAll("note");
+      var toNotes = to.querySelectorAll("note");
+      if (!fromNotes.length || !toNotes.length) return;
+      // Both ends or neither: a lone start or stop is a curve into nothing.
+      var a = fromNotes[fromNotes.length - 1], b = toNotes[0];
+      if (a.querySelector("rest") || b.querySelector("rest")) return;
+      mark(a, "start");
+      mark(b, "stop");
+      applied.push(bi);
+    });
+    return { xml: new XMLSerializer().serializeToString(doc), applied: applied };
   }
 
   // Slur consecutive sounding notes in groups of n, per bar. Rests break a
@@ -1222,11 +1272,13 @@
       chroma: (+chromaEl.value) / 100,
       mode: keyModeEl.value,
       pulseBeats: pulseBeats(),
+      ties: tieRate(),
       progression: progressionDef(progressionEl.value).roots
     };
   }
 
-  var lastFifths = 0;   // <fifths> from the last exported score
+  var lastFifths = 0;      // <fifths> from the last exported score
+  var lastTieBars = [];    // bars whose last note holds over, from the last generation
 
   function generate(after) {
     clearError();
@@ -1234,8 +1286,12 @@
     try {
       var plugin = new ExampleSourceGenerator(buildOptions());
       currentSheet = plugin.generate();
+      var wantTies = SREngine.takeTies();   // read before anything else generates
       var xml = applyClefToXml(new XMLSourceExporter().export(currentSheet));
       xml = applyTupletsToXml(xml);
+      var tied = applyTiesToXml(xml, wantTies);
+      xml = tied.xml;
+      lastTieBars = tied.applied;
       if (bowingEl.value !== "off") xml = applySlursToXml(xml, parseInt(bowingEl.value, 10));
       if (timeSigDef(timesigEl.value).compound) xml = applyBeamsToXml(xml);
       var fm = /<fifths>(-?\d+)<\/fifths>/.exec(xml);
@@ -1270,7 +1326,7 @@
   // go, and putting a value back restores the name instead of stranding it on
   // "Custom". Only fields the preset actually defines are compared, mirroring
   // applyPreset — so a preset saved before a field existed still matches.
-  var PRESET_FIELDS = ["musicality", "progression", "chroma", "bowing", "key", "clef", "timesig", "measures"];
+  var PRESET_FIELDS = ["musicality", "progression", "chroma", "bowing", "ties", "key", "clef", "timesig", "measures"];
 
   function presetMatchesPanel(p) {
     var cur = readPresetConfig();
@@ -1483,6 +1539,10 @@
     for (var m = 0; m < measureList.length; m++) {
       var staves = measureList[m];
       if (!staves || !staves[0]) continue;
+      // The first note of a bar that was tied into is a continuation, not a
+      // new note: same pitch, no attack. The highlighter has to skip it or it
+      // reads as a unison move and paints a chunk that nobody played.
+      var heldInto = lastTieBars.indexOf(m - 1) >= 0, seenNote = false;
       var staffEntries = staves[0].staffEntries || [];
       for (var s = 0; s < staffEntries.length; s++) {
         var gves = staffEntries[s].graphicalVoiceEntries || [];
@@ -1501,10 +1561,12 @@
             // Which engraved system this note landed on, so a run that wraps at
             // a line break can be highlighted once per line.
             var sys = el ? el.closest(".staffline") : null;
+            var tieStop = heldInto && !seenNote && !isRest;
+            if (!isRest) seenNote = true;
             // idx counts voice entries in the same order the playback cursor
             // walks them, so it indexes straight into the session's onsets[].
             out.push({ isRest: isRest, halfTone: halfTone, el: el, head: head, sys: sys,
-                       measure: m, idx: noteIdx++ });
+                       tieStop: tieStop, measure: m, idx: noteIdx++ });
           }
         }
       }
@@ -1550,6 +1612,10 @@
     }
     for (var i = 0; i < notes.length; i++) {
       var note = notes[i];
+      // A tie's far side is the same note still sounding. Left in, it reads as
+      // a unison against its own first half and breaks the run at the barline
+      // — the opposite of what a tie does to a phrase.
+      if (note.tieStop) continue;
       if (note.isRest || note.halfTone == null || !note.head) { flush(); continue; }
       if (run.length === 0) { run = [note]; dir = 0; continue; }
       var diff = note.halfTone - run[run.length - 1].halfTone;
@@ -2146,9 +2212,16 @@
       // and must not vary with meter; see barBeats() above.
       var durBeats = (note ? note.Length.RealValue : 0.25) * 4;
       var meas = Math.floor(beat / bpb + 1e-6);
-      if (measureFirst[meas] == null) measureFirst[meas] = idx;
+      var opensMeasure = (measureFirst[meas] == null);
+      if (opensMeasure) measureFirst[meas] = idx;
       if (note && !note.isRest() && note.Pitch) {
-        melody.push({ onset: beat, dur: durBeats, freq: note.Pitch.Frequency });
+        // The far side of a tie is the same note still sounding, so it length-
+        // ens the note before it instead of starting one. Played as its own
+        // event it would re-attack at the barline, which is the exact mistake
+        // the tie is there to train out of the reader.
+        var holdsOver = opensMeasure && lastTieBars.indexOf(meas - 1) >= 0 && melody.length > 0;
+        if (holdsOver) melody[melody.length - 1].dur += durBeats;
+        else melody.push({ onset: beat, dur: durBeats, freq: note.Pitch.Frequency });
       }
       onsets.push(beat);
       beat += durBeats;
@@ -2214,6 +2287,11 @@
       hideState: -1,
       rafId: null
     };
+    // Read-only handle for the test harnesses. Most of what matters here is
+    // invisible in the rendered page — that a tied pair is one sounding event
+    // and not two is only observable in this list — and the alternative is a
+    // test that asserts nothing about playback at all.
+    window.__srSession = session;
     runSession(true);          // fresh start: run the count-in, schedule play-along from the top
   }
 
@@ -2835,6 +2913,11 @@
       if (n) n.textContent = stepLabel(i);
     });
     buildInstrumentPills();   // word labels, so they re-render per language
+    // Same reason, and they were missed: the slur row's "Off" and the tie
+    // row's frequencies are words built in JS, not data-i18n attributes, so
+    // switching to Spanish left them reading Off / Some / Lots.
+    buildBowingPills();
+    buildTiesPills();
     RANGE_OCTAVES.forEach(function (oct) {
       if (octChecks[oct]) octChecks[oct].setAttribute("aria-label", t("aria.octave") + " " + oct);
     });
@@ -2915,6 +2998,45 @@
     if (!host) return;
     Array.prototype.forEach.call(host.children, function (b) {
       b.classList.toggle("on", b.dataset.bowing === bowingEl.value);
+    });
+  }
+
+  // How often a bar holds its last note over the barline. A frequency rather
+  // than a switch: one tie in a line is a curiosity, one every bar is a
+  // different exercise, and the reader should be able to choose which.
+  var TIE_RATES = [
+    { id: "off",  p: 0    },
+    { id: "some", p: 0.3  },
+    { id: "lots", p: 0.65 }
+  ];
+  function tieRate() {
+    for (var i = 0; i < TIE_RATES.length; i++) if (TIE_RATES[i].id === tiesEl.value) return TIE_RATES[i].p;
+    return 0;
+  }
+  function buildTiesPills() {
+    var host = document.getElementById("ties-pills");
+    if (!host) return;
+    host.innerHTML = "";
+    TIE_RATES.forEach(function (tr) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "opt";
+      b.textContent = t("val." + tr.id);
+      b.dataset.ties = tr.id;
+      b.addEventListener("click", function () {
+        tiesEl.value = tr.id;
+        syncTiesPills();
+        generate();
+      });
+      host.appendChild(b);
+    });
+    syncTiesPills();
+  }
+  function syncTiesPills() {
+    var host = document.getElementById("ties-pills");
+    if (!host) return;
+    Array.prototype.forEach.call(host.children, function (b) {
+      b.classList.toggle("on", b.dataset.ties === tiesEl.value);
     });
   }
 
@@ -3373,6 +3495,7 @@
   buildInstrumentPills();
   buildProgressionPills();
   buildBowingPills();
+  buildTiesPills();
   wirePanel();
   wireHelp();
   setWeights(BUILTIN["thirds drill"]);
