@@ -1058,6 +1058,14 @@ button.secondary {
 }
 .tb-btn:hover { background: #e7e7ec; opacity: 1; }
 .tb-btn:active { transform: scale(0.94); opacity: 1; }
+/* On-state, matching every other toggle in the app. These two buttons open a
+   popover rather than toggling, so the tint is the only thing reporting the
+   metronome and play-along without a tap — the glyph does swap, but on/off
+   metronome icons read almost identically at this size. Sits after :hover
+   deliberately: equal specificity, so the earlier rule would have lost and
+   the tint would vanish under the pointer. */
+.tb-btn.on { background: var(--ctl-on-tint); color: var(--ctl-on); }
+.tb-btn.on:hover { background: color-mix(in srgb, var(--accent) 18%, var(--paper)); }
 
 /* Chord names above the staff — drawn on their own overlay, positioned off
    the engraved geometry the way the chunk blocks are. */

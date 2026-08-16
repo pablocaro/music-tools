@@ -37,16 +37,56 @@ const { chromium } = require(PW);
     return { starts, stops, notes, curves };
   };
 
-  console.log('bowing off :', JSON.stringify(await stats()), '(want 0 slurs)');
+  // Slur lengths are multi-select, so state is "which pills are lit" — click
+  // whatever differs from the set we want.
+  const setSlurs = async (want) => {
+    await p.evaluate(w => {
+      const target = new Set(w);
+      [...document.querySelectorAll('#bowing-pills .opt')].forEach(b => {
+        const n = +b.dataset.bowing;
+        if (b.classList.contains('on') !== target.has(n)) b.click();
+      });
+    }, want);
+    await p.waitForTimeout(1600);
+  };
 
-  for (const n of ['2', '4']) {
-    await p.evaluate(x => [...document.querySelectorAll('#bowing-pills .opt')]
-      .find(b => b.dataset.bowing === x).click(), n);
-    await p.waitForTimeout(1500);
+  // Every group length actually written into the score. A tied continuation
+  // is skipped: it is the same note, and counting it would inflate the group.
+  const groupTally = () => p.evaluate(() => {
+    const doc = new DOMParser().parseFromString(window.__xml, 'application/xml');
+    const tally = {}; let run = null, bare = 0, total = 0;
+    doc.querySelectorAll('note').forEach(n => {
+      if (n.querySelector('rest') || n.querySelector('tie[type=stop]')) return;
+      total++;
+      if (n.querySelector('slur[type=start]')) run = 1;
+      else if (run != null) run++;
+      else bare++;
+      if (n.querySelector('slur[type=stop]')) { tally[run] = (tally[run] || 0) + 1; run = null; }
+    });
+    return { tally, bare, total };
+  });
+
+  await setSlurs([]);
+  console.log('nothing lit :', JSON.stringify(await stats()), '(want 0 slurs)');
+
+  for (const n of [2, 4]) {
+    await setSlurs([n]);
     const s = await stats();
-    const perBar = 8 / +n;
-    console.log(`bowing ${n}   :`, JSON.stringify(s),
-      s.starts === s.stops && s.starts === (s.notes / 8) * perBar ? '(counts exact)' : `(want ${(s.notes / 8) * perBar} groups)`);
+    console.log(`slurs of ${n}  :`, JSON.stringify(s),
+      s.starts === s.stops && s.starts === s.notes / n ? '(counts exact)' : `(want ${s.notes / n} groups)`);
+  }
+
+  // A mixed selection must produce a mixture, and never a length nobody asked
+  // for — the whole point of multi-select is phrasing that varies.
+  for (const want of [[2, 3], [1, 2]]) {
+    await setSlurs(want);
+    const g = await groupTally();
+    const got = Object.keys(g.tally).map(Number).sort((a, b) => a - b);
+    const onMenu = got.every(n => want.includes(n));
+    const mixed = want.filter(n => n >= 2).length < 2 || got.length > 1;
+    console.log(`picked ${JSON.stringify(want)}  : groups ${JSON.stringify(g.tally)}` +
+      ` bare ${g.bare}/${g.total}`,
+      onMenu && mixed ? '(on-menu, mixed)' : (onMenu ? '(on-menu but not mixed)' : '(OFF-MENU LENGTH)'));
   }
 
   // The two things the per-bar reset used to get wrong.
@@ -64,8 +104,7 @@ const { chromium } = require(PW);
     });
   });
   await p.waitForTimeout(1400);
-  await p.evaluate(() => [...document.querySelectorAll('#bowing-pills .opt')].find(b => b.dataset.bowing === '2').click());
-  await p.waitForTimeout(1500);
+  await setSlurs([2]);
   const bare = await p.evaluate(() => {
     const doc = new DOMParser().parseFromString(window.__xml, 'application/xml');
     let inside = 0, total = 0, open = false;
@@ -104,18 +143,35 @@ const { chromium } = require(PW);
   await p.waitForTimeout(1200);
   await p.evaluate(() => [...document.querySelectorAll('#timesig-pills .opt')].find(b => b.textContent.trim() === '4/4').click());
   await p.waitForTimeout(1400);
-  await p.evaluate(() => [...document.querySelectorAll('#bowing-pills .opt')].find(b => b.dataset.bowing === '4').click());
-  await p.waitForTimeout(1200);
+  await setSlurs([4]);
 
   // round-trips as preset state
   await p.evaluate(() => { window.prompt = () => 'BowTest';
     [...document.querySelectorAll('.presets .pill')].find(e => e.textContent.trim().startsWith('+')).click(); });
   await p.waitForTimeout(500);
-  await p.evaluate(() => [...document.querySelectorAll('#bowing-pills .opt')].find(b => b.dataset.bowing === 'off').click());
-  await p.waitForTimeout(1000);
+  await setSlurs([]);
   await p.evaluate(() => [...document.querySelectorAll('.presets .pill')].find(e => e.textContent.trim().startsWith('BowTest')).click());
   await p.waitForTimeout(1200);
   console.log('preset round-trip bowing =', await p.evaluate(() => document.getElementById('bowing').value), '(want 4)');
+  // and a preset saved before slurs became a set must still load
+  await p.evaluate(() => {
+    const saved = JSON.parse(localStorage.getItem('sr_presets') || '{}');
+    saved['LegacySingle'] = { bowing: '2', measures: '16' };
+    localStorage.setItem('sr_presets', JSON.stringify(saved));
+  });
+  await p.reload({ waitUntil: 'domcontentloaded' });
+  await p.waitForTimeout(3000);
+  for (let i = 0; i < 6; i++) { if (await p.$('#ob-next')) { await p.click('#ob-next').catch(() => {}); await p.waitForTimeout(200); } }
+  await p.click('#settings-toggle'); await p.waitForTimeout(600);
+  await p.evaluate(() => [...document.querySelectorAll('.presets .pill')].find(e => e.textContent.trim().startsWith('LegacySingle')).click());
+  await p.waitForTimeout(1800);
+  const legacy = await p.evaluate(() => ({
+    lit: [...document.querySelectorAll('#bowing-pills .opt')].filter(b => b.classList.contains('on')).map(b => b.dataset.bowing),
+    // the header names the preset only if presetMatchesPanel agrees
+    title: document.getElementById('sh-title').textContent.trim()
+  }));
+  console.log(`legacy preset bowing="2" : lit ${JSON.stringify(legacy.lit)} header "${legacy.title}"`,
+    legacy.lit.join() === '2' && legacy.title === 'LegacySingle' ? '(loads + recognised)' : '(BROKEN)');
   await p.screenshot({ path: __dirname + '/out/bowing.png' });
   console.log('errors:', errs);
   await b.close();

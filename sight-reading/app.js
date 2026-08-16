@@ -102,7 +102,7 @@
   // What a built-in leaves alone would otherwise be whatever the last drill
   // happened to use, so each one carries the same five fields a saved preset
   // does — the alphabet it's named for, plus the neutral staff to read it on.
-  var BUILTIN_DEFAULTS = { musicality: "0", progression: "I-IV-V-I", chroma: "0", bowing: "off", ties: "off", key: "major_0-0", clef: "treble", timesig: "4/4", measures: "16" };
+  var BUILTIN_DEFAULTS = { musicality: "0", progression: "I-IV-V-I", chroma: "0", bowing: "", ties: "off", key: "major_0-0", clef: "treble", timesig: "4/4", measures: "16" };
 
   // What a drill needs beyond its alphabet. The first four interval drills
   // deliberately carry no rhythm, so switching between them leaves your
@@ -270,7 +270,9 @@
     // back to this mode's first entry instead of sticking as a dead string.
     if (p.progression != null) progressionEl.value = progressionDef(p.progression).id;
     if (p.chroma != null) chromaEl.value = p.chroma;
-    if (p.bowing != null) { bowingEl.value = p.bowing; syncBowingPills(); }
+    // Normalised on the way in, so an old "off" or "2" does not survive into
+    // the next save and the field only ever holds one spelling.
+    if (p.bowing != null) { bowingEl.value = canonSlurs(p.bowing).join(","); syncBowingPills(); }
     if (p.ties != null) { tiesEl.value = p.ties; syncTiesPills(); }
     // Musicality and chord-following used to be two dials. A preset saved
     // then carries both; the survivor is whichever was set higher, so an old
@@ -740,7 +742,25 @@
     return { xml: new XMLSerializer().serializeToString(doc), applied: applied };
   }
 
-  // Slur consecutive sounding notes in groups of n, straight through barlines,
+  // Which group lengths are in play, read off the hidden field. Stored as a
+  // comma list ("2,3") since more than one can be on at once. Presets saved
+  // before that carry a single value, and "off" from before there was a way to
+  // say it with no selection at all — both still load, which matters because
+  // they are sitting in people's browsers.
+  function canonSlurs(v) {
+    var s = String(v == null ? "" : v).trim();
+    if (!s || s === "off") return [];        // "off" is the pre-multi-select spelling
+    var out = [];
+    s.split(",").forEach(function (part) {
+      var n = parseInt(part, 10);
+      if (n >= 1 && n <= 4 && out.indexOf(n) < 0) out.push(n);
+    });
+    return out.sort(function (a, b) { return a - b; });
+  }
+  function slurLengths() { return canonSlurs(bowingEl.value); }
+
+  // Slur consecutive sounding notes in groups drawn from `lengths`, straight
+  // through barlines,
   // because a phrase does. Grouping per bar used to strand the tail of every
   // bar the group did not divide — "slur in 2s" in 3/4 joined two notes and
   // left the third alone, in every bar, which is a stutter rather than a
@@ -756,7 +776,8 @@
   // restarted on the far side of a tie turned the line into a chain of curves
   // with no way to tell one from the other. The slur spans the held note
   // instead, entering before it and leaving after.
-  function applySlursToXml(xml, n) {
+  function applySlursToXml(xml, lengths) {
+    if (!lengths || !lengths.length) return xml;
     var doc = new DOMParser().parseFromString(xml, "application/xml");
     if (doc.querySelector("parsererror")) return xml;
 
@@ -773,11 +794,19 @@
     // the note is tied, in which case the unit spans the whole held chain.
     var run = [];
     function flush() {
-      for (var i = 0; i + 1 < run.length; i += n) {
+      var i = 0;
+      while (i < run.length) {
+        var n = lengths[Math.floor(Math.random() * lengths.length)];
+        // A group of one is the separate bow — the note stands on its own, no
+        // curve, and the next group starts after it. On its own it says
+        // nothing (that is just "no slurs"); mixed in with longer groups it is
+        // what puts air between them.
+        if (n < 2) { i += 1; continue; }
         var group = run.slice(i, i + n);
-        if (group.length < 2) break;
+        if (group.length < 2) break;   // one note left at the end: nothing to join it to
         addSlur(group[0].first, "start");
         addSlur(group[group.length - 1].last, "stop");
+        i += group.length;
       }
       run = [];
     }
@@ -1313,7 +1342,7 @@
       var tied = applyTiesToXml(xml, wantTies);
       xml = tied.xml;
       lastTieBars = tied.applied;
-      if (bowingEl.value !== "off") xml = applySlursToXml(xml, parseInt(bowingEl.value, 10));
+      xml = applySlursToXml(xml, slurLengths());
       if (timeSigDef(timesigEl.value).compound) xml = applyBeamsToXml(xml);
       var fm = /<fifths>(-?\d+)<\/fifths>/.exec(xml);
       lastFifths = fm ? +fm[1] : 0;   // the chord names spell themselves from this
@@ -1357,7 +1386,13 @@
     if (p.beats && JSON.stringify(p.beats) !== JSON.stringify(cur.beats)) return false;
     for (var i = 0; i < PRESET_FIELDS.length; i++) {
       var f = PRESET_FIELDS[i];
-      if (p[f] != null && String(p[f]) !== String(cur[f])) return false;
+      if (p[f] == null) continue;
+      // Slurs went from one value to a set, so "off", "2" and "2,3" are all
+      // spellings a saved preset might carry. Compare what they mean, or every
+      // preset saved before the change would read as "not the current panel".
+      var a = (f === "bowing") ? canonSlurs(p[f]).join(",") : String(p[f]);
+      var b = (f === "bowing") ? canonSlurs(cur[f]).join(",") : String(cur[f]);
+      if (a !== b) return false;
     }
     return true;
   }
@@ -2990,23 +3025,33 @@
     });
   }
 
-  // Slur groups: how many notes ride under one curve. "Off" is the group of
-  // one — a slur over a single note is not notation, it is just a separate
-  // bow, so there is no 1 pill to add. 3 is the compound-time group: one slur
-  // per dotted quarter in 6/8, and the way a triplet is slurred.
-  var BOWINGS = ["off", "2", "3", "4"];
+  // Slur groups: how many notes ride under one curve. Several can be on at
+  // once and each group is drawn from what is lit, so the line phrases in a
+  // mixture rather than one length over and over — which is how music is
+  // actually bowed. The rhythm figures directly above work the same way; this
+  // row being pick-one was the odd one out.
+  //
+  // Nothing lit means no slurs, so there is no Off pill to keep in step. 1 is
+  // the separate bow: alone it says nothing (every note on its own is exactly
+  // "no slurs"), but mixed with 2 or 3 it is what puts air between the groups.
+  // 3 is the compound-time group — one slur per dotted quarter in 6/8, and the
+  // way a triplet is slurred.
+  var BOWINGS = [1, 2, 3, 4];
   function buildBowingPills() {
     var host = document.getElementById("bowing-pills");
     if (!host) return;
     host.innerHTML = "";
-    BOWINGS.forEach(function (bw) {
+    BOWINGS.forEach(function (n) {
       var b = document.createElement("button");
       b.type = "button";
       b.className = "opt";
-      b.textContent = bw === "off" ? t("val.off") : bw;
-      b.dataset.bowing = bw;
+      b.textContent = String(n);
+      b.dataset.bowing = String(n);
+      b.setAttribute("aria-pressed", "false");
       b.addEventListener("click", function () {
-        bowingEl.value = bw;
+        var on = slurLengths(), at = on.indexOf(n);
+        if (at >= 0) on.splice(at, 1); else on.push(n);
+        bowingEl.value = on.sort(function (a, c) { return a - c; }).join(",");
         syncBowingPills();
         generate();
       });
@@ -3017,8 +3062,11 @@
   function syncBowingPills() {
     var host = document.getElementById("bowing-pills");
     if (!host) return;
+    var on = slurLengths();
     Array.prototype.forEach.call(host.children, function (b) {
-      b.classList.toggle("on", b.dataset.bowing === bowingEl.value);
+      var lit = on.indexOf(parseInt(b.dataset.bowing, 10)) >= 0;
+      b.classList.toggle("on", lit);
+      b.setAttribute("aria-pressed", lit ? "true" : "false");
     });
   }
 

@@ -100,10 +100,29 @@ emit `<alter>` and OSMD draws the sharp from the key signature.
   return a natural for a G♯ held out of a V bar); playback merges the pair
   into one attack; the chunk highlighter skips continuations, which would
   otherwise read as a unison and break the run at the barline.
-- Slurs, in groups of 2, 3 or 4 — one instruction to every instrument (one
-  bow, one tongue, one breath), so a genuine reading skill, not decoration.
-  There is no group of 1: a slur over a single note is just a separate bow,
-  which is what Off means.
+- Slurs — one instruction to every instrument (one bow, one tongue, one
+  breath), so a genuine reading skill, not decoration. Lengths are
+  multi-select and each group is drawn from what is lit, so the line phrases
+  in a mixture rather than one length over and over; the rhythm figures work
+  the same way, and this row being pick-one was the odd one out. Nothing lit
+  means no slurs, so there is no Off pill.
+  - 1 is the separate bow. Alone it says nothing — every note on its own is
+    exactly "no slurs" — but mixed with 2 or 3 it is what puts air between
+    the groups. (Which is why the earlier "there is no group of 1" was only
+    true while the row was pick-one.)
+  - Slurs run through barlines. Per-bar grouping stranded the tail of every
+    bar the group did not divide: "slur in 2s" in 3/4 joined two notes and
+    left the third bare, in every bar. Where the group does divide the bar
+    the chain re-aligns by itself, so the meters that already looked right
+    were untouched.
+  - A tied note counts once however many noteheads it is written with. A tie
+    and a slur are the same curve meaning opposite things, so a slur that
+    restarted on the far side of a tie made the line unreadable.
+- Still open: "2 slurred, 2 separate" as a repeating *pattern*. A random mix
+  of 1s and 2s gives variety; the drill wants regularity. Different exercise,
+  not subsumed by multi-select.
+- Natural next step: let a phrase pick a slur pattern and repeat it, the way
+  rhythm motifs already work, instead of drawing each group independently.
 - Rhythmic motifs: state an idea, repeat it varied, answer it — rhythm's
   counterpart to the musicality dial, and the thing that stops generated
   lines sounding generated.
