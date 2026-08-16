@@ -127,7 +127,7 @@ emit `<alter>` and OSMD draws the sharp from the key signature.
   counterpart to the musicality dial, and the thing that stops generated
   lines sounding generated.
 
-### 5 · The feedback loop — ramp DONE; the rest needs a decision
+### 5 · The feedback loop — ramp built, then cut; the rest needs a decision
 Adaptive letting-go and weak-spot targeting both need the app to know how
 you're doing, and it currently has no input at all. Options, cheapest first:
 time-based ramping (no input; a workout, not an assessment), tap-along
@@ -135,8 +135,13 @@ rhythm scoring, self-report, microphone (a different project). Start with
 the ramp.
 
 ### Cut
-Chord-anchoring lookahead — measured at ~5 percentage points on stepwise
-alphabets for a two-ply search. Not worth it.
+- Chord-anchoring lookahead — measured at ~5 percentage points on stepwise
+  alphabets for a two-ply search. Not worth it.
+- Time-based ramp (letting-go v1) — built, shipped, cut. A toggle whose whole
+  effect lives inside another toggle: off unless Hide Ahead was also on, which
+  made "Ramp: On" beside "Hide Ahead: Off" a dead control wearing a live face.
+  The idea (pressure that creeps per finished line) may return as part of Hide
+  Ahead itself rather than as a sibling switch.
 
 ## Tweaks — dragging the design instead of describing it
 

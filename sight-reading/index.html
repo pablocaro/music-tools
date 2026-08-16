@@ -96,7 +96,6 @@
         <input type="checkbox" id="show-chunks">
         <input type="hidden" id="progression" value="I-IV-V-I">
         <input type="checkbox" id="show-chords" checked>
-        <input type="checkbox" id="ramp-on">
         <input type="hidden" id="bowing" value="">
         <input type="hidden" id="ties" value="off">
         <select id="instrument">
@@ -259,7 +258,7 @@
             <h2 class="sec-h" data-i18n="sec.hideAhead">Hide Ahead</h2>
             <div class="sec-row unit">
               <div class="stepper stepper-fit">
-                <span class="stepper-val" id="hide-val" data-i18n="val.off">Off</span>
+                <span class="stepper-val" id="hide-val" class="is-word" data-i18n="val.off">Off</span>
                 <span class="step-pair">
                   <button id="hide-down" class="step-btn" type="button" aria-label="Less" data-i18n-aria="aria.less">&#8722;</button>
                   <button id="hide-up" class="step-btn" type="button" aria-label="More" data-i18n-aria="aria.more">+</button>
@@ -269,12 +268,6 @@
             </div>
           </section>
 
-          <section class="sec sec-ramp">
-            <h2 class="sec-h" data-i18n="sec.ramp">Ramp</h2>
-            <div class="sec-row">
-              <button id="ramp-toggle" class="cycle" type="button" aria-label="Widen the curtain each line" data-i18n-aria="aria.ramp" data-i18n="val.off">Off</button>
-            </div>
-          </section>
 
           <section class="sec sec-chordnames">
             <h2 class="sec-h" data-i18n="sec.chordNames">Chord Names</h2>

@@ -33,7 +33,6 @@ window.SR_I18N = {
     "sec.notes":       "Notes",
     "sec.musicality":  "How Musical?",
     "sec.chroma":      "How Chromatic?",
-    "sec.ramp":        "Ramp",
     "sec.chordNames":  "Chord Names",
     "sec.chunks":      "Highlight Patterns",
     "sec.staff":       "Clef & Key",
@@ -117,7 +116,6 @@ window.SR_I18N = {
     "aria.mode":         "Mode",
     "aria.accidental":   "Accidental",
     "aria.chroma":       "Chromaticism",
-    "aria.ramp":         "Widen the curtain each line",
     "aria.chordNames":   "Show chord names",
     "aria.chunks":       "Show chunk highlights",
     "aria.musicality":   "Musicality",
@@ -219,8 +217,6 @@ window.SR_I18N = {
 
     "help.g.chroma":    "How Chromatic?",
     "help.chroma":      "At zero everything stays in the key. Higher, chromatic passing tones start filling whole steps and neighbour notes dip a semitone and return \u2014 the accidentals you actually meet on real pages. Minor keys raise their 7th in dominant bars regardless: that one is what makes a cadence lean.",
-    "help.g.ramp":      "Ramp",
-    "help.ramp":        "With Hide Ahead on, every line you finish widens the curtain by one unit. The pressure creeps instead of jumping, and there is no score \u2014 it is a workout, not an assessment.",
     "help.g.chunks":    "Highlight Patterns",
     "help.chunks":      "Highlights the patterns on the staff: cyan for stepwise runs, lime for leaps. Use it to check what your eye is catching, then switch it off and see whether you still catch them.",
 
@@ -273,7 +269,6 @@ window.SR_I18N = {
     "sec.notes":       "Notas",
     "sec.musicality":  "¿Qué tan musical?",
     "sec.chroma":      "\u00bfQu\u00e9 tan crom\u00e1tico?",
-    "sec.ramp":        "Rampa",
     "sec.chordNames":  "Nombres de acordes",
     "sec.chunks":      "Resaltar patrones",
     "sec.staff":       "Clave y tonalidad",
@@ -350,7 +345,6 @@ window.SR_I18N = {
     "aria.mode":         "Modo",
     "aria.accidental":   "Alteración",
     "aria.chroma":       "Cromatismo",
-    "aria.ramp":         "Ampliar la cortina con cada l\u00ednea",
     "aria.chordNames":   "Mostrar nombres de acordes",
     "aria.chunks":       "Mostrar patrones",
     "aria.musicality":   "Musicalidad",
@@ -447,8 +441,6 @@ window.SR_I18N = {
 
     "help.g.chroma":    "\u00bfQu\u00e9 tan crom\u00e1tico?",
     "help.chroma":      "En cero todo queda dentro de la tonalidad. M\u00e1s arriba aparecen notas de paso crom\u00e1ticas entre tonos enteros y bordaduras que bajan medio tono y vuelven \u2014 las alteraciones que de verdad encuentras en una partitura. En menor, el 7\u00ba grado se eleva en los compases de dominante siempre: eso es lo que hace que la cadencia se apoye.",
-    "help.g.ramp":      "Rampa",
-    "help.ramp":        "Con Ocultar por delante activo, cada l\u00ednea que terminas ampl\u00eda la cortina una unidad. La presi\u00f3n sube poco a poco, y no hay puntuaci\u00f3n: es entrenamiento, no examen.",
     "help.g.chunks":    "Resaltar patrones",
     "help.chunks":      "Resalta los patrones sobre el pentagrama: cian para grados conjuntos, verde lima para saltos. Úsalo para comprobar qué está viendo tu ojo, y luego quítalo para ver si los sigues viendo.",
 

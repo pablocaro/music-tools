@@ -123,7 +123,7 @@ const OUT = process.env.OUT || '/tmp/';
   await drag('Control size', 'End');
   await drag('Panel density', 'Home');
   await drag('Caption track', 'End');
-  await drag('Label weight', 'End');
+  await drag('Base weight', 'End');
   await drag('Accent hue', 'Home');       // 210 -> 0, red
   await drag('Paper warmth', 'End');
   await drag('Pill radius', 'Home');      // round -> 4px

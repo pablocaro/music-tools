@@ -26,7 +26,7 @@
 
   if (!/[?&]tweaks(?:[=&]|$)/.test(location.search)) return;
 
-  var KEY = "sr_tweaks:v7";      // bumped when the defaults move, so a stored
+  var KEY = "sr_tweaks:v8";      // bumped when the defaults move, so a stored
                                  // set of slider values cannot mask the new baseline
   var FOLD = "sr_tweaks_fold";
 
@@ -35,7 +35,7 @@
   var DEFAULTS = {
     // type
     typeScale: 1, sizeMicro: 10, sizeCaption: 12, sizeLabel: 15, sizeLead: 18,
-    titleSize: 29, labelWeight: 425, weightStep: 175, bodyWeight: 425,
+    titleSize: 29, baseWeight: 425, weightStep: 175,
     tracking: 0.9, leading: 1.5,
     // spacing
     density: 1.25, controlH: 40, headerGap: 8, railW: 400, gutter: 28,
@@ -45,7 +45,7 @@
     // rail
     railTone: 4, platterRadius: 24, platterPad: 18, platterGap: 10,
     platterLift: 0.1, platterEdge: 0, railInset: 20,
-    caretSize: 12, caretWeight: 2.5,
+    caretSize: 12, caretWeight: 3,
     // colour
     accentH: 208, accentS: 100, paperWarmth: 18, inkL: 16, chunkAlpha: 0.5,
     // music
@@ -70,12 +70,10 @@
         note: "the subtitle under the drill title" },
       { key: "titleSize",   label: "Drill title",  min: 18, max: 44, step: 1, unit: "px",
         note: "display type, riding over the scale" },
-      { key: "labelWeight", label: "Label weight", min: 300, max: 800, step: 25, unit: "",
-        note: "the panel's default weight" },
+      { key: "baseWeight",  label: "Base weight",  min: 300, max: 700, step: 25, unit: "",
+        note: "labels and body copy — the one running weight" },
       { key: "weightStep",  label: "Value step",   min: 0, max: 300, step: 25, unit: "",
         note: "how much heavier a value is than a label" },
-      { key: "bodyWeight",  label: "Body weight",  min: 300, max: 700, step: 25, unit: "",
-        note: "help and onboarding prose" },
       { key: "tracking",    label: "Caption track", min: 0, max: 2, step: 0.05, unit: "px",
         note: "letter-spacing on the uppercase headings" },
       { key: "leading",     label: "Line height",  min: 1.1, max: 2, step: 0.05, unit: "×",
@@ -157,8 +155,7 @@
     typeScale: "--type-scale", titleSize: "--fs-4-base",
     sizeMicro: "--fs-0-base", sizeCaption: "--fs-1-base",
     sizeLabel: "--fs-2-base", sizeLead: "--fs-3-base",
-    labelWeight: "--weight-prominent",
-    weightStep: "--weight-step", bodyWeight: "--weight-standard",
+    baseWeight: "--weight-standard", weightStep: "--weight-step",
     tracking: "--track-caption",
     leading: "--leading",
     density: "--density", controlH: "--ctl-h", headerGap: "--tb-gap",
@@ -205,9 +202,8 @@
     r.setProperty("--fs-1-base",        state.sizeCaption + "px");
     r.setProperty("--fs-2-base",        state.sizeLabel + "px");
     r.setProperty("--fs-3-base",        state.sizeLead + "px");
-    r.setProperty("--weight-prominent", String(state.labelWeight));
-    r.setProperty("--weight-step",      String(state.weightStep));
-    r.setProperty("--weight-standard",  String(state.bodyWeight));
+    r.setProperty("--weight-standard", String(state.baseWeight));
+    r.setProperty("--weight-step",     String(state.weightStep));
     r.setProperty("--track-caption",    state.tracking + "px");
     r.setProperty("--leading",          String(state.leading));
 

@@ -303,7 +303,6 @@
     if (p.hideUnit != null) hideUnitEl.dataset.unit = p.hideUnit;
     if (p.showChunks != null) showChunksEl.checked = p.showChunks;
     if (p.showChords != null) showChordsEl.checked = p.showChords;
-    if (p.ramp != null) rampOnEl.checked = p.ramp;
   }
 
   // What a *preset* defines: the melodic material itself — which intervals,
@@ -351,7 +350,6 @@
     cfg.hideUnit = hideUnitEl.dataset.unit || "beats";
     cfg.showChunks = showChunksEl.checked;
     cfg.showChords = showChordsEl.checked;
-    cfg.ramp = rampOnEl.checked;
     return cfg;
   }
 
@@ -483,7 +481,6 @@
   var beatsEl      = document.getElementById("beats");
   var showChunksEl = document.getElementById("show-chunks");
   var showChordsEl = document.getElementById("show-chords");
-  var rampOnEl     = document.getElementById("ramp-on");
   var bowingEl     = document.getElementById("bowing");
   var tiesEl       = document.getElementById("ties");
   var generateBtn  = document.getElementById("generate");
@@ -2146,7 +2143,7 @@
   // staff lines, clef and barlines in place — so a played bar reads as a clean
   // empty measure rather than a white hole. VexFlow wraps each measure's content
   // in a .vf-measure node, which maps 1:1 (document order) to our measure index.
-  var INK_SEL = ".vf-stavenote, .vf-beam, .vf-ledgers, .vf-stem";
+  var INK_SEL = ".vf-stavenote, .vf-beam, .vf-ledgers, .vf-stem, .vf-curve, .vf-stavetie";
 
   function showAllInk() {
     sheetEl.querySelectorAll(INK_SEL).forEach(function (el) { el.style.visibility = ""; });
@@ -2189,7 +2186,7 @@
         cut[L] = (cut[L] == null) ? notes[i].right : Math.max(cut[L], notes[i].right);
       }
     }
-    for (var b = 0; b < ink.spans.length; b++) {           // beams: gone with their first note
+    for (var b = 0; b < ink.spans.length; b++) {           // beams + curves: gone with their first note
       var bc = cut[ink.spans[b].line];
       ink.spans[b].el.style.visibility = (bc != null && ink.spans[b].left < bc) ? "hidden" : "";
     }
@@ -2233,14 +2230,6 @@
   // playing flag set, generate a fresh line, and play it with a fresh count-in
   // so every new line gets its own countdown, until the user pauses or resets.
   function advanceAndPlay() {
-    // Letting-go, v1: finishing a line is the only signal the app has, so the
-    // ramp spends it here — one more unit of curtain per completed line, up to
-    // the ceiling. It widens Hide Ahead when it's on; it never switches it on,
-    // so the pressure is something you opted into twice.
-    if (rampOnEl.checked && hideBehindEl.checked) {
-      var cur = parseInt(hideValEl.dataset.n, 10) || 0;
-      if (cur < hideMaxN()) setHide(cur + 1);
-    }
     if (session && session.rafId) cancelAnimationFrame(session.rafId);
     rafId = null;
     pinTop = true;   // hold the top through the re-render + count-in of the fresh line
@@ -2336,7 +2325,11 @@
     // the page like a fence post.
     var ink = {
       notes: Array.prototype.map.call(sheetEl.querySelectorAll(".vf-stavenote"), spanOf),
-      spans: Array.prototype.map.call(sheetEl.querySelectorAll(".vf-beam"), spanOf),
+      // Ties and slurs ride with the beams: a curve goes the moment its first
+      // note goes. Left standing it floats over blank paper — and a tie stub
+      // pointing at a hidden note is exactly the debris the beam rule exists
+      // to avoid. (.vf-stavetie is a tie's curve, .vf-curve a slur's.)
+      spans: Array.prototype.map.call(sheetEl.querySelectorAll(".vf-beam, .vf-curve, .vf-stavetie"), spanOf),
       marks: Array.prototype.map.call(sheetEl.querySelectorAll(".vf-ledgers, .vf-stem"), spanOf)
     };
     showAllInk();
@@ -2605,6 +2598,10 @@
   function syncHide() {
     var n = parseInt(hideValEl.dataset.n, 10) || 0;
     hideValEl.textContent = n === 0 ? t("val.off") : String(n);
+    // Weight marks a number; a word is a label whatever element it sits in.
+    // Without this, this "Off" sat bold beside three cycle "Off"s at base
+    // weight and read as a different control.
+    hideValEl.classList.toggle("is-word", n === 0);
     hideUnitEl.textContent = hideUnitIsMeasures() ? t("val.measures") : t("val.beats");
     hideBehindEl.checked = n > 0;
     // The stepper's number is in whatever unit is showing; the lead is always
@@ -2682,7 +2679,7 @@
   // guide top to bottom walks the panel top to bottom. Copy lives in i18n.js.
   // ===========================================================================
   var HELP_SECTIONS = ["exercise", "transport", "presets", "tempo", "accomp",
-                       "hide", "ramp", "rhythm", "step", "notes", "musicality",
+                       "hide", "rhythm", "step", "notes", "musicality",
                        "chroma", "chunks", "staff"];
 
   function buildHelpBody() {
@@ -3374,19 +3371,6 @@
       else syncHide();
       persistSession();
     });
-
-    // --- ramp ---
-    var rampBtnEl = document.getElementById("ramp-toggle");
-    function syncRampBtn() {
-      rampBtnEl.textContent = rampOnEl.checked ? t("val.on") : t("val.off");
-      rampBtnEl.classList.toggle("on", rampOnEl.checked);
-    }
-    rampBtnEl.addEventListener("click", function () {
-      rampOnEl.checked = !rampOnEl.checked;
-      syncRampBtn();
-      persistSession();
-    });
-    syncRampBtn();
 
     // --- chord names ---
     var chordsBtnEl = document.getElementById("chords-toggle");

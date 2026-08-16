@@ -70,7 +70,7 @@
   --platter-lift: 0.1;   /* platter shadow, softer than a floating surface's */
   --platter-edge: 0;     /* 0 = shadow alone, 1 = a hairline instead */
   --caret-size: 12px;    /* the fold chevron on a platter header */
-  --caret-weight: 2.5px;   /* its stroke, in real px whatever the size */
+  --caret-weight: 3px;   /* its stroke, in real px whatever the size */
 
   /* Corner curvature, as the exponent of a superellipse: 0 bevels, 1 is the
      plain circular corner every border-radius draws, 2 is the continuous
@@ -119,14 +119,14 @@
        label    anything you tap that says a word — pills, cycles, options,
                 and a stepper's readout, which is marked by weight not size
        lead     the main view's subtitle, above the panel's range
-     Weight follows suit: the panel runs at --weight-prominent throughout, and
-     --weight-strong marks a value. Strong is *derived* — label plus a step —
-     so the two keep their relationship when the base moves. It used to be an
-     absolute 700, written when prominent was 600; dropping prominent to 425
-     left a 275-point gap, and the one word rendered both ways ("Off", as a
-     stepper's value beside a cycle's label) fell visibly apart.
-     Standard and prominent are equal at present, so body copy and panel labels
-     weigh the same and the three-rung ladder is really two. */
+     Weight follows suit: everything runs at --weight-standard, and
+     --weight-strong marks a value — derived, standard plus a step, so the two
+     keep their relationship when the base moves. (It was once an absolute 700
+     against a 600 base; the base dropped and the pair fell apart.)
+     The panel ran at --weight-prominent until the airy pass brought that down
+     to standard's own value and the two rungs collapsed; now the collapse is
+     spelled out. Prominent stays in the vocabulary as a real emphasis rung —
+     600, nothing uses it today — rather than a second name for the default. */
   --fs-0-base: 10px;
   --fs-1-base: 12px;
   --fs-2-base: 15px;
@@ -145,10 +145,10 @@
   --type-label:   var(--fs-2);
   --type-lead:    var(--fs-3);
   --type-title:   var(--fs-4);
-  --weight-standard:  425;   /* body copy; the panel doesn't use it */
-  --weight-prominent: 425;   /* the panel's default */
+  --weight-standard:  425;   /* the app's one running weight — labels and body copy */
+  --weight-prominent: 600;   /* reserved: a genuine emphasis rung, unused today */
   --weight-step:      175;   /* how much heavier a value is than a label */
-  --weight-strong: calc(var(--weight-prominent) + var(--weight-step));
+  --weight-strong: calc(var(--weight-standard) + var(--weight-step));
   --track-caption: 0.9px;   /* the uppercase headings' letter-spacing — what
                                 makes a caption read as a label, not as text */
   --leading: 1.5;           /* body copy only; controls set their own */
@@ -441,7 +441,7 @@ button.playing svg.state-alt { display: block; }
   color: var(--muted);
   font-family: inherit;
   font-size: var(--type-caption);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   text-transform: uppercase;
   letter-spacing: var(--track-caption);
   text-align: left;
@@ -494,7 +494,7 @@ button.playing svg.state-alt { display: block; }
   color: var(--ctl-on);
   font-family: inherit;
   font-size: var(--type-label);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   cursor: pointer;
 }
 .intro-more:hover, .intro-more:active { opacity: 1; text-decoration: underline; }
@@ -510,7 +510,7 @@ button.playing svg.state-alt { display: block; }
 /* Section heading — the caption style shared with the old group summaries. */
 .sec-h {
   font-size: var(--type-caption);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   text-transform: uppercase;
   letter-spacing: var(--track-caption);
   color: var(--muted);
@@ -538,7 +538,6 @@ button.playing svg.state-alt { display: block; }
    wrap to their own line on their own. */
 .sec-hide       { flex: 1 1 240px; }
 .sec-chordnames { flex: 1 1 180px; }
-.sec-ramp       { flex: 1 1 140px; }
 .sec-step       { flex: 1 1 380px; }
 .sec-chunks     { flex: 1 1 260px; }
 
@@ -583,7 +582,7 @@ section {
 
 label {
   font-size: var(--type-caption);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   text-transform: uppercase;
   letter-spacing: var(--track-caption);
   color: var(--muted);
@@ -697,7 +696,7 @@ input[type="checkbox"]:checked::after {
   color: var(--ink);
   font-family: inherit;
   font-size: var(--type-label);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   line-height: 1;
   cursor: pointer;
   display: inline-flex;
@@ -752,11 +751,16 @@ input[type="checkbox"]:checked::after {
 
 .stepper-val {
   font-size: var(--type-label);
-  font-weight: var(--weight-strong);
+  font-weight: var(--weight-strong);   /* a value is a number — see .is-word */
   color: var(--ink);
   white-space: nowrap;
   min-width: 30px;
 }
+
+/* A readout showing a word ("Off") is a label wearing a value's markup: it
+   takes the base weight, or it reads as a different control from the cycles
+   saying the same word beside it. JS flips the class as the content changes. */
+.stepper-val.is-word { font-weight: var(--weight-standard); }
 
 .stepper-range { flex: 1; min-width: 40px; }
 .bare-range { width: 100%; }
@@ -771,7 +775,7 @@ input[type="checkbox"]:checked::after {
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.07);
   color: var(--ink);
-  font-size: var(--glyph-sm); font-weight: var(--weight-prominent); line-height: 1;
+  font-size: var(--glyph-sm); font-weight: var(--weight-standard); line-height: 1;
   cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
   transition: background 0.15s, transform 0.1s;
@@ -815,7 +819,7 @@ input[type="checkbox"]:checked::after {
   color: var(--ink);
   font-family: inherit;
   font-size: var(--type-label);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   line-height: 1;
   cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
@@ -834,7 +838,7 @@ button {
   border-radius: 6px;
   font-family: inherit;
   font-size: var(--fs-2);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   cursor: pointer;
   background: var(--ink);
   color: var(--paper);
@@ -863,7 +867,7 @@ button.secondary {
   gap: 6px;
   padding: 8px 15px;
   font-size: var(--type-label);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   border-radius: var(--ctl-radius);
   border: var(--ctl-border) solid transparent;   /* transparent, not absent: keeps the metrics a selected state can fill in */
   background: var(--ctl-fill);
@@ -909,7 +913,7 @@ button.secondary {
   display: flex;
   justify-content: space-between;
   font-size: var(--type-micro);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--muted);
@@ -931,7 +935,7 @@ button.secondary {
   align-items: center;
   gap: 6px;
   font-size: var(--type-label);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
 }
 
 .dot {
@@ -957,7 +961,7 @@ button.secondary {
 .fig-group[hidden] { display: none; }
 .fig-h {
   font-size: var(--type-caption);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   text-transform: uppercase;
   letter-spacing: var(--track-caption);
   color: var(--muted);
@@ -1053,7 +1057,7 @@ button.secondary {
     background: var(--ink);
     color: var(--paper);
     font-size: var(--type-micro);
-    font-weight: var(--weight-prominent);
+    font-weight: var(--weight-standard);
     white-space: nowrap;
     padding: 3px 7px;
     border-radius: 5px;
@@ -1173,7 +1177,7 @@ button.secondary {
 }
 .tb-titles { min-width: 0; }
 #sh-title { font-size: var(--type-title); font-weight: var(--weight-strong); color: var(--ink); letter-spacing: 0.2px; line-height: 1.15; }
-#sh-sub   { font-size: var(--type-lead); font-weight: var(--weight-prominent); color: var(--muted); margin-top: 5px; }
+#sh-sub   { font-size: var(--type-lead); font-weight: var(--weight-standard); color: var(--muted); margin-top: 5px; }
 
 /* The header's action cluster and the popovers that hang from it. Anchored to
    the cluster, not the page, so the same rule places them on a phone and a wide
@@ -1227,7 +1231,7 @@ button.secondary {
   color: var(--ink);
   font: inherit;
   font-size: var(--type-label);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   text-align: left;
   white-space: nowrap;
   cursor: pointer;
@@ -1244,7 +1248,7 @@ button.secondary {
    clean right-hand edge however long the labels run. */
 .pop-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .pop-row .stepper-range { flex: 0 1 140px; min-width: 0; }
-.pop-label { font-size: var(--type-label); font-weight: var(--weight-prominent); color: var(--ink); }
+.pop-label { font-size: var(--type-label); font-weight: var(--weight-standard); color: var(--ink); }
 
 /* The header's set-up cluster — same rounded-icon family as the transport, set
    in paper-dim, one size down from the pill: these are reached for between
@@ -1278,7 +1282,7 @@ button.secondary {
    the engraved geometry the way the chunk blocks are. */
 #chord-overlay { position: absolute; top: 0; left: 0; pointer-events: none; }
 #chord-overlay .chord-name {
-  font: var(--weight-prominent) 13px system-ui, sans-serif;
+  font: var(--weight-standard) 13px system-ui, sans-serif;
   fill: var(--muted);
 }
 
@@ -1304,7 +1308,7 @@ button.secondary {
   left: 50%;                     /* music is centered in the window now */
   transform: translate(-50%, -50%);
   font-size: 160px;
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   color: var(--ink);
   opacity: 0.12;
   pointer-events: none;
@@ -1334,7 +1338,7 @@ button.secondary {
 
 .note-col-hdr {
   font-size: var(--type-micro);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   text-transform: uppercase;
   letter-spacing: 0.4px;
   color: var(--muted);
@@ -1344,7 +1348,7 @@ button.secondary {
 /* The octave number beside its checkbox — the checkbox toggles the whole row. */
 .note-row-lbl {
   font-size: var(--type-micro);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   color: var(--muted);
   text-align: left;
   letter-spacing: 0.2px;
@@ -1392,7 +1396,7 @@ button.secondary {
   color: var(--muted);
   font-family: inherit;
   font-size: var(--type-label);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   line-height: 1;
   cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
@@ -1451,7 +1455,7 @@ button.secondary {
    one rule so the two stay identical if either ever moves. */
 .kicker {
   font-size: var(--type-caption);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   text-transform: uppercase;
   letter-spacing: var(--track-caption);
   color: var(--ctl-on);
@@ -1484,7 +1488,7 @@ button.secondary {
 
 .help-item h3 {
   font-size: var(--type-caption);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   text-transform: uppercase;
   letter-spacing: var(--track-caption);
   color: var(--muted);
@@ -1610,7 +1614,7 @@ button.secondary {
 .ob-group + .ob-group { margin-top: 24px; }
 .ob-group > h3 {
   font-size: var(--type-caption);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   text-transform: uppercase;
   letter-spacing: var(--track-caption);
   color: var(--muted);
@@ -1658,7 +1662,7 @@ button.secondary {
   color: var(--muted);
   font-family: inherit;
   font-size: var(--type-label);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   cursor: pointer;
   transition: color 0.15s;
 }
