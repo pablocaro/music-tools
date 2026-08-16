@@ -163,12 +163,27 @@ Four rules, and the first is the one that keeps it useful:
   first run, and the type-scale slider resized them as it went. `test/tweaks.js`
   measures it rather than trusting the eye.
 
-Two tokens carry it: `--type-scale` multiplies every step of the scale, and
-`--density` multiplies the settings panel's gaps and paddings. Both are `1` by
-default, so an un-flagged page is exactly what the CSS says. `--ctl-h-lg` is now
-derived (`--ctl-h + 8px`) so the two control sizes keep their step, and the
-title gained `--fs-4-base` so the mobile step-down and the panel have one thing
-to set with the scale still riding over it.
+Six sets, and they fold independently — which is what keeps twenty controls
+navigable rather than a wall: typography, spacing, shape, colour, music, motion.
+
+Making a value reachable by a slider is most of the work, and it is the same
+move every time: **express it in parts, or as a calc off a base.** The accent
+became `--accent-h/s/l` feeding one `hsl()`, so hue is a number rather than a
+hex string. Paper and ink the same. The radii and shadows became calcs off
+`--radius-card` and `--shadow-depth`, so a family scales together and keeps its
+relationships. `--ctl-h-lg` derives from `--ctl-h`. Every default is the value
+that shipped, so an un-flagged page renders exactly what the file says.
+
+Two of them aren't CSS at all, and they are the ones that most change how the
+music reads: bars per line and staff size. Those live in `window.__srLayout`,
+which `renderLoaded()` takes fresh on every pass; the panel writes there and
+fires a `resize`, borrowing the debounced render path the app already has rather
+than growing a second entry point.
+
+The one genuinely new capability that fell out of it: `.reduce-motion` is now a
+real hard override, honoured from `prefers-reduced-motion` as well as the panel.
+Having the switch is what makes the contract checkable without changing an OS
+setting — which is the only way anyone remembers to check it.
 
 ## Testing
 

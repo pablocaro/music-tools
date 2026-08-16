@@ -63,6 +63,16 @@
   var MIN_PER_LINE = 2;          // never fewer than this; shrink to fit if needed
   var MEASURE_PX = 175;          // ~full-size measure width (FixedMeasureWidth keeps it stable)
   var CLEF_PX = 88;              // ~clef + key + time prefix at a line start
+
+  // How the page is laid out, in one mutable place because these two are the
+  // only engraving decisions that aren't CSS — and they are the ones that most
+  // change how the music reads. renderLoaded() takes them fresh on every pass,
+  // so writing here and firing a resize re-engraves. The ?tweaks panel is the
+  // only writer; the constants above stay the defaults.
+  var LAYOUT = window.__srLayout = {
+    perLine: MEASURES_PER_LINE,  // cap on bars per line
+    zoomCap: 1                   // ceiling on the staff's drawn size
+  };
   var HL_PAD_X = 4;             // px the block runs past the first/last notehead
   var HL_PAD_Y = 6;             // px above the top notehead and below the bottom
   var HL_RADIUS = 6;            // corner radius — a highlighter stroke, not a pill
@@ -1423,9 +1433,9 @@
   // rather than 1 huge measure, but desktop is never scaled).
   function renderLoaded() {
     var avail = availWidth();
-    var per = Math.max(MIN_PER_LINE, Math.min(MEASURES_PER_LINE, Math.floor((avail - CLEF_PX) / MEASURE_PX)));
+    var per = Math.max(MIN_PER_LINE, Math.min(LAYOUT.perLine, Math.floor((avail - CLEF_PX) / MEASURE_PX)));
     osmd.EngravingRules.RenderXMeasuresPerLineAkaSystem = per;
-    osmd.zoom = Math.min(1, avail / (CLEF_PX + MEASURE_PX * per));
+    osmd.zoom = Math.min(LAYOUT.zoomCap, avail / (CLEF_PX + MEASURE_PX * per));
     osmd.render();
     var svg = sheetEl.querySelector("svg");               // correct any estimate drift
     if (svg) {

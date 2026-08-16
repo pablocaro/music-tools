@@ -8,19 +8,35 @@
 }
 
 :root {
-  /* The two live dials. Both are neutral by default, so the design is exactly
-     what it was written as; ?tweaks (tweaks.js) drives them from a panel and
-     nothing else ever sets them. They exist so a type or spacing decision can
+  /* The live dials. Every one is neutral at its default, so an un-flagged page
+     renders exactly what this file says; ?tweaks (tweaks.js) drives them from a
+     panel and nothing else ever sets them. They exist so a design decision can
      be explored in the browser and handed back as a number, instead of through
-     an edit → screenshot → look → edit round trip. */
+     an edit → screenshot → look → edit round trip. Where a value below is
+     written as parts (accent, paper) or as a calc off a base (the radii, the
+     shadows), that is why — the parts are what a slider can reach. */
   --type-scale: 1;       /* every step of the type scale at once */
   --density: 1;          /* the settings panel's gaps and padding */
+  --shadow-depth: 1;     /* how far the floating surfaces lift off the page */
+  --motion: 1;           /* multiplier on the structural transitions */
 
-  --paper: #ffffff;
-  --paper-dim: #f5f5f5;
-  --ink: #1a1a1a;
+  /* Paper and ink in parts, so warmth and contrast are tunable. Warmth 0 is
+     exactly the white and #f5f5f5 this shipped with; a little of it gives the
+     cream of real manuscript paper, which is easier to read against. */
+  --paper-warmth: 0;
+  --paper: hsl(38 calc(var(--paper-warmth) * 1%) calc(100% - var(--paper-warmth) * 0.05%));
+  --paper-dim: hsl(38 calc(var(--paper-warmth) * 1%) 96%);
+  --ink-l: 10%;
+  --ink: hsl(0 0% var(--ink-l));
   --muted: #8e8e93;
-  --accent: #0a84ff;  /* primary UI accent — iOS blue */
+
+  /* The accent, likewise in parts. The default is exactly the iOS blue it
+     shipped with (#0a84ff); everything tinted — pills, toggles, the cursor —
+     follows from these three. */
+  --accent-h: 210;
+  --accent-s: 100%;
+  --accent-l: 52%;
+  --accent: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
 
   /* Chunk ink — highlighter pigment laid on the staff, and the same two values
      for the small marks that name it in the panel (interval dots, legend), so
@@ -34,6 +50,7 @@
   --music-max: 1040px;   /* the music column never grows wider than this — wide
                             viewports just gain negative space on the sides */
   --music-min: 640px;    /* …and never shrinks narrower than this */
+  --music-gutter: 40px;  /* air either side of the staff */
   --rail-w: 380px;       /* the settings rail's width, open. Also fixes the push
                             breakpoint: music floor (640) + sheet gutters (80) +
                             this = 1100px, below which the rail overlays */
@@ -90,6 +107,8 @@
   --weight-standard:  500;   /* body copy; the panel doesn't use it */
   --weight-prominent: 600;   /* the panel's default */
   --weight-strong:    700;   /* values and the drill title */
+  --track-caption: 0.7px;    /* the uppercase headings' letter-spacing — what
+                                makes a caption read as a label, not as text */
 
   /* Characters used as icons rather than text — clefs, accidentals, the
      stepper's +/-. Sized optically, so they sit outside the type scale. */
@@ -101,11 +120,12 @@
      down with the surface: a full sheet reads as a card, a popover as a chip
      of one, and the shadow softens to match. Named for what they are rather
      than by a number, like every other measure in here. */
-  --radius-sheet: 20px;                                            /* help / onboarding card */
   --radius-card:  16px;                                            /* popovers hung off a button */
-  --radius-menu:  12px;                                            /* a menu opened from inside one */
-  --shadow-sheet: 0 18px 60px rgba(0, 0, 0, 0.22);
-  --shadow-pop:   0 1px 2px rgba(0, 0, 0, 0.06), 0 12px 32px rgba(0, 0, 0, 0.16);
+  --radius-sheet: calc(var(--radius-card) + 4px);                  /* help / onboarding card */
+  --radius-menu:  calc(var(--radius-card) - 4px);                  /* a menu opened from inside one */
+  --shadow-sheet: 0 18px calc(60px * var(--shadow-depth)) rgba(0, 0, 0, calc(0.22 * var(--shadow-depth)));
+  --shadow-pop:   0 1px 2px rgba(0, 0, 0, calc(0.06 * var(--shadow-depth))),
+                  0 12px calc(32px * var(--shadow-depth)) rgba(0, 0, 0, calc(0.16 * var(--shadow-depth)));
   --pop-w:   248px;                                                /* popover min width */
   --pop-pad: 16px;
   --pop-gap: 12px;                                                 /* between a popover's rows */
@@ -128,6 +148,25 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+
+/* Reduced motion is a hard override, not a preference among others: whatever a
+   control asks for, this wins. Honoured from the OS setting, and settable from
+   the tweaks panel so the contract can be checked without changing the OS —
+   which is the only way anyone ever remembers to check it. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
+.reduce-motion *, .reduce-motion *::before, .reduce-motion *::after {
+  transition-duration: 0.01ms !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
 }
 
 /* iOS/iPadOS: stop a tap on a control from triggering double-tap-to-zoom
@@ -271,9 +310,9 @@ button.playing svg.state-alt { display: block; }
      it (Escape works too). */
   width: min(var(--rail-w), 88vw);
   background: var(--paper);
-  box-shadow: -6px 0 34px rgba(0, 0, 0, 0.14);
+  box-shadow: -6px 0 calc(34px * var(--shadow-depth)) rgba(0, 0, 0, calc(0.14 * var(--shadow-depth)));
   transform: translateX(100%);
-  transition: transform 0.34s cubic-bezier(0.32, 0.72, 0, 1);
+  transition: transform calc(0.34s * var(--motion)) cubic-bezier(0.32, 0.72, 0, 1);
 }
 .layout.panel-open .rail { transform: translateX(0); }
 
@@ -339,7 +378,7 @@ button.playing svg.state-alt { display: block; }
   font-size: var(--type-caption);
   font-weight: var(--weight-prominent);
   text-transform: uppercase;
-  letter-spacing: 0.7px;
+  letter-spacing: var(--track-caption);
   color: var(--muted);
 }
 
@@ -393,7 +432,7 @@ button.playing svg.state-alt { display: block; }
   background: rgba(0, 0, 0, 0.16);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.3s;
+  transition: opacity calc(0.3s * var(--motion));
 }
 .layout.panel-open .scrim { opacity: 1; pointer-events: auto; }
 /* Pushed, the rail sits beside the music rather than over it — nothing to dim,
@@ -412,7 +451,7 @@ label {
   font-size: var(--type-caption);
   font-weight: var(--weight-prominent);
   text-transform: uppercase;
-  letter-spacing: 0.7px;
+  letter-spacing: var(--track-caption);
   color: var(--muted);
   display: flex;
   justify-content: space-between;
@@ -786,7 +825,7 @@ button.secondary {
   font-size: var(--type-caption);
   font-weight: var(--weight-prominent);
   text-transform: uppercase;
-  letter-spacing: 0.7px;
+  letter-spacing: var(--track-caption);
   color: var(--muted);
   margin-bottom: 8px;
 }
@@ -947,7 +986,7 @@ button.secondary {
   min-height: 0;
   overflow: hidden;
   background: var(--paper);
-  padding: 12px 40px 40px;
+  padding: 12px var(--music-gutter) 40px;
   display: flex;
   flex-direction: column;
   align-items: center;           /* center the music column in the window */
@@ -1280,7 +1319,7 @@ button.secondary {
   font-size: var(--type-caption);
   font-weight: var(--weight-prominent);
   text-transform: uppercase;
-  letter-spacing: 0.7px;
+  letter-spacing: var(--track-caption);
   color: var(--ctl-on);
   margin-bottom: 2px;
 }
@@ -1313,7 +1352,7 @@ button.secondary {
   font-size: var(--type-caption);
   font-weight: var(--weight-prominent);
   text-transform: uppercase;
-  letter-spacing: 0.7px;
+  letter-spacing: var(--track-caption);
   color: var(--muted);
   margin-bottom: 5px;
 }
@@ -1439,7 +1478,7 @@ button.secondary {
   font-size: var(--type-caption);
   font-weight: var(--weight-prominent);
   text-transform: uppercase;
-  letter-spacing: 0.7px;
+  letter-spacing: var(--track-caption);
   color: var(--muted);
   margin-bottom: 10px;
 }
@@ -1507,7 +1546,8 @@ button.secondary {
 /* Mobile: trim the gutters and let the music column shrink below its desktop
    floor so narrow screens reflow instead of clipping. */
 @media (max-width: 720px) {
-  .sheet-area { padding: 8px 14px 18px; }
+  :root { --music-gutter: 14px; }
+  .sheet-area { padding: 8px var(--music-gutter) 18px; }
   :root {
     --fs-4-base: 24px; /* the title steps down; the rest of the scale holds */
     --tb-gap: 16px;    /* the header trio at 40px reads tight at 12px on a small screen */

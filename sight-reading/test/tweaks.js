@@ -26,14 +26,37 @@ const OUT = process.env.OUT || '/tmp/';
     for (let i=0;i<4;i++){ if (await p.$('#ob-next')) { await p.click('#ob-next').catch(()=>{}); await p.waitForTimeout(200);} }
     return p;
   };
+  // Resolved values, not the raw custom properties: a custom property reads back
+  // as its unevaluated calc(), so only the thing it feeds proves it landed.
   const tokens = p => p.evaluate(() => {
     const cs = getComputedStyle(document.documentElement);
     const g = n => cs.getPropertyValue(n).trim();
-    return { typeScale:g('--type-scale'), fs4:g('--fs-4'), fs2:g('--fs-2'), density:g('--density'),
-             ctlH:g('--ctl-h'), ctlLg:g('--ctl-h-lg'), tbGap:g('--tb-gap'),
-             titlePx: getComputedStyle(document.getElementById('sh-title')).fontSize,
-             metroH: Math.round(document.getElementById('metro-toggle').getBoundingClientRect().height),
-             playH: Math.round(document.getElementById('play').getBoundingClientRect().height) };
+    const title = getComputedStyle(document.getElementById('sh-title'));
+    const secH = document.querySelector('.sec-h');
+    const pill = document.querySelector('.presets .pill');
+    const cell = document.querySelector('.fig-cell');
+    return {
+      // raw dials
+      typeScale:g('--type-scale'), density:g('--density'), accentH:g('--accent-h'),
+      // resolved: each is the thing a dial actually moves
+      titlePx: title.fontSize,
+      capTrack: secH ? getComputedStyle(secH).letterSpacing : null,
+      capWeight: secH ? getComputedStyle(secH).fontWeight : null,
+      accent: getComputedStyle(document.body).getPropertyValue('--accent').trim(),
+      paper: getComputedStyle(document.body).backgroundColor,
+      ink: getComputedStyle(document.body).color,
+      pillRadius: pill ? getComputedStyle(pill).borderRadius : null,
+      cellRadius: cell ? getComputedStyle(cell).borderRadius : null,
+      railW: Math.round(document.querySelector('.rail').getBoundingClientRect().width),
+      gutter: getComputedStyle(document.querySelector('.sheet-area')).paddingLeft,
+      metroH: Math.round(document.getElementById('metro-toggle').getBoundingClientRect().height),
+      playH: Math.round(document.getElementById('play').getBoundingClientRect().height),
+      reduceMotion: document.documentElement.classList.contains('reduce-motion'),
+      layout: window.__srLayout ? {...window.__srLayout} : null,
+      // Height, not width: fewer bars per line means more systems, and the svg
+      // fills the column's width either way.
+      staffH: Math.round((document.querySelector('#sheet svg')||{getBoundingClientRect:()=>({height:0})}).getBoundingClientRect().height)
+    };
   });
   // The panel must not read the tokens it drives, or the slider deforms under
   // the cursor. Measured, not eyeballed.
@@ -53,26 +76,80 @@ const OUT = process.env.OUT || '/tmp/';
 
   // 2 · with flag -> panel, defaults identical to the un-flagged page
   p = await open('http://localhost:8091/?tweaks');
-  console.log('?tweaks  : panel=' + (await p.$('#tw') ? 'present' : 'MISSING (bad)') + ' tokens=' + JSON.stringify(await tokens(p)));
+  // Open the settings rail first: closed it is display:none at this width, so
+  // it would measure 0 in both passes and "rail width" would look dead either
+  // way. Open also puts the pills and figure cells on screen for the radii.
+  await p.click('#settings-toggle'); await p.waitForTimeout(700);
+  const before1x = await tokens(p);
+  console.log('?tweaks  : panel=' + (await p.$('#tw') ? 'present' : 'MISSING (bad)') + ' tokens=' + JSON.stringify(before1x));
   const selfBefore = await panelSelf(p);
   console.log('panel@1x : ' + JSON.stringify(selfBefore));
   await p.screenshot({ path: OUT + 'tweaks-default.png' });
 
   // 3 · drag: type scale up, control size up, density down
-  // Click the track to focus, then End/Home — real input events on the real
-  // control, and unlike an edge click it can't land a pixel outside.
-  const drag = async (i, end) => {
-    const s = (await p.$$('#tw input[type=range]'))[i];
-    const bb = await s.boundingBox();
-    await p.mouse.click(bb.x + bb.width/2, bb.y + bb.height/2);
-    await p.keyboard.press(end);
-    await p.waitForTimeout(120);
+  // Open every set first — they render folded-or-remembered, and a control in a
+  // closed set has no box to click.
+  const openAll = async () => {
+    const hs = await p.$$('#tw .tw-h');
+    for (const h of hs) {
+      const open = await h.evaluate(e => e.parentElement.classList.contains('open'));
+      if (!open) { await h.click(); await p.waitForTimeout(60); }
+    }
   };
-  await drag(0, 'End');    // type scale -> max
-  await drag(3, 'End');    // control size -> max
-  await drag(2, 'Home');   // density -> min
+  await openAll();
+
+  // Drive by aria-label so the test names the control, not its index — the
+  // whole point of the spec list is that controls move around freely.
+  // focus() rather than a click at computed coordinates: with every set open
+  // the lower controls sit below the panel's scroll viewport, and raw mouse
+  // coordinates then land on whatever happens to be at that point instead.
+  const drag = async (label, end) => {
+    const s = await p.$(`#tw [aria-label="${label}"]`);
+    if (!s) throw new Error('no control named ' + label);
+    await s.focus();
+    await p.keyboard.press(end);
+    await p.waitForTimeout(80);
+  };
+  const press = async label => {
+    const s = await p.$(`#tw [aria-label="${label}"]`);
+    if (!s) throw new Error('no control named ' + label);
+    await s.evaluate(e => e.click());
+    await p.waitForTimeout(80);
+  };
+  await drag('Type scale', 'End');
+  await drag('Control size', 'End');
+  await drag('Panel density', 'Home');
+  await drag('Caption track', 'End');
+  await drag('Label weight', 'End');
+  await drag('Accent hue', 'Home');       // 210 -> 0, red
+  await drag('Paper warmth', 'End');
+  await drag('Pill radius', 'Home');      // round -> 4px
+  await drag('Cell radius', 'End');
+  await drag('Rail width', 'End');
+  await drag('Music margin', 'End');
+  await drag('Bars per line', 'Home');    // 6 -> 2
+  await drag('Staff size', 'Home');
+  await press('Reduce motion');
+  await p.waitForTimeout(600);            // the engraver nudge is debounced
   const after = await tokens(p);
   console.log('dragged  : ' + JSON.stringify(after));
+  // Each dial must have moved the thing it drives, not merely its own variable.
+  const moved = {
+    type:    after.titlePx !== before1x.titlePx,
+    track:   after.capTrack !== before1x.capTrack,
+    weight:  after.capWeight !== before1x.capWeight,
+    accent:  after.accent !== before1x.accent,
+    paper:   after.paper !== before1x.paper,
+    pill:    after.pillRadius !== before1x.pillRadius,
+    cell:    after.cellRadius !== before1x.cellRadius,
+    rail:    after.railW !== before1x.railW,
+    gutter:  after.gutter !== before1x.gutter,
+    control: after.metroH !== before1x.metroH && after.playH === after.metroH + 8,
+    music:   after.layout.perLine === 2 && after.layout.zoomCap < 1 && after.staffH !== before1x.staffH,
+    motion:  after.reduceMotion === true
+  };
+  const dead = Object.keys(moved).filter(k => !moved[k]);
+  console.log('each dial bites: ' + (dead.length ? 'NO — dead: ' + dead.join(', ') : 'yes, all ' + Object.keys(moved).length));
   const selfAfter = await panelSelf(p);
   const immune = JSON.stringify(selfBefore) === JSON.stringify(selfAfter);
   console.log('panel@max: ' + JSON.stringify(selfAfter) + '  immune=' + (immune ? 'yes' : 'NO (bad)'));

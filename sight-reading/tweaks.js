@@ -26,44 +26,100 @@
 
   if (!/[?&]tweaks(?:[=&]|$)/.test(location.search)) return;
 
-  var KEY = "sr_tweaks:v1";      // versioned: a schema change resets cleanly
+  var KEY = "sr_tweaks:v2";      // versioned: a schema change resets cleanly
   var FOLD = "sr_tweaks_fold";
 
-  // 1 · Defaults — one flat object, one entry per decision.
+  // 1 · Defaults — one flat object, one entry per decision. Every value here is
+  //     the neutral one, so "all defaults" is byte-identical to no panel.
   var DEFAULTS = {
-    typeScale: 1,
-    titleSize: 28,
-    density:   1,
-    controlH:  40,
-    headerGap: 12
+    // type
+    typeScale: 1, titleSize: 28, labelWeight: 600, tracking: 0.7,
+    // spacing
+    density: 1, controlH: 40, headerGap: 12, railW: 380, gutter: 40,
+    // shape
+    pillRadius: 999, boxRadius: 8, surfaceRadius: 16, shadowDepth: 1,
+    // colour
+    accentH: 210, accentS: 100, paperWarmth: 0, inkL: 10, chunkAlpha: 0.5,
+    // music
+    perLine: 6, staffSize: 1,
+    // motion
+    motion: 1, reduceMotion: 0
   };
 
-  // 2 · Specs — the panel renders from this.
+  // 2 · Specs — the panel renders from this. `re` marks a control the engraver
+  //     cares about: changing it re-lays the music out (see nudge()).
   var SETS = [
-    { title: "Typography", controls: [
-      { key: "typeScale", label: "Type scale",  min: 0.85, max: 1.25, step: 0.01, unit: "×",
+    { id: "type", title: "Typography", controls: [
+      { key: "typeScale",   label: "Type scale",   min: 0.85, max: 1.25, step: 0.01, unit: "×",
         note: "every step of the scale at once" },
-      { key: "titleSize", label: "Drill title", min: 18,   max: 40,   step: 1,    unit: "px",
-        note: "display type, riding over the scale" }
+      { key: "titleSize",   label: "Drill title",  min: 18,  max: 40,  step: 1, unit: "px",
+        note: "display type, riding over the scale" },
+      { key: "labelWeight", label: "Label weight", min: 400, max: 800, step: 50, unit: "",
+        note: "the panel's default weight" },
+      { key: "tracking",    label: "Caption track", min: 0,  max: 2,   step: 0.05, unit: "px",
+        note: "letter-spacing on the uppercase headings" }
     ] },
-    { title: "Spacing", controls: [
+    { id: "space", title: "Spacing", controls: [
       { key: "density",   label: "Panel density", min: 0.7, max: 1.4, step: 0.05, unit: "×",
         note: "the settings panel's gaps and padding" },
-      { key: "controlH",  label: "Control size",  min: 32,  max: 54,  step: 1,    unit: "px",
+      { key: "controlH",  label: "Control size",  min: 32,  max: 54,  step: 1, unit: "px",
         note: "pills and toggles; round buttons follow at +8" },
-      { key: "headerGap", label: "Header gap",    min: 6,   max: 28,  step: 1,    unit: "px",
-        note: "between the three buttons top right" }
+      { key: "headerGap", label: "Header gap",    min: 6,   max: 28,  step: 1, unit: "px",
+        note: "between the three buttons top right" },
+      { key: "railW",     label: "Rail width",    min: 300, max: 520, step: 10, unit: "px", re: 1,
+        note: "the settings rail; also moves the push breakpoint" },
+      { key: "gutter",    label: "Music margin",  min: 8,   max: 96,  step: 2, unit: "px", re: 1,
+        note: "air either side of the staff" }
+    ] },
+    { id: "shape", title: "Shape", controls: [
+      { key: "pillRadius",    label: "Pill radius",    min: 4, max: 30, step: 1, unit: "px",
+        maxLabel: "round", maxApply: 999, note: "presets, options, toggles" },
+      { key: "boxRadius",     label: "Cell radius",    min: 0, max: 20, step: 1, unit: "px",
+        note: "rhythm figures and the note grid" },
+      { key: "surfaceRadius", label: "Surface radius", min: 4, max: 30, step: 1, unit: "px",
+        note: "popovers; the sheet and menu follow at ±4" },
+      { key: "shadowDepth",   label: "Shadow depth",   min: 0, max: 2,  step: 0.05, unit: "×",
+        note: "how far surfaces lift off the paper" }
+    ] },
+    { id: "colour", title: "Colour", controls: [
+      { key: "accentH",     label: "Accent hue",   min: 0, max: 360, step: 1, unit: "°",
+        note: "everything selected takes this" },
+      { key: "accentS",     label: "Accent punch", min: 0, max: 100, step: 1, unit: "%",
+        note: "saturation — 0 is a grey UI" },
+      { key: "paperWarmth", label: "Paper warmth", min: 0, max: 30,  step: 1, unit: "",
+        note: "0 is white; a little gives manuscript cream" },
+      { key: "inkL",        label: "Ink lightness", min: 0, max: 40, step: 1, unit: "%",
+        note: "lower is blacker — the notation's contrast" },
+      { key: "chunkAlpha",  label: "Highlighter",  min: 0.1, max: 1, step: 0.05, unit: "×",
+        note: "strength of the pattern blocks" }
+    ] },
+    { id: "music", title: "Music", controls: [
+      { key: "perLine",   label: "Bars per line", min: 2,   max: 6,   step: 1, unit: "", re: 1,
+        note: "a cap — a narrow window still fits fewer" },
+      { key: "staffSize", label: "Staff size",    min: 0.6, max: 1.4, step: 0.05, unit: "×", re: 1,
+        note: "ceiling on how large the staff is drawn" }
+    ] },
+    { id: "motion", title: "Motion", controls: [
+      { key: "motion",       label: "Transition speed", min: 0, max: 2, step: 0.05, unit: "×",
+        note: "the rail's slide and the scrim's fade" },
+      { key: "reduceMotion", kind: "switch", label: "Reduce motion",
+        note: "hard override — stills everything, whatever the dial says" }
     ] }
   ];
 
-  // The token each control drives. In the pasted block so what comes back names
-  // the variable to edit rather than describing it in prose.
+  // The token (or seam) each control drives. In the pasted block, so what comes
+  // back names the thing to edit rather than describing it in prose.
   var TOKEN = {
-    typeScale: "--type-scale",
-    titleSize: "--fs-4-base",
-    density:   "--density",
-    controlH:  "--ctl-h",
-    headerGap: "--tb-gap"
+    typeScale: "--type-scale", titleSize: "--fs-4-base",
+    labelWeight: "--weight-prominent", tracking: "--track-caption",
+    density: "--density", controlH: "--ctl-h", headerGap: "--tb-gap",
+    railW: "--rail-w", gutter: "--music-gutter",
+    pillRadius: "--ctl-radius", boxRadius: "--ctl-radius-box",
+    surfaceRadius: "--radius-card", shadowDepth: "--shadow-depth",
+    accentH: "--accent-h", accentS: "--accent-s", paperWarmth: "--paper-warmth",
+    inkL: "--ink-l", chunkAlpha: "--chunk-alpha",
+    perLine: "app.js LAYOUT.perLine", staffSize: "app.js LAYOUT.zoomCap",
+    motion: "--motion", reduceMotion: ".reduce-motion on <html>"
   };
 
   // --- state ---------------------------------------------------------------
@@ -86,12 +142,53 @@
   //     so these inline properties beat the stylesheet's :root, including the
   //     mobile media query (deliberate: on a phone the sliders still bite).
   function apply() {
-    var r = document.documentElement.style;
-    r.setProperty("--type-scale", String(state.typeScale));
-    r.setProperty("--fs-4-base",  state.titleSize + "px");
-    r.setProperty("--density",    String(state.density));
-    r.setProperty("--ctl-h",      state.controlH + "px");
-    r.setProperty("--tb-gap",     state.headerGap + "px");
+    var el = document.documentElement, r = el.style;
+
+    r.setProperty("--type-scale",       String(state.typeScale));
+    r.setProperty("--fs-4-base",        state.titleSize + "px");
+    r.setProperty("--weight-prominent", String(state.labelWeight));
+    r.setProperty("--track-caption",    state.tracking + "px");
+
+    r.setProperty("--density",      String(state.density));
+    r.setProperty("--ctl-h",        state.controlH + "px");
+    r.setProperty("--tb-gap",       state.headerGap + "px");
+    r.setProperty("--rail-w",       state.railW + "px");
+    r.setProperty("--music-gutter", state.gutter + "px");
+
+    // pillRadius carries a sentinel: its top step means "fully round", which is
+    // the shipped value (999px) and the app's identity. A linear slider to 999
+    // would spend its whole travel somewhere nothing changes.
+    r.setProperty("--ctl-radius",     (state.pillRadius >= 30 ? 999 : state.pillRadius) + "px");
+    r.setProperty("--ctl-radius-box", state.boxRadius + "px");
+    r.setProperty("--radius-card",    state.surfaceRadius + "px");
+    r.setProperty("--shadow-depth",   String(state.shadowDepth));
+
+    r.setProperty("--accent-h",     String(state.accentH));
+    r.setProperty("--accent-s",     state.accentS + "%");
+    r.setProperty("--paper-warmth", String(state.paperWarmth));
+    r.setProperty("--ink-l",        state.inkL + "%");
+    r.setProperty("--chunk-alpha",  String(state.chunkAlpha));
+
+    r.setProperty("--motion", String(state.motion));
+    el.classList.toggle("reduce-motion", !!state.reduceMotion);
+
+    // The two that aren't CSS at all.
+    if (window.__srLayout) {
+      window.__srLayout.perLine = state.perLine;
+      window.__srLayout.zoomCap = state.staffSize;
+    }
+  }
+
+  // A control the engraver cares about needs the score laid out again. app.js
+  // already debounces window resize into its render pass, so borrowing that is
+  // cheaper than a second entry point — and it is the same path a real window
+  // resize takes, so there is nothing extra to keep correct.
+  var nudgeTimer = null;
+  function nudge() {
+    clearTimeout(nudgeTimer);
+    nudgeTimer = setTimeout(function () {
+      window.dispatchEvent(new Event("resize"));
+    }, 120);
   }
 
   function ctl(key) {
@@ -102,7 +199,11 @@
   }
   function shown(key, val) {
     var c = ctl(key);
-    return (c.unit === "px" ? Math.round(val) : val) + c.unit;
+    if (c.kind === "switch") return val ? "on" : "off";
+    if (c.maxLabel && val >= c.max) return c.maxLabel;
+    // Round only where the step is whole — tracking moves in 0.05px, and
+    // rounding it reported the 0.7px default back as "1px".
+    return (c.unit === "px" && c.step >= 1 ? Math.round(val) : val) + c.unit;
   }
 
   // 5 · The block you paste back — only what moved, named by its token.
@@ -115,8 +216,9 @@
       }
     }
     if (!lines.length) return "Nothing moved — the sight-reading defaults are unchanged.";
-    return "Update the sight-reading design defaults in style.css:\n\n" +
-           lines.join("\n") + "\n\nEverything else unchanged.";
+    return "Update the sight-reading design defaults:\n\n" +
+           lines.join("\n") + "\n\nEverything else unchanged. Does it still read " +
+           "clearly with reduce motion on, and at the smallest type?";
   }
 
   // --- 4 · panel -----------------------------------------------------------
@@ -130,11 +232,24 @@
       "color:#1a1a1a;font-family:inherit;font-size:13px;font-weight:600;line-height:1;cursor:pointer}" +
     "#tw-top button:hover{background:#e4e4e9;opacity:1}" +
     "#tw-top button:active{opacity:1}" +
-    "#tw-body{padding:0 12px 12px;max-height:78vh;overflow-y:auto}" +
+    "#tw-body{padding:0 12px 12px;max-height:76vh;overflow-y:auto}" +
     "#tw.fold #tw-body{display:none}" +
-    ".tw-set{margin-top:6px}" +
-    ".tw-set>h4{font-size:10px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;" +
-      "color:#8e8e93;margin:10px 0 7px}" +
+    ".tw-set{border-top:1px solid #ececf0}" +
+    ".tw-set:first-child{border-top:none}" +
+    ".tw-h{display:flex;align-items:center;gap:6px;width:100%;padding:9px 0;border:none;" +
+      "background:none;cursor:pointer;font-family:inherit;font-size:10px;font-weight:600;" +
+      "letter-spacing:.6px;text-transform:uppercase;color:#8e8e93;text-align:left}" +
+    ".tw-h:hover,.tw-h:active{color:#1a1a1a;opacity:1}" +
+    ".tw-h i{font-style:normal;font-size:9px;width:9px}" +
+    ".tw-in{display:none;padding-bottom:2px}" +
+    ".tw-set.open .tw-in{display:block}" +
+    ".tw-sw{width:34px;height:20px;flex-shrink:0;padding:0;border:none;border-radius:999px;" +
+      "background:rgba(0,0,0,.16);cursor:pointer;position:relative;transition:background .15s}" +
+    ".tw-sw::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;" +
+      "border-radius:50%;background:#fff;transition:transform .15s}" +
+    ".tw-sw.on{background:#0a84ff}" +
+    ".tw-sw.on::after{transform:translateX(14px)}" +
+    ".tw-sw:hover,.tw-sw:active{opacity:1}" +
     ".tw-c{margin-bottom:11px}" +
     ".tw-l{display:flex;justify-content:space-between;align-items:baseline;gap:8px}" +
     ".tw-l span:last-child{font-variant-numeric:tabular-nums;font-weight:700;color:#0a84ff}" +
@@ -178,13 +293,42 @@
 
     var syncers = [];   // pull each control back to state — used by Reset
 
-    // Rendered from SETS — this loop never names an individual control.
+    // Rendered from SETS — this loop never names an individual control. Sets
+    // fold independently, which is what keeps twenty controls navigable: the
+    // one you are working on is the only one open.
+    var openSets = {};
+    try { openSets = JSON.parse(localStorage.getItem(FOLD + ":sets") || "{}"); } catch (e) {}
+
     SETS.forEach(function (set) {
       var wrap = document.createElement("div");
       wrap.className = "tw-set";
-      var h = document.createElement("h4");
-      h.textContent = set.title;
-      wrap.appendChild(h);
+
+      var h = document.createElement("button");
+      h.type = "button";
+      h.className = "tw-h";
+      var caret = document.createElement("i");
+      caret.textContent = "▸";
+      var htxt = document.createElement("span");
+      htxt.textContent = set.title;
+      h.appendChild(caret);
+      h.appendChild(htxt);
+
+      var inner = document.createElement("div");
+      inner.className = "tw-in";
+
+      var isOpen = openSets[set.id] !== false;   // open unless folded before
+      var draw = function () {
+        wrap.classList.toggle("open", isOpen);
+        caret.textContent = isOpen ? "▾" : "▸";
+        h.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      };
+      h.addEventListener("click", function () {
+        isOpen = !isOpen;
+        openSets[set.id] = isOpen;
+        try { localStorage.setItem(FOLD + ":sets", JSON.stringify(openSets)); } catch (e) {}
+        draw();
+      });
+      draw();
 
       set.controls.forEach(function (c) {
         var row = document.createElement("div");
@@ -198,34 +342,55 @@
         lval.textContent = shown(c.key, state[c.key]);
         lab.appendChild(lname);
         lab.appendChild(lval);
+        row.appendChild(lab);
 
-        var slider = document.createElement("input");
-        slider.type = "range";
-        slider.min = c.min; slider.max = c.max; slider.step = c.step;
-        slider.value = state[c.key];
-        slider.setAttribute("aria-label", c.label);
-        slider.addEventListener("input", function () {
-          state[c.key] = parseFloat(slider.value);
+        var commit = function (v) {
+          state[c.key] = v;
           lval.textContent = shown(c.key, state[c.key]);
           apply();
           save();
-        });
+          if (c.re) nudge();
+        };
 
-        syncers.push(function () {
-          slider.value = state[c.key];
-          lval.textContent = shown(c.key, state[c.key]);
-        });
+        var input;
+        if (c.kind === "switch") {
+          input = document.createElement("button");
+          input.type = "button";
+          input.className = "tw-sw";
+          input.setAttribute("aria-label", c.label);
+          var paint = function () {
+            input.classList.toggle("on", !!state[c.key]);
+            input.setAttribute("aria-pressed", state[c.key] ? "true" : "false");
+          };
+          input.addEventListener("click", function () { commit(state[c.key] ? 0 : 1); paint(); });
+          paint();
+          lab.appendChild(input);          // a switch sits on its label's row
+          syncers.push(function () { lval.textContent = shown(c.key, state[c.key]); paint(); });
+        } else {
+          input = document.createElement("input");
+          input.type = "range";
+          input.min = c.min; input.max = c.max; input.step = c.step;
+          input.value = state[c.key];
+          input.setAttribute("aria-label", c.label);
+          input.addEventListener("input", function () { commit(parseFloat(input.value)); });
+          row.appendChild(input);
+          syncers.push(function () {
+            input.value = state[c.key];
+            lval.textContent = shown(c.key, state[c.key]);
+          });
+        }
 
-        row.appendChild(lab);
-        row.appendChild(slider);
         if (c.note) {
           var n = document.createElement("small");
           n.className = "tw-n";
           n.textContent = c.note;
           row.appendChild(n);
         }
-        wrap.appendChild(row);
+        inner.appendChild(row);
       });
+
+      wrap.appendChild(h);
+      wrap.appendChild(inner);
       body.appendChild(wrap);
     });
 
@@ -265,7 +430,7 @@
 
     reset.addEventListener("click", function () {
       for (var k in DEFAULTS) state[k] = DEFAULTS[k];
-      apply(); save();
+      apply(); save(); nudge();
       syncers.forEach(function (f) { f(); });
     });
   }
