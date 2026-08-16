@@ -740,35 +740,56 @@
     return { xml: new XMLSerializer().serializeToString(doc), applied: applied };
   }
 
-  // Slur consecutive sounding notes in groups of n, per bar. Rests break a
-  // group, and a leftover group of one gets no slur — a slur needs two ends.
-  // OSMD draws the curves from the <slur> notations natively.
+  // Slur consecutive sounding notes in groups of n, straight through barlines,
+  // because a phrase does. Grouping per bar used to strand the tail of every
+  // bar the group did not divide — "slur in 2s" in 3/4 joined two notes and
+  // left the third alone, in every bar, which is a stutter rather than a
+  // phrase. Where the group does divide the bar the chain re-aligns at each
+  // barline by itself, so the meters that already looked right are untouched.
+  //
+  // Rests break a group: that is a real lift, not a barline. A leftover group
+  // of one gets no slur — a slur needs two ends.
+  //
+  // A tied note counts once, however many noteheads it is written with. Both
+  // marks are the same curve and they mean opposite things — a tie says do not
+  // play the second head, a slur says play them all, joined — so a slur that
+  // restarted on the far side of a tie turned the line into a chain of curves
+  // with no way to tell one from the other. The slur spans the held note
+  // instead, entering before it and leaving after.
   function applySlursToXml(xml, n) {
     var doc = new DOMParser().parseFromString(xml, "application/xml");
     if (doc.querySelector("parsererror")) return xml;
-    doc.querySelectorAll("measure").forEach(function (measure) {
-      var run = [];
-      function flush() {
-        for (var i = 0; i + 1 < run.length; i += n) {
-          var group = run.slice(i, i + n);
-          if (group.length < 2) break;
-          [[group[0], "start"], [group[group.length - 1], "stop"]].forEach(function (pair) {
-            var nts = pair[0].querySelector("notations");
-            if (!nts) { nts = doc.createElement("notations"); pair[0].appendChild(nts); }
-            var slur = doc.createElement("slur");
-            slur.setAttribute("type", pair[1]);
-            slur.setAttribute("number", "1");
-            nts.appendChild(slur);
-          });
-        }
-        run = [];
+
+    function addSlur(note, type) {
+      var nts = note.querySelector("notations");
+      if (!nts) { nts = doc.createElement("notations"); note.appendChild(nts); }
+      var slur = doc.createElement("slur");
+      slur.setAttribute("type", type);
+      slur.setAttribute("number", "1");
+      nts.appendChild(slur);
+    }
+
+    // One unit per sounding note — first and last are the same notehead unless
+    // the note is tied, in which case the unit spans the whole held chain.
+    var run = [];
+    function flush() {
+      for (var i = 0; i + 1 < run.length; i += n) {
+        var group = run.slice(i, i + n);
+        if (group.length < 2) break;
+        addSlur(group[0].first, "start");
+        addSlur(group[group.length - 1].last, "stop");
       }
-      Array.prototype.forEach.call(measure.querySelectorAll("note"), function (note) {
-        if (note.querySelector("rest")) flush();
-        else run.push(note);
-      });
-      flush();
+      run = [];
+    }
+    Array.prototype.forEach.call(doc.querySelectorAll("note"), function (note) {
+      if (note.querySelector("rest")) { flush(); return; }
+      if (run.length && note.querySelector("tie[type=stop]")) {
+        run[run.length - 1].last = note;    // still the same sound
+        return;
+      }
+      run.push({ first: note, last: note });
     });
+    flush();
     return new XMLSerializer().serializeToString(doc);
   }
 
