@@ -1693,6 +1693,11 @@ button.secondary {
   gap: 8px;
 }
 
+/* The vocab page stacks a row of presets straight onto the grid they light.
+   They are two different questions — which drill, then which figures — so they
+   need the gap that says so; butted together they read as one control. */
+.ob-body .ob-pills + .fig-grid { margin-top: 16px; }
+
 /* An interval pill: the matrix row compressed to its checkbox and its dot. The
    dot is the exact colour that will highlight that interval on the staff. */
 .ob-int { padding: 0 14px 0 11px; }

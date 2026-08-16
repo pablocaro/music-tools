@@ -2788,9 +2788,6 @@
   // than clearing storage.
   var OB_FLAG = /[?&]onboarding(?:[=&]|$)/.test(location.search);
   var OB_PAGES = ["intro", "instrument", "vocab"];
-  // The plain note values plus one rest: the first six cells of the real rhythm
-  // grid, in the same order, so the grid is recognisable when the rest appear.
-  var OB_FIGS = ["w", "h", "q", "ee", "ssss", "qr"];
   var obPage = 0;
 
   function obSetFigure(id, on) {
@@ -2892,34 +2889,49 @@
     } else if (page === "vocab") {
       obHeading(host, "ob.vocabTitle");
 
-      var rg = obGroup(host, "ob.vocabRhythm");
+      // Three named drills rather than a blank vocabulary to author. Ticking a
+      // quarter-note cell asks a beginner to compose a syllabus before they
+      // know what one is; "Jig" is a thing you can want to read. The three
+      // span the range instead of leading the list: the floor, the first real
+      // skill, and one that proves compound time exists at all.
+      var picks = ["steps only", "thirds drill", "jig"];
+      obPills(host, picks.map(function (n) { return { id: n, html: presetLabel(n) }; }),
+        function (it) { return activePreset === it.id; },
+        function (it) {
+          applyPreset(builtinPreset(it.id));
+          syncPanel();                 // a preset moves any control, meter included
+          activePreset = it.id;
+          buildObPage();               // …and the grid below is a view of that state
+        },
+        "ob-preset");
+
+      // The real figures for whatever meter is now in play, not a fixed six —
+      // so picking Jig flips the grid to compound time in front of you, and
+      // the vocabulary a name stands for is something you watch arrive rather
+      // than something you are told about. The cells stay live: tap a preset,
+      // then change one thing, which is exactly what the panel does.
       var grid = document.createElement("div");
       grid.className = "fig-grid";
-      rg.appendChild(grid);
-      OB_FIGS.forEach(function (id) {
+      host.appendChild(grid);
+      // Basic group only: the full palette runs to eighteen cells in 4/4, which
+      // is a wall on a card whose job is to be read once. The across-the-beat
+      // set is precisely what "change any of it later" is promising.
+      currentBeatFigures().filter(function (f) { return (f.group || "basic") === "basic"; })
+                          .forEach(function (item) {
         var cell = document.createElement("button");
         cell.type = "button";
-        cell.className = "fig-cell";
-        cell.setAttribute("aria-label", t("fig." + id));
-        cell.innerHTML = figureGlyph(id);
-        cell.classList.toggle("on", obFigureOn(id));
+        cell.className = "fig-cell" + (item.wide ? " wide" : "");
+        cell.setAttribute("aria-label", t("fig." + item.id));
+        cell.innerHTML = figureGlyph(item.id);
+        cell.classList.toggle("on", obFigureOn(item.id));
         cell.addEventListener("click", function () {
-          obSetFigure(id, !obFigureOn(id));
-          cell.classList.toggle("on", obFigureOn(id));
+          obSetFigure(item.id, !obFigureOn(item.id));
+          cell.classList.toggle("on", obFigureOn(item.id));
+          activePreset = null;         // edited past the preset — the pills unlight
+          host.querySelectorAll(".ob-preset").forEach(function (p) { p.classList.remove("on"); });
         });
         grid.appendChild(cell);
       });
-
-      // Unison is left out: a repeated note is the least useful thing a
-      // beginner can switch on, and dropping it makes the row read cleanly.
-      var ig = obGroup(host, "ob.vocabSteps");
-      var ivs = [];
-      for (var i = 1; i < INTERVALS.length; i++) ivs.push({ i: i, html:
-        '<span class="dot" style="background:' + INTERVALS[i].c + '"></span>' + stepLabel(i) });
-      obPills(ig, ivs,
-        function (it) { return stepChecks[it.i].checked; },
-        function (it) { stepChecks[it.i].checked = !stepChecks[it.i].checked; syncStepRow(it.i); },
-        "ob-int");
 
       obIconPara(host, "ob.vocabNote", "ob-note");
     }

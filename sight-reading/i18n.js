@@ -230,12 +230,10 @@ window.SR_I18N = {
     "ob.next":        "Next",
     "ob.instrTitle":  "What do you play?",
     "ob.instrNote":   "Sets your clef and range — both can be changed later.",
-    "ob.vocabTitle":  "Choose your starting point",
-    "ob.vocabRhythm": "Rhythm",
-    "ob.vocabSteps":  "Intervals",
+    "ob.vocabTitle":  "Pick something to read",
     // {icon} is replaced with the real settings glyph, so the sentence points
     // at the button the student will actually look for.
-    "ob.vocabNote":   "Steps only \u2014 add leaps whenever. Everything else is behind {icon}.",
+    "ob.vocabNote":   "Change any of it later in {icon}.",
     "ob.go":          "Start practicing",
 
     // prompts and messages
@@ -452,10 +450,8 @@ window.SR_I18N = {
     "ob.next":        "Siguiente",
     "ob.instrTitle":  "¿Qué tocas?",
     "ob.instrNote":   "Define tu clave y tu registro — ambos se pueden cambiar después.",
-    "ob.vocabTitle":  "Elige tu punto de partida",
-    "ob.vocabRhythm": "Ritmo",
-    "ob.vocabSteps":  "Intervalos",
-    "ob.vocabNote":   "Empiezas solo con grados conjuntos \u2014 a\u00f1ade saltos cuando quieras. Todo lo dem\u00e1s est\u00e1 detr\u00e1s de {icon}.",
+    "ob.vocabTitle":  "Elige algo para leer",
+    "ob.vocabNote":   "Puedes cambiar cualquier cosa despu\u00e9s en {icon}.",
     "ob.go":          "Empezar a practicar",
 
     "msg.newPresetName": "Nombre del preset:",
