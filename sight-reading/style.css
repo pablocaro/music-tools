@@ -1067,6 +1067,9 @@ button.secondary {
 .tb-btn.on { background: var(--ctl-on-tint); color: var(--ctl-on); }
 .tb-btn.on:hover { background: color-mix(in srgb, var(--accent) 18%, var(--paper)); }
 
+/* Metronome and accompaniment use standard panel height, not the large size */
+#metro-toggle, #accomp-toggle { width: var(--ctl-h); height: var(--ctl-h); }
+
 /* Chord names above the staff — drawn on their own overlay, positioned off
    the engraved geometry the way the chunk blocks are. */
 #chord-overlay { position: absolute; top: 0; left: 0; pointer-events: none; }
