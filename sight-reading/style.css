@@ -63,12 +63,14 @@
      quiet rail — platter lift is 0.1 for the same reason. */
   --rail-tone: 3;        /* how far the trough drops below white */
   --rail-bg: hsl(38 calc(var(--paper-warmth) * 1%) calc(100% - var(--rail-tone) * 1%));
-  --platter-radius: 22px;
+  --platter-radius: 24px;
   --platter-pad: 18px;
-  --platter-gap: 12px;
-  --rail-inset: 24px;    /* how far the platters sit off the rail's edge */
+  --platter-gap: 10px;
+  --rail-inset: 20px;    /* how far the platters sit off the rail's edge */
   --platter-lift: 0.1;   /* platter shadow, softer than a floating surface's */
   --platter-edge: 0;     /* 0 = shadow alone, 1 = a hairline instead */
+  --caret-size: 12px;    /* the fold chevron on a platter header */
+  --caret-weight: 2px;   /* its stroke, in real px whatever the size */
 
   /* Corner curvature, as the exponent of a superellipse: 0 bevels, 1 is the
      plain circular corner every border-radius draws, 2 is the continuous
@@ -123,10 +125,14 @@
      rather than heavier. Deliberate for now: the airy pass wanted quieter
      labels. If body copy ever appears beside a panel label, they will disagree
      and standard should come down with it. */
-  --fs-0: calc(10px * var(--type-scale));
-  --fs-1: calc(11px * var(--type-scale));
-  --fs-2: calc(14px * var(--type-scale));
-  --fs-3: calc(17px * var(--type-scale));
+  --fs-0-base: 10px;
+  --fs-1-base: 11px;
+  --fs-2-base: 14px;
+  --fs-3-base: 17px;
+  --fs-0: calc(var(--fs-0-base) * var(--type-scale));
+  --fs-1: calc(var(--fs-1-base) * var(--type-scale));
+  --fs-2: calc(var(--fs-2-base) * var(--type-scale));
+  --fs-3: calc(var(--fs-3-base) * var(--type-scale));
   /* The title is display type and already steps down on its own for mobile, so
      it keeps a base of its own — one thing for the media query and the tweak
      panel to set, with the scale still riding over the top. */
@@ -140,8 +146,9 @@
   --weight-standard:  500;   /* body copy; the panel doesn't use it */
   --weight-prominent: 450;   /* the panel's default */
   --weight-strong:    700;   /* values and the drill title */
-  --track-caption: 1.35px;    /* the uppercase headings' letter-spacing — what
+  --track-caption: 1.35px;   /* the uppercase headings' letter-spacing — what
                                 makes a caption read as a label, not as text */
+  --leading: 1.55;           /* body copy only; controls set their own */
 
   /* Characters used as icons rather than text — clefs, accidentals, the
      stepper's +/-. Sized optically, so they sit outside the type scale. */
@@ -440,16 +447,21 @@ button.playing svg.state-alt { display: block; }
 }
 .band-h:hover, .band-h:active { color: var(--ink); opacity: 1; }
 
-/* Drawn rather than a glyph, so it rotates cleanly and needs no font. */
+/* A stroked path rather than two borders, so all three points can be round —
+   borders can only round the elbow, since the free ends are cut square by the
+   border box. non-scaling-stroke keeps the weight in real px, so size and
+   weight stay independent decisions rather than one dragging the other. */
 .band-caret {
   flex-shrink: 0;
-  width: 7px; height: 7px;
-  border-right: 2px solid currentColor;
-  border-bottom: 2px solid currentColor;
-  transform: translateY(-2px) rotate(45deg);
+  display: block;
+  width: var(--caret-size);
+  height: var(--caret-size);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: var(--caret-weight);
   transition: transform calc(0.2s * var(--motion));
 }
-.band.folded .band-caret { transform: translateY(0) rotate(-45deg); }
+.band.folded .band-caret { transform: rotate(-90deg); }
 
 .band-body {
   display: flex;
@@ -467,7 +479,7 @@ button.playing svg.state-alt { display: block; }
 .intro-copy {
   font-size: var(--type-label);
   font-weight: var(--weight-standard);
-  line-height: 1.5;
+  line-height: var(--leading);
   color: var(--ink);
   margin-top: 2px;
 }
@@ -1461,7 +1473,7 @@ button.secondary {
 .help-intro {
   font-size: var(--type-label);
   font-weight: var(--weight-standard);
-  line-height: 1.55;
+  line-height: var(--leading);
   color: var(--ink);
   margin-bottom: 22px;
 }
@@ -1480,7 +1492,7 @@ button.secondary {
 .help-item p {
   font-size: var(--type-label);
   font-weight: var(--weight-standard);
-  line-height: 1.55;
+  line-height: var(--leading);
   color: var(--ink);
 }
 
@@ -1569,7 +1581,7 @@ button.secondary {
 .ob-body p {
   font-size: var(--type-label);
   font-weight: var(--weight-standard);
-  line-height: 1.55;
+  line-height: var(--leading);
   color: var(--ink);
 }
 .ob-body p + p { margin-top: 14px; }

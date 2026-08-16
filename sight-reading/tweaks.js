@@ -26,7 +26,7 @@
 
   if (!/[?&]tweaks(?:[=&]|$)/.test(location.search)) return;
 
-  var KEY = "sr_tweaks:v5";      // bumped when the defaults move, so a stored
+  var KEY = "sr_tweaks:v6";      // bumped when the defaults move, so a stored
                                  // set of slider values cannot mask the new baseline
   var FOLD = "sr_tweaks_fold";
 
@@ -34,15 +34,18 @@
   //     the neutral one, so "all defaults" is byte-identical to no panel.
   var DEFAULTS = {
     // type
-    typeScale: 1, titleSize: 30, labelWeight: 450, tracking: 1.35,
+    typeScale: 1, sizeMicro: 10, sizeCaption: 11, sizeLabel: 14, sizeLead: 17,
+    titleSize: 30, labelWeight: 450, valueWeight: 700, bodyWeight: 500,
+    tracking: 1.35, leading: 1.55,
     // spacing
     density: 1.25, controlH: 40, headerGap: 8, railW: 400, gutter: 28,
     // shape
     pillRadius: 999, boxRadius: 18, surfaceRadius: 26, shadowDepth: 0.65,
     cornerCurve: 1,
     // rail
-    railTone: 3, platterRadius: 22, platterPad: 18, platterGap: 12,
-    platterLift: 0.1, platterEdge: 0, railInset: 24,
+    railTone: 3, platterRadius: 24, platterPad: 18, platterGap: 10,
+    platterLift: 0.1, platterEdge: 0, railInset: 20,
+    caretSize: 12, caretWeight: 2,
     // colour
     accentH: 203, accentS: 99, paperWarmth: 6, inkL: 25, chunkAlpha: 0.5,
     // music
@@ -56,13 +59,27 @@
   var SETS = [
     { id: "type", title: "Typography", controls: [
       { key: "typeScale",   label: "Type scale",   min: 0.85, max: 1.25, step: 0.01, unit: "×",
-        note: "every step of the scale at once" },
-      { key: "titleSize",   label: "Drill title",  min: 18,  max: 40,  step: 1, unit: "px",
+        note: "multiplies every step below at once" },
+      { key: "sizeMicro",   label: "Micro",        min: 7,  max: 16, step: 0.5, unit: "px",
+        note: "note letters, octave numbers, weights" },
+      { key: "sizeCaption", label: "Caption",      min: 8,  max: 18, step: 0.5, unit: "px",
+        note: "section headings, legend, tooltips" },
+      { key: "sizeLabel",   label: "Label",        min: 10, max: 22, step: 0.5, unit: "px",
+        note: "anything you tap that says a word" },
+      { key: "sizeLead",    label: "Lead",         min: 12, max: 26, step: 0.5, unit: "px",
+        note: "the subtitle under the drill title" },
+      { key: "titleSize",   label: "Drill title",  min: 18, max: 44, step: 1, unit: "px",
         note: "display type, riding over the scale" },
-      { key: "labelWeight", label: "Label weight", min: 400, max: 800, step: 50, unit: "",
+      { key: "labelWeight", label: "Label weight", min: 300, max: 800, step: 25, unit: "",
         note: "the panel's default weight" },
-      { key: "tracking",    label: "Caption track", min: 0,  max: 2,   step: 0.05, unit: "px",
-        note: "letter-spacing on the uppercase headings" }
+      { key: "valueWeight", label: "Value weight", min: 400, max: 900, step: 25, unit: "",
+        note: "what marks a number as the answer" },
+      { key: "bodyWeight",  label: "Body weight",  min: 300, max: 700, step: 25, unit: "",
+        note: "help and onboarding prose" },
+      { key: "tracking",    label: "Caption track", min: 0, max: 2, step: 0.05, unit: "px",
+        note: "letter-spacing on the uppercase headings" },
+      { key: "leading",     label: "Line height",  min: 1.1, max: 2, step: 0.05, unit: "×",
+        note: "body copy only; controls set their own" }
     ] },
     { id: "space", title: "Spacing", controls: [
       { key: "density",   label: "Panel density", min: 0.7, max: 1.4, step: 0.05, unit: "×",
@@ -102,7 +119,11 @@
       { key: "platterGap",    label: "Platter gap",     min: 0, max: 24, step: 1, unit: "px",
         note: "trough showing between cards" },
       { key: "railInset",     label: "Panel inset",     min: 0, max: 40, step: 1, unit: "px",
-        note: "how far the stack sits off the rail's edge" }
+        note: "how far the stack sits off the rail's edge" },
+      { key: "caretSize",     label: "Chevron size",    min: 8, max: 22, step: 1, unit: "px",
+        note: "the fold arrow on a platter header" },
+      { key: "caretWeight",   label: "Chevron weight",  min: 1, max: 4, step: 0.25, unit: "px",
+        note: "its stroke — the points stay round at any weight" }
     ] },
     { id: "colour", title: "Colour", controls: [
       { key: "accentH",     label: "Accent hue",   min: 0, max: 360, step: 1, unit: "°",
@@ -134,7 +155,11 @@
   // back names the thing to edit rather than describing it in prose.
   var TOKEN = {
     typeScale: "--type-scale", titleSize: "--fs-4-base",
-    labelWeight: "--weight-prominent", tracking: "--track-caption",
+    sizeMicro: "--fs-0-base", sizeCaption: "--fs-1-base",
+    sizeLabel: "--fs-2-base", sizeLead: "--fs-3-base",
+    labelWeight: "--weight-prominent", valueWeight: "--weight-strong",
+    bodyWeight: "--weight-standard", tracking: "--track-caption",
+    leading: "--leading",
     density: "--density", controlH: "--ctl-h", headerGap: "--tb-gap",
     railW: "--rail-w", gutter: "--music-gutter",
     pillRadius: "--ctl-radius", boxRadius: "--ctl-radius-box",
@@ -144,6 +169,7 @@
     platterPad: "--platter-pad", platterGap: "--platter-gap",
     platterLift: "--platter-lift", platterEdge: "--platter-edge",
     railInset: "--rail-inset",
+    caretSize: "--caret-size", caretWeight: "--caret-weight",
     accentH: "--accent-h", accentS: "--accent-s", paperWarmth: "--paper-warmth",
     inkL: "--ink-l", chunkAlpha: "--chunk-alpha",
     perLine: "app.js LAYOUT.perLine", staffSize: "app.js LAYOUT.zoomCap",
@@ -174,8 +200,15 @@
 
     r.setProperty("--type-scale",       String(state.typeScale));
     r.setProperty("--fs-4-base",        state.titleSize + "px");
+    r.setProperty("--fs-0-base",        state.sizeMicro + "px");
+    r.setProperty("--fs-1-base",        state.sizeCaption + "px");
+    r.setProperty("--fs-2-base",        state.sizeLabel + "px");
+    r.setProperty("--fs-3-base",        state.sizeLead + "px");
     r.setProperty("--weight-prominent", String(state.labelWeight));
+    r.setProperty("--weight-strong",    String(state.valueWeight));
+    r.setProperty("--weight-standard",  String(state.bodyWeight));
     r.setProperty("--track-caption",    state.tracking + "px");
+    r.setProperty("--leading",          String(state.leading));
 
     r.setProperty("--density",      String(state.density));
     r.setProperty("--ctl-h",        state.controlH + "px");
@@ -199,6 +232,8 @@
     r.setProperty("--platter-lift",    String(state.platterLift));
     r.setProperty("--platter-edge",    String(state.platterEdge));
     r.setProperty("--rail-inset",      state.railInset + "px");
+    r.setProperty("--caret-size",      state.caretSize + "px");
+    r.setProperty("--caret-weight",    state.caretWeight + "px");
 
     r.setProperty("--accent-h",     String(state.accentH));
     r.setProperty("--accent-s",     state.accentS + "%");

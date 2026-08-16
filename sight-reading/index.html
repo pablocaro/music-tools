@@ -55,6 +55,10 @@
       <path d="M20.3796 14.541C20.6238 14.9707 20.7605 15.4492 20.7605 15.9082C20.7605 17.4023 19.7546 18.5547 18.0945 18.5547L2.948 18.5547C1.29761 18.5547 0.291753 17.4023 0.291753 15.9082C0.291753 15.4492 0.408941 14.9805 0.672613 14.541L1.05937 13.8672L19.9929 13.8672ZM7.03003 12.5879L1.79364 12.5879L3.70315 9.26101ZM12.8015 1.33789L19.2586 12.5879L13.025 12.5879L11.2878 10.8524L11.2878 4.4043C11.2878 3.91602 10.9949 3.60352 10.5164 3.60352C10.0281 3.60352 9.73511 3.91602 9.73511 4.4043L9.73511 9.30106L5.88689 5.45635L8.25074 1.33789C8.74878 0.449219 9.62769 0 10.5261 0C11.4148 0 12.2937 0.449219 12.8015 1.33789Z"/>
       <path d="M9.11011 12.7734L11.2976 12.7539L2.68433 4.14062C2.36207 3.81836 1.93238 3.80859 1.58082 4.14062C1.23902 4.48242 1.25855 4.93164 1.58082 5.26367Z"/>
     </symbol>
+    <symbol id="ic-chevron" viewBox="0 0 12 12">
+      <path d="M2.5 4.75 L6 8.25 L9.5 4.75" fill="none" vector-effect="non-scaling-stroke"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
     <symbol id="ic-eye-on" viewBox="0 0 26.8359 16.6113">
       <path d="M13.2422 16.6016C21.0645 16.6016 26.4746 10.2734 26.4746 8.30078C26.4746 6.31836 21.0547 0 13.2422 0C5.51758 0 0 6.31836 0 8.30078C0 10.2734 5.51758 16.6016 13.2422 16.6016ZM13.2422 13.7598C10.2246 13.7598 7.7832 11.3086 7.7832 8.30078C7.7832 5.2832 10.2246 2.8418 13.2422 2.8418C16.25 2.8418 18.7012 5.2832 18.7012 8.30078C18.7012 11.3086 16.25 13.7598 13.2422 13.7598ZM13.2422 10.293C14.3457 10.293 15.2344 9.4043 15.2344 8.30078C15.2344 7.19727 14.3457 6.30859 13.2422 6.30859C12.1387 6.30859 11.25 7.19727 11.25 8.30078C11.25 9.4043 12.1387 10.293 13.2422 10.293Z"/>
     </symbol>
@@ -158,7 +162,7 @@
       <div class="band" data-band="presets">
         <button class="band-h" type="button" aria-expanded="true" aria-controls="bb-presets">
           <span class="band-t" data-i18n="sec.presets">Presets</span>
-          <i class="band-caret" aria-hidden="true"></i>
+          <svg class="band-caret" aria-hidden="true"><use href="#ic-chevron"/></svg>
         </button>
         <div class="band-body" id="bb-presets">
           <section class="sec">
@@ -171,7 +175,7 @@
       <div class="band" data-band="rhythm">
         <button class="band-h" type="button" aria-expanded="true" aria-controls="bb-rhythm">
           <span class="band-t" data-i18n="sec.rhythm">Rhythm</span>
-          <i class="band-caret" aria-hidden="true"></i>
+          <svg class="band-caret" aria-hidden="true"><use href="#ic-chevron"/></svg>
         </button>
         <div class="band-body" id="bb-rhythm">
           <section class="sec">
@@ -198,12 +202,12 @@
       </div>
 
       <!-- STEP · NOTES — the melodic alphabet and the pitches it may use -->
-      <div class="band" data-band="pitch">
-        <button class="band-h" type="button" aria-expanded="true" aria-controls="bb-pitch">
-          <span class="band-t" data-i18n="band.pitch">Pitch</span>
-          <i class="band-caret" aria-hidden="true"></i>
+      <div class="band" data-band="music">
+        <button class="band-h" type="button" aria-expanded="true" aria-controls="bb-music">
+          <span class="band-t" data-i18n="band.music">Music</span>
+          <svg class="band-caret" aria-hidden="true"><use href="#ic-chevron"/></svg>
         </button>
-        <div class="band-body" id="bb-pitch">
+        <div class="band-body" id="bb-music">
           <section class="sec sec-step">
             <h2 class="sec-h" data-i18n="sec.step">Intervals</h2>
             <div class="matrix-head">
@@ -245,12 +249,12 @@
       <!-- READING AIDS — both are training wheels rather than part of the
            exercise: one shows you more, the other shows you less, and both
            come off as the reading improves. Neither is saved in a preset. -->
-      <div class="band" data-band="aids">
-        <button class="band-h" type="button" aria-expanded="true" aria-controls="bb-aids">
-          <span class="band-t" data-i18n="band.aids">Reading Aids</span>
-          <i class="band-caret" aria-hidden="true"></i>
+      <div class="band" data-band="reading">
+        <button class="band-h" type="button" aria-expanded="true" aria-controls="bb-reading">
+          <span class="band-t" data-i18n="band.reading">Reading</span>
+          <svg class="band-caret" aria-hidden="true"><use href="#ic-chevron"/></svg>
         </button>
-        <div class="band-body" id="bb-aids">
+        <div class="band-body" id="bb-reading">
           <section class="sec sec-hide">
             <h2 class="sec-h" data-i18n="sec.hideAhead">Hide Ahead</h2>
             <div class="sec-row unit">
@@ -296,7 +300,7 @@
       <div class="band" data-band="staff">
         <button class="band-h" type="button" aria-expanded="true" aria-controls="bb-staff">
           <span class="band-t" data-i18n="band.staff">Staff &amp; Length</span>
-          <i class="band-caret" aria-hidden="true"></i>
+          <svg class="band-caret" aria-hidden="true"><use href="#ic-chevron"/></svg>
         </button>
         <div class="band-body" id="bb-staff">
           <section class="sec sec-key">
@@ -322,7 +326,7 @@
       <div class="band" data-band="setup">
         <button class="band-h" type="button" aria-expanded="true" aria-controls="bb-setup">
           <span class="band-t" data-i18n="band.setup">Setup</span>
-          <i class="band-caret" aria-hidden="true"></i>
+          <svg class="band-caret" aria-hidden="true"><use href="#ic-chevron"/></svg>
         </button>
         <div class="band-body" id="bb-setup">
           <section class="sec sec-instrument">

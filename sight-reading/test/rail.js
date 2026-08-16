@@ -127,21 +127,21 @@ const { chromium } = require(PW);
 
   // fold two, reload, they must still be folded
   await p.evaluate(() => {
-    document.querySelector('[data-band="pitch"] .band-h').click();
-    document.querySelector('[data-band="aids"] .band-h').click();
+    document.querySelector('[data-band="music"] .band-h').click();
+    document.querySelector('[data-band="reading"] .band-h').click();
   });
   await p.waitForTimeout(200);
   const folded = await p.evaluate(() => ({
-    pitch: document.querySelector('[data-band="pitch"]').classList.contains('folded'),
-    aria: document.querySelector('[data-band="pitch"] .band-h').getAttribute('aria-expanded'),
-    bodyHidden: getComputedStyle(document.querySelector('#bb-pitch')).display
+    music: document.querySelector('[data-band="music"]').classList.contains('folded'),
+    aria: document.querySelector('[data-band="music"] .band-h').getAttribute('aria-expanded'),
+    bodyHidden: getComputedStyle(document.querySelector('#bb-music')).display
   }));
   await p.reload({ waitUntil: 'domcontentloaded' });
   await p.waitForSelector('#sheet svg', { timeout: 20000 }); await p.waitForTimeout(500);
   await p.click('#settings-toggle'); await p.waitForTimeout(600);
   const after = await p.evaluate(() => ({
-    pitch: document.querySelector('[data-band="pitch"]').classList.contains('folded'),
-    aids: document.querySelector('[data-band="aids"]').classList.contains('folded'),
+    music: document.querySelector('[data-band="music"]').classList.contains('folded'),
+    reading: document.querySelector('[data-band="reading"]').classList.contains('folded'),
     presets: document.querySelector('[data-band="presets"]').classList.contains('folded')
   }));
   console.log('fold + persist        : ' + JSON.stringify({ ...folded, afterReload: after }) +
