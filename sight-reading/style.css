@@ -51,6 +51,27 @@
                             viewports just gain negative space on the sides */
   --music-min: 640px;    /* …and never shrinks narrower than this */
   --music-gutter: 28px;  /* air either side of the staff */
+
+  /* The rail as a trough of platters. Three surfaces have to stay legible as a
+     stack — trough behind, platter on it, control on that — so the trough sits
+     a step *below* --ctl-fill (96%) rather than level with it, or a pill near a
+     platter's edge reads as a hole punched through the card. It takes the same
+     warmth as the paper, so the whole rail tints together. */
+  --rail-tone: 7;        /* how far the trough drops below white */
+  --rail-bg: hsl(38 calc(var(--paper-warmth) * 1%) calc(100% - var(--rail-tone) * 1%));
+  --platter-radius: 16px;
+  --platter-pad: 16px;
+  --platter-gap: 10px;
+  --platter-lift: 0.5;   /* platter shadow, softer than a floating surface's */
+  --platter-edge: 0;     /* 0 = shadow alone, 1 = a hairline instead */
+
+  /* Corner curvature, as the exponent of a superellipse: 0 bevels, 1 is the
+     plain circular corner every border-radius draws, 2 is the continuous
+     "squircle" iOS uses, higher tends back to square. Applied through
+     corner-shape, which composes with border-radius and — unlike a clip-path
+     squircle — leaves shadows and borders intact. Chromium-only for now, so it
+     sits behind @supports and everywhere else simply stays circular. */
+  --corner-curve: 1;
   --rail-w: 400px;       /* the settings rail's width, open. With the gutters it
                             sets what the push breakpoint must clear: 640 + 56 +
                             400 = 1096, so the 1100px media query still has room.
@@ -178,6 +199,18 @@
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
   scroll-behavior: auto !important;
+}
+
+/* Continuous ("squircle") corners, on the rounded rectangles only — pills are
+   already a full radius, where the shape barely differs and the cost is a
+   wobble at the join. Progressive enhancement in the truest sense: where
+   corner-shape is unsupported the same border-radius simply draws its circular
+   arc, and nothing else about the layout depends on it. */
+@supports (corner-shape: squircle) {
+  .band, .pop, .menu, .help-sheet, .ob-card, .controlbar,
+  .fig-cell, .note-cell, .stepper, .tb-btn, .cb-icon, .icon-toggle {
+    corner-shape: superellipse(var(--corner-curve));
+  }
 }
 
 /* iOS/iPadOS: stop a tap on a control from triggering double-tap-to-zoom
@@ -320,7 +353,7 @@ button.playing svg.state-alt { display: block; }
      the drawer can always be dismissed even where it covers the ⚙ that opened
      it (Escape works too). */
   width: min(var(--rail-w), 88vw);
-  background: var(--paper);
+  background: var(--rail-bg);
   box-shadow: -6px 0 calc(34px * var(--shadow-depth)) rgba(0, 0, 0, calc(0.14 * var(--shadow-depth)));
   transform: translateX(100%);
   transition: transform calc(0.34s * var(--motion)) cubic-bezier(0.32, 0.72, 0, 1);
@@ -334,7 +367,7 @@ button.playing svg.state-alt { display: block; }
     width: var(--rail-w);
     flex-shrink: 0;
     box-shadow: none;
-    border-left: 1px solid var(--line);
+    border-left: 1px solid rgba(0, 0, 0, 0.06);
     /* display, not transform: a pushed rail has no closed position to slide to,
        and hiding it is what hands the width back to the music. No animation —
        the score re-engraves at the new width in one step, so a sliding edge
@@ -366,15 +399,86 @@ button.playing svg.state-alt { display: block; }
    stack when there isn't, so phone / iPad / desktop fall out of one rule set
    instead of three layouts. A section never splits across a wrap.
    --------------------------------------------------------------------------- */
+/* A band is a platter: a white card on the rail's trough. The hairline that
+   used to divide bands is gone — the trough showing between cards does that
+   job, and does it without drawing a line. */
 .band {
+  background: var(--paper);
+  border-radius: var(--platter-radius);
+  border: 1px solid rgba(0, 0, 0, calc(0.07 * var(--platter-edge)));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, calc(0.04 * var(--platter-lift))),
+              0 6px calc(16px * var(--platter-lift)) rgba(0, 0, 0, calc(0.06 * var(--platter-lift)));
+}
+.band + .band { margin-top: var(--platter-gap); }
+
+/* The platter's own header, and the whole row is the target — a 12px caret is
+   a poor thing to ask a thumb for. */
+.band-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: var(--platter-pad);
+  border: none;
+  border-radius: inherit;
+  background: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: var(--type-caption);
+  font-weight: var(--weight-prominent);
+  text-transform: uppercase;
+  letter-spacing: var(--track-caption);
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.band-h:hover, .band-h:active { color: var(--ink); opacity: 1; }
+
+/* Drawn rather than a glyph, so it rotates cleanly and needs no font. */
+.band-caret {
+  flex-shrink: 0;
+  width: 7px; height: 7px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform calc(0.2s * var(--motion));
+}
+.band.folded .band-caret { transform: translateY(0) rotate(-45deg); }
+
+.band-body {
   display: flex;
   flex-wrap: wrap;
-  /* row gap separates stacked sections on a phone */
+  /* row gap separates stacked sections */
   gap: calc(20px * var(--density)) calc(22px * var(--density));
-  padding: calc(20px * var(--density)) 0;
-  border-bottom: 1px solid var(--line);
+  padding: 0 var(--platter-pad) var(--platter-pad);
 }
-.band:last-of-type { border-bottom: none; }
+.band.folded .band-body { display: none; }
+
+/* The intro platter states what the app is before any control does. No header
+   button — there is nothing to fold, and folding away the explanation would
+   defeat it. */
+.band-intro { padding: var(--platter-pad); }
+.intro-copy {
+  font-size: var(--type-label);
+  font-weight: var(--weight-standard);
+  line-height: 1.5;
+  color: var(--ink);
+  margin-top: 2px;
+}
+.intro-more {
+  margin-top: 10px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ctl-on);
+  font-family: inherit;
+  font-size: var(--type-label);
+  font-weight: var(--weight-prominent);
+  cursor: pointer;
+}
+.intro-more::after { content: " \2192"; }
+.intro-more:hover, .intro-more:active { opacity: 1; text-decoration: underline; }
 
 .sec {
   flex: 1 1 100%;      /* full width by default; the modifiers below pair them up */

@@ -141,157 +141,200 @@
         </select>
       </div>
 
+      <!-- What this is, before any control. Takes the place of the ? that used
+           to ride on the Presets heading: a question mark is only findable if
+           you already suspect there is something to find. It opens the same
+           help sheet — only the trigger moved, which is why it keeps the id. -->
+      <div class="band band-intro">
+        <p class="kicker">Prima Vista</p>
+        <p class="intro-copy" data-i18n="intro.blurb">A fresh sight-reading line every
+          time you ask, built from the notes and rhythms you choose.</p>
+        <button id="help-open" class="intro-more" type="button"
+                data-i18n="intro.more" data-i18n-aria="help.open"
+                aria-label="How this works">Learn more</button>
+      </div>
+
       <!-- PRESETS — snapshots of the whole panel -->
-      <div class="band">
-        <section class="sec">
-          <div class="sec-head">
-            <h2 class="sec-h" data-i18n="sec.presets">Presets</h2>
-            <button id="help-open" class="help-btn" type="button"
-                    aria-label="How this works" data-i18n-aria="help.open">?</button>
-          </div>
-          <div class="presets" id="presets"></div>
-        </section>
+      <div class="band" data-band="presets">
+        <button class="band-h" type="button" aria-expanded="true" aria-controls="bb-presets">
+          <span class="band-t" data-i18n="sec.presets">Presets</span>
+          <i class="band-caret" aria-hidden="true"></i>
+        </button>
+        <div class="band-body" id="bb-presets">
+          <section class="sec">
+            <div class="presets" id="presets"></div>
+          </section>
+        </div>
       </div>
 
       <!-- RHYTHM — the beat figures -->
-      <div class="band">
-        <section class="sec">
-          <h2 class="sec-h" data-i18n="sec.rhythm">Rhythm</h2>
-          <div class="sec-row" id="timesig-pills"></div>
-          <div class="beats" id="beats"></div>
-          <!-- Slurs: group the line in twos, threes or fours. A slur is one
-               instruction to every instrument — one bow, one tongue, one
-               breath — and reading it is a real skill, not decoration. It's
-               exercise content, so presets carry it. -->
-          <div class="sec-row bowing-row">
-            <span class="fig-h" data-i18n="lbl.slurs">Slurs</span>
-            <div id="bowing-pills"></div>
-          </div>
-          <!-- Ties: how often a bar holds its last note over the barline. The
-               reader has to carry the sound across instead of re-attacking,
-               which is a skill of its own — and it's exercise content, so
-               presets carry it. -->
-          <div class="sec-row bowing-row">
-            <span class="fig-h" data-i18n="lbl.ties">Ties</span>
-            <div id="ties-pills"></div>
-          </div>
-        </section>
+      <div class="band" data-band="rhythm">
+        <button class="band-h" type="button" aria-expanded="true" aria-controls="bb-rhythm">
+          <span class="band-t" data-i18n="sec.rhythm">Rhythm</span>
+          <i class="band-caret" aria-hidden="true"></i>
+        </button>
+        <div class="band-body" id="bb-rhythm">
+          <section class="sec">
+            <div class="sec-row" id="timesig-pills"></div>
+            <div class="beats" id="beats"></div>
+            <!-- Slurs: group the line in twos, threes or fours. A slur is one
+                 instruction to every instrument — one bow, one tongue, one
+                 breath — and reading it is a real skill, not decoration. It's
+                 exercise content, so presets carry it. -->
+            <div class="sec-row bowing-row">
+              <span class="fig-h" data-i18n="lbl.slurs">Slurs</span>
+              <div id="bowing-pills"></div>
+            </div>
+            <!-- Ties: how often a bar holds its last note over the barline. The
+                 reader has to carry the sound across instead of re-attacking,
+                 which is a skill of its own — and it's exercise content, so
+                 presets carry it. -->
+            <div class="sec-row bowing-row">
+              <span class="fig-h" data-i18n="lbl.ties">Ties</span>
+              <div id="ties-pills"></div>
+            </div>
+          </section>
+        </div>
       </div>
 
       <!-- STEP · NOTES — the melodic alphabet and the pitches it may use -->
-      <div class="band">
-        <section class="sec sec-step">
-          <h2 class="sec-h" data-i18n="sec.step">Intervals</h2>
-          <div class="matrix-head">
-            <span></span><span></span>
-            <span class="axis"><em data-i18n="col.less">less</em><em data-i18n="col.more">more</em></span>
+      <div class="band" data-band="pitch">
+        <button class="band-h" type="button" aria-expanded="true" aria-controls="bb-pitch">
+          <span class="band-t" data-i18n="band.pitch">Pitch</span>
+          <i class="band-caret" aria-hidden="true"></i>
+        </button>
+        <div class="band-body" id="bb-pitch">
+          <section class="sec sec-step">
+            <h2 class="sec-h" data-i18n="sec.step">Intervals</h2>
+            <div class="matrix-head">
+              <span></span><span></span>
+              <span class="axis"><em data-i18n="col.less">less</em><em data-i18n="col.more">more</em></span>
+            </div>
+            <div class="matrix" id="matrix"></div>
+          </section>
+
+          <!-- Notes and How Musical stack in one column: the interval matrix runs
+               eight rows deep and the pitch grid six, so the right-hand side has
+               room going spare, and the dial belongs with the line it shapes. -->
+          <div class="sec-col">
+            <section class="sec sec-notes">
+              <h2 class="sec-h" data-i18n="sec.notes">Notes</h2>
+              <div id="range-grid"></div>
+            </section>
+
+            <section class="sec sec-musicality">
+              <h2 class="sec-h" data-i18n="sec.musicality">How Musical?</h2>
+              <div class="sec-row">
+                <input type="range" class="stepper-range bare-range" id="musicality" min="0" max="100" step="5" value="0" aria-label="Musicality" data-i18n-aria="aria.musicality">
+              </div>
+              <!-- Which chords the bars sit on, once the dial brings the harmony
+                   in. Roman numerals are language-neutral, so no i18n keys. -->
+              <div class="sec-row" id="progression-pills"></div>
+            </section>
+
+            <section class="sec sec-chroma">
+              <h2 class="sec-h" data-i18n="sec.chroma">How Chromatic?</h2>
+              <div class="sec-row">
+                <input type="range" class="stepper-range bare-range" id="chroma" min="0" max="100" step="5" value="0" aria-label="Chromaticism" data-i18n-aria="aria.chroma">
+              </div>
+            </section>
           </div>
-          <div class="matrix" id="matrix"></div>
-        </section>
-
-        <!-- Notes and How Musical stack in one column: the interval matrix runs
-             eight rows deep and the pitch grid six, so the right-hand side has
-             room going spare, and the dial belongs with the line it shapes. -->
-        <div class="sec-col">
-          <section class="sec sec-notes">
-            <h2 class="sec-h" data-i18n="sec.notes">Notes</h2>
-            <div id="range-grid"></div>
-          </section>
-
-          <section class="sec sec-musicality">
-            <h2 class="sec-h" data-i18n="sec.musicality">How Musical?</h2>
-            <div class="sec-row">
-              <input type="range" class="stepper-range bare-range" id="musicality" min="0" max="100" step="5" value="0" aria-label="Musicality" data-i18n-aria="aria.musicality">
-            </div>
-            <!-- Which chords the bars sit on, once the dial brings the harmony
-                 in. Roman numerals are language-neutral, so no i18n keys. -->
-            <div class="sec-row" id="progression-pills"></div>
-          </section>
-
-          <section class="sec sec-chroma">
-            <h2 class="sec-h" data-i18n="sec.chroma">How Chromatic?</h2>
-            <div class="sec-row">
-              <input type="range" class="stepper-range bare-range" id="chroma" min="0" max="100" step="5" value="0" aria-label="Chromaticism" data-i18n-aria="aria.chroma">
-            </div>
-          </section>
         </div>
       </div>
 
       <!-- READING AIDS — both are training wheels rather than part of the
            exercise: one shows you more, the other shows you less, and both
            come off as the reading improves. Neither is saved in a preset. -->
-      <div class="band">
-        <section class="sec sec-hide">
-          <h2 class="sec-h" data-i18n="sec.hideAhead">Hide Ahead</h2>
-          <div class="sec-row unit">
-            <div class="stepper stepper-fit">
-              <span class="stepper-val" id="hide-val" data-i18n="val.off">Off</span>
-              <span class="step-pair">
-                <button id="hide-down" class="step-btn" type="button" aria-label="Less" data-i18n-aria="aria.less">&#8722;</button>
-                <button id="hide-up" class="step-btn" type="button" aria-label="More" data-i18n-aria="aria.more">+</button>
+      <div class="band" data-band="aids">
+        <button class="band-h" type="button" aria-expanded="true" aria-controls="bb-aids">
+          <span class="band-t" data-i18n="band.aids">Reading Aids</span>
+          <i class="band-caret" aria-hidden="true"></i>
+        </button>
+        <div class="band-body" id="bb-aids">
+          <section class="sec sec-hide">
+            <h2 class="sec-h" data-i18n="sec.hideAhead">Hide Ahead</h2>
+            <div class="sec-row unit">
+              <div class="stepper stepper-fit">
+                <span class="stepper-val" id="hide-val" data-i18n="val.off">Off</span>
+                <span class="step-pair">
+                  <button id="hide-down" class="step-btn" type="button" aria-label="Less" data-i18n-aria="aria.less">&#8722;</button>
+                  <button id="hide-up" class="step-btn" type="button" aria-label="More" data-i18n-aria="aria.more">+</button>
+                </span>
+              </div>
+              <button id="hide-unit" class="cycle" type="button" aria-label="Hide ahead unit" data-i18n-aria="aria.hideUnit" data-i18n="val.beats">Beats</button>
+            </div>
+          </section>
+
+          <section class="sec sec-ramp">
+            <h2 class="sec-h" data-i18n="sec.ramp">Ramp</h2>
+            <div class="sec-row">
+              <button id="ramp-toggle" class="cycle" type="button" aria-label="Widen the curtain each line" data-i18n-aria="aria.ramp" data-i18n="val.off">Off</button>
+            </div>
+          </section>
+
+          <section class="sec sec-chordnames">
+            <h2 class="sec-h" data-i18n="sec.chordNames">Chord Names</h2>
+            <div class="sec-row">
+              <button id="chords-toggle" class="cycle" type="button" aria-label="Show chord names" data-i18n-aria="aria.chordNames" data-i18n="val.on">On</button>
+            </div>
+          </section>
+
+          <section class="sec sec-chunks">
+            <h2 class="sec-h" data-i18n="sec.chunks">Highlight Patterns</h2>
+            <div class="sec-row">
+              <button id="chunks-toggle" class="cycle" type="button" aria-label="Show chunk highlights" data-i18n-aria="aria.chunks" data-i18n="val.off">Off</button>
+              <span class="legend">
+                <span class="legend-item"><span class="swatch swatch-step"></span> <span data-i18n="legend.steps">steps</span></span>
+                <span class="legend-item"><span class="swatch swatch-leap"></span> <span data-i18n="legend.leaps">leaps</span></span>
               </span>
             </div>
-            <button id="hide-unit" class="cycle" type="button" aria-label="Hide ahead unit" data-i18n-aria="aria.hideUnit" data-i18n="val.beats">Beats</button>
-          </div>
-        </section>
-
-        <section class="sec sec-ramp">
-          <h2 class="sec-h" data-i18n="sec.ramp">Ramp</h2>
-          <div class="sec-row">
-            <button id="ramp-toggle" class="cycle" type="button" aria-label="Widen the curtain each line" data-i18n-aria="aria.ramp" data-i18n="val.off">Off</button>
-          </div>
-        </section>
-
-        <section class="sec sec-chordnames">
-          <h2 class="sec-h" data-i18n="sec.chordNames">Chord Names</h2>
-          <div class="sec-row">
-            <button id="chords-toggle" class="cycle" type="button" aria-label="Show chord names" data-i18n-aria="aria.chordNames" data-i18n="val.on">On</button>
-          </div>
-        </section>
-
-        <section class="sec sec-chunks">
-          <h2 class="sec-h" data-i18n="sec.chunks">Highlight Patterns</h2>
-          <div class="sec-row">
-            <button id="chunks-toggle" class="cycle" type="button" aria-label="Show chunk highlights" data-i18n-aria="aria.chunks" data-i18n="val.off">Off</button>
-            <span class="legend">
-              <span class="legend-item"><span class="swatch swatch-step"></span> <span data-i18n="legend.steps">steps</span></span>
-              <span class="legend-item"><span class="swatch swatch-leap"></span> <span data-i18n="legend.leaps">leaps</span></span>
-            </span>
-          </div>
-        </section>
+          </section>
+        </div>
       </div>
 
       <!-- STAFF, KEY AND LENGTH · MEASURES -->
-      <div class="band">
-        <section class="sec sec-key">
-          <h2 class="sec-h" data-i18n="sec.staff">Clef &amp; Key</h2>
-          <div class="sec-row unit">
-            <button id="clef-cycle" class="cycle cycle-clef cycle-glyph" type="button" aria-label="Clef" data-i18n-aria="aria.clef"></button>
-            <button id="tonic-cycle" class="cycle" type="button" aria-label="Key" data-i18n-aria="aria.key">C</button>
-            <button id="mode-cycle" class="cycle" type="button" aria-label="Mode" data-i18n-aria="aria.mode" data-i18n="mode.major">Major</button>
-            <button id="acc-cycle" class="cycle cycle-glyph" type="button" aria-label="Accidental" data-i18n-aria="aria.accidental">&#9838;</button>
-          </div>
-        </section>
+      <div class="band" data-band="staff">
+        <button class="band-h" type="button" aria-expanded="true" aria-controls="bb-staff">
+          <span class="band-t" data-i18n="band.staff">Staff &amp; Length</span>
+          <i class="band-caret" aria-hidden="true"></i>
+        </button>
+        <div class="band-body" id="bb-staff">
+          <section class="sec sec-key">
+            <h2 class="sec-h" data-i18n="sec.staff">Clef &amp; Key</h2>
+            <div class="sec-row unit">
+              <button id="clef-cycle" class="cycle cycle-clef cycle-glyph" type="button" aria-label="Clef" data-i18n-aria="aria.clef"></button>
+              <button id="tonic-cycle" class="cycle" type="button" aria-label="Key" data-i18n-aria="aria.key">C</button>
+              <button id="mode-cycle" class="cycle" type="button" aria-label="Mode" data-i18n-aria="aria.mode" data-i18n="mode.major">Major</button>
+              <button id="acc-cycle" class="cycle cycle-glyph" type="button" aria-label="Accidental" data-i18n-aria="aria.accidental">&#9838;</button>
+            </div>
+          </section>
 
-        <section class="sec sec-measures">
-          <h2 class="sec-h" data-i18n="sec.measures">Measures</h2>
-          <div class="sec-row" id="measures-pills"></div>
-        </section>
+          <section class="sec sec-measures">
+            <h2 class="sec-h" data-i18n="sec.measures">Measures</h2>
+            <div class="sec-row" id="measures-pills"></div>
+          </section>
+        </div>
       </div>
 
       <!-- INSTRUMENT · LANGUAGE — app-level choices, so they sit apart at the
            end. The instrument answers "which clef do you read?" without asking
            it, and is what a built-in preset's clef derives from. -->
-      <div class="band">
-        <section class="sec sec-instrument">
-          <h2 class="sec-h" data-i18n="sec.instrument">Instrument</h2>
-          <div class="sec-row" id="instrument-pills"></div>
-        </section>
+      <div class="band" data-band="setup">
+        <button class="band-h" type="button" aria-expanded="true" aria-controls="bb-setup">
+          <span class="band-t" data-i18n="band.setup">Setup</span>
+          <i class="band-caret" aria-hidden="true"></i>
+        </button>
+        <div class="band-body" id="bb-setup">
+          <section class="sec sec-instrument">
+            <h2 class="sec-h" data-i18n="sec.instrument">Instrument</h2>
+            <div class="sec-row" id="instrument-pills"></div>
+          </section>
 
-        <section class="sec sec-language">
-          <h2 class="sec-h" data-i18n="sec.language">Language</h2>
-          <div class="sec-row" id="lang-pills"></div>
-        </section>
+          <section class="sec sec-language">
+            <h2 class="sec-h" data-i18n="sec.language">Language</h2>
+            <div class="sec-row" id="lang-pills"></div>
+          </section>
+        </div>
       </div>
 
       <p id="error-msg" class="error" hidden></p>

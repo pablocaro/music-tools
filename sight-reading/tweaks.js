@@ -26,7 +26,7 @@
 
   if (!/[?&]tweaks(?:[=&]|$)/.test(location.search)) return;
 
-  var KEY = "sr_tweaks:v3";      // bumped when the defaults move, so a stored
+  var KEY = "sr_tweaks:v4";      // bumped when the defaults move, so a stored
                                  // set of slider values cannot mask the new baseline
   var FOLD = "sr_tweaks_fold";
 
@@ -39,6 +39,10 @@
     density: 1.25, controlH: 40, headerGap: 8, railW: 400, gutter: 28,
     // shape
     pillRadius: 999, boxRadius: 18, surfaceRadius: 26, shadowDepth: 0.65,
+    cornerCurve: 1,
+    // rail
+    railTone: 7, platterRadius: 16, platterPad: 16, platterGap: 10,
+    platterLift: 0.5, platterEdge: 0,
     // colour
     accentH: 203, accentS: 99, paperWarmth: 6, inkL: 25, chunkAlpha: 0.5,
     // music
@@ -80,7 +84,23 @@
       { key: "surfaceRadius", label: "Surface radius", min: 4, max: 30, step: 1, unit: "px",
         note: "popovers; the sheet and menu follow at ±4" },
       { key: "shadowDepth",   label: "Shadow depth",   min: 0, max: 2,  step: 0.05, unit: "×",
-        note: "how far surfaces lift off the paper" }
+        note: "how far surfaces lift off the paper" },
+      { key: "cornerCurve",   label: "Corner curve",   min: 0, max: 3,  step: 0.1, unit: "",
+        note: "0 bevel · 1 round · 2 squircle (Chromium only)" }
+    ] },
+    { id: "rail", title: "Rail platters", controls: [
+      { key: "railTone",      label: "Trough tone",     min: 0, max: 14, step: 1, unit: "",
+        note: "grey behind the platters; 0 is white" },
+      { key: "platterRadius", label: "Platter radius",  min: 0, max: 28, step: 1, unit: "px",
+        note: "corner softness of a card" },
+      { key: "platterLift",   label: "Platter lift",    min: 0, max: 2,  step: 0.05, unit: "×",
+        note: "its shadow — 0 sits flat on the trough" },
+      { key: "platterEdge",   kind: "switch", label: "Platter hairline",
+        note: "a drawn edge as well as the shadow" },
+      { key: "platterPad",    label: "Platter padding", min: 6, max: 30, step: 1, unit: "px",
+        note: "air inside a card" },
+      { key: "platterGap",    label: "Platter gap",     min: 0, max: 24, step: 1, unit: "px",
+        note: "trough showing between cards" }
     ] },
     { id: "colour", title: "Colour", controls: [
       { key: "accentH",     label: "Accent hue",   min: 0, max: 360, step: 1, unit: "°",
@@ -117,6 +137,10 @@
     railW: "--rail-w", gutter: "--music-gutter",
     pillRadius: "--ctl-radius", boxRadius: "--ctl-radius-box",
     surfaceRadius: "--radius-card", shadowDepth: "--shadow-depth",
+    cornerCurve: "--corner-curve",
+    railTone: "--rail-tone", platterRadius: "--platter-radius",
+    platterPad: "--platter-pad", platterGap: "--platter-gap",
+    platterLift: "--platter-lift", platterEdge: "--platter-edge",
     accentH: "--accent-h", accentS: "--accent-s", paperWarmth: "--paper-warmth",
     inkL: "--ink-l", chunkAlpha: "--chunk-alpha",
     perLine: "app.js LAYOUT.perLine", staffSize: "app.js LAYOUT.zoomCap",
@@ -163,6 +187,14 @@
     r.setProperty("--ctl-radius-box", state.boxRadius + "px");
     r.setProperty("--radius-card",    state.surfaceRadius + "px");
     r.setProperty("--shadow-depth",   String(state.shadowDepth));
+    r.setProperty("--corner-curve",   String(state.cornerCurve));
+
+    r.setProperty("--rail-tone",       String(state.railTone));
+    r.setProperty("--platter-radius",  state.platterRadius + "px");
+    r.setProperty("--platter-pad",     state.platterPad + "px");
+    r.setProperty("--platter-gap",     state.platterGap + "px");
+    r.setProperty("--platter-lift",    String(state.platterLift));
+    r.setProperty("--platter-edge",    String(state.platterEdge));
 
     r.setProperty("--accent-h",     String(state.accentH));
     r.setProperty("--accent-s",     state.accentS + "%");

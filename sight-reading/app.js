@@ -2721,6 +2721,32 @@
     }
   }
 
+  // Platter folding. Every band opens on a first visit — the rail's whole job
+  // is to show the vocabulary, and a stack of closed lids shows none of it —
+  // but each one remembers being shut, so the panel settles into whatever you
+  // actually keep working on. The intro platter has no header and never folds.
+  function wireBands() {
+    var BAND_KEY = "sr_bands";
+    var shut = {};
+    try { shut = JSON.parse(localStorage.getItem(BAND_KEY) || "{}"); } catch (e) {}
+
+    document.querySelectorAll(".band[data-band]").forEach(function (band) {
+      var id = band.getAttribute("data-band");
+      var btn = band.querySelector(".band-h");
+      if (!btn) return;
+      function draw() {
+        band.classList.toggle("folded", !!shut[id]);
+        btn.setAttribute("aria-expanded", shut[id] ? "false" : "true");
+      }
+      btn.addEventListener("click", function () {
+        shut[id] = !shut[id];
+        try { localStorage.setItem(BAND_KEY, JSON.stringify(shut)); } catch (e) {}
+        draw();
+      });
+      draw();
+    });
+  }
+
   function wireHelp() {
     var open = document.getElementById("help-open");
     var close = document.getElementById("help-close");
@@ -3583,6 +3609,7 @@
   buildBowingPills();
   buildTiesPills();
   wirePanel();
+  wireBands();
   wireHelp();
   setWeights(BUILTIN["thirds drill"]);
   activePreset = "thirds drill";

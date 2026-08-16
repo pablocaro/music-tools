@@ -96,6 +96,51 @@ const { chromium } = require(PW);
   console.log('phone open            :', JSON.stringify({ railW: po.railW, sliver: po.railLeft > 0, cap: po.railW <= Math.round(390 * 0.88) + 1 }),
     '(want rail capped at 88vw with a sliver left)');
 
+  // --- platters ------------------------------------------------------------
+  // The rail is a trough of white cards. Three things can quietly break: the
+  // stack stops reading (a control the same tone as the trough looks like a
+  // hole in the card), folding stops persisting, or a platter loses its title.
+  p = await page(1500, 1000);
+  await p.click('#settings-toggle'); await p.waitForTimeout(700);
+  const lum = s => p.evaluate(sel => {
+    const e = document.querySelector(sel); if (!e) return null;
+    const [r, g, b] = getComputedStyle(e).backgroundColor.match(/[\d.]+/g).map(Number);
+    return Math.round(0.2126 * r + 0.7152 * g + 0.0722 * b);
+  }, s);
+  const trough = await lum('.rail'), platter = await lum('.band[data-band]'), fill = await lum('.cycle');
+  console.log('platter stack         : ' + JSON.stringify({ trough, fill, platter }) +
+    ' (want trough < control fill < platter — a control must never match the trough)');
+
+  const bands = await p.evaluate(() => ({
+    count: document.querySelectorAll('.band[data-band]').length,
+    titled: [...document.querySelectorAll('.band[data-band]')].every(b => b.querySelector('.band-t').textContent.trim()),
+    allOpen: [...document.querySelectorAll('.band[data-band]')].every(b => !b.classList.contains('folded')),
+    intro: !!document.querySelector('.band-intro .intro-more')
+  }));
+  console.log('platters on first load: ' + JSON.stringify(bands) + ' (want 6, all titled, all open, intro present)');
+
+  // fold two, reload, they must still be folded
+  await p.evaluate(() => {
+    document.querySelector('[data-band="pitch"] .band-h').click();
+    document.querySelector('[data-band="aids"] .band-h').click();
+  });
+  await p.waitForTimeout(200);
+  const folded = await p.evaluate(() => ({
+    pitch: document.querySelector('[data-band="pitch"]').classList.contains('folded'),
+    aria: document.querySelector('[data-band="pitch"] .band-h').getAttribute('aria-expanded'),
+    bodyHidden: getComputedStyle(document.querySelector('#bb-pitch')).display
+  }));
+  await p.reload({ waitUntil: 'domcontentloaded' });
+  await p.waitForSelector('#sheet svg', { timeout: 20000 }); await p.waitForTimeout(500);
+  await p.click('#settings-toggle'); await p.waitForTimeout(600);
+  const after = await p.evaluate(() => ({
+    pitch: document.querySelector('[data-band="pitch"]').classList.contains('folded'),
+    aids: document.querySelector('[data-band="aids"]').classList.contains('folded'),
+    presets: document.querySelector('[data-band="presets"]').classList.contains('folded')
+  }));
+  console.log('fold + persist        : ' + JSON.stringify({ ...folded, afterReload: after }) +
+    ' (want folded/false/none, and only those two still folded after a reload)');
+
   console.log('errors:', JSON.stringify(errs));
   await b.close();
   process.exit(errs.length ? 1 : 0);

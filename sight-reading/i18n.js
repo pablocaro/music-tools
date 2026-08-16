@@ -11,6 +11,14 @@ window.SR_I18N = {
 
   en: {
     // section headings
+    // Platter titles. Presets and Rhythm reuse their section headings; these
+    // four name a group that only existed as an HTML comment before.
+    "band.pitch":      "Pitch",
+    "band.aids":       "Reading Aids",
+    "band.staff":      "Staff & Length",
+    "band.setup":      "Setup",
+    "intro.blurb":     "A fresh sight-reading line every time you ask, built from the notes and rhythms you choose.",
+    "intro.more":      "Learn more",
     "sec.presets":     "Presets",
     "sec.tempo":       "Tempo",
     "sec.accomp":      "Play Along",
@@ -244,6 +252,12 @@ window.SR_I18N = {
   },
 
   es: {
+    "band.pitch":      "Altura",
+    "band.aids":       "Ayudas de lectura",
+    "band.staff":      "Pentagrama y duraci\u00f3n",
+    "band.setup":      "Configuraci\u00f3n",
+    "intro.blurb":     "Una l\u00ednea de lectura a primera vista nueva cada vez que la pidas, construida con las notas y los ritmos que elijas.",
+    "intro.more":      "Saber m\u00e1s",
     "sec.presets":     "Presets",
     "sec.tempo":       "Tempo",
     "sec.accomp":      "Tocar contigo",

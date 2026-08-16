@@ -48,6 +48,9 @@ const OUT = process.env.OUT || '/tmp/';
       pillRadius: pill ? getComputedStyle(pill).borderRadius : null,
       cellRadius: cell ? getComputedStyle(cell).borderRadius : null,
       railW: Math.round(document.querySelector('.rail').getBoundingClientRect().width),
+      trough: getComputedStyle(document.querySelector('.rail')).backgroundColor,
+      platterR: getComputedStyle(document.querySelector('.band[data-band]')).borderRadius,
+      cornerShape: getComputedStyle(document.querySelector('.band[data-band]')).cornerShape,
       gutter: getComputedStyle(document.querySelector('.sheet-area')).paddingLeft,
       metroH: Math.round(document.getElementById('metro-toggle').getBoundingClientRect().height),
       playH: Math.round(document.getElementById('play').getBoundingClientRect().height),
@@ -129,6 +132,10 @@ const OUT = process.env.OUT || '/tmp/';
   await drag('Music margin', 'End');
   await drag('Bars per line', 'Home');    // 6 -> 2
   await drag('Staff size', 'Home');
+  await drag('Trough tone', 'End');
+  await drag('Platter radius', 'Home');
+  await drag('Corner curve', 'End');
+  await press('Platter hairline');
   await press('Reduce motion');
   await p.waitForTimeout(600);            // the engraver nudge is debounced
   const after = await tokens(p);
@@ -146,7 +153,10 @@ const OUT = process.env.OUT || '/tmp/';
     gutter:  after.gutter !== before1x.gutter,
     control: after.metroH !== before1x.metroH && after.playH === after.metroH + 8,
     music:   after.layout.perLine === 2 && after.layout.zoomCap < 1 && after.staffH !== before1x.staffH,
-    motion:  after.reduceMotion === true
+    motion:  after.reduceMotion === true,
+    trough:  after.trough !== before1x.trough,
+    platter: after.platterR !== before1x.platterR,
+    corner:  after.cornerShape !== before1x.cornerShape
   };
   const dead = Object.keys(moved).filter(k => !moved[k]);
   console.log('each dial bites: ' + (dead.length ? 'NO — dead: ' + dead.join(', ') : 'yes, all ' + Object.keys(moved).length));
