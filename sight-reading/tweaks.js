@@ -49,7 +49,7 @@
     // colour
     accentH: 208, accentS: 100, paperWarmth: 18, inkL: 16, chunkAlpha: 0.5,
     // music
-    perLine: 6, staffSize: 1,
+    perLine: 6, staffSize: 1, musicFade: 64,
     // motion
     motion: 1, reduceMotion: 0
   };
@@ -139,7 +139,9 @@
       { key: "perLine",   label: "Bars per line", min: 2,   max: 6,   step: 1, unit: "", re: 1,
         note: "a cap — a narrow window still fits fewer" },
       { key: "staffSize", label: "Staff size",    min: 0.6, max: 1.4, step: 0.05, unit: "×", re: 1,
-        note: "ceiling on how large the staff is drawn" }
+        note: "ceiling on how large the staff is drawn" },
+      { key: "musicFade", label: "Bottom fade",   min: 0, max: 160, step: 4, unit: "px", re: 1,
+        note: "music dissolves before the pill; 0 is a hard clip" }
     ] },
     { id: "motion", title: "Motion", controls: [
       { key: "motion",       label: "Transition speed", min: 0, max: 2, step: 0.05, unit: "×",
@@ -171,6 +173,7 @@
     accentH: "--accent-h", accentS: "--accent-s", paperWarmth: "--paper-warmth",
     inkL: "--ink-l", chunkAlpha: "--chunk-alpha",
     perLine: "app.js LAYOUT.perLine", staffSize: "app.js LAYOUT.zoomCap",
+    musicFade: "--music-fade",
     motion: "--motion", reduceMotion: ".reduce-motion on <html>"
   };
 
@@ -229,8 +232,8 @@
     r.setProperty("--platter-lift",    String(state.platterLift));
     r.setProperty("--platter-edge",    String(state.platterEdge));
     r.setProperty("--rail-inset",      state.railInset + "px");
-    r.setProperty("--caret-size",      state.caretSize + "px");
-    r.setProperty("--caret-weight",    state.caretWeight + "px");
+    r.setProperty("--caret-size",      String(state.caretSize));    // unitless — see style.css
+    r.setProperty("--caret-weight",    String(state.caretWeight));
 
     r.setProperty("--accent-h",     String(state.accentH));
     r.setProperty("--accent-s",     state.accentS + "%");
@@ -238,6 +241,7 @@
     r.setProperty("--ink-l",        state.inkL + "%");
     r.setProperty("--chunk-alpha",  String(state.chunkAlpha));
 
+    r.setProperty("--music-fade", state.musicFade + "px");
     r.setProperty("--motion", String(state.motion));
     el.classList.toggle("reduce-motion", !!state.reduceMotion);
 

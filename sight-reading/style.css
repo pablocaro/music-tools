@@ -51,6 +51,9 @@
                             viewports just gain negative space on the sides */
   --music-min: 640px;    /* …and never shrinks narrower than this */
   --music-gutter: 28px;  /* air either side of the staff */
+  --music-fade: 64px;    /* the music dissolves over this on its way down to the
+                            transport pill, instead of clipping. 0 restores the
+                            hard edge (and the bottom paper cover with it). */
 
   /* The rail as a trough of platters. Three surfaces want to read as a stack —
      trough behind, platter on it, control on that — which they do while the
@@ -69,8 +72,10 @@
   --rail-inset: 20px;    /* how far the platters sit off the rail's edge */
   --platter-lift: 0.1;   /* platter shadow, softer than a floating surface's */
   --platter-edge: 0;     /* 0 = shadow alone, 1 = a hairline instead */
-  --caret-size: 12px;    /* the fold chevron on a platter header */
-  --caret-weight: 3px;   /* its stroke, in real px whatever the size */
+  --caret-size: 12;      /* the fold chevron on a platter header, in px */
+  --caret-weight: 3;     /* its stroke, in real px whatever the size. Both are
+                            unitless so the stroke can be compensated in user
+                            units below — division needs bare numbers */
 
   /* Corner curvature, as the exponent of a superellipse: 0 bevels, 1 is the
      plain circular corner every border-radius draws, 2 is the continuous
@@ -452,16 +457,19 @@ button.playing svg.state-alt { display: block; }
 
 /* A stroked path rather than two borders, so all three points can be round —
    borders can only round the elbow, since the free ends are cut square by the
-   border box. non-scaling-stroke keeps the weight in real px, so size and
-   weight stay independent decisions rather than one dragging the other. */
+   border box. The stroke is compensated by hand — weight × 12/size in user
+   units, cancelling the viewBox scale — so the drawn weight stays in real px
+   at any size. vector-effect: non-scaling-stroke said the same thing for
+   free, but WebKit misapplies it through <use>, so Safari drew the chevrons
+   chunkier than Chrome; plain arithmetic scales identically everywhere. */
 .band-caret {
   flex-shrink: 0;
   display: block;
-  width: var(--caret-size);
-  height: var(--caret-size);
+  width: calc(var(--caret-size) * 1px);
+  height: calc(var(--caret-size) * 1px);
   fill: none;
   stroke: currentColor;
-  stroke-width: var(--caret-weight);
+  stroke-width: calc(var(--caret-weight) * 12 / var(--caret-size));
   transition: transform calc(0.2s * var(--motion));
 }
 .band.folded .band-caret { transform: rotate(-90deg); }
@@ -1144,6 +1152,12 @@ button.secondary {
   min-height: 0;
   position: relative;
   overflow-y: auto;
+  /* A mask, not a paper cover: the cover paints an edge, the mask removes ink
+     gradually, so a line is gone by the time it reaches the pill. While this
+     is non-zero updateGap stands its bottom cover down — the two are rival
+     treatments of the same edge, not layers. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--music-fade)), transparent);
+          mask-image: linear-gradient(to bottom, #000 calc(100% - var(--music-fade)), transparent);
 }
 
 #sheet {

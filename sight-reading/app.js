@@ -1550,6 +1550,10 @@
     var r = visibleLineRange();
     var topGap = (r.firstIdx < 0) ? 0 : Math.max(0, r.firstT - r.scrollTop);
     var botGap = (r.firstIdx < 0) ? 0 : Math.max(0, r.visBottom - r.lastB);
+    // The fade owns the bottom edge while it's on — painting the paper cover
+    // over a dissolving line would put a hard edge back exactly where the mask
+    // is removing one. Top cover keeps its job; the fade is bottom-only.
+    if (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--music-fade")) > 0) botGap = 0;
     coverTopEl.style.top = top + "px";
     coverTopEl.style.height = topGap + "px";
     coverBotEl.style.top = (top + r.stageH - botGap) + "px";
