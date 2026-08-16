@@ -138,6 +138,38 @@ the ramp.
 Chord-anchoring lookahead — measured at ~5 percentage points on stepwise
 alphabets for a two-ply search. Not worth it.
 
+## Tweaks — dragging the design instead of describing it
+
+`?tweaks` puts a panel of sliders over the spacing and type tokens. It exists
+because every spacing decision so far has cost a full edit → screenshot → look
+→ edit round trip, while the values were already named in `:root` and could
+just as well be dragged. When something looks right, **Copy as prompt** hands
+back only what moved, named by token — that step is the point, not the sliders.
+
+Four rules, and the first is the one that keeps it useful:
+
+- **Expose the decision, not the property.** "Panel density" is a decision;
+  `--pop-gap` is a property. Five controls that each mean something beat twenty
+  that need a map, and the interesting ones stop being findable long before
+  twenty.
+- **The panel renders from a spec list.** Adding a control is a field in
+  `DEFAULTS`, an entry in `SETS`, a line in `apply()`. The rendering code never
+  learns an individual control's name.
+- **Every control drives a token the stylesheet already had.** Nothing is
+  invented for the panel's sake, so deleting the file leaves the design intact.
+- **The panel reads none of the tokens it drives** — otherwise dragging density
+  deforms the slider under the cursor. This is not theoretical: the app's global
+  `button { font-size: var(--fs-2) }` caught the panel's own buttons on the
+  first run, and the type-scale slider resized them as it went. `test/tweaks.js`
+  measures it rather than trusting the eye.
+
+Two tokens carry it: `--type-scale` multiplies every step of the scale, and
+`--density` multiplies the settings panel's gaps and paddings. Both are `1` by
+default, so an un-flagged page is exactly what the CSS says. `--ctl-h-lg` is now
+derived (`--ctl-h + 8px`) so the two control sizes keep their step, and the
+title gained `--fs-4-base` so the mobile step-down and the panel have one thing
+to set with the scale still riding over it.
+
 ## Testing
 
 `test/` holds browser harnesses run against a local server:
@@ -145,6 +177,8 @@ alphabets for a two-ply search. Not worth it.
 ```sh
 python3 -m http.server 8091 --directory sight-reading &
 node sight-reading/test/sweep.js      # highlighter integrity, presets × meters
+node sight-reading/test/rail.js       # settings rail: push vs overlay, transport pill
+node sight-reading/test/tweaks.js     # ?tweaks drives its tokens, and nothing else
 ```
 
 They measure the running app — chord-tone rates, beat crossings, hidden-note

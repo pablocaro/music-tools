@@ -8,6 +8,14 @@
 }
 
 :root {
+  /* The two live dials. Both are neutral by default, so the design is exactly
+     what it was written as; ?tweaks (tweaks.js) drives them from a panel and
+     nothing else ever sets them. They exist so a type or spacing decision can
+     be explored in the browser and handed back as a number, instead of through
+     an edit → screenshot → look → edit round trip. */
+  --type-scale: 1;       /* every step of the type scale at once */
+  --density: 1;          /* the settings panel's gaps and padding */
+
   --paper: #ffffff;
   --paper-dim: #f5f5f5;
   --ink: #1a1a1a;
@@ -44,7 +52,9 @@
   --ctl-on-ink: var(--paper);                                      /* text/glyph on a filled selected control */
   --ctl-on-tint: color-mix(in srgb, var(--accent) 10%, var(--paper)); /* subtle tint for pill-selected */
   --ctl-h: 40px;                                                   /* standard control height in the panel */
-  --ctl-h-lg: 48px;                                                /* round icon buttons — transport, regenerate */
+  --ctl-h-lg: calc(var(--ctl-h) + 8px);                            /* round icon buttons — transport, regenerate.
+                                                                      Derived, so the two sizes keep their step
+                                                                      when either is tuned */
   --col-max: 540px;                                                /* cap for a bare slider's travel */
   --ctl-fill: var(--paper-dim);                                    /* recessed track / plain-container fill */
   --ctl-fill-hover: #e9e9ee;                                       /* resting fill, hovered */
@@ -63,11 +73,15 @@
                 and a stepper's readout, which is marked by weight not size
        lead     the main view's subtitle, above the panel's range
      Weight follows suit: the panel is 600 throughout, and 700 marks a value. */
-  --fs-0: 10px;
-  --fs-1: 11px;
-  --fs-2: 14px;
-  --fs-3: 17px;
-  --fs-4: 28px;
+  --fs-0: calc(10px * var(--type-scale));
+  --fs-1: calc(11px * var(--type-scale));
+  --fs-2: calc(14px * var(--type-scale));
+  --fs-3: calc(17px * var(--type-scale));
+  /* The title is display type and already steps down on its own for mobile, so
+     it keeps a base of its own — one thing for the media query and the tweak
+     panel to set, with the scale still riding over the top. */
+  --fs-4-base: 28px;
+  --fs-4: calc(var(--fs-4-base) * var(--type-scale));
   --type-micro:   var(--fs-0);
   --type-caption: var(--fs-1);
   --type-label:   var(--fs-2);
@@ -291,7 +305,8 @@ button.playing svg.state-alt { display: block; }
      rail slide. (`clip` would be tidier, but it computes to `hidden` anyway
      whenever the other axis is `auto`.) */
   overflow-x: hidden;
-  padding: 18px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+  padding: calc(18px * var(--density)) calc(20px * var(--density))
+           calc(24px * var(--density) + env(safe-area-inset-bottom, 0px));
 }
 
 /* ---------------------------------------------------------------------------
@@ -304,8 +319,9 @@ button.playing svg.state-alt { display: block; }
 .band {
   display: flex;
   flex-wrap: wrap;
-  gap: 20px 22px;      /* row gap separates stacked sections on a phone */
-  padding: 20px 0;
+  /* row gap separates stacked sections on a phone */
+  gap: calc(20px * var(--density)) calc(22px * var(--density));
+  padding: calc(20px * var(--density)) 0;
   border-bottom: 1px solid var(--line);
 }
 .band:last-of-type { border-bottom: none; }
@@ -315,7 +331,7 @@ button.playing svg.state-alt { display: block; }
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: calc(10px * var(--density));
 }
 
 /* Section heading — the caption style shared with the old group summaries. */
@@ -335,7 +351,7 @@ button.playing svg.state-alt { display: block; }
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: calc(8px * var(--density));
 }
 .sec-row.unit { flex-wrap: nowrap; }
 
@@ -361,7 +377,7 @@ button.playing svg.state-alt { display: block; }
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: calc(20px * var(--density));
 }
 .sec-col > .sec { flex: 0 0 auto; }
 .sec-key        { flex: 1 1 300px; }
@@ -665,7 +681,7 @@ button.secondary {
 .presets {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: calc(6px * var(--density));
 }
 
 .pill {
@@ -789,7 +805,7 @@ button.secondary {
 .fig-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));
-  gap: 6px;
+  gap: calc(6px * var(--density));
 }
 
 /* A two-beat figure takes two cells' worth of width, so how wide it sits in the
@@ -1493,7 +1509,7 @@ button.secondary {
 @media (max-width: 720px) {
   .sheet-area { padding: 8px 14px 18px; }
   :root {
-    --fs-4: 24px;      /* the title steps down; the rest of the scale holds */
+    --fs-4-base: 24px; /* the title steps down; the rest of the scale holds */
     --tb-gap: 16px;    /* the header trio at 40px reads tight at 12px on a small screen */
   }
   .topbar { padding: 20px 16px 10px; }
