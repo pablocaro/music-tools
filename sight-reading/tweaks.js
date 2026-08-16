@@ -26,7 +26,7 @@
 
   if (!/[?&]tweaks(?:[=&]|$)/.test(location.search)) return;
 
-  var KEY = "sr_tweaks:v8";      // bumped when the defaults move, so a stored
+  var KEY = "sr_tweaks:v9";      // bumped when the defaults move, so a stored
                                  // set of slider values cannot mask the new baseline
   var FOLD = "sr_tweaks_fold";
 
@@ -45,14 +45,15 @@
     // rail
     railTone: 4, platterRadius: 24, platterPad: 18, platterGap: 10,
     platterLift: 0.1, platterEdge: 0, railInset: 20,
-    caretSize: 12, caretWeight: 3,
+    caretSize: 12, caretWeight: 2,
     // colour
     accentH: 208, accentS: 100, paperWarmth: 18, inkL: 16, chunkAlpha: 0.5,
     // music
-    perLine: 6, staffSize: 1, musicFade: 64,
+    perLine: 6, staffSize: 1, musicFade: 160,
     // onboarding
-    obLogoSize: 64, obLogoAlpha: 0.5, obTitle: 28, obTitleWeight: 700,
-    obBody: 21, obLeading: 1.45, obPad: 44, obRadius: 28,
+    obLogoSize: 72, obLogoAlpha: 0.55, obLogoR: 13, obLogoSpread: 7,
+    obTitle: 29, obTitleWeight: 600,
+    obBody: 23, obLeading: 1.35, obPad: 42, obRadius: 35,
     // motion
     motion: 1, reduceMotion: 0
   };
@@ -151,6 +152,10 @@
         note: "open ?onboarding&tweaks to watch these land" },
       { key: "obLogoAlpha",  label: "Logo ink",     min: 0.2, max: 0.8, step: 0.05, unit: "×",
         note: "each circle's strength; overlaps multiply" },
+      { key: "obLogoR",      label: "Circle size",  min: 7, max: 20, step: 0.5, unit: "px",
+        note: "radius of each of the three" },
+      { key: "obLogoSpread", label: "Circle spread", min: 0, max: 16, step: 0.5, unit: "px",
+        note: "less is more overlap; past ~11 the note loses its backing" },
       { key: "obTitle",      label: "Title size",   min: 20, max: 40, step: 1, unit: "px",
         note: "the wordmark and each page's question" },
       { key: "obTitleWeight",label: "Title weight", min: 400, max: 900, step: 25, unit: "",
@@ -196,6 +201,7 @@
     perLine: "app.js LAYOUT.perLine", staffSize: "app.js LAYOUT.zoomCap",
     musicFade: "--music-fade",
     obLogoSize: "--ob-logo-size", obLogoAlpha: "--ob-logo-alpha",
+    obLogoR: "--ob-logo-r", obLogoSpread: "--ob-logo-spread",
     obTitle: "--ob-title-size", obTitleWeight: "--ob-title-weight",
     obBody: "--ob-body-size", obLeading: "--ob-leading",
     obPad: "--ob-pad", obRadius: "--ob-radius",
@@ -270,6 +276,8 @@
 
     r.setProperty("--ob-logo-size",    state.obLogoSize + "px");
     r.setProperty("--ob-logo-alpha",   String(state.obLogoAlpha));
+    r.setProperty("--ob-logo-r",       state.obLogoR + "px");
+    r.setProperty("--ob-logo-spread",  state.obLogoSpread + "px");
     r.setProperty("--ob-title-size",   state.obTitle + "px");
     r.setProperty("--ob-title-weight", String(state.obTitleWeight));
     r.setProperty("--ob-body-size",    state.obBody + "px");

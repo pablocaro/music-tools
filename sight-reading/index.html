@@ -60,13 +60,13 @@
          an eighth note (the play-along glyph, reused) knocked out of the
          middle. Styled by inline var() so the tweak panel's colour and logo
          dials reach inside the <use> shadow tree — external CSS cannot. -->
-    <symbol id="ic-logo" viewBox="0 0 48 48">
+    <symbol id="ic-logo" viewBox="0 0 48 48" overflow="visible">
       <g style="isolation:isolate">
-        <circle cx="18" cy="19" r="13" style="fill:var(--accent,#0a84ff);fill-opacity:var(--ob-logo-alpha,0.5);mix-blend-mode:multiply"/>
-        <circle cx="30" cy="19" r="13" style="fill:var(--accent,#0a84ff);fill-opacity:var(--ob-logo-alpha,0.5);mix-blend-mode:multiply"/>
-        <circle cx="24" cy="29" r="13" style="fill:var(--accent,#0a84ff);fill-opacity:var(--ob-logo-alpha,0.5);mix-blend-mode:multiply"/>
+        <circle style="cx:calc(24px - 0.866 * var(--ob-logo-spread,7px)); cy:calc(24px - 0.5 * var(--ob-logo-spread,7px)); r:var(--ob-logo-r,13px); fill:var(--accent,#0a84ff); fill-opacity:var(--ob-logo-alpha,0.55); mix-blend-mode:multiply"/>
+        <circle style="cx:calc(24px + 0.866 * var(--ob-logo-spread,7px)); cy:calc(24px - 0.5 * var(--ob-logo-spread,7px)); r:var(--ob-logo-r,13px); fill:var(--accent,#0a84ff); fill-opacity:var(--ob-logo-alpha,0.55); mix-blend-mode:multiply"/>
+        <circle style="cx:24px; cy:calc(24px + var(--ob-logo-spread,7px)); r:var(--ob-logo-r,13px); fill:var(--accent,#0a84ff); fill-opacity:var(--ob-logo-alpha,0.55); mix-blend-mode:multiply"/>
       </g>
-      <use href="#ic-accomp-on" x="20.2" y="15.6" width="8" height="13.1" style="fill:var(--paper,#fff)"/>
+      <use href="#ic-accomp-on" x="20" y="17.4" width="8" height="13.1" style="fill:var(--paper,#fff)"/>
     </symbol>
     <symbol id="ic-chevron" viewBox="0 0 12 12">
       <path d="M2.5 4.75 L6 8.25 L9.5 4.75" fill="none"

@@ -51,7 +51,7 @@
                             viewports just gain negative space on the sides */
   --music-min: 640px;    /* …and never shrinks narrower than this */
   --music-gutter: 28px;  /* air either side of the staff */
-  --music-fade: 64px;    /* the music dissolves over this on its way down to the
+  --music-fade: 160px;    /* the music dissolves over this on its way down to the
                             transport pill, instead of clipping. 0 restores the
                             hard edge (and the bottom paper cover with it). */
 
@@ -73,7 +73,7 @@
   --platter-lift: 0.1;   /* platter shadow, softer than a floating surface's */
   --platter-edge: 0;     /* 0 = shadow alone, 1 = a hairline instead */
   --caret-size: 12;      /* the fold chevron on a platter header, in px */
-  --caret-weight: 3;     /* its stroke, in real px whatever the size. Both are
+  --caret-weight: 2;     /* its stroke, in real px whatever the size. Both are
                             unitless so the stroke can be compensated in user
                             units below — division needs bare numbers */
 
@@ -89,14 +89,26 @@
      a few sentences, read once — so it does not borrow the panel's working
      sizes; these are its own dials (tweaks · Onboarding set, best driven with
      ?onboarding&tweaks so you can watch them land). */
-  --ob-logo-size: 64px;
-  --ob-logo-alpha: 0.5;  /* each circle's ink; overlaps multiply darker */
-  --ob-title-size: 28px; /* the wordmark and each page's question */
-  --ob-title-weight: 700;
-  --ob-body-size: 21px;
-  --ob-leading: 1.45;
-  --ob-pad: 44px;        /* the card's padding, desktop */
-  --ob-radius: 28px;
+  --ob-logo-size: 72px;
+  --ob-logo-alpha: 0.55;  /* each circle's ink; overlaps multiply darker */
+  /* The three circles sit on an equilateral triangle about the viewBox centre,
+     so overlap is one number: how far each centre is pushed out from the
+     middle. Less spread, more overlap. Radius is its own dial, and the two
+     together are what the mark's density actually is. Both live in the 48-unit
+     viewBox, so they set proportions — --ob-logo-size sets how big it renders.
+     The note is knocked out of the circles at the triangle's centroid, so it
+     only reads while they still cover the middle: spread past roughly 11 (at
+     r 13) opens a gap under it and the note dissolves into the paper. Visible
+     the moment you drag it, so it is left as a limit to find rather than a
+     clamp — but that is the ceiling, not the slider's max. */
+  --ob-logo-r: 13px;
+  --ob-logo-spread: 7px;
+  --ob-title-size: 29px; /* the wordmark and each page's question */
+  --ob-title-weight: 600;
+  --ob-body-size: 23px;
+  --ob-leading: 1.35;
+  --ob-pad: 42px;        /* the card's padding, desktop */
+  --ob-radius: 35px;
   --rail-w: 400px;       /* the settings rail's width, open. With the gutters it
                             sets what the push breakpoint must clear: 640 + 56 +
                             400 = 1096, so the 1100px media query still has room.
@@ -1580,6 +1592,10 @@ button.secondary {
   width: var(--ob-logo-size);
   height: var(--ob-logo-size);
   margin-bottom: 20px;
+  /* An SVG root clips to its viewBox. Let the mark spill instead, so a big
+     radius against a wide spread explores freely rather than being quietly
+     cropped at the exact moment it gets interesting. */
+  overflow: visible;
 }
 
 /* The pages scroll; the footer never does, so Next is always reachable. */
