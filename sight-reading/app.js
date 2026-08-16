@@ -3081,7 +3081,10 @@
       var b = document.createElement("button");
       b.type = "button";
       b.className = "opt";
-      b.textContent = String(n);
+      // A group of 1 draws no curve — it is the separate bow, the air between
+      // slurred groups. "1" made the row read as a quantity of nothing; the
+      // word says what it does. The rest stay numbers, which is what they are.
+      b.textContent = n === 1 ? t("val.apart") : String(n);
       b.dataset.bowing = String(n);
       b.setAttribute("aria-pressed", "false");
       b.addEventListener("click", function () {

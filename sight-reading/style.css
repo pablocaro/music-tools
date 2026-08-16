@@ -23,18 +23,18 @@
   /* Paper and ink in parts, so warmth and contrast are tunable. Warmth 0 is
      exactly the white and #f5f5f5 this shipped with; a little of it gives the
      cream of real manuscript paper, which is easier to read against. */
-  --paper-warmth: 6;
+  --paper-warmth: 18;
   --paper: hsl(38 calc(var(--paper-warmth) * 1%) calc(100% - var(--paper-warmth) * 0.05%));
   --paper-dim: hsl(38 calc(var(--paper-warmth) * 1%) 96%);
-  --ink-l: 25%;
+  --ink-l: 16%;
   --ink: hsl(0 0% var(--ink-l));
   --muted: #8e8e93;
 
   /* The accent, likewise in parts. The default is exactly the iOS blue it
      shipped with (#0a84ff); everything tinted — pills, toggles, the cursor —
      follows from these three. */
-  --accent-h: 203;
-  --accent-s: 99%;
+  --accent-h: 208;
+  --accent-s: 100%;
   --accent-l: 52%;
   --accent: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
 
@@ -61,7 +61,7 @@
      control well inside the card, so a control and the trough never actually
      meet. Take the padding to nothing and they would. Chosen for a near-flat,
      quiet rail — platter lift is 0.1 for the same reason. */
-  --rail-tone: 3;        /* how far the trough drops below white */
+  --rail-tone: 4;        /* how far the trough drops below white */
   --rail-bg: hsl(38 calc(var(--paper-warmth) * 1%) calc(100% - var(--rail-tone) * 1%));
   --platter-radius: 24px;
   --platter-pad: 18px;
@@ -70,7 +70,7 @@
   --platter-lift: 0.1;   /* platter shadow, softer than a floating surface's */
   --platter-edge: 0;     /* 0 = shadow alone, 1 = a hairline instead */
   --caret-size: 12px;    /* the fold chevron on a platter header */
-  --caret-weight: 2px;   /* its stroke, in real px whatever the size */
+  --caret-weight: 2.5px;   /* its stroke, in real px whatever the size */
 
   /* Corner curvature, as the exponent of a superellipse: 0 bevels, 1 is the
      plain circular corner every border-radius draws, 2 is the continuous
@@ -120,15 +120,17 @@
                 and a stepper's readout, which is marked by weight not size
        lead     the main view's subtitle, above the panel's range
      Weight follows suit: the panel runs at --weight-prominent throughout, and
-     --weight-strong marks a value. Note the ladder currently inverts — prominent
-     (450) sits below standard (500) — so the panel reads lighter than body copy
-     rather than heavier. Deliberate for now: the airy pass wanted quieter
-     labels. If body copy ever appears beside a panel label, they will disagree
-     and standard should come down with it. */
+     --weight-strong marks a value. Strong is *derived* — label plus a step —
+     so the two keep their relationship when the base moves. It used to be an
+     absolute 700, written when prominent was 600; dropping prominent to 425
+     left a 275-point gap, and the one word rendered both ways ("Off", as a
+     stepper's value beside a cycle's label) fell visibly apart.
+     Standard and prominent are equal at present, so body copy and panel labels
+     weigh the same and the three-rung ladder is really two. */
   --fs-0-base: 10px;
-  --fs-1-base: 11px;
-  --fs-2-base: 14px;
-  --fs-3-base: 17px;
+  --fs-1-base: 12px;
+  --fs-2-base: 15px;
+  --fs-3-base: 18px;
   --fs-0: calc(var(--fs-0-base) * var(--type-scale));
   --fs-1: calc(var(--fs-1-base) * var(--type-scale));
   --fs-2: calc(var(--fs-2-base) * var(--type-scale));
@@ -136,19 +138,20 @@
   /* The title is display type and already steps down on its own for mobile, so
      it keeps a base of its own — one thing for the media query and the tweak
      panel to set, with the scale still riding over the top. */
-  --fs-4-base: 30px;
+  --fs-4-base: 29px;
   --fs-4: calc(var(--fs-4-base) * var(--type-scale));
   --type-micro:   var(--fs-0);
   --type-caption: var(--fs-1);
   --type-label:   var(--fs-2);
   --type-lead:    var(--fs-3);
   --type-title:   var(--fs-4);
-  --weight-standard:  500;   /* body copy; the panel doesn't use it */
-  --weight-prominent: 450;   /* the panel's default */
-  --weight-strong:    700;   /* values and the drill title */
-  --track-caption: 1.35px;   /* the uppercase headings' letter-spacing — what
+  --weight-standard:  425;   /* body copy; the panel doesn't use it */
+  --weight-prominent: 425;   /* the panel's default */
+  --weight-step:      175;   /* how much heavier a value is than a label */
+  --weight-strong: calc(var(--weight-prominent) + var(--weight-step));
+  --track-caption: 0.9px;   /* the uppercase headings' letter-spacing — what
                                 makes a caption read as a label, not as text */
-  --leading: 1.55;           /* body copy only; controls set their own */
+  --leading: 1.5;           /* body copy only; controls set their own */
 
   /* Characters used as icons rather than text — clefs, accidentals, the
      stepper's +/-. Sized optically, so they sit outside the type scale. */
@@ -494,7 +497,6 @@ button.playing svg.state-alt { display: block; }
   font-weight: var(--weight-prominent);
   cursor: pointer;
 }
-.intro-more::after { content: " \2192"; }
 .intro-more:hover, .intro-more:active { opacity: 1; text-decoration: underline; }
 
 .sec {
@@ -971,7 +973,7 @@ button.secondary {
    setting on every one of them. Only the word the player reads changed. */
 .bowing-row { align-items: center; gap: 12px; margin-top: 2px; }
 .bowing-row .fig-h { margin-bottom: 0; }
-#bowing-pills { display: flex; gap: 8px; }
+.bowing-row > div { display: flex; flex-wrap: wrap; gap: 8px; }
 
 .fig-grid {
   display: grid;

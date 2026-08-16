@@ -26,7 +26,7 @@
 
   if (!/[?&]tweaks(?:[=&]|$)/.test(location.search)) return;
 
-  var KEY = "sr_tweaks:v6";      // bumped when the defaults move, so a stored
+  var KEY = "sr_tweaks:v7";      // bumped when the defaults move, so a stored
                                  // set of slider values cannot mask the new baseline
   var FOLD = "sr_tweaks_fold";
 
@@ -34,20 +34,20 @@
   //     the neutral one, so "all defaults" is byte-identical to no panel.
   var DEFAULTS = {
     // type
-    typeScale: 1, sizeMicro: 10, sizeCaption: 11, sizeLabel: 14, sizeLead: 17,
-    titleSize: 30, labelWeight: 450, valueWeight: 700, bodyWeight: 500,
-    tracking: 1.35, leading: 1.55,
+    typeScale: 1, sizeMicro: 10, sizeCaption: 12, sizeLabel: 15, sizeLead: 18,
+    titleSize: 29, labelWeight: 425, weightStep: 175, bodyWeight: 425,
+    tracking: 0.9, leading: 1.5,
     // spacing
     density: 1.25, controlH: 40, headerGap: 8, railW: 400, gutter: 28,
     // shape
     pillRadius: 999, boxRadius: 18, surfaceRadius: 26, shadowDepth: 0.65,
     cornerCurve: 1,
     // rail
-    railTone: 3, platterRadius: 24, platterPad: 18, platterGap: 10,
+    railTone: 4, platterRadius: 24, platterPad: 18, platterGap: 10,
     platterLift: 0.1, platterEdge: 0, railInset: 20,
-    caretSize: 12, caretWeight: 2,
+    caretSize: 12, caretWeight: 2.5,
     // colour
-    accentH: 203, accentS: 99, paperWarmth: 6, inkL: 25, chunkAlpha: 0.5,
+    accentH: 208, accentS: 100, paperWarmth: 18, inkL: 16, chunkAlpha: 0.5,
     // music
     perLine: 6, staffSize: 1,
     // motion
@@ -72,8 +72,8 @@
         note: "display type, riding over the scale" },
       { key: "labelWeight", label: "Label weight", min: 300, max: 800, step: 25, unit: "",
         note: "the panel's default weight" },
-      { key: "valueWeight", label: "Value weight", min: 400, max: 900, step: 25, unit: "",
-        note: "what marks a number as the answer" },
+      { key: "weightStep",  label: "Value step",   min: 0, max: 300, step: 25, unit: "",
+        note: "how much heavier a value is than a label" },
       { key: "bodyWeight",  label: "Body weight",  min: 300, max: 700, step: 25, unit: "",
         note: "help and onboarding prose" },
       { key: "tracking",    label: "Caption track", min: 0, max: 2, step: 0.05, unit: "px",
@@ -157,8 +157,9 @@
     typeScale: "--type-scale", titleSize: "--fs-4-base",
     sizeMicro: "--fs-0-base", sizeCaption: "--fs-1-base",
     sizeLabel: "--fs-2-base", sizeLead: "--fs-3-base",
-    labelWeight: "--weight-prominent", valueWeight: "--weight-strong",
-    bodyWeight: "--weight-standard", tracking: "--track-caption",
+    labelWeight: "--weight-prominent",
+    weightStep: "--weight-step", bodyWeight: "--weight-standard",
+    tracking: "--track-caption",
     leading: "--leading",
     density: "--density", controlH: "--ctl-h", headerGap: "--tb-gap",
     railW: "--rail-w", gutter: "--music-gutter",
@@ -205,7 +206,7 @@
     r.setProperty("--fs-2-base",        state.sizeLabel + "px");
     r.setProperty("--fs-3-base",        state.sizeLead + "px");
     r.setProperty("--weight-prominent", String(state.labelWeight));
-    r.setProperty("--weight-strong",    String(state.valueWeight));
+    r.setProperty("--weight-step",      String(state.weightStep));
     r.setProperty("--weight-standard",  String(state.bodyWeight));
     r.setProperty("--track-caption",    state.tracking + "px");
     r.setProperty("--leading",          String(state.leading));
