@@ -26,20 +26,21 @@
 
   if (!/[?&]tweaks(?:[=&]|$)/.test(location.search)) return;
 
-  var KEY = "sr_tweaks:v2";      // versioned: a schema change resets cleanly
+  var KEY = "sr_tweaks:v3";      // bumped when the defaults move, so a stored
+                                 // set of slider values cannot mask the new baseline
   var FOLD = "sr_tweaks_fold";
 
   // 1 · Defaults — one flat object, one entry per decision. Every value here is
   //     the neutral one, so "all defaults" is byte-identical to no panel.
   var DEFAULTS = {
     // type
-    typeScale: 1, titleSize: 28, labelWeight: 600, tracking: 0.7,
+    typeScale: 1, titleSize: 30, labelWeight: 450, tracking: 1.35,
     // spacing
-    density: 1, controlH: 40, headerGap: 12, railW: 380, gutter: 40,
+    density: 1.25, controlH: 40, headerGap: 8, railW: 400, gutter: 28,
     // shape
-    pillRadius: 999, boxRadius: 8, surfaceRadius: 16, shadowDepth: 1,
+    pillRadius: 999, boxRadius: 18, surfaceRadius: 26, shadowDepth: 0.65,
     // colour
-    accentH: 210, accentS: 100, paperWarmth: 0, inkL: 10, chunkAlpha: 0.5,
+    accentH: 203, accentS: 99, paperWarmth: 6, inkL: 25, chunkAlpha: 0.5,
     // music
     perLine: 6, staffSize: 1,
     // motion
@@ -74,7 +75,7 @@
     { id: "shape", title: "Shape", controls: [
       { key: "pillRadius",    label: "Pill radius",    min: 4, max: 30, step: 1, unit: "px",
         maxLabel: "round", maxApply: 999, note: "presets, options, toggles" },
-      { key: "boxRadius",     label: "Cell radius",    min: 0, max: 20, step: 1, unit: "px",
+      { key: "boxRadius",     label: "Cell radius",    min: 0, max: 25, step: 1, unit: "px",
         note: "rhythm figures and the note grid" },
       { key: "surfaceRadius", label: "Surface radius", min: 4, max: 30, step: 1, unit: "px",
         note: "popovers; the sheet and menu follow at ±4" },

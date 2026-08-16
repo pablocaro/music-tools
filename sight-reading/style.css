@@ -16,25 +16,25 @@
      written as parts (accent, paper) or as a calc off a base (the radii, the
      shadows), that is why — the parts are what a slider can reach. */
   --type-scale: 1;       /* every step of the type scale at once */
-  --density: 1;          /* the settings panel's gaps and padding */
-  --shadow-depth: 1;     /* how far the floating surfaces lift off the page */
+  --density: 1.25;          /* the settings panel's gaps and padding */
+  --shadow-depth: 0.65;     /* how far the floating surfaces lift off the page */
   --motion: 1;           /* multiplier on the structural transitions */
 
   /* Paper and ink in parts, so warmth and contrast are tunable. Warmth 0 is
      exactly the white and #f5f5f5 this shipped with; a little of it gives the
      cream of real manuscript paper, which is easier to read against. */
-  --paper-warmth: 0;
+  --paper-warmth: 6;
   --paper: hsl(38 calc(var(--paper-warmth) * 1%) calc(100% - var(--paper-warmth) * 0.05%));
   --paper-dim: hsl(38 calc(var(--paper-warmth) * 1%) 96%);
-  --ink-l: 10%;
+  --ink-l: 25%;
   --ink: hsl(0 0% var(--ink-l));
   --muted: #8e8e93;
 
   /* The accent, likewise in parts. The default is exactly the iOS blue it
      shipped with (#0a84ff); everything tinted — pills, toggles, the cursor —
      follows from these three. */
-  --accent-h: 210;
-  --accent-s: 100%;
+  --accent-h: 203;
+  --accent-s: 99%;
   --accent-l: 52%;
   --accent: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
 
@@ -50,10 +50,12 @@
   --music-max: 1040px;   /* the music column never grows wider than this — wide
                             viewports just gain negative space on the sides */
   --music-min: 640px;    /* …and never shrinks narrower than this */
-  --music-gutter: 40px;  /* air either side of the staff */
-  --rail-w: 380px;       /* the settings rail's width, open. Also fixes the push
-                            breakpoint: music floor (640) + sheet gutters (80) +
-                            this = 1100px, below which the rail overlays */
+  --music-gutter: 28px;  /* air either side of the staff */
+  --rail-w: 400px;       /* the settings rail's width, open. With the gutters it
+                            sets what the push breakpoint must clear: 640 + 56 +
+                            400 = 1096, so the 1100px media query still has room.
+                            Widen the rail or the gutters much further and that
+                            query has to move with them. */
 
   /* Buttons / controls — sight-reading's own (filled-on-paper) system, sibling to
      pitch-trainer's outline-on-colour one.
@@ -64,7 +66,7 @@
      metrics and a future selected state can colour them in without reflowing. */
   --ctl-border: 2px;
   --ctl-radius: 999px;                                             /* pill controls (presets) */
-  --ctl-radius-box: 8px;                                           /* boxy controls (selects, tiles) */
+  --ctl-radius-box: 18px;                                           /* boxy controls (selects, tiles) */
   --ctl-on: var(--accent);                                         /* selected = iOS-blue accent */
   --ctl-on-ink: var(--paper);                                      /* text/glyph on a filled selected control */
   --ctl-on-tint: color-mix(in srgb, var(--accent) 10%, var(--paper)); /* subtle tint for pill-selected */
@@ -89,7 +91,12 @@
        label    anything you tap that says a word — pills, cycles, options,
                 and a stepper's readout, which is marked by weight not size
        lead     the main view's subtitle, above the panel's range
-     Weight follows suit: the panel is 600 throughout, and 700 marks a value. */
+     Weight follows suit: the panel runs at --weight-prominent throughout, and
+     --weight-strong marks a value. Note the ladder currently inverts — prominent
+     (450) sits below standard (500) — so the panel reads lighter than body copy
+     rather than heavier. Deliberate for now: the airy pass wanted quieter
+     labels. If body copy ever appears beside a panel label, they will disagree
+     and standard should come down with it. */
   --fs-0: calc(10px * var(--type-scale));
   --fs-1: calc(11px * var(--type-scale));
   --fs-2: calc(14px * var(--type-scale));
@@ -97,7 +104,7 @@
   /* The title is display type and already steps down on its own for mobile, so
      it keeps a base of its own — one thing for the media query and the tweak
      panel to set, with the scale still riding over the top. */
-  --fs-4-base: 28px;
+  --fs-4-base: 30px;
   --fs-4: calc(var(--fs-4-base) * var(--type-scale));
   --type-micro:   var(--fs-0);
   --type-caption: var(--fs-1);
@@ -105,9 +112,9 @@
   --type-lead:    var(--fs-3);
   --type-title:   var(--fs-4);
   --weight-standard:  500;   /* body copy; the panel doesn't use it */
-  --weight-prominent: 600;   /* the panel's default */
+  --weight-prominent: 450;   /* the panel's default */
   --weight-strong:    700;   /* values and the drill title */
-  --track-caption: 0.7px;    /* the uppercase headings' letter-spacing — what
+  --track-caption: 1.35px;    /* the uppercase headings' letter-spacing — what
                                 makes a caption read as a label, not as text */
 
   /* Characters used as icons rather than text — clefs, accidentals, the
@@ -119,8 +126,12 @@
   /* Floating surfaces — anything that lifts off the paper. The radius steps
      down with the surface: a full sheet reads as a card, a popover as a chip
      of one, and the shadow softens to match. Named for what they are rather
-     than by a number, like every other measure in here. */
-  --radius-card:  16px;                                            /* popovers hung off a button */
+     than by a number, like every other measure in here.
+     The ±4px step is absolute, so it reads as a ladder at a small base (20/16/12
+     was a 25% step) and nearly flat at a large one (30/26/22 is 15%). At this
+     base the three tiers are close to indistinguishable; make the step
+     proportional if they ever need to be told apart again. */
+  --radius-card:  26px;                                            /* popovers hung off a button */
   --radius-sheet: calc(var(--radius-card) + 4px);                  /* help / onboarding card */
   --radius-menu:  calc(var(--radius-card) - 4px);                  /* a menu opened from inside one */
   --shadow-sheet: 0 18px calc(60px * var(--shadow-depth)) rgba(0, 0, 0, calc(0.22 * var(--shadow-depth)));
@@ -129,7 +140,7 @@
   --pop-w:   248px;                                                /* popover min width */
   --pop-pad: 16px;
   --pop-gap: 12px;                                                 /* between a popover's rows */
-  --tb-gap:  12px;                                                 /* between the header's action buttons */
+  --tb-gap:  8px;                                                 /* between the header's action buttons */
 
   /* A rhythm figure's engraved preview. One note should be drawn the same
      size in every cell, so a figure that lasts twice as long gets twice the
@@ -1550,7 +1561,11 @@ button.secondary {
   .sheet-area { padding: 8px var(--music-gutter) 18px; }
   :root {
     --fs-4-base: 24px; /* the title steps down; the rest of the scale holds */
-    --tb-gap: 16px;    /* the header trio at 40px reads tight at 12px on a small screen */
+    /* Kept at 16 while the desktop default came down to 8, so this is now twice
+       it rather than a nudge off it. That is a touch-target decision, not a
+       stylistic one — fingers need the separation that a cursor does not — but
+       it is a deliberate divergence rather than the small adjustment it was. */
+    --tb-gap: 16px;
   }
   .topbar { padding: 20px 16px 10px; }
   /* The pill loses its desktop neighbours (nothing else sits at this edge on
