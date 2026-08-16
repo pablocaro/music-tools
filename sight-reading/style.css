@@ -1492,8 +1492,16 @@ button.secondary {
    floor so narrow screens reflow instead of clipping. */
 @media (max-width: 720px) {
   .sheet-area { padding: 8px 14px 18px; }
-  :root { --fs-4: 24px; }        /* the title steps down; the rest of the scale holds */
-  .topbar { padding: 16px 16px 4px; }
+  :root {
+    --fs-4: 24px;      /* the title steps down; the rest of the scale holds */
+    --tb-gap: 16px;    /* the header trio at 40px reads tight at 12px on a small screen */
+  }
+  .topbar { padding: 20px 16px 10px; }
+  /* The pill loses its desktop neighbours (nothing else sits at this edge on
+     a phone), so it can afford more air on both counts: from the last
+     system above it and from the screen edge below — clear of a thumb, and
+     of an iPhone's home indicator. */
+  .controlbar { gap: 10px; padding: 10px; margin: 14px 0 26px; }
   #sheet-stage { min-width: 0; }   /* let it shrink to fit the phone */
   #countdown { font-size: 96px; }
 }
