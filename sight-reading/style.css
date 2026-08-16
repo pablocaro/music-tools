@@ -90,7 +90,19 @@
      sizes; these are its own dials (tweaks · Onboarding set, best driven with
      ?onboarding&tweaks so you can watch them land). */
   --ob-logo-size: 72px;
-  --ob-logo-alpha: 0.55;  /* each circle's ink; overlaps multiply darker */
+  --ob-logo-alpha: 0.5;  /* each circle's ink; overlaps multiply darker */
+  --ob-logo-r: 20;       /* unitless, so --ob-logo-fit can divide by them */
+  --ob-logo-spread: 7;
+  /* The mark sizes itself to its own box. Reach is radius + spread, so 24 over
+     that is exactly the factor that lands the outermost edge on the viewBox
+     edge. Baked into each circle's geometry rather than applied as a transform
+     on the group: a CSS transform inside a <symbol> is rejected outright here,
+     and calc on cx/cy/r is the same arithmetic with nothing to reject. The two
+     dials therefore set proportion only — --ob-logo-size sets size — and
+     cropping stops being possible instead of something overflow must rescue
+     (a <symbol> becomes an <svg> in the shadow tree and clips to its own
+     viewBox whatever the outer element says, which is why it could not). */
+  --ob-logo-fit: calc(24 / (var(--ob-logo-r) + var(--ob-logo-spread)));
   /* The three circles sit on an equilateral triangle about the viewBox centre,
      so overlap is one number: how far each centre is pushed out from the
      middle. Less spread, more overlap. Radius is its own dial, and the two
@@ -101,14 +113,13 @@
      r 13) opens a gap under it and the note dissolves into the paper. Visible
      the moment you drag it, so it is left as a limit to find rather than a
      clamp — but that is the ceiling, not the slider's max. */
-  --ob-logo-r: 13px;
-  --ob-logo-spread: 7px;
-  --ob-title-size: 29px; /* the wordmark and each page's question */
-  --ob-title-weight: 600;
-  --ob-body-size: 23px;
-  --ob-leading: 1.35;
-  --ob-pad: 42px;        /* the card's padding, desktop */
-  --ob-radius: 35px;
+
+  --ob-title-size: 30px; /* the wordmark and each page's question */
+  --ob-title-weight: 550;
+  --ob-body-size: 24px;
+  --ob-leading: 1.4;
+  --ob-pad: 44px;        /* the card's padding, desktop */
+  --ob-radius: 34px;
   --rail-w: 400px;       /* the settings rail's width, open. With the gutters it
                             sets what the push breakpoint must clear: 640 + 56 +
                             400 = 1096, so the 1100px media query still has room.

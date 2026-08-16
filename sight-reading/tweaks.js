@@ -51,9 +51,9 @@
     // music
     perLine: 6, staffSize: 1, musicFade: 160,
     // onboarding
-    obLogoSize: 72, obLogoAlpha: 0.55, obLogoR: 13, obLogoSpread: 7,
-    obTitle: 29, obTitleWeight: 600,
-    obBody: 23, obLeading: 1.35, obPad: 42, obRadius: 35,
+    obLogoSize: 72, obLogoAlpha: 0.5, obLogoR: 20, obLogoSpread: 7,
+    obTitle: 30, obTitleWeight: 550,
+    obBody: 24, obLeading: 1.4, obPad: 44, obRadius: 34,
     // motion
     motion: 1, reduceMotion: 0
   };
@@ -155,7 +155,7 @@
       { key: "obLogoR",      label: "Circle size",  min: 7, max: 20, step: 0.5, unit: "px",
         note: "radius of each of the three" },
       { key: "obLogoSpread", label: "Circle spread", min: 0, max: 16, step: 0.5, unit: "px",
-        note: "less is more overlap; past ~11 the note loses its backing" },
+        note: "less is more overlap; the mark refits itself either way" },
       { key: "obTitle",      label: "Title size",   min: 20, max: 40, step: 1, unit: "px",
         note: "the wordmark and each page's question" },
       { key: "obTitleWeight",label: "Title weight", min: 400, max: 900, step: 25, unit: "",
@@ -276,8 +276,8 @@
 
     r.setProperty("--ob-logo-size",    state.obLogoSize + "px");
     r.setProperty("--ob-logo-alpha",   String(state.obLogoAlpha));
-    r.setProperty("--ob-logo-r",       state.obLogoR + "px");
-    r.setProperty("--ob-logo-spread",  state.obLogoSpread + "px");
+    r.setProperty("--ob-logo-r",       String(state.obLogoR));      // unitless
+    r.setProperty("--ob-logo-spread",  String(state.obLogoSpread));
     r.setProperty("--ob-title-size",   state.obTitle + "px");
     r.setProperty("--ob-title-weight", String(state.obTitleWeight));
     r.setProperty("--ob-body-size",    state.obBody + "px");
