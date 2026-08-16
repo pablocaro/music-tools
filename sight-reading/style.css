@@ -84,6 +84,19 @@
      squircle — leaves shadows and borders intact. Chromium-only for now, so it
      sits behind @supports and everywhere else simply stays circular. */
   --corner-curve: 1;
+
+  /* Onboarding's own scale. The walkthrough is display typography — one page,
+     a few sentences, read once — so it does not borrow the panel's working
+     sizes; these are its own dials (tweaks · Onboarding set, best driven with
+     ?onboarding&tweaks so you can watch them land). */
+  --ob-logo-size: 64px;
+  --ob-logo-alpha: 0.5;  /* each circle's ink; overlaps multiply darker */
+  --ob-title-size: 28px; /* the wordmark and each page's question */
+  --ob-title-weight: 700;
+  --ob-body-size: 21px;
+  --ob-leading: 1.45;
+  --ob-pad: 44px;        /* the card's padding, desktop */
+  --ob-radius: 28px;
   --rail-w: 400px;       /* the settings rail's width, open. With the gutters it
                             sets what the push breakpoint must clear: 640 + 56 +
                             400 = 1096, so the 1100px media query still has room.
@@ -1556,10 +1569,17 @@ button.secondary {
     min-height: 460px;
     max-height: 86dvh;
     background: var(--paper);
-    border-radius: 22px;
+    border-radius: var(--ob-radius);
     box-shadow: var(--shadow-sheet);
-    padding: 34px 34px 26px;
+    padding: var(--ob-pad) var(--ob-pad) calc(var(--ob-pad) - 14px);
   }
+}
+
+.ob-logo {
+  display: block;
+  width: var(--ob-logo-size);
+  height: var(--ob-logo-size);
+  margin-bottom: 20px;
 }
 
 /* The pages scroll; the footer never does, so Next is always reachable. */
@@ -1579,12 +1599,12 @@ button.secondary {
    rather than a heading; the previous 46px read as a poster, not a page.
    Scoped to .ob-body so it outranks the body-copy sizing on its siblings. */
 .ob-body .ob-wordmark {
-  font-size: var(--type-title);
-  font-weight: var(--weight-strong);
+  font-size: var(--ob-title-size);
+  font-weight: var(--ob-title-weight);
   text-transform: uppercase;
   letter-spacing: 1px;
   line-height: 1.15;
-  margin-bottom: 18px;
+  margin-bottom: 26px;
 }
 
 /* The panel's grid is auto-fill, which would leave this fixed six-figure set
@@ -1592,23 +1612,28 @@ button.secondary {
 .ob .fig-grid { grid-template-columns: repeat(6, 1fr); }
 
 .ob-body h2 {
-  font-size: var(--type-lead);
-  font-weight: var(--weight-strong);
-  line-height: 1.3;
-  margin-bottom: 20px;
+  font-size: var(--ob-title-size);
+  font-weight: var(--ob-title-weight);
+  line-height: 1.25;
+  margin-bottom: 24px;
 }
 
 .ob-body p {
-  font-size: var(--type-label);
+  font-size: var(--ob-body-size);
   font-weight: var(--weight-standard);
-  line-height: var(--leading);
+  line-height: var(--ob-leading);
   color: var(--ink);
 }
 .ob-body p + p { margin-top: 14px; }
 
-/* A quiet caption under a group of controls, saying what the choice does. */
-.ob-note {
+/* A quiet caption under a group of controls, saying what the choice does —
+   working text, so it steps back down to the panel's label size while the
+   page's own copy runs at display size. Scoped under .ob-body to outrank the
+   .ob-body p display sizing above; bare .ob-note always lost that fight, which
+   is why this caption has been rendering as body copy. */
+.ob-body .ob-note {
   margin-top: 18px;
+  font-size: var(--type-label);
   color: var(--muted);
 }
 

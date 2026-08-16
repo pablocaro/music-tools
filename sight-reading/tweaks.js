@@ -50,6 +50,9 @@
     accentH: 208, accentS: 100, paperWarmth: 18, inkL: 16, chunkAlpha: 0.5,
     // music
     perLine: 6, staffSize: 1, musicFade: 64,
+    // onboarding
+    obLogoSize: 64, obLogoAlpha: 0.5, obTitle: 28, obTitleWeight: 700,
+    obBody: 21, obLeading: 1.45, obPad: 44, obRadius: 28,
     // motion
     motion: 1, reduceMotion: 0
   };
@@ -143,6 +146,24 @@
       { key: "musicFade", label: "Bottom fade",   min: 0, max: 160, step: 4, unit: "px", re: 1,
         note: "music dissolves before the pill; 0 is a hard clip" }
     ] },
+    { id: "ob", title: "Onboarding", controls: [
+      { key: "obLogoSize",   label: "Logo size",    min: 28, max: 72, step: 1, unit: "px",
+        note: "open ?onboarding&tweaks to watch these land" },
+      { key: "obLogoAlpha",  label: "Logo ink",     min: 0.2, max: 0.8, step: 0.05, unit: "×",
+        note: "each circle's strength; overlaps multiply" },
+      { key: "obTitle",      label: "Title size",   min: 20, max: 40, step: 1, unit: "px",
+        note: "the wordmark and each page's question" },
+      { key: "obTitleWeight",label: "Title weight", min: 400, max: 900, step: 25, unit: "",
+        note: "" },
+      { key: "obBody",       label: "Body size",    min: 14, max: 28, step: 0.5, unit: "px",
+        note: "the walkthrough's copy" },
+      { key: "obLeading",    label: "Body leading", min: 1.2, max: 1.9, step: 0.05, unit: "×",
+        note: "" },
+      { key: "obPad",        label: "Card padding", min: 24, max: 64, step: 2, unit: "px",
+        note: "desktop card; the phone wall keeps its own" },
+      { key: "obRadius",     label: "Card radius",  min: 12, max: 40, step: 1, unit: "px",
+        note: "" }
+    ] },
     { id: "motion", title: "Motion", controls: [
       { key: "motion",       label: "Transition speed", min: 0, max: 2, step: 0.05, unit: "×",
         note: "the rail's slide and the scrim's fade" },
@@ -174,6 +195,10 @@
     inkL: "--ink-l", chunkAlpha: "--chunk-alpha",
     perLine: "app.js LAYOUT.perLine", staffSize: "app.js LAYOUT.zoomCap",
     musicFade: "--music-fade",
+    obLogoSize: "--ob-logo-size", obLogoAlpha: "--ob-logo-alpha",
+    obTitle: "--ob-title-size", obTitleWeight: "--ob-title-weight",
+    obBody: "--ob-body-size", obLeading: "--ob-leading",
+    obPad: "--ob-pad", obRadius: "--ob-radius",
     motion: "--motion", reduceMotion: ".reduce-motion on <html>"
   };
 
@@ -242,6 +267,15 @@
     r.setProperty("--chunk-alpha",  String(state.chunkAlpha));
 
     r.setProperty("--music-fade", state.musicFade + "px");
+
+    r.setProperty("--ob-logo-size",    state.obLogoSize + "px");
+    r.setProperty("--ob-logo-alpha",   String(state.obLogoAlpha));
+    r.setProperty("--ob-title-size",   state.obTitle + "px");
+    r.setProperty("--ob-title-weight", String(state.obTitleWeight));
+    r.setProperty("--ob-body-size",    state.obBody + "px");
+    r.setProperty("--ob-leading",      String(state.obLeading));
+    r.setProperty("--ob-pad",          state.obPad + "px");
+    r.setProperty("--ob-radius",       state.obRadius + "px");
     r.setProperty("--motion", String(state.motion));
     el.classList.toggle("reduce-motion", !!state.reduceMotion);
 

@@ -2869,6 +2869,8 @@
     host.scrollTop = 0;
 
     if (page === "intro") {
+      host.insertAdjacentHTML("beforeend",
+        '<svg class="ob-logo" aria-hidden="true"><use href="#ic-logo"/></svg>');
       var mark = document.createElement("p");
       mark.className = "ob-wordmark";
       mark.id = "ob-title";
