@@ -26,7 +26,9 @@
   --music-max: 1040px;   /* the music column never grows wider than this — wide
                             viewports just gain negative space on the sides */
   --music-min: 640px;    /* …and never shrinks narrower than this */
-  --bar-h: 84px;         /* control-bar height (14 + button + 22) = the pocket's visible lip when closed */
+  --rail-w: 380px;       /* the settings rail's width, open. Also fixes the push
+                            breakpoint: music floor (640) + sheet gutters (80) +
+                            this = 1100px, below which the rail overlays */
 
   /* Buttons / controls — sight-reading's own (filled-on-paper) system, sibling to
      pitch-trainer's outline-on-colour one.
@@ -43,8 +45,7 @@
   --ctl-on-tint: color-mix(in srgb, var(--accent) 10%, var(--paper)); /* subtle tint for pill-selected */
   --ctl-h: 40px;                                                   /* standard control height in the panel */
   --ctl-h-lg: 48px;                                                /* round icon buttons — transport, regenerate */
-  --panel-max: 1100px;                                             /* settings content stops widening past this */
-  --col-max: 540px;                                                /* one column of the panel's two-up bands */
+  --col-max: 540px;                                                /* cap for a bare slider's travel */
   --ctl-fill: var(--paper-dim);                                    /* recessed track / plain-container fill */
   --ctl-fill-hover: #e9e9ee;                                       /* resting fill, hovered */
   --track: rgba(0, 0, 0, 0.18);                                    /* slider track — reads recessed on paper and on --ctl-fill */
@@ -124,7 +125,7 @@ body {
   font-size: var(--fs-2);
   background: var(--paper);
   color: var(--ink);
-  height: 100dvh;        /* dvh, not vh — so the fixed pocket sits at the true bottom on iOS/iPadOS */
+  height: 100dvh;        /* dvh, not vh — so the transport pill sits at the true bottom on iOS/iPadOS */
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -147,36 +148,29 @@ body {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding-bottom: var(--bar-h);   /* clear the closed pocket's control-bar lip */
 }
 
-/* Persistent control bar — a centered, floating row of rounded icon buttons */
+/* Transport pill — a floating row of rounded icon buttons, centred on the music
+   column at the bottom of the window. In flow rather than fixed, so it centres
+   on .content and travels with the music when the rail pushes it aside. Paper
+   on paper, so the shadow is what lifts it off the page. */
 .controlbar {
   flex-shrink: 0;
-  display: grid;
-  /* settings | centred trio | deliberately empty. The third column carries no
-     button any more — the sound toggles moved to the header — but it stays in
-     the grid so the trio centres on the viewport rather than on the space left
-     of it. A lone icon at one edge reads as anchored; a trio drifting off
-     centre reads as broken. */
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  padding: 14px 24px 22px;
-  background: transparent;
-}
-#settings-toggle { justify-self: start; }
-.cb-center {
-  grid-column: 2;
+  align-self: center;
   display: flex;
   align-items: center;
   gap: 8px;
+  margin: 10px 0 18px;
+  padding: 8px;
+  border-radius: 999px;
+  background: var(--paper);
+  box-shadow: var(--shadow-pop);
 }
-.cb-right { grid-column: 3; justify-self: end; }
 
-/* A transport button that's currently active — metronome on, accompaniment on,
-   or the transport running — wears the same blue tint the settings button does
-   while the pocket is open. The glyph swaps too (see PATTERN: icon states), so
-   state reads by colour at a glance and by form up close. */
+/* A transport button that's currently active — the transport running — wears
+   the same blue tint the settings button does while the rail is open. The
+   glyph swaps too (see PATTERN: icon states), so state reads by colour at a
+   glance and by form up close. */
 .controlbar .cb-icon.on,
 .controlbar .cb-icon.playing { background: var(--ctl-on-tint); color: var(--ctl-on); }
 
@@ -201,12 +195,11 @@ body {
 .ic-metro      { width: 23px; height: 23px; }
 .ic-eye        { width: 23px; height: 23px; }
 .ic-regenerate { width: 19px; height: 19px; }
-/* The transport's centre trio runs lighter than the flanking buttons, so the
-   cluster reads as one group rather than five equal weights. */
-.cb-center .ic-restart { width: 18px; height: 18px; }
-.cb-center .ic-play    { width: 15px; height: 15px; }
-.cb-center .ic-pause   { width: 14px; height: 14px; }
-.cb-center .ic-accomp  { width: 19px; height: 19px; }
+/* The transport trio runs lighter than the header's buttons — it sits closest
+   to the music, so it whispers. */
+.controlbar .ic-restart { width: 18px; height: 18px; }
+.controlbar .ic-play    { width: 15px; height: 15px; }
+.controlbar .ic-pause   { width: 14px; height: 14px; }
 
 /* The panel's icon-toggles are a smaller button than the transport's, so the
    same glyphs step down with them. */
@@ -245,44 +238,61 @@ button.playing svg.state-alt { display: block; }
 .controlbar button:active { transform: scale(0.94); opacity: 1; }
 
 .controlbar .cb-icon { width: var(--ctl-h-lg); height: var(--ctl-h-lg); }
-/* Settings shows the selected state (blue tint) while the pocket is open. */
+/* Settings shows the selected state (blue tint) while the rail is open. */
 .layout.panel-open #settings-toggle { background: var(--ctl-on-tint); color: var(--ctl-on); }
 
-/* Settings pocket — a bottom sheet whose top edge IS the control bar. Closed, it's
-   translated down so only that bar peeks at the screen bottom; ⚙ slides the whole
-   sheet up to reveal the settings grid beneath the bar. */
-.pocket {
+/* Settings rail — a right-hand column behind the header's ⚙. Two behaviours,
+   one element: below the push breakpoint it is a fixed drawer that slides in
+   over the music (nothing resizes, nothing re-engraves); at ≥1100px it joins
+   the flex row instead and the music re-lays out beside it. The breakpoint is
+   where the music floor + gutters + rail first fit — see --rail-w. */
+.rail {
   position: fixed;
-  left: 0; right: 0; bottom: 0;
+  top: 0; right: 0; bottom: 0;
   z-index: 50;
   display: flex;
   flex-direction: column;
-  max-height: 85dvh;
+  /* Never the full viewport: the scrim keeps a tappable sliver on the left, so
+     the drawer can always be dismissed even where it covers the ⚙ that opened
+     it (Escape works too). */
+  width: min(var(--rail-w), 88vw);
   background: var(--paper);
-  border-top-left-radius: 22px;
-  border-top-right-radius: 22px;
-  box-shadow: 0 -6px 34px rgba(0, 0, 0, 0.14);
-  transform: translateY(calc(100% - var(--bar-h)));
+  box-shadow: -6px 0 34px rgba(0, 0, 0, 0.14);
+  transform: translateX(100%);
   transition: transform 0.34s cubic-bezier(0.32, 0.72, 0, 1);
 }
-.layout.panel-open .pocket { transform: translateY(0); }
+.layout.panel-open .rail { transform: translateX(0); }
 
-.pocket-body {
+@media (min-width: 1100px) {
+  .rail {
+    position: static;
+    order: 2;                     /* after .content in the row, whatever the DOM order */
+    width: var(--rail-w);
+    flex-shrink: 0;
+    box-shadow: none;
+    border-left: 1px solid var(--line);
+    /* display, not transform: a pushed rail has no closed position to slide to,
+       and hiding it is what hands the width back to the music. No animation —
+       the score re-engraves at the new width in one step, so a sliding edge
+       would only showcase the seam. */
+    transform: none;
+    transition: none;
+    display: none;
+  }
+  .layout.panel-open .rail { display: flex; }
+}
+
+.rail-body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   /* Nothing may ever drag the panel sideways. A hover tooltip on an edge tile
-     can still reach past the content box in a narrow desktop window; clipping
-     it beats letting the whole sheet slide. (`clip` would be tidier, but it
-     computes to `hidden` anyway whenever the other axis is `auto`.) */
+     can still reach past the content box; clipping it beats letting the whole
+     rail slide. (`clip` would be tidier, but it computes to `hidden` anyway
+     whenever the other axis is `auto`.) */
   overflow-x: hidden;
-  padding: 4px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+  padding: 18px 20px calc(24px + env(safe-area-inset-bottom, 0px));
 }
-
-/* The panel's content stops widening on a large monitor — past this the rows
-   stretch into unreadable runs. Capped per band so the dividers stop with it. */
-.pocket-body > .band,
-.pocket-body > .error { max-width: var(--panel-max); margin-inline: auto; }
 
 /* ---------------------------------------------------------------------------
    PATTERN: band + section
@@ -359,7 +369,7 @@ button.playing svg.state-alt { display: block; }
 .sec-instrument { flex: 3 1 420px; }
 .sec-language   { flex: 1 1 160px; }
 
-/* Scrim: dims the music behind the open pocket; tap it to close. */
+/* Scrim: dims the music behind the overlaid rail; tap it to close. */
 .scrim {
   position: fixed;
   inset: 0;
@@ -370,6 +380,11 @@ button.playing svg.state-alt { display: block; }
   transition: opacity 0.3s;
 }
 .layout.panel-open .scrim { opacity: 1; pointer-events: auto; }
+/* Pushed, the rail sits beside the music rather than over it — nothing to dim,
+   and the page must stay clickable. */
+@media (min-width: 1100px) {
+  .layout.panel-open .scrim { opacity: 0; pointer-events: none; }
+}
 
 section {
   display: flex;
@@ -873,9 +888,10 @@ button.secondary {
   .pill .upd:hover:not(.tip-off)::after,
   .pill .del:hover:not(.tip-off)::after { opacity: 1; transition-delay: var(--tip-delay); }
 
-  /* The transport sits at the top edge of the open sheet, so its tooltips
-     hang below rather than off the top of the panel. */
-  .controlbar .cb-icon::after { top: calc(100% + 6px); bottom: auto; }
+  /* The set-up cluster sits at the window's top edge, so its tooltips hang
+     below rather than off the top of the screen. The transport pill at the
+     bottom keeps the default above-the-button side for the mirrored reason. */
+  .tb-btn::after { top: calc(100% + 6px); bottom: auto; }
 }
 
 /* Legend — what the two highlighter colours mean, beside the Chunks toggle. */
@@ -1041,10 +1057,12 @@ button.secondary {
 .pop-row .stepper-range { flex: 0 1 140px; min-width: 0; }
 .pop-label { font-size: var(--type-label); font-weight: var(--weight-prominent); color: var(--ink); }
 
-/* Regenerate — same rounded-icon family as the transport, set in paper-dim. */
+/* The header's set-up cluster — same rounded-icon family as the transport, set
+   in paper-dim, one size down from the pill: these are reached for between
+   lines, not during one. */
 .tb-btn {
   flex-shrink: 0;
-  width: var(--ctl-h-lg); height: var(--ctl-h-lg);
+  width: var(--ctl-h); height: var(--ctl-h);
   padding: 0;
   border: none;
   border-radius: 999px;
@@ -1066,9 +1084,6 @@ button.secondary {
    the tint would vanish under the pointer. */
 .tb-btn.on { background: var(--ctl-on-tint); color: var(--ctl-on); }
 .tb-btn.on:hover { background: color-mix(in srgb, var(--accent) 18%, var(--paper)); }
-
-/* Metronome and accompaniment use standard panel height, not the large size */
-#metro-toggle, #accomp-toggle { width: var(--ctl-h); height: var(--ctl-h); }
 
 /* Chord names above the staff — drawn on their own overlay, positioned off
    the engraved geometry the way the chunk blocks are. */
@@ -1168,9 +1183,8 @@ button.secondary {
    heading row is the one place with space to spare at every width — the pills
    below wrap as they always did, on a phone as much as a monitor.
 
-   The sheet itself follows the settings pocket: it rises from the bottom on a
-   phone and sits as a centred card once there's room, so it reads as part of
-   the app rather than a browser dialog.
+   The sheet rises from the bottom on a phone and sits as a centred card once
+   there's room, so it reads as part of the app rather than a browser dialog.
    --------------------------------------------------------------------------- */
 .sec-head {
   display: flex;
@@ -1309,7 +1323,7 @@ button.secondary {
   position: fixed;
   inset: 0;
   outline: none;              /* it takes focus as a container, not as a control */
-  z-index: 120;                    /* above the settings pocket and the help sheet */
+  z-index: 120;                    /* above the settings rail and the help sheet */
   background: var(--paper);
   display: flex;
   align-items: center;

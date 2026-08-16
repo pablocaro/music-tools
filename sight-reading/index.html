@@ -66,31 +66,12 @@
 
   <div class="layout">
 
-    <aside class="pocket">
-      <!-- The control bar IS the sheet's top edge / handle. Closed, only this row
-           peeks at the screen bottom; ⚙ slides the whole sheet up to reveal the grid. -->
-      <div class="controlbar">
-        <button id="settings-toggle" class="cb-icon" aria-label="Settings" data-i18n-aria="aria.settings">
-          <svg class="ic ic-settings"><use href="#ic-settings"/></svg>
-        </button>
-        <!-- One family: start this line over, run it, or fetch a different one.
-             The two sound toggles moved to the header, where a popover can hang
-             off them from a position that doesn't move when the pocket opens. -->
-        <div class="cb-center">
-          <button id="from-top" class="cb-icon" aria-label="From the top" data-i18n-aria="aria.fromTop">
-            <svg class="ic ic-restart"><use href="#ic-restart"/></svg>
-          </button>
-          <button id="play" class="cb-icon" aria-label="Play" data-i18n-aria="aria.play">
-            <svg class="ic ic-play state-rest"><use href="#ic-play"/></svg>
-            <svg class="ic ic-pause state-alt"><use href="#ic-pause"/></svg>
-          </button>
-          <button id="generate" class="cb-icon" aria-label="New exercise" data-i18n-aria="aria.newExercise">
-            <svg class="ic ic-regenerate"><use href="#ic-regenerate"/></svg>
-          </button>
-        </div>
-      </div>
-
-      <div class="pocket-body">
+    <!-- Settings rail. Everything that defines the exercise lives in here; the
+         header button beside the sound toggles opens it. On a wide window it
+         joins the flex row and pushes the music aside; narrower, it slides in
+         over the right edge instead. -->
+    <aside class="rail">
+      <div class="rail-body">
 
       <!-- Settings read/write these elements; the visible pills, steppers and
            grids above are the UI that drives them. Keeping them as real form
@@ -314,7 +295,7 @@
       </div>
 
       <p id="error-msg" class="error" hidden></p>
-      </div><!-- /pocket-body -->
+      </div><!-- /rail-body -->
     </aside>
 
     <!-- The music and the control tray share one region, so the tray tracks the
@@ -329,12 +310,11 @@
         <h1 id="sh-title"></h1>
         <div id="sh-sub"></div>
       </div>
-      <!-- Pace and accompaniment. These live in the header rather than the
-           control bar because the bar IS the pocket's top edge and travels with
-           it: a popover hung off it would need two anchors and two sets of
-           states. The header holds still, so there is one position and one code
-           path. Each button still shows its own on/off at a glance, so reading
-           the state never costs a tap. -->
+      <!-- Set-up, gathered in one cluster: pace, accompaniment, and the rail
+           behind ⚙ — everything that shapes the exercise before you run it.
+           The transport pill below holds only what runs it. The header holds
+           still whatever opens, so the popovers keep one anchor and one code
+           path, and each toggle shows its own on/off at a glance. -->
       <div class="tb-actions">
         <button id="metro-toggle" class="tb-btn js-metro-face" aria-label="Metronome" data-i18n-aria="aria.metronome" aria-expanded="false" aria-controls="pace-pop">
           <svg class="ic ic-metro state-off"><use href="#ic-metro-off"/></svg>
@@ -343,6 +323,9 @@
         <button id="accomp-toggle" class="tb-btn js-accomp-face" aria-label="Play along" data-i18n-aria="aria.accomp" aria-expanded="false" aria-controls="accomp-pop">
           <svg class="ic ic-accomp state-off"><use href="#ic-accomp-off"/></svg>
           <svg class="ic ic-accomp state-on"><use href="#ic-accomp-on"/></svg>
+        </button>
+        <button id="settings-toggle" class="tb-btn" aria-label="Settings" data-i18n-aria="aria.settings" aria-expanded="false">
+          <svg class="ic ic-settings"><use href="#ic-settings"/></svg>
         </button>
 
         <div id="pace-pop" class="pop" hidden>
@@ -407,6 +390,22 @@
       <div id="cover-bot"></div>
       <div id="countdown" hidden></div>
     </main>
+    <!-- Transport pill — one family: start this line over, run it, or fetch a
+         different one. It floats free of the settings rail, so it neither moves
+         nor hides when the rail opens; it centres on the music column and
+         re-centres with it when the rail pushes the music aside. -->
+    <div class="controlbar">
+      <button id="from-top" class="cb-icon" aria-label="From the top" data-i18n-aria="aria.fromTop">
+        <svg class="ic ic-restart"><use href="#ic-restart"/></svg>
+      </button>
+      <button id="play" class="cb-icon" aria-label="Play" data-i18n-aria="aria.play">
+        <svg class="ic ic-play state-rest"><use href="#ic-play"/></svg>
+        <svg class="ic ic-pause state-alt"><use href="#ic-pause"/></svg>
+      </button>
+      <button id="generate" class="cb-icon" aria-label="New exercise" data-i18n-aria="aria.newExercise">
+        <svg class="ic ic-regenerate"><use href="#ic-regenerate"/></svg>
+      </button>
+    </div>
     </div><!-- /content -->
 
     <!-- Help — a scrim plus a sheet. Content is written from the catalogue so it

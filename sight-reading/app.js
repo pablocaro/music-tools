@@ -3441,11 +3441,12 @@
   // ===========================================================================
   // Header popovers — pace and play-along
   //
-  // Each header button owns one popover. Only one is ever open, and anything
-  // that starts a new action closes them: the pocket is modal, so a popover and
-  // the settings panel can never be up at once, which is why there is a single
-  // anchor position and no second set of states to reason about.
+  // Each header button owns one popover. Only one is ever open. The settings
+  // rail is modal only while it overlays (below the push breakpoint) — there
+  // it covers the popovers' anchors, so opening one dismisses it. Pushed, the
+  // rail is furniture rather than a mode, and a popover can hang beside it.
   // ===========================================================================
+  var pushMq = window.matchMedia("(min-width: 1100px)");   // one source for CSS's push breakpoint
   var POPS = [
     { btn: document.getElementById("metro-toggle"),  pop: document.getElementById("pace-pop") },
     { btn: document.getElementById("accomp-toggle"), pop: document.getElementById("accomp-pop") }
@@ -3464,7 +3465,7 @@
     var wasOpen = !which.pop.hidden;
     closePops();
     if (wasOpen) return;                      // second tap on the same button closes
-    setPanel(false);                          // the pocket is modal; a tap out here dismisses it
+    if (!pushMq.matches) setPanel(false);     // the overlaid rail is modal; a tap out here dismisses it
     which.pop.hidden = false;
     which.btn.setAttribute("aria-expanded", "true");
     which.btn.classList.add("open");
@@ -3475,21 +3476,27 @@
     x.pop.addEventListener("click", function (e) { e.stopPropagation(); });
   });
   document.addEventListener("click", function () { if (popOpen()) closePops(); });
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && popOpen()) closePops(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    if (popOpen()) { closePops(); return; }
+    if (layoutEl.classList.contains("panel-open")) setPanel(false);   // the overlaid rail can cover its own ⚙
+  });
 
-  // Collapsible settings. The control bar (Play / New line) is always visible;
-  // the sidebar is a drawer that shows only when .panel-open — closed by default
-  // so a fresh load shows the full, uncovered staff. On a wide window the drawer
-  // reserves space and the music reflows beside it (push); narrow, or when its
-  // pushed width equals the full width, it just overlays and nothing re-renders.
+  // The settings rail, behind the header's ⚙ — closed by default so a fresh
+  // load shows the full, uncovered staff. On a wide window it reserves space
+  // and the music reflows beside it (push); narrower it just overlays and
+  // nothing re-renders. The width check below is what tells them apart, so the
+  // push breakpoint lives only in the CSS and pushMq.
   var layoutEl = document.querySelector(".layout");
+  var settingsBtn = document.getElementById("settings-toggle");
   function setPanel(open) {
     if (layoutEl.classList.contains("panel-open") === open) return;
     var before = availWidth();
     layoutEl.classList.toggle("panel-open", open);
+    settingsBtn.setAttribute("aria-expanded", open ? "true" : "false");
     if (currentSheet && availWidth() !== before) renderLoaded();   // only when the region actually resized
   }
-  document.getElementById("settings-toggle").addEventListener("click", function () {
+  settingsBtn.addEventListener("click", function () {
     setPanel(!layoutEl.classList.contains("panel-open"));
   });
   var scrimEl = document.getElementById("scrim");
