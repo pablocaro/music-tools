@@ -108,8 +108,14 @@ const { chromium } = require(PW);
     return Math.round(0.2126 * r + 0.7152 * g + 0.0722 * b);
   }, s);
   const trough = await lum('.rail'), platter = await lum('.band[data-band]'), fill = await lum('.cycle');
+  // The platter must out-read both, always — that is what makes a card a card.
+  // Trough vs control fill is a choice, not a rule: below the fill the stack
+  // reads trough < control < platter; above it the rail goes flat and quiet at
+  // the cost of a control no longer separating from what is behind the card.
+  // Reported rather than asserted, so a deliberate flat rail is not a failure.
   console.log('platter stack         : ' + JSON.stringify({ trough, fill, platter }) +
-    ' (want trough < control fill < platter — a control must never match the trough)');
+    '  platter on top: ' + (platter > trough && platter > fill ? 'yes' : 'NO (bad)') +
+    ' | trough vs control: ' + (trough < fill ? 'below (layered)' : 'above (flat rail)'));
 
   const bands = await p.evaluate(() => ({
     count: document.querySelectorAll('.band[data-band]').length,

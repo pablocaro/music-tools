@@ -26,7 +26,7 @@
 
   if (!/[?&]tweaks(?:[=&]|$)/.test(location.search)) return;
 
-  var KEY = "sr_tweaks:v4";      // bumped when the defaults move, so a stored
+  var KEY = "sr_tweaks:v5";      // bumped when the defaults move, so a stored
                                  // set of slider values cannot mask the new baseline
   var FOLD = "sr_tweaks_fold";
 
@@ -41,8 +41,8 @@
     pillRadius: 999, boxRadius: 18, surfaceRadius: 26, shadowDepth: 0.65,
     cornerCurve: 1,
     // rail
-    railTone: 7, platterRadius: 16, platterPad: 16, platterGap: 10,
-    platterLift: 0.5, platterEdge: 0,
+    railTone: 3, platterRadius: 22, platterPad: 18, platterGap: 12,
+    platterLift: 0.1, platterEdge: 0, railInset: 24,
     // colour
     accentH: 203, accentS: 99, paperWarmth: 6, inkL: 25, chunkAlpha: 0.5,
     // music
@@ -100,7 +100,9 @@
       { key: "platterPad",    label: "Platter padding", min: 6, max: 30, step: 1, unit: "px",
         note: "air inside a card" },
       { key: "platterGap",    label: "Platter gap",     min: 0, max: 24, step: 1, unit: "px",
-        note: "trough showing between cards" }
+        note: "trough showing between cards" },
+      { key: "railInset",     label: "Panel inset",     min: 0, max: 40, step: 1, unit: "px",
+        note: "how far the stack sits off the rail's edge" }
     ] },
     { id: "colour", title: "Colour", controls: [
       { key: "accentH",     label: "Accent hue",   min: 0, max: 360, step: 1, unit: "°",
@@ -141,6 +143,7 @@
     railTone: "--rail-tone", platterRadius: "--platter-radius",
     platterPad: "--platter-pad", platterGap: "--platter-gap",
     platterLift: "--platter-lift", platterEdge: "--platter-edge",
+    railInset: "--rail-inset",
     accentH: "--accent-h", accentS: "--accent-s", paperWarmth: "--paper-warmth",
     inkL: "--ink-l", chunkAlpha: "--chunk-alpha",
     perLine: "app.js LAYOUT.perLine", staffSize: "app.js LAYOUT.zoomCap",
@@ -195,6 +198,7 @@
     r.setProperty("--platter-gap",     state.platterGap + "px");
     r.setProperty("--platter-lift",    String(state.platterLift));
     r.setProperty("--platter-edge",    String(state.platterEdge));
+    r.setProperty("--rail-inset",      state.railInset + "px");
 
     r.setProperty("--accent-h",     String(state.accentH));
     r.setProperty("--accent-s",     state.accentS + "%");

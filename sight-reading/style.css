@@ -52,17 +52,22 @@
   --music-min: 640px;    /* …and never shrinks narrower than this */
   --music-gutter: 28px;  /* air either side of the staff */
 
-  /* The rail as a trough of platters. Three surfaces have to stay legible as a
-     stack — trough behind, platter on it, control on that — so the trough sits
-     a step *below* --ctl-fill (96%) rather than level with it, or a pill near a
-     platter's edge reads as a hole punched through the card. It takes the same
-     warmth as the paper, so the whole rail tints together. */
-  --rail-tone: 7;        /* how far the trough drops below white */
+  /* The rail as a trough of platters. Three surfaces want to read as a stack —
+     trough behind, platter on it, control on that — which they do while the
+     trough stays below --ctl-fill (96%, so --rail-tone 5 or more).
+     At 3 the trough is 97%, a shade *lighter* than the controls (245 vs 247
+     measured), so that order inverts. It holds anyway for one reason: the
+     platter's own white still out-reads both, and --platter-pad keeps every
+     control well inside the card, so a control and the trough never actually
+     meet. Take the padding to nothing and they would. Chosen for a near-flat,
+     quiet rail — platter lift is 0.1 for the same reason. */
+  --rail-tone: 3;        /* how far the trough drops below white */
   --rail-bg: hsl(38 calc(var(--paper-warmth) * 1%) calc(100% - var(--rail-tone) * 1%));
-  --platter-radius: 16px;
-  --platter-pad: 16px;
-  --platter-gap: 10px;
-  --platter-lift: 0.5;   /* platter shadow, softer than a floating surface's */
+  --platter-radius: 22px;
+  --platter-pad: 18px;
+  --platter-gap: 12px;
+  --rail-inset: 24px;    /* how far the platters sit off the rail's edge */
+  --platter-lift: 0.1;   /* platter shadow, softer than a floating surface's */
   --platter-edge: 0;     /* 0 = shadow alone, 1 = a hairline instead */
 
   /* Corner curvature, as the exponent of a superellipse: 0 bevels, 1 is the
@@ -388,8 +393,8 @@ button.playing svg.state-alt { display: block; }
      rail slide. (`clip` would be tidier, but it computes to `hidden` anyway
      whenever the other axis is `auto`.) */
   overflow-x: hidden;
-  padding: calc(18px * var(--density)) calc(20px * var(--density))
-           calc(24px * var(--density) + env(safe-area-inset-bottom, 0px));
+  padding: var(--rail-inset) var(--rail-inset)
+           calc(var(--rail-inset) + env(safe-area-inset-bottom, 0px));
 }
 
 /* ---------------------------------------------------------------------------
