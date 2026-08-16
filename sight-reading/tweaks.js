@@ -437,8 +437,9 @@
           };
           input.addEventListener("click", function () { commit(state[c.key] ? 0 : 1); paint(); });
           paint();
-          lab.appendChild(input);          // a switch sits on its label's row
-          syncers.push(function () { lval.textContent = shown(c.key, state[c.key]); paint(); });
+          lval.textContent = "";           // the switch *is* the readout
+          lab.appendChild(input);          // and it sits on its label's row
+          syncers.push(paint);
         } else {
           input = document.createElement("input");
           input.type = "range";

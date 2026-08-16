@@ -2781,6 +2781,12 @@
   // Once per visitor (sr_onboarded). Flip to true while reworking the
   // walkthrough to see it on every load without clearing storage.
   var OB_ALWAYS = false;
+  // ?onboarding does the same from the URL, matching ?tweaks — the walkthrough
+  // is a design surface too, and it should open without devtools or wiping
+  // state. It deliberately does NOT mark itself seen on the way out (see
+  // obFinish): a flag you had to clear storage to use twice would be no better
+  // than clearing storage.
+  var OB_FLAG = /[?&]onboarding(?:[=&]|$)/.test(location.search);
   var OB_PAGES = ["intro", "instrument", "vocab"];
   // The plain note values plus one rest: the first six cells of the real rhythm
   // grid, in the same order, so the grid is recognisable when the rest appear.
@@ -2956,7 +2962,8 @@
   function obFinish() {
     document.getElementById("ob").hidden = true;
     obBlanking = false;  // the staff and title fill in with the first real exercise
-    try { localStorage.setItem(OB_KEY, "1"); } catch (e) {}
+    // Opened by the flag: inspect it, do not consume it.
+    if (!OB_FLAG) { try { localStorage.setItem(OB_KEY, "1"); } catch (e) {} }
     syncPanel();
     persistSession();
     generate();          // one render for everything chosen along the way
@@ -2966,7 +2973,7 @@
     var ob = document.getElementById("ob");
     if (!ob) return;
     var seen = true;
-    try { seen = !OB_ALWAYS && !!localStorage.getItem(OB_KEY); } catch (e) {}
+    try { seen = !OB_ALWAYS && !OB_FLAG && !!localStorage.getItem(OB_KEY); } catch (e) {}
     document.getElementById("ob-next").addEventListener("click", function () {
       if (obPage === OB_PAGES.length - 1) obFinish();
       else obGo(obPage + 1);
