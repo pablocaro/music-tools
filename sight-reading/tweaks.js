@@ -38,7 +38,7 @@
     titleSize: 29, baseWeight: 425, weightStep: 175,
     tracking: 0.9, leading: 1.5,
     // spacing
-    density: 1.15, controlH: 40, headerGap: 8, railW: 400, gutter: 28, pagePad: 40,
+    density: 1.15, controlH: 40, headerGap: 8, railW: 400, gutter: 28, pagePad: 48,
     // shape
     pillRadius: 999, boxRadius: 18, surfaceRadius: 26, shadowDepth: 0.65,
     cornerCurve: 1,
