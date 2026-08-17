@@ -14,10 +14,21 @@ const { chromium } = require(PW);
   await p.click('#settings-toggle'); await p.waitForTimeout(400);
   await p.evaluate(() => { const c = document.getElementById('show-chunks'); if (!c.checked) { c.checked = true; c.dispatchEvent(new Event('change')); } });
 
-  const clickPill = n => p.evaluate(x => [...document.querySelectorAll('.presets .pill')]
-    .find(e => e.textContent.trim().startsWith(x)).click(), n);
-  const setMeter = m => p.evaluate(x => [...document.querySelectorAll('#timesig-pills .opt')]
-    .find(e => e.textContent.trim() === x).click(), m);
+  // Say what is actually on screen when a name misses. Renaming the presets
+  // dated this file once and the only symptom was "cannot read 'click' of
+  // undefined", which reads like the app broke rather than the test.
+  const clickPill = n => p.evaluate(x => {
+    const all = [...document.querySelectorAll('.presets .pill')];
+    const hit = all.find(e => e.textContent.trim().startsWith(x));
+    if (!hit) throw new Error(`no preset "${x}" — have: ${all.map(e => e.textContent.trim()).join(', ')}`);
+    hit.click();
+  }, n);
+  const setMeter = m => p.evaluate(x => {
+    const all = [...document.querySelectorAll('#timesig-pills .opt')];
+    const hit = all.find(e => e.textContent.trim() === x);
+    if (!hit) throw new Error(`no meter "${x}" — have: ${all.map(e => e.textContent.trim()).join(', ')}`);
+    hit.click();
+  }, m);
 
   const measure = () => p.evaluate(() => {
     const sheet = document.getElementById('sheet'), cR = sheet.getBoundingClientRect();
@@ -37,7 +48,7 @@ const { chromium } = require(PW);
 
   let bad = 0, mixed = 0, tiny = 0, tot = 0; const grid = [];
   for (const meter of ['4/4', '3/4', '2/4', '6/8']) {
-    for (const name of ['Steps Only', 'Thirds Drill', 'Wide Leaps', 'Arpeggios']) {
+    for (const name of ['Steps Only', 'Thirds', 'Wide Leaps', 'Arpeggios']) {
       await clickPill(name); await p.waitForTimeout(1100);
       await setMeter(meter); await p.waitForTimeout(1100);   // built-ins carry timesig, so re-apply
       const r = await measure();

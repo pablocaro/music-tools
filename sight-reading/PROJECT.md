@@ -88,8 +88,11 @@ emit `<alter>` and OSMD draws the sharp from the key signature.
 ### 3 · Rhythm depth — DONE
 - Triplets: durations already work ([1,12]); add the `<time-modification>`
   XML pass so brackets and the 3 render. Same technique as the 6/8 beams.
-- Weighted figures: a cell's tap cycles off → ✓ → ×2 → ×4, mirroring the
-  interval weights; the pattern bag duplicates cells by weight.
+- Weighted figures: a cell's tap cycles off → ✓ → ×2, and the pattern bag
+  duplicates cells by weight. It ran to ×4 at first. Nobody could hear the
+  difference — against a handful of other lit figures, ×2 and ×4 both read as
+  "mostly this one" — and the fourth rung made getting back to off something you
+  had to count. Every shipped preset had already stopped at ×2.
 
 ### 4 · Phrasing — DONE
 - Ties across barlines. The trick that made this cheap: don't split a long

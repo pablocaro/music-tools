@@ -1164,7 +1164,13 @@
         // A figure carries a weight, like an interval row does: how *often* it
         // is drawn, not just whether. The checkbox still owns in-or-out (so
         // every existing reader keeps working); the weight rides in data-w and
-        // the tap cycles off → on → ×2 → ×4 → off.
+        // the tap cycles off → on → ×2 → off.
+        //
+        // Three rungs, not four. ×4 was a rung nobody could hear as distinct
+        // from ×2 — against a handful of other lit figures both read as "mostly
+        // this one" — and it made the tap cycle long enough that getting back to
+        // off meant thinking about where you were. Every shipped preset already
+        // topped out at ×2, so the ladder is now what the presets were using.
         var badge = document.createElement("span");
         badge.className = "wt";
         function syncWt() {
@@ -1175,7 +1181,7 @@
         cell.addEventListener("click", function (e) {
           e.preventDefault();      // labels re-dispatch to the checkbox; we own the cycle
           var w = cb.checked ? (+cb.dataset.w || 1) : 0;
-          var next = (w === 0) ? 1 : (w === 1) ? 2 : (w === 2) ? 4 : 0;
+          var next = (w === 0) ? 1 : (w === 1) ? 2 : 0;
           cb.checked = next > 0;
           cb.dataset.w = next > 0 ? next : 1;
           cb.dispatchEvent(new Event("change"));
@@ -1252,7 +1258,9 @@
     var set = {};
     (ids || []).forEach(function (id) {
       var parts = String(id).split(":");
-      set[parts[0]] = Math.max(1, parseInt(parts[1], 10) || 1);
+      // Capped at the top of the cycle: a preset or session saved while ×4
+      // existed would otherwise restore a badge no tap could reach or clear.
+      set[parts[0]] = Math.min(2, Math.max(1, parseInt(parts[1], 10) || 1));
     });
     beatsEl.querySelectorAll(".beat").forEach(function (cb) {
       cb.checked = !!set[cb.value];
