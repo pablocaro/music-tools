@@ -66,7 +66,7 @@
                             viewports just gain negative space on the sides */
   --music-min: 640px;    /* …and never shrinks narrower than this */
   --music-gutter: 28px;  /* air either side of the staff */
-  --music-fade: 160px;    /* the music dissolves over this on its way down to the
+  --music-fade: 60px;    /* the music dissolves over this on its way down to the
                             transport pill, instead of clipping. 0 restores the
                             hard edge (and the bottom paper cover with it). */
 
@@ -182,7 +182,9 @@
   --ctl-fill-hover: #e9e9ee;                                       /* resting fill, hovered */
   --track: rgba(0, 0, 0, 0.18);                                    /* slider track — reads recessed on paper and on --ctl-fill */
   --track-h: 6px;
-  --thumb: 17px;
+  --thumb: 17px;         /* the thumb's height */
+  --thumb-w: 26px;       /* …and its width: a capsule, not a dot */
+  --thumb-gap: 5px;      /* air the track leaves on either side of it */
 
   /* Type scale — same naming as pitch-trainer's, so the two apps read as one
      system. Sizes differ (this one sits on paper, at desktop distances).
@@ -762,20 +764,28 @@ input[type="range"] {
   --pct: 0%;
 }
 
+/* The track breaks around the thumb rather than running under it, so the thumb
+   reads as a held object on a broken line instead of a bead on a wire. Both
+   segments are cut from one gradient — a native range gives exactly one track
+   element to style, so two rounded ends is not on offer; at this track height
+   the square inner ends are not the thing anyone sees. */
 input[type="range"]::-webkit-slider-runnable-track {
+  --lead: calc(var(--thumb-w) / 2 + var(--thumb-gap));
   height: var(--track-h);
   border: none;
   border-radius: 999px;
   background: linear-gradient(to right,
-    var(--ctl-on) 0 var(--pct), var(--track) var(--pct) 100%);
+    var(--ctl-on) 0 calc(var(--pct) - var(--lead)),
+    transparent   calc(var(--pct) - var(--lead)) calc(var(--pct) + var(--lead)),
+    var(--track)  calc(var(--pct) + var(--lead)) 100%);
 }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: var(--thumb); height: var(--thumb);
+  width: var(--thumb-w); height: var(--thumb);
   margin-top: calc((var(--track-h) - var(--thumb)) / 2);
   border: none;
-  border-radius: 50%;
+  border-radius: 999px;
   background: var(--ctl-on);
 }
 
@@ -790,10 +800,13 @@ input[type="range"]::-moz-range-progress {
   border-radius: 999px;
   background: var(--ctl-on);
 }
+/* Firefox gives track and progress as separate elements, so the fill is honest
+   there, but there is nowhere to cut the gap from — it keeps the unbroken line
+   and the capsule thumb. */
 input[type="range"]::-moz-range-thumb {
-  width: var(--thumb); height: var(--thumb);
+  width: var(--thumb-w); height: var(--thumb);
   border: none;
-  border-radius: 50%;
+  border-radius: 999px;
   background: var(--ctl-on);
 }
 

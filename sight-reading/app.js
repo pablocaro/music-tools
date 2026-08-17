@@ -3764,8 +3764,12 @@
   playBtn.addEventListener("click", function () {
     if (playing) { pausePlay(); return; }
     if (paused) resumePlay(); else startPlay();
-    setPanel(false);   // starting or resuming clears the panel so the sheet is
-                        // uncovered while it plays; pausing leaves it as is
+    // Clear the panel only where it is covering the music. Wide enough and the
+    // rail takes its own column beside the score rather than over it, so there
+    // is nothing to get out of the way of — and closing it there would throw a
+    // re-engrave into the first bar of playback and take the settings away from
+    // someone who is plainly still working on them. Pausing never closes it.
+    if (!pushMq.matches) setPanel(false);
   });
   document.getElementById("from-top").addEventListener("click", resetTop);
   setPlayIcon(false);

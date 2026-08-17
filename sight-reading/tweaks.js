@@ -49,7 +49,7 @@
     // colour
     accentH: 208, accentS: 100, paperWarmth: 18, inkL: 16, chunkAlpha: 0.5,
     // music
-    perLine: 6, staffSize: 1, musicFade: 160,
+    perLine: 6, staffSize: 1, musicFade: 60,
     // onboarding
     obLogoSize: 72, obLogoAlpha: 0.5, obLogoR: 20, obLogoSpread: 7,
     obTitle: 30, obTitleWeight: 550, wordmark: 40, wordmarkTrack: -0.02,
@@ -365,8 +365,7 @@
     }
     if (!lines.length) return "Nothing moved — the sight-reading defaults are unchanged.";
     return "Update the sight-reading design defaults:\n\n" +
-           lines.join("\n") + "\n\nEverything else unchanged. Does it still read " +
-           "clearly with reduce motion on, and at the smallest type?";
+           lines.join("\n") + "\n\nEverything else unchanged.";
   }
 
   // --- 4 · panel -----------------------------------------------------------
