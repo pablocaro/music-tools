@@ -386,14 +386,18 @@
       });
       if (saved.hasOwnProperty(name)) {                // user preset/override: updatable + deletable
         var upd = document.createElement("span");
-        upd.className = "upd"; upd.textContent = "↻"; upd.setAttribute("aria-label", t("aria.updatePreset"));
+        upd.className = "upd";
+        upd.innerHTML = '<svg class="pill-ic" aria-hidden="true"><use href="#ic-update"/></svg>';
+        upd.setAttribute("aria-label", t("aria.updatePreset"));
         upd.addEventListener("click", function (e) {
           e.stopPropagation();
           updatePreset(name);
         });
         pill.appendChild(upd);
         var del = document.createElement("span");
-        del.className = "del"; del.textContent = "×"; del.setAttribute("aria-label", t("aria.deletePreset"));
+        del.className = "del";
+        del.innerHTML = '<svg class="pill-ic" aria-hidden="true"><use href="#ic-close"/></svg>';
+        del.setAttribute("aria-label", t("aria.deletePreset"));
         del.addEventListener("click", function (e) {
           e.stopPropagation();
           deletePreset(name);
@@ -2667,8 +2671,11 @@
   // jump between "Piano" and "Vibraphone" (or "Major" and "Harmonic Minor") and
   // shove its neighbours around. Measure every value it can show and pin the
   // width to the widest, so the row stays put.
+  // Sizes a cycle pill to its widest label so it stops resizing as you tap it.
+  // It measures by writing each label in, so it must only ever be handed a
+  // control whose content *is* text — anything with children loses them.
   function lockCycleWidth(btn, labels) {
-    if (!btn || !labels.length) return;
+    if (!btn || !labels.length || btn.firstElementChild) return;
     var prev = btn.textContent, max = 0;
     btn.style.minWidth = "";
     labels.forEach(function (t) {
@@ -2688,7 +2695,11 @@
     lockCycleWidth(tonicCycleEl, LETTERS);
     lockCycleWidth(accCycleEl, ACCS.map(function (a) { return a.label; }));
     lockCycleWidth(clefCycleEl, CLEFS.map(function (c) { return c.label; }));
-    lockCycleWidth(chunksBtnEl, [t("val.off"), t("val.on")]);
+    // Highlight Patterns is not in this list any more. It was a cycle pill
+    // reading Off/On, and the widest-label measurement writes each label into
+    // the element to size it — which, now that it is a switch, wiped the knob
+    // out of it and pinned a width around nothing. A switch has no label to
+    // measure and no width to lock.
   }
 
   // ===========================================================================

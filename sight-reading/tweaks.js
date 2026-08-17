@@ -38,7 +38,7 @@
     titleSize: 29, baseWeight: 425, weightStep: 175,
     tracking: 0.9, leading: 1.5,
     // spacing
-    density: 1.25, controlH: 40, headerGap: 8, railW: 400, gutter: 28,
+    density: 1.15, controlH: 40, headerGap: 8, railW: 400, gutter: 28,
     // shape
     pillRadius: 999, boxRadius: 18, surfaceRadius: 26, shadowDepth: 0.65,
     cornerCurve: 1,
@@ -46,7 +46,7 @@
     railTone: 4, platterRadius: 24, platterPad: 18, platterGap: 10,
     platterLift: 0.1, platterEdge: 0, railInset: 20,
     caretSize: 12, caretWeight: 2, bandFold: 260,
-    swScale: 0.62, thumbW: 26, thumbGap: 2,
+    swScale: 0.63, thumbW: 22, thumbGap: 2, sliderW: 300, checkRadius: 6,
     // colour
     accentH: 208, accentS: 100, paperWarmth: 18, inkL: 16, chunkAlpha: 0.5,
     // music
@@ -97,6 +97,8 @@
         note: "its width — the height follows the track" },
       { key: "thumbGap",  label: "Thumb gap",     min: 0,   max: 10,  step: 0.5, unit: "px",
         note: "where the track breaks around it; 0 is one unbroken line" },
+      { key: "sliderW",   label: "Slider length", min: 120, max: 420, step: 10, unit: "px",
+        note: "the interval weight tracks; capped by the rail's width" },
       { key: "headerGap", label: "Header gap",    min: 6,   max: 28,  step: 1, unit: "px",
         note: "between the three buttons top right" },
       { key: "railW",     label: "Rail width",    min: 300, max: 520, step: 10, unit: "px", re: 1,
@@ -113,6 +115,8 @@
         note: "popovers; the sheet and menu follow at ±4" },
       { key: "shadowDepth",   label: "Shadow depth",   min: 0, max: 2,  step: 0.05, unit: "×",
         note: "how far surfaces lift off the paper" },
+      { key: "checkRadius",   label: "Checkbox corner", min: 0, max: 10, step: 0.5, unit: "px",
+        note: "give the curve below something to shape" },
       { key: "cornerCurve",   label: "Corner curve",   min: 0, max: 3,  step: 0.1, unit: "",
         note: "0 bevel · 1 round · 2 squircle (Chromium only)" }
     ] },
@@ -213,10 +217,11 @@
     leading: "--leading",
     density: "--density", controlH: "--ctl-h", headerGap: "--tb-gap",
     swScale: "--sw-scale", thumbW: "--thumb-w", thumbGap: "--thumb-gap",
+    sliderW: "--slider-w",
     railW: "--rail-w", gutter: "--music-gutter",
     pillRadius: "--ctl-radius", boxRadius: "--ctl-radius-box",
     surfaceRadius: "--radius-card", shadowDepth: "--shadow-depth",
-    cornerCurve: "--corner-curve",
+    cornerCurve: "--corner-curve", checkRadius: "--check-radius",
     railTone: "--rail-tone", platterRadius: "--platter-radius",
     platterPad: "--platter-pad", platterGap: "--platter-gap",
     platterLift: "--platter-lift", platterEdge: "--platter-edge",
@@ -278,6 +283,7 @@
     r.setProperty("--sw-scale",     String(state.swScale));
     r.setProperty("--thumb-w",      state.thumbW + "px");
     r.setProperty("--thumb-gap",    state.thumbGap + "px");
+    r.setProperty("--slider-w",     state.sliderW + "px");
     r.setProperty("--rail-w",       state.railW + "px");
     r.setProperty("--music-gutter", state.gutter + "px");
 
@@ -289,6 +295,7 @@
     r.setProperty("--radius-card",    state.surfaceRadius + "px");
     r.setProperty("--shadow-depth",   String(state.shadowDepth));
     r.setProperty("--corner-curve",   String(state.cornerCurve));
+    r.setProperty("--check-radius",   state.checkRadius + "px");
 
     r.setProperty("--rail-tone",       String(state.railTone));
     r.setProperty("--platter-radius",  state.platterRadius + "px");

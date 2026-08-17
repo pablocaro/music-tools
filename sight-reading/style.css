@@ -31,7 +31,7 @@
      written as parts (accent, paper) or as a calc off a base (the radii, the
      shadows), that is why — the parts are what a slider can reach. */
   --type-scale: 1;       /* every step of the type scale at once */
-  --density: 1.25;          /* the settings panel's gaps and padding */
+  --density: 1.15;          /* the settings panel's gaps and padding */
   --shadow-depth: 0.65;     /* how far the floating surfaces lift off the page */
   --motion: 1;           /* multiplier on the structural transitions */
 
@@ -183,14 +183,22 @@
   --track: rgba(0, 0, 0, 0.18);                                    /* slider track — reads recessed on paper and on --ctl-fill */
   --track-h: 6px;
   --thumb: 17px;         /* the thumb's height */
-  --thumb-w: 26px;       /* …and its width: a capsule, not a dot */
+  --thumb-w: 22px;       /* …and its width: a capsule, not a dot */
   --thumb-gap: 2px;      /* air the track leaves on either side of it */
+  --slider-w: 300px;     /* how long an interval weight's track runs */
+  /* The checkbox's corner. It follows --corner-curve like every other
+     squircled surface, but a superellipse needs a corner to work in: at 5px
+     on a 19px box there is almost none, and raising the curve only reads as
+     "squarer". The two are dialled together or neither says anything. */
+  --check-radius: 6px;
+  --pill-ic: 14;         /* unitless, so the stroke can divide by it */
+  --pill-ic-weight: 1.4;
   /* The switch, as a fraction of the control height. Sized 1:1 off iOS at
      first (0.78 → 51×31, exactly Apple's) which was the right number in the
      wrong place: iOS sets that beside 17pt body text and these rows run at
      15px with 12px headings, so the same control reads bigger here than it
      does there. */
-  --sw-scale: 0.62;
+  --sw-scale: 0.63;
   --sw-ratio: 1.62;      /* its width, against its own height */
 
   /* Type scale — same naming as pitch-trainer's, so the two apps read as one
@@ -307,7 +315,8 @@
    arc, and nothing else about the layout depends on it. */
 @supports (corner-shape: squircle) {
   .band, .pop, .menu, .help-sheet, .ob-card, .controlbar,
-  .fig-cell, .note-cell, .stepper, .tb-btn, .cb-icon {
+  .fig-cell, .note-cell, .stepper, .tb-btn, .cb-icon,
+  input[type="checkbox"] {
     corner-shape: superellipse(var(--corner-curve));
   }
 }
@@ -834,7 +843,7 @@ input[type="checkbox"] {
   height: 19px;
   flex-shrink: 0;
   margin: 0;
-  border-radius: 5px;
+  border-radius: var(--check-radius);
   background: var(--ctl-fill);
   cursor: pointer;
   position: relative;
@@ -1078,12 +1087,24 @@ button.secondary {
 
 .pill:hover { background: var(--ctl-fill-hover); }
 
+/* One box, one stroke, so the pair reads as a pair. Sized off the label they
+   sit beside rather than a number of their own, and stroked on the chevron's
+   arithmetic — weight x 12/size in user units — so the drawn weight stays in
+   real px whatever the box becomes. */
 .pill .upd,
 .pill .del {
-  font-size: var(--type-lead);
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
   color: var(--muted);
   cursor: pointer;
+}
+.pill-ic {
+  display: block;
+  width: calc(var(--pill-ic) * 1px);
+  height: calc(var(--pill-ic) * 1px);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: calc(var(--pill-ic-weight) * 12 / var(--pill-ic));
 }
 
 .pill .upd:hover,
@@ -1103,7 +1124,9 @@ button.secondary {
 .matrix-head,
 .matrix-row {
   display: grid;
-  grid-template-columns: 22px 46px 1fr;
+  /* The track's own length, not "whatever is left over". min() so a narrow
+     rail still hands it the remaining width instead of overflowing. */
+  grid-template-columns: 22px 46px min(var(--slider-w), 100%);
   gap: 6px 10px;
   align-items: center;
 }
