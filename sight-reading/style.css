@@ -184,7 +184,14 @@
   --track-h: 6px;
   --thumb: 17px;         /* the thumb's height */
   --thumb-w: 26px;       /* …and its width: a capsule, not a dot */
-  --thumb-gap: 5px;      /* air the track leaves on either side of it */
+  --thumb-gap: 2px;      /* air the track leaves on either side of it */
+  /* The switch, as a fraction of the control height. Sized 1:1 off iOS at
+     first (0.78 → 51×31, exactly Apple's) which was the right number in the
+     wrong place: iOS sets that beside 17pt body text and these rows run at
+     15px with 12px headings, so the same control reads bigger here than it
+     does there. */
+  --sw-scale: 0.62;
+  --sw-ratio: 1.62;      /* its width, against its own height */
 
   /* Type scale — same naming as pitch-trainer's, so the two apps read as one
      system. Sizes differ (this one sits on paper, at desktop distances).
@@ -972,9 +979,9 @@ input[type="checkbox"]:checked::after {
    the semantic; the label beside it is the accessible name.
    --------------------------------------------------------------------------- */
 .sw {
-  --sw-h: calc(var(--ctl-h) * 0.78);
+  --sw-h: calc(var(--ctl-h) * var(--sw-scale));
   flex-shrink: 0;
-  width: calc(var(--sw-h) * 1.62);
+  width: calc(var(--sw-h) * var(--sw-ratio));
   height: var(--sw-h);
   padding: 0;
   border: none;
@@ -992,11 +999,11 @@ input[type="checkbox"]:checked::after {
   height: calc(var(--sw-h) - 4px);
   border-radius: 50%;
   background: var(--paper);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.16);
   transition: transform calc(0.2s * var(--motion)) cubic-bezier(0.32, 0.72, 0, 1);
 }
 .sw.on { background: var(--ctl-on); }
-.sw.on .sw-knob { transform: translateX(calc(var(--sw-h) * 0.62)); }
+.sw.on .sw-knob { transform: translateX(calc(var(--sw-h) * (var(--sw-ratio) - 1))); }
 .sw:active { opacity: 1; }
 
 /* ---------------------------------------------------------------------------

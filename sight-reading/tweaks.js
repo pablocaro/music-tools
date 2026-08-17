@@ -26,7 +26,7 @@
 
   if (!/[?&]tweaks(?:[=&]|$)/.test(location.search)) return;
 
-  var KEY = "sr_tweaks:v14";      // bumped when the defaults move, so a stored
+  var KEY = "sr_tweaks:v15";      // bumped when the defaults move, so a stored
                                  // set of slider values cannot mask the new baseline
   var FOLD = "sr_tweaks_fold";
 
@@ -46,6 +46,7 @@
     railTone: 4, platterRadius: 24, platterPad: 18, platterGap: 10,
     platterLift: 0.1, platterEdge: 0, railInset: 20,
     caretSize: 12, caretWeight: 2, bandFold: 260,
+    swScale: 0.62, thumbW: 26, thumbGap: 2,
     // colour
     accentH: 208, accentS: 100, paperWarmth: 18, inkL: 16, chunkAlpha: 0.5,
     // music
@@ -90,6 +91,12 @@
         note: "the settings panel's gaps and padding" },
       { key: "controlH",  label: "Control size",  min: 32,  max: 54,  step: 1, unit: "px",
         note: "pills and toggles; round buttons follow at +8" },
+      { key: "swScale",   label: "Switch size",   min: 0.45, max: 0.9, step: 0.02, unit: "×",
+        note: "against the control height; iOS's own is 0.78 here" },
+      { key: "thumbW",    label: "Slider thumb",  min: 14,  max: 40,  step: 1, unit: "px",
+        note: "its width — the height follows the track" },
+      { key: "thumbGap",  label: "Thumb gap",     min: 0,   max: 10,  step: 0.5, unit: "px",
+        note: "where the track breaks around it; 0 is one unbroken line" },
       { key: "headerGap", label: "Header gap",    min: 6,   max: 28,  step: 1, unit: "px",
         note: "between the three buttons top right" },
       { key: "railW",     label: "Rail width",    min: 300, max: 520, step: 10, unit: "px", re: 1,
@@ -205,6 +212,7 @@
     tracking: "--track-caption",
     leading: "--leading",
     density: "--density", controlH: "--ctl-h", headerGap: "--tb-gap",
+    swScale: "--sw-scale", thumbW: "--thumb-w", thumbGap: "--thumb-gap",
     railW: "--rail-w", gutter: "--music-gutter",
     pillRadius: "--ctl-radius", boxRadius: "--ctl-radius-box",
     surfaceRadius: "--radius-card", shadowDepth: "--shadow-depth",
@@ -267,6 +275,9 @@
     r.setProperty("--density",      String(state.density));
     r.setProperty("--ctl-h",        state.controlH + "px");
     r.setProperty("--tb-gap",       state.headerGap + "px");
+    r.setProperty("--sw-scale",     String(state.swScale));
+    r.setProperty("--thumb-w",      state.thumbW + "px");
+    r.setProperty("--thumb-gap",    state.thumbGap + "px");
     r.setProperty("--rail-w",       state.railW + "px");
     r.setProperty("--music-gutter", state.gutter + "px");
 
