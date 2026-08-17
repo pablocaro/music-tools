@@ -73,6 +73,44 @@ const state = (page, sel) => page.evaluate((s) => {
     // The reason the clip is transient: a settled platter's tooltips reach past it.
     ok("and stops clipping, so its tooltips can reach out",
        back.overflow === "visible", back.overflow);
+
+    // iOS paints a grey box over the whole border box on release. On this
+    // header — the biggest tap target in the app, inheriting the platter's 24px
+    // radius on all four corners — that read as a flash at the moment of
+    // letting go. The press already answers twice over: the label inks up while
+    // the finger is down, and the platter starts folding.
+    await page.evaluate((sel) => document.querySelector(sel + " .band-h")
+      .scrollIntoView({ block: "center" }), SEL);
+    await page.waitForTimeout(250);
+    const at = await page.evaluate((sel) => {
+      const r = document.querySelector(sel + " .band-h").getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }, SEL);
+    const colour = () => page.evaluate((sel) =>
+      getComputedStyle(document.querySelector(sel + " .band-h")).color, SEL);
+
+    // Off the header first: the clicks above left it hovered, which already
+    // inks the label, so "rest" measured in place is not rest at all.
+    await page.mouse.move(4, 4);
+    await page.waitForTimeout(200);
+    const rest = await colour();
+    await page.mouse.move(at.x, at.y);
+    await page.mouse.down();
+    await page.waitForTimeout(220);   // past the 150ms colour transition, not on its first frame
+    const held = await colour();
+    await page.mouse.up();
+    await page.waitForTimeout(600);
+
+    const tap = await page.evaluate((sel) =>
+      getComputedStyle(document.querySelector(sel + " .band-h")).webkitTapHighlightColor, SEL);
+    ok("no tap highlight to flash on release", /rgba\(0, 0, 0, 0\)|transparent/.test(tap), tap);
+    ok("the press still says something on its own", held !== rest, `${rest} → ${held}`);
+
+    // That press folded it. The next block shares this context's localStorage,
+    // so leaving the band shut would hand it a starting state it did not set.
+    await page.click(`${SEL} .band-h`);
+    await page.waitForTimeout(600);
+    await page.mouse.move(4, 4);
     await page.close();
   }
 

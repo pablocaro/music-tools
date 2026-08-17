@@ -305,7 +305,20 @@
 
 /* iOS/iPadOS: stop a tap on a control from triggering double-tap-to-zoom
    (keeps pinch-zoom on the music itself). */
-button, select, input, label, summary, #tempo-pill { touch-action: manipulation; }
+/* touch-action kills the double-tap-zoom delay. The tap highlight is the other
+   half of the same job: iOS paints a translucent grey box over the whole border
+   box on release, and every control here already answers a press its own way —
+   the pills and icon buttons shrink, the platter header's label goes to full
+   ink and then the platter itself starts folding, which is the largest movement
+   on the screen. The highlight was only ever a second, worse answer.
+   It is worst on the platter header, which is why it surfaced there: that
+   button is the biggest tap target in the app, and it inherits the platter's
+   24px radius on all four corners — so an open platter flashed a grey box whose
+   bottom corners were rounded against nothing, sitting over the controls. */
+button, select, input, label, summary, #tempo-pill {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
 
 body {
   font-family: "Rubik", -apple-system, "SF Pro Text", BlinkMacSystemFont, sans-serif;
