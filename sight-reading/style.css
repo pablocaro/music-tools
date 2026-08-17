@@ -1857,6 +1857,9 @@ button.secondary {
   font-size: var(--type-label);
   color: var(--muted);
 }
+/* A second caption line reads as a continuation, not a second block, so it sits
+   at line spacing rather than at the group's own gap. */
+.ob-body .ob-soon { margin-top: 6px; }
 
 /* The settings glyph sitting inside a sentence. .ic is display:block for
    buttons, so it has to go inline here, and it takes the surrounding text's

@@ -2958,6 +2958,11 @@
         function (it) { setInstrument(it.id); },
         "ob-instr");
       obPara(host, "ob.instrNote", "ob-note");
+      // Piano is the loudest absence on this list — more people play it than
+      // everything else here put together, and a pianist who scans the row and
+      // does not find themselves has no way to tell "not supported" from "not
+      // yet". Naming it is the whole job; it needs no more room than that.
+      obPara(host, "ob.instrSoon", "ob-note ob-soon");
 
     } else if (page === "vocab") {
       obHeading(host, "ob.vocabTitle");

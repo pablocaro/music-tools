@@ -137,6 +137,30 @@ time-based ramping (no input; a workout, not an assessment), tap-along
 rhythm scoring, self-report, microphone (a different project). Start with
 the ramp.
 
+### 6 · Harmony instruments — promised in the UI, so it is now owed
+The instrument page says "Piano and other harmony instruments are coming",
+because piano is the loudest absence on that list and a pianist who scans the
+row and does not find themselves cannot tell "not supported" from "not yet".
+Saying so costs one line; the line is a debt.
+
+It is the largest phase here, because almost everything downstream of the
+generator assumes one note sounding at a time:
+- The walk produces a melody. A grand staff needs two voices with a harmonic
+  relationship between them, not two independent walks — and the progression
+  layer is the obvious place that relationship comes from, since it already
+  knows the chord under every bar.
+- Two staves means a piano part in the MusicXML and a brace in OSMD, plus a
+  clef control that stops being one choice.
+- Hide Ahead and the chunk highlighter both read the engraved SVG left to
+  right and assume a single line of noteheads. Two staves breaks the ordering
+  they depend on, not just the geometry.
+
+A cheaper first step that pays most of the benefit: keep one staff and let a
+"note" be a chord — block chords in the right hand, read vertically. That
+exercises the harmonic generation and the notation without touching the
+single-line assumptions in the reading aids, and it is a real sight-reading
+skill on its own.
+
 ### Cut
 - Chord-anchoring lookahead — measured at ~5 percentage points on stepwise
   alphabets for a two-ply search. Not worth it.
