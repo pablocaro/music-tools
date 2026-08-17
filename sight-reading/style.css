@@ -87,6 +87,7 @@
   --rail-inset: 20px;    /* how far the platters sit off the rail's edge */
   --platter-lift: 0.1;   /* platter shadow, softer than a floating surface's */
   --platter-edge: 0;     /* 0 = shadow alone, 1 = a hairline instead */
+  --band-fold-ms: 260;   /* unitless ms; the caret turns on the same clock */
   --caret-size: 12;      /* the fold chevron on a platter header, in px */
   --caret-weight: 2;     /* its stroke, in real px whatever the size. Both are
                             unitless so the stroke can be compensated in user
@@ -466,6 +467,32 @@ button.playing svg.state-alt { display: block; }
     display: none;
   }
   .layout.panel-open .rail { display: flex; }
+
+  /* The rail itself still cannot slide here: the music re-engraves at the new
+     width in one step, and a sliding edge would only showcase that seam. So the
+     column opens instantly and the *platters* arrive into it, one after the
+     next. The reflow the eye would have caught is over before the stack has
+     finished landing, which is the whole trick — nothing is hidden, it is just
+     no longer the most interesting thing on screen.
+     Narrower than 1100 the rail slides as a drawer and this would be a second
+     animation riding the first, so it lives only in here. */
+  .layout.panel-open .rail .band {
+    animation: band-in calc(var(--band-fold-ms) * var(--motion) * 1ms)
+               cubic-bezier(0.32, 0.72, 0, 1) backwards;
+  }
+  /* Counted among the platters, not among the rail's children — the error
+     region sits above them, and plain nth-child handed the first platter the
+     second platter's delay. */
+  .layout.panel-open .rail .band:nth-child(2 of .band) { animation-delay: 26ms; }
+  .layout.panel-open .rail .band:nth-child(3 of .band) { animation-delay: 52ms; }
+  .layout.panel-open .rail .band:nth-child(4 of .band) { animation-delay: 78ms; }
+  .layout.panel-open .rail .band:nth-child(5 of .band) { animation-delay: 104ms; }
+  .layout.panel-open .rail .band:nth-child(n+6 of .band) { animation-delay: 130ms; }
+}
+
+@keyframes band-in {
+  from { opacity: 0; transform: translateX(14px); }
+  to   { opacity: 1; transform: none; }
 }
 
 .rail-body {
@@ -491,7 +518,20 @@ button.playing svg.state-alt { display: block; }
 /* A band is a platter: a white card on the rail's trough. The hairline that
    used to divide bands is gone — the trough showing between cards does that
    job, and does it without drawing a line. */
+/* A grid of two rows — header, then body — because a row measured in fr can be
+   transitioned to 0fr and height:auto cannot be transitioned at all. Same
+   problem the onboarding card has; there it is solved by measuring in JS,
+   because the card's height changes when its *content* is replaced. Here the
+   content is constant and only the fold moves, so the CSS can own it. */
 .band {
+  display: grid;
+  /* minmax(0, …), not a bare fr: an fr track is minmax(auto, fr), and that auto
+     floor is the body's own min-content — which includes its bottom padding, so
+     a bare 0fr still left an 18px sliver showing. */
+  grid-template-rows: auto minmax(0, 1fr);
+  transition: grid-template-rows calc(var(--band-fold-ms) * var(--motion) * 1ms)
+              cubic-bezier(0.32, 0.72, 0, 1);
+  /* --- and see .band-body's padding, which travels with it --- */
   background: var(--paper);
   border-radius: var(--platter-radius);
   border: 1px solid rgba(0, 0, 0, calc(0.07 * var(--platter-edge)));
@@ -539,18 +579,38 @@ button.playing svg.state-alt { display: block; }
   fill: none;
   stroke: currentColor;
   stroke-width: calc(var(--caret-weight) * 12 / var(--caret-size));
-  transition: transform calc(0.2s * var(--motion));
+  transition: transform calc(var(--band-fold-ms) * var(--motion) * 1ms);
 }
 .band.folded .band-caret { transform: rotate(-90deg); }
 
 .band-body {
+  min-height: 0;            /* a grid item's floor is auto; 0fr cannot beat it */
+  /* The padding has to travel too. A border box cannot be shorter than its own
+     padding however small the grid row gets, so the 18px underneath the last
+     control was an irreducible floor — the platter shut to a visible sliver. */
+  transition: padding-bottom calc(var(--band-fold-ms) * var(--motion) * 1ms)
+              cubic-bezier(0.32, 0.72, 0, 1);
   display: flex;
   flex-wrap: wrap;
   /* row gap separates stacked sections */
   gap: calc(20px * var(--density)) calc(22px * var(--density));
   padding: 0 var(--platter-pad) var(--platter-pad);
 }
-.band.folded .band-body { display: none; }
+.band.folded { grid-template-rows: auto minmax(0, 0fr); }
+.band.folded .band-body { padding-bottom: 0; }
+
+/* Clipped only while it matters. A settled-open platter must not clip, because
+   the hover tooltips on its figure cells and cycle pills reach outside it —
+   which is why this cannot simply be overflow:hidden. .moving is on for the
+   length of the fold and nothing longer. */
+.band.folded .band-body,
+.band.moving .band-body { overflow: hidden; }
+/* Out of the tab order once it has finished closing, not while it is closing. */
+.band.folded:not(.moving) .band-body { visibility: hidden; }
+
+/* The stored fold state is applied after first paint, so without this every
+   shut platter would play its collapse as the page loads. */
+.bands-init .band { transition: none; }
 
 /* The intro platter states what the app is before any control does. No header
    button — there is nothing to fold, and folding away the explanation would

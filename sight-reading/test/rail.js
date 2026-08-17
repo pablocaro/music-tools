@@ -130,11 +130,13 @@ const { chromium } = require(PW);
     document.querySelector('[data-band="music"] .band-h').click();
     document.querySelector('[data-band="reading"] .band-h').click();
   });
-  await p.waitForTimeout(200);
+  await p.waitForTimeout(600);      // the fold is animated now, so let it land
   const folded = await p.evaluate(() => ({
     music: document.querySelector('[data-band="music"]').classList.contains('folded'),
     aria: document.querySelector('[data-band="music"] .band-h').getAttribute('aria-expanded'),
-    bodyHidden: getComputedStyle(document.querySelector('#bb-music')).display
+    // Was display:none. The fold animates now, so the contract is the measured
+    // height — display stays flex the whole way. test/fold.js owns the detail.
+    bodyH: +document.querySelector('#bb-music').getBoundingClientRect().height.toFixed(1)
   }));
   await p.reload({ waitUntil: 'domcontentloaded' });
   await p.waitForSelector('#sheet svg', { timeout: 20000 }); await p.waitForTimeout(500);
@@ -145,7 +147,7 @@ const { chromium } = require(PW);
     presets: document.querySelector('[data-band="presets"]').classList.contains('folded')
   }));
   console.log('fold + persist        : ' + JSON.stringify({ ...folded, afterReload: after }) +
-    ' (want folded/false/none, and only those two still folded after a reload)');
+    ' (want folded/false/0, and only those two still folded after a reload)');
 
   console.log('errors:', JSON.stringify(errs));
   await b.close();

@@ -228,6 +228,7 @@ node sight-reading/test/sweep.js      # highlighter integrity, presets × meters
 node sight-reading/test/rail.js       # settings rail: push vs overlay, transport pill
 node sight-reading/test/tweaks.js     # ?tweaks drives its tokens, and nothing else
 node sight-reading/test/mark.js       # the mark's entrance, and the preview's glide
+node sight-reading/test/fold.js      # platters open and close without lying
 ```
 
 They measure the running app — chord-tone rates, beat crossings, hidden-note
@@ -235,6 +236,12 @@ prefixes — because most of what matters here is invisible in a diff. Three
 lessons paid for:
 
 - A test that hangs is not evidence the app is broken.
+- An animated thing can lie where an instant one could not. `display: none`
+  is honest by construction; a height animation can leave a platter clipped
+  after it settles (cutting off the tooltips that reach outside it), leave a
+  closed platter's controls in the tab order, or replay every stored fold as a
+  collapse on load. None of those is visible in a diff, and two of the three
+  were real on the first pass.
 - Measure the thing being animated, not a box around it. The mark's circles
   were first checked with getBoundingClientRect, which for a child of a
   rotating group is the axis-aligned box of a rotated box — it grows and

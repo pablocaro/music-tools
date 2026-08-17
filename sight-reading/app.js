@@ -2735,15 +2735,31 @@
   // is to show the vocabulary, and a stack of closed lids shows none of it —
   // but each one remembers being shut, so the panel settles into whatever you
   // actually keep working on. The intro platter has no header and never folds.
+  // How long a fold takes, from the token, so the class that clips during it
+  // comes off exactly when the motion stops rather than at a number copied here.
+  function bandFoldMs() {
+    var cs = getComputedStyle(document.documentElement);
+    var ms = parseFloat(cs.getPropertyValue("--band-fold-ms"));
+    var mo = parseFloat(cs.getPropertyValue("--motion"));
+    return (isNaN(ms) ? 260 : ms) * (isNaN(mo) ? 1 : mo);
+  }
+
   function wireBands() {
     var BAND_KEY = "sr_bands";
     var shut = {};
     try { shut = JSON.parse(localStorage.getItem(BAND_KEY) || "{}"); } catch (e) {}
 
+    // Restoring the stored state is not a fold anyone performed, so it must not
+    // look like one — without this every shut platter plays its collapse as the
+    // page loads.
+    var rail = document.querySelector(".rail");
+    if (rail) rail.classList.add("bands-init");
+
     document.querySelectorAll(".band[data-band]").forEach(function (band) {
       var id = band.getAttribute("data-band");
       var btn = band.querySelector(".band-h");
       if (!btn) return;
+      var timer = null;
       function draw() {
         band.classList.toggle("folded", !!shut[id]);
         btn.setAttribute("aria-expanded", shut[id] ? "false" : "true");
@@ -2752,9 +2768,24 @@
         shut[id] = !shut[id];
         try { localStorage.setItem(BAND_KEY, JSON.stringify(shut)); } catch (e) {}
         draw();
+        // .moving clips the body for the length of the fold and no longer, so a
+        // settled-open platter stops cutting off its own tooltips.
+        band.classList.add("moving");
+        clearTimeout(timer);
+        // Under stillness the fold is already over, so the clip must be too —
+        // the token still reads 260 there, and holding it would leave a settled
+        // platter cutting off its own tooltips for a quarter of a second.
+        timer = setTimeout(function () { band.classList.remove("moving"); },
+                           stillness() ? 0 : bandFoldMs() + 40);
       });
       draw();
     });
+
+    if (rail) {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () { rail.classList.remove("bands-init"); });
+      });
+    }
   }
 
   function wireHelp() {

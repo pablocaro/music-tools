@@ -26,7 +26,7 @@
 
   if (!/[?&]tweaks(?:[=&]|$)/.test(location.search)) return;
 
-  var KEY = "sr_tweaks:v13";      // bumped when the defaults move, so a stored
+  var KEY = "sr_tweaks:v14";      // bumped when the defaults move, so a stored
                                  // set of slider values cannot mask the new baseline
   var FOLD = "sr_tweaks_fold";
 
@@ -45,7 +45,7 @@
     // rail
     railTone: 4, platterRadius: 24, platterPad: 18, platterGap: 10,
     platterLift: 0.1, platterEdge: 0, railInset: 20,
-    caretSize: 12, caretWeight: 2,
+    caretSize: 12, caretWeight: 2, bandFold: 260,
     // colour
     accentH: 208, accentS: 100, paperWarmth: 18, inkL: 16, chunkAlpha: 0.5,
     // music
@@ -127,7 +127,9 @@
       { key: "caretSize",     label: "Chevron size",    min: 8, max: 22, step: 1, unit: "px",
         note: "the fold arrow on a platter header" },
       { key: "caretWeight",   label: "Chevron weight",  min: 1, max: 4, step: 0.25, unit: "px",
-        note: "its stroke — the points stay round at any weight" }
+        note: "its stroke — the points stay round at any weight" },
+      { key: "bandFold",      label: "Fold speed",      min: 0, max: 700, step: 20, unit: "ms",
+        note: "opening and closing a platter; the chevron turns with it" }
     ] },
     { id: "colour", title: "Colour", controls: [
       { key: "accentH",     label: "Accent hue",   min: 0, max: 360, step: 1, unit: "°",
@@ -212,6 +214,7 @@
     platterLift: "--platter-lift", platterEdge: "--platter-edge",
     railInset: "--rail-inset",
     caretSize: "--caret-size", caretWeight: "--caret-weight",
+    bandFold: "--band-fold-ms",
     accentH: "--accent-h", accentS: "--accent-s", paperWarmth: "--paper-warmth",
     inkL: "--ink-l", chunkAlpha: "--chunk-alpha",
     perLine: "app.js LAYOUT.perLine", staffSize: "app.js LAYOUT.zoomCap",
@@ -285,6 +288,7 @@
     r.setProperty("--rail-inset",      state.railInset + "px");
     r.setProperty("--caret-size",      String(state.caretSize));    // unitless — see style.css
     r.setProperty("--caret-weight",    String(state.caretWeight));
+    r.setProperty("--band-fold-ms",    String(state.bandFold));   // unitless ms
 
     r.setProperty("--accent-h",     String(state.accentH));
     r.setProperty("--accent-s",     state.accentS + "%");
