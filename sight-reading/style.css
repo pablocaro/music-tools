@@ -300,7 +300,7 @@
    arc, and nothing else about the layout depends on it. */
 @supports (corner-shape: squircle) {
   .band, .pop, .menu, .help-sheet, .ob-card, .controlbar,
-  .fig-cell, .note-cell, .stepper, .tb-btn, .cb-icon, .icon-toggle {
+  .fig-cell, .note-cell, .stepper, .tb-btn, .cb-icon {
     corner-shape: superellipse(var(--corner-curve));
   }
 }
@@ -405,10 +405,6 @@ body {
 
 /* The panel's icon-toggles are a smaller button than the transport's, so the
    same glyphs step down with them. */
-.icon-toggle .ic-metro  { width: 21px; height: 21px; }
-.icon-toggle .ic-eye    { width: 21px; height: 21px; }
-.icon-toggle .ic-accomp { width: 19px; height: 19px; }
-
 /* The metronome ticks by mirroring: on each beat the glyph flips, so the
    pendulum snaps to its other extreme the way a real one does. Instant — no
    tween, no fade. Beat-locked, because app.js drives it from the same loop
@@ -761,7 +757,7 @@ input[type="range"] {
   height: 20px;
   background: transparent;
   cursor: pointer;
-  --pct: 0%;
+  --pct: 0;          /* 0–1, unitless — see paintRange */
 }
 
 /* The track breaks around the thumb rather than running under it, so the thumb
@@ -770,14 +766,20 @@ input[type="range"] {
    element to style, so two rounded ends is not on offer; at this track height
    the square inner ends are not the thing anyone sees. */
 input[type="range"]::-webkit-slider-runnable-track {
+  /* Where the thumb's centre actually is. It travels between half a thumb in
+     from each end, never the full width, so a gap placed at a plain percentage
+     drifts by half a thumb — which a round dot hid and a capsule does not: it
+     left a stub of blue before the thumb at the minimum and a stub of grey
+     after it at the maximum. */
+  --at: calc(var(--thumb-w) / 2 + var(--pct) * (100% - var(--thumb-w)));
   --lead: calc(var(--thumb-w) / 2 + var(--thumb-gap));
   height: var(--track-h);
   border: none;
   border-radius: 999px;
   background: linear-gradient(to right,
-    var(--ctl-on) 0 calc(var(--pct) - var(--lead)),
-    transparent   calc(var(--pct) - var(--lead)) calc(var(--pct) + var(--lead)),
-    var(--track)  calc(var(--pct) + var(--lead)) 100%);
+    var(--ctl-on) 0 calc(var(--at) - var(--lead)),
+    transparent   calc(var(--at) - var(--lead)) calc(var(--at) + var(--lead)),
+    var(--track)  calc(var(--at) + var(--lead)) 100%);
 }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -955,21 +957,47 @@ input[type="checkbox"]:checked::after {
    A round icon button that is on or off — the panel-sized sibling of the
    transport bar's .cb-icon. Off is a grey disc; on takes the accent tint.
    --------------------------------------------------------------------------- */
-.icon-toggle {
-  width: var(--ctl-h); height: var(--ctl-h);
+/* ---------------------------------------------------------------------------
+   PATTERN: switch
+   On/off, and nothing else. The app had four shapes saying the same thing — a
+   glyph that swapped, a pill reading "On", a segmented row, a checkbox — and
+   worse, the pill reading "On" was the same control as the pill reading "C",
+   which is not a state you flip but a value you advance through a list. One
+   shape per contract now:
+     switch     on/off
+     cycle      advance through a named set (C, Major, Marimba)
+     opt        pick from a small visible set, one or many
+   State rides on .on, the same channel the glyph buttons used, so the sync
+   functions did not have to learn a new word. role="switch" + aria-checked is
+   the semantic; the label beside it is the accessible name.
+   --------------------------------------------------------------------------- */
+.sw {
+  --sw-h: calc(var(--ctl-h) * 0.78);
   flex-shrink: 0;
+  width: calc(var(--sw-h) * 1.62);
+  height: var(--sw-h);
   padding: 0;
   border: none;
-  border-radius: 50%;
-  background: var(--ctl-fill);
-  color: var(--ink);
+  border-radius: 999px;
+  background: var(--track);
   cursor: pointer;
-  display: inline-flex; align-items: center; justify-content: center;
-  transition: background 0.15s, color 0.15s, transform 0.1s;
+  position: relative;
+  transition: background calc(0.2s * var(--motion));
 }
-.icon-toggle:hover { background: #e7e7ec; opacity: 1; }
-.icon-toggle:active { transform: scale(0.94); opacity: 1; }
-.icon-toggle.on { background: var(--ctl-on-tint); color: var(--ctl-on); }
+.sw-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(var(--sw-h) - 4px);
+  height: calc(var(--sw-h) - 4px);
+  border-radius: 50%;
+  background: var(--paper);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+  transition: transform calc(0.2s * var(--motion)) cubic-bezier(0.32, 0.72, 0, 1);
+}
+.sw.on { background: var(--ctl-on); }
+.sw.on .sw-knob { transform: translateX(calc(var(--sw-h) * 0.62)); }
+.sw:active { opacity: 1; }
 
 /* ---------------------------------------------------------------------------
    PATTERN: opt
@@ -1205,12 +1233,11 @@ button.secondary {
    whole sheet slide sideways on a phone.
    --------------------------------------------------------------------------- */
 @media (hover: hover) and (pointer: fine) {
-  .cb-icon, .tb-btn, .icon-toggle, .cycle, .step-btn, .fig-cell,
+  .cb-icon, .tb-btn, .cycle, .step-btn, .fig-cell,
   .pill .upd, .pill .del { position: relative; }
 
   .cb-icon::after,
   .tb-btn::after,
-  .icon-toggle::after,
   .cycle::after,
   .step-btn::after,
   .fig-cell::after,
@@ -1241,7 +1268,6 @@ button.secondary {
      when you come back to it. */
   .cb-icon:hover:not(.tip-off)::after,
   .tb-btn:hover:not(.tip-off)::after,
-  .icon-toggle:hover:not(.tip-off)::after,
   .cycle:hover:not(.tip-off)::after,
   .step-btn:hover:not(.tip-off)::after,
   .fig-cell:hover:not(.tip-off)::after,

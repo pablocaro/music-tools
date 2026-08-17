@@ -296,14 +296,16 @@
           <section class="sec sec-chordnames">
             <h2 class="sec-h" data-i18n="sec.chordNames">Chord Names</h2>
             <div class="sec-row">
-              <button id="chords-toggle" class="cycle" type="button" aria-label="Show chord names" data-i18n-aria="aria.chordNames" data-i18n="val.on">On</button>
+              <button id="chords-toggle" class="sw" type="button" role="switch" aria-checked="false"
+                      aria-label="Show chord names" data-i18n-aria="aria.chordNames"><span class="sw-knob"></span></button>
             </div>
           </section>
 
           <section class="sec sec-chunks">
             <h2 class="sec-h" data-i18n="sec.chunks">Highlight Patterns</h2>
             <div class="sec-row">
-              <button id="chunks-toggle" class="cycle" type="button" aria-label="Show chunk highlights" data-i18n-aria="aria.chunks" data-i18n="val.off">Off</button>
+              <button id="chunks-toggle" class="sw" type="button" role="switch" aria-checked="false"
+                      aria-label="Show chunk highlights" data-i18n-aria="aria.chunks"><span class="sw-knob"></span></button>
               <span class="legend">
                 <span class="legend-item"><span class="swatch swatch-step"></span> <span data-i18n="legend.steps">steps</span></span>
                 <span class="legend-item"><span class="swatch swatch-leap"></span> <span data-i18n="legend.leaps">leaps</span></span>
@@ -404,17 +406,13 @@
           </div>
           <div class="pop-row">
             <span class="pop-label" data-i18n="lbl.click">Click</span>
-            <button class="icon-toggle js-metro" type="button" aria-label="Metronome on/off" data-i18n-aria="aria.metronome">
-              <svg class="ic ic-metro state-off"><use href="#ic-metro-off"/></svg>
-              <svg class="ic ic-metro state-on"><use href="#ic-metro-on"/></svg>
-            </button>
+            <button class="sw js-metro" type="button" role="switch" aria-checked="false"
+                    aria-label="Metronome on/off" data-i18n-aria="aria.metronome"><span class="sw-knob"></span></button>
           </div>
           <div class="pop-row">
             <span class="pop-label" data-i18n="lbl.cursor">Cursor</span>
-            <button id="cursor-toggle" class="icon-toggle" type="button" aria-label="Cursor on/off" data-i18n-aria="aria.cursor">
-              <svg class="ic ic-eye state-off"><use href="#ic-eye-off"/></svg>
-              <svg class="ic ic-eye state-on"><use href="#ic-eye-on"/></svg>
-            </button>
+            <button id="cursor-toggle" class="sw" type="button" role="switch" aria-checked="false"
+                    aria-label="Cursor on/off" data-i18n-aria="aria.cursor"><span class="sw-knob"></span></button>
           </div>
         </div>
 
@@ -422,10 +420,8 @@
           <h2 class="sec-h" data-i18n="sec.accomp">Play Along</h2>
           <div class="pop-row">
             <span class="pop-label" data-i18n="lbl.sound">Sound</span>
-            <button class="icon-toggle js-accomp" type="button" aria-label="Accompaniment on/off" data-i18n-aria="aria.accomp">
-              <svg class="ic ic-accomp state-off"><use href="#ic-accomp-off"/></svg>
-              <svg class="ic ic-accomp state-on"><use href="#ic-accomp-on"/></svg>
-            </button>
+            <button class="sw js-accomp" type="button" role="switch" aria-checked="false"
+                    aria-label="Accompaniment on/off" data-i18n-aria="aria.accomp"><span class="sw-knob"></span></button>
           </div>
           <div class="pop-row">
             <span class="pop-label" data-i18n="lbl.voice">Voice</span>

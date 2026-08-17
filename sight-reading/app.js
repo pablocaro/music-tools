@@ -1589,18 +1589,27 @@
     updateGap();
   }
 
+  // Every binary control reports through .on, switches and glyph buttons alike,
+  // so one helper serves both — and a switch additionally carries aria-checked,
+  // which is the part a class cannot say.
+  function setSwitch(el, on) {
+    if (!el) return;
+    el.classList.toggle("on", !!on);
+    if (el.getAttribute("role") === "switch") el.setAttribute("aria-checked", on ? "true" : "false");
+  }
+
   // Two classes, deliberately. A *-face button only shows the state — those are
   // the header buttons, whose tap opens a popover instead of toggling. A plain
   // .js-metro / .js-accomp button toggles. Both wear the tint, so the header
   // still reports on/off without being opened.
   function syncMetroPill() {
     document.querySelectorAll(".js-metro, .js-metro-face").forEach(function (b) {
-      b.classList.toggle("on", clickOnEl.checked);
+      setSwitch(b, clickOnEl.checked);
     });
   }
   function syncAccompBtn() {
     document.querySelectorAll(".js-accomp, .js-accomp-face").forEach(function (b) {
-      b.classList.toggle("on", playAlongEl.checked);
+      setSwitch(b, playAlongEl.checked);
     });
   }
   function syncTransport() { syncMetroPill(); syncAccompBtn(); }
@@ -2644,13 +2653,10 @@
   function syncInstrument() {
     if (voiceBtnEl) voiceBtnEl.textContent = t("inst." + instrumentEl.value);
   }
-  function syncChunks() {
-    chunksBtnEl.textContent = showChunksEl.checked ? t("val.on") : t("val.off");
-    chunksBtnEl.classList.toggle("on", showChunksEl.checked);
-  }
-  function syncCursorBtn() {
-    cursorBtnEl.classList.toggle("on", cursorModeEl.value !== "off");
-  }
+  // No textContent any more: these read "On"/"Off" while they were pills, and a
+  // switch is its own readout.
+  function syncChunks() { setSwitch(chunksBtnEl, showChunksEl.checked); }
+  function syncCursorBtn() { setSwitch(cursorBtnEl, cursorModeEl.value !== "off"); }
   function syncTempoUi() {
     tempoUiEl.value = tempoEl.value;
     tempoValEl.textContent = tempoEl.value;
@@ -2744,63 +2750,65 @@
     return (isNaN(ms) ? 260 : ms) * (isNaN(mo) ? 1 : mo);
   }
 
-  // Folding near the bottom of the rail used to shove the header you tapped
-  // down the screen, away from your finger — up to 176px of it, measured.
-  // Collapsing a platter shortens the rail, so the browser has to claw scrollTop
-  // back, and pulling scrollTop back moves everything down. The header's final
-  // position is fixed by that arithmetic and cannot be pinned: at the end of the
-  // scroll there is nowhere left to scroll to. Only the *path* is ours.
+  // Folding near the bottom of the rail used to shove the header you tapped down
+  // the screen — 176px of it on a desktop, 267px on an iPad. Collapsing shortens
+  // the rail, so the browser has to claw scrollTop back, and pulling scrollTop
+  // back moves everything above the fold down.
   //
-  // So take it. A spacer holds the rail's scroll length for the length of the
-  // fold, which stops the browser clawing at all, and scrollTop is then moved by
-  // hand. Two things come of it: the shift is one rounded number per frame
-  // instead of an integer scrollTop fighting a fractional layout — that
-  // disagreement was a sub-pixel shimmer on every header below the fold — and it
-  // is spread evenly rather than arriving in one 46px lurch.
+  // Animating that smoothly was the first answer and it was the wrong question:
+  // a quarter of the screen sliding out from under a finger is not better for
+  // being eased. The fix is for it not to happen. A spacer takes up exactly the
+  // scroll length the fold is about to remove, so scrollTop never has to move
+  // and nothing above the fold shifts at all — the platters below rise to close
+  // the gap, which is the whole of what an accordion is supposed to do.
   //
-  // The scroll gets its own, gentler curve rather than the fold's. Reading
-  // progress off the collapsing body keeps the two exactly in step, which sounds
-  // right and is not: the fold's easing is hard front-loaded on purpose, and a
-  // scroll that copies it throws the tapped header 55px in the first frame —
-  // a worse lurch than the one being fixed. A plain cubic ease-out over the same
-  // span puts the largest step near 30px and reads as a settle.
+  // The spacer is then given back as you scroll up, a pixel per pixel. That is
+  // the one direction where it can be taken away for free: scrolling up lowers
+  // scrollTop first, so shrinking the content behind it can never leave the
+  // scroll position out of bounds, and the dead length disappears exactly as it
+  // stops being what is holding the view still.
+  function railSpacer(rb, make) {
+    var sp = rb.querySelector(".rail-spacer");
+    if (!sp && make) {
+      sp = document.createElement("div");
+      sp.className = "rail-spacer";
+      sp.setAttribute("aria-hidden", "true");
+      rb.appendChild(sp);
+    }
+    return sp;
+  }
+
+  function setSpacer(sp, h) {
+    sp.dataset.h = h;
+    sp.style.height = h + "px";
+  }
+
   function holdScroll(band) {
     var rb = band.closest(".rail-body");
     var body = band.querySelector(".band-body");
-    if (!rb || !body || stillness()) return;
+    if (!rb || !body) return;
 
     var h0 = body.getBoundingClientRect().height;
-    var from = rb.scrollTop;
-    // What the browser would have to take back once h0 leaves the flow.
-    var need = Math.max(0, from - ((rb.scrollHeight - rb.clientHeight) - h0));
-    if (!h0 || !need) return;                 // nothing to claw: the fold is free
+    // What the browser would have to take back once h0 leaves the flow. Zero
+    // whenever there is content below to fall into the gap, which is most folds.
+    var need = Math.max(0, rb.scrollTop - ((rb.scrollHeight - rb.clientHeight) - h0));
+    if (!h0 || !need) return;
 
-    // A real element, not padding-bottom: WebKit has historically left a scroll
-    // container's bottom padding out of scrollHeight, and this only works if the
-    // held length is held everywhere.
-    var spacer = rb.querySelector(".rail-spacer");
-    if (!spacer) {
-      spacer = document.createElement("div");
-      spacer.className = "rail-spacer";
-      spacer.setAttribute("aria-hidden", "true");
-      rb.appendChild(spacer);
-    }
-    spacer.style.height = h0 + "px";
-    // Fold a second platter before the first has settled and both runs share the
-    // one spacer; whichever finished first would drop it out from under the other
-    // and hand the clawing back to the browser mid-fold. Only the latest owner
-    // may release it.
-    var mine = (+spacer.dataset.gen || 0) + 1;
-    spacer.dataset.gen = mine;
+    var sp = railSpacer(rb, true);
+    setSpacer(sp, (+sp.dataset.h || 0) + need);
+  }
 
-    var t0 = performance.now(), span = Math.max(1, bandFoldMs());
-    function step() {
-      var t = Math.min(1, (performance.now() - t0) / span);
-      rb.scrollTop = Math.round(from - need * (1 - Math.pow(1 - t, 3)));
-      if (t < 1) requestAnimationFrame(step);
-      else if (+spacer.dataset.gen === mine) spacer.style.height = "0px";
-    }
-    requestAnimationFrame(step);
+  // One listener per rail, not per platter.
+  function wireSpacerRelease(rb) {
+    var last = rb.scrollTop;
+    rb.addEventListener("scroll", function () {
+      var up = last - rb.scrollTop;
+      last = rb.scrollTop;
+      var sp = railSpacer(rb, false);
+      if (!sp || up <= 0) return;
+      var h = +sp.dataset.h || 0;
+      if (h) setSpacer(sp, Math.max(0, h - up));
+    }, { passive: true });
   }
 
   function wireBands() {
@@ -2813,6 +2821,8 @@
     // page loads.
     var rail = document.querySelector(".rail");
     if (rail) rail.classList.add("bands-init");
+    var railBody = document.querySelector(".rail-body");
+    if (railBody) wireSpacerRelease(railBody);
 
     document.querySelectorAll(".band[data-band]").forEach(function (band) {
       var id = band.getAttribute("data-band");
@@ -3558,8 +3568,11 @@
   // including the sixteen built for the Step matrix.
   function paintRange(el) {
     var min = +el.min || 0, max = (el.max === "" ? 100 : +el.max), v = +el.value;
-    var pct = (max > min) ? ((v - min) / (max - min)) * 100 : 0;
-    el.style.setProperty("--pct", pct + "%");
+    // A unitless 0–1 fraction, not a percentage: the track has to work out
+    // where the thumb's *centre* actually is, and a thumb centre only travels
+    // (100% − its own width). CSS can do that arithmetic with a number and
+    // cannot with a percentage token.
+    el.style.setProperty("--pct", (max > min) ? (v - min) / (max - min) : 0);
   }
   function paintAllRanges() {
     document.querySelectorAll('input[type="range"]').forEach(paintRange);
@@ -3705,10 +3718,7 @@
 
     // --- chord names ---
     var chordsBtnEl = document.getElementById("chords-toggle");
-    function syncChordsBtn() {
-      chordsBtnEl.textContent = showChordsEl.checked ? t("val.on") : t("val.off");
-      chordsBtnEl.classList.toggle("on", showChordsEl.checked);
-    }
+    function syncChordsBtn() { setSwitch(chordsBtnEl, showChordsEl.checked); }
     chordsBtnEl.addEventListener("click", function () {
       showChordsEl.checked = !showChordsEl.checked;
       syncChordsBtn();
@@ -3736,7 +3746,7 @@
   // cycle the voice or nudge the tempo. Pressing marks it spent; leaving the
   // control re-arms it. Delegated, since rhythm tiles and preset pills are built
   // at runtime. (pointerleave doesn't bubble, so it's caught on the way down.)
-  var TIP_SEL = ".cb-icon, .tb-btn, .icon-toggle, .cycle, .step-btn, .fig-cell, .upd, .del";
+  var TIP_SEL = ".cb-icon, .tb-btn, .cycle, .step-btn, .fig-cell, .upd, .del";
 
   document.addEventListener("pointerdown", function (e) {
     var el = (e.target && e.target.closest) ? e.target.closest(TIP_SEL) : null;

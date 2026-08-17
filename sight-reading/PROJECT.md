@@ -17,6 +17,13 @@ attacks it in two modes, one built and one emerging:
 
 Two principles run through every control:
 
+- **One shape per contract.** A switch is on/off and nothing else; a cycle pill
+  advances through a named set (C, Major, Marimba); an opt row picks from a
+  small visible set, one or many. Binary state used to have four shapes, and
+  worse, the pill reading "On" was the same control as the pill reading "C" —
+  which is not a state you flip but a value you advance. Ties keeps its opt row
+  because it is three states, and Hide Ahead keeps its stepper because a switch
+  cannot say "4 beats".
 - **The panel is the exercise; everything else is how you practise it.**
   Every band in the settings panel is something a preset saves. Tempo, click,
   cursor, voice, volume and the reading aids live outside it. When placing a

@@ -150,11 +150,12 @@ const state = (page, sel) => page.evaluate((s) => {
   }
 
   // --- folding near the end of the rail --------------------------------------
-  // Collapsing shortens the rail, so scrollTop has to come back, and that moves
-  // everything down — including the header under your finger. Where it lands is
-  // arithmetic and cannot be argued with; how it gets there is ours. Left to the
-  // browser it was an integer scrollTop clawing at a fractional layout: a
-  // sub-pixel shimmer on every header below the fold, and one 46px lurch.
+  // Collapsing shortens the rail. With nothing below to fall into the gap, the
+  // browser claws scrollTop back and everything above the fold slides down —
+  // 176px of it here, 267 on an iPad — carrying the header out from under the
+  // finger that tapped it. A spacer holds the length instead, so the tapped
+  // header does not move at all and the platters below rise to close the gap,
+  // which is the whole of what an accordion is for.
   {
     const page = await open(ctx);
     await page.evaluate(() => {
@@ -188,31 +189,31 @@ const state = (page, sel) => page.evaluate((s) => {
     await page.waitForTimeout(1400);
 
     const f = await page.evaluate(() => window.__f);
-    const runs = (s) => { let rev = 0, dir = 0;
-      for (let k = 1; k < s.length; k++) { const d = Math.sign(+(s[k] - s[k-1]).toFixed(2));
-        if (d !== 0) { if (dir !== 0 && d !== dir) rev++; dir = d; } }
-      return rev; };
+    const travel = (i) => { const s = f.map((x) => x[i]); return Math.max(...s) - Math.min(...s); };
 
-    let shimmer = 0;
-    for (let i = 0; i < f[0].length; i++) {
-      const s = f.map((x) => x[i]);
-      if (Math.max(...s) - Math.min(...s) < 5) shimmer = Math.max(shimmer, runs(s));
-    }
-    ok("headers that should be still do not shimmer", shimmer === 0, `${shimmer} reversals`);
+    ok("the tapped header does not move at all", travel(pick) < 0.5,
+       `${travel(pick).toFixed(1)}px`);
+    ok("nor does anything above it",
+       f[0].every((_, i) => i > pick || travel(i) < 0.5));
+    // …but the fold still has to be doing something.
+    ok("the platters below still rise to close the gap",
+       pick + 1 < f[0].length ? travel(pick + 1) > 40 : true,
+       pick + 1 < f[0].length ? `${travel(pick + 1).toFixed(0)}px` : "(it was the last)");
 
-    const tapped = f.map((x) => x[pick]);
-    let biggest = 0;
-    for (let k = 1; k < tapped.length; k++) biggest = Math.max(biggest, Math.abs(tapped[k] - tapped[k-1]));
-    ok("the tapped header settles rather than lurching", biggest < 40, `${biggest.toFixed(0)}px in one frame`);
-    ok("and it never doubles back", runs(tapped) === 0, `${runs(tapped)} reversals`);
-
-    // The spacer is scaffolding: it must not outlive the fold and leave dead
-    // scroll length behind.
-    ok("the spacer is put away afterwards",
-       await page.evaluate(() => {
-         const s = document.querySelector(".rail-spacer");
-         return !s || s.getBoundingClientRect().height === 0;
-       }));
+    // The held length is given back as you scroll up — the one direction where
+    // taking it away can never leave the scroll position out of bounds.
+    const held = await page.evaluate(() => {
+      const s = document.querySelector(".rail-spacer");
+      return s ? Math.round(s.getBoundingClientRect().height) : 0;
+    });
+    ok("length is held while it is needed", held > 0, `${held}px`);
+    await page.evaluate(() => { document.querySelector(".rail-body").scrollTop -= 400; });
+    await page.waitForTimeout(250);
+    const after = await page.evaluate(() => {
+      const s = document.querySelector(".rail-spacer");
+      return s ? Math.round(s.getBoundingClientRect().height) : 0;
+    });
+    ok("and given back on the way up", after < held, `${held}px → ${after}px`);
     await page.close();
   }
 
