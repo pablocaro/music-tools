@@ -84,15 +84,14 @@
   // ===========================================================================
   // The alphabet matrix (notes)
   // ===========================================================================
+  // No colour on these any more. Each row carried a dot in the highlighter's
+  // step or leap tint, which was the one reader of the field — the mapping it
+  // taught is already stated in words by the legend under Highlight Patterns,
+  // and eight coloured dots down the side of eight labelled rows was saying it
+  // a second time in a quieter voice.
   var INTERVALS = [
-    { n: "unison", c: "#888780" },
-    { n: "2nd",    c: HL_STEP },
-    { n: "3rd",    c: HL_LEAP },
-    { n: "4th",    c: HL_LEAP },
-    { n: "5th",    c: HL_LEAP },
-    { n: "6th",    c: HL_LEAP },
-    { n: "7th",    c: HL_LEAP },
-    { n: "octave", c: HL_LEAP }
+    { n: "unison" }, { n: "2nd" }, { n: "3rd" }, { n: "4th" },
+    { n: "5th" },    { n: "6th" }, { n: "7th" }, { n: "octave" }
   ];
 
   // built-in presets (same weight applied to down + up): [uni,2,3,4,5,6,7,oct]
@@ -195,9 +194,7 @@
 
       var label = document.createElement("div");
       label.className = "row-label";
-      label.innerHTML = '<span class="dot" style="background:' + iv.c + '"></span>'
-                      + '<span class="row-name"></span>';
-      label.querySelector(".row-name").textContent = stepLabel(i);
+      label.textContent = stepLabel(i);
       row.appendChild(label);
 
       row.appendChild(makeCell(weightInputs));

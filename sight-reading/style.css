@@ -1125,8 +1125,13 @@ button.secondary {
 .matrix-row {
   display: grid;
   /* The track's own length, not "whatever is left over". min() so a narrow
-     rail still hands it the remaining width instead of overflowing. */
-  grid-template-columns: 22px 46px min(var(--slider-w), 100%);
+     rail still hands it the remaining width instead of overflowing.
+     The label column was 46px to clear a colour dot that is no longer there.
+     It cannot be max-content — every row is its own grid, so each would size
+     to its own label and the tracks would stop lining up — so it is a width
+     that follows the type scale instead, which is the only thing that moves
+     it. */
+  grid-template-columns: 22px calc(38px * var(--type-scale)) min(var(--slider-w), 100%);
   gap: 6px 10px;
   align-items: center;
 }
@@ -1158,16 +1163,8 @@ button.secondary {
 .matrix-row .row-label {
   display: flex;
   align-items: center;
-  gap: 6px;
   font-size: var(--type-label);
   font-weight: var(--weight-standard);
-}
-
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
 }
 
 .cell {
@@ -2039,8 +2036,6 @@ button.secondary {
 
 /* An interval pill: the matrix row compressed to its checkbox and its dot. The
    dot is the exact colour that will highlight that interval on the staff. */
-.ob-int { padding: 0 14px 0 11px; }
-.ob-int .dot { margin-right: 7px; }
 
 .ob-foot {
   flex-shrink: 0;
