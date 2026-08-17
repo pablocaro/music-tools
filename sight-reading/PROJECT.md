@@ -250,6 +250,14 @@ lessons paid for:
   as *no change* before anything shipped. Pinning in particular is impossible
   at the end of a scroll: there is nowhere left to scroll to, so the header's
   final position is arithmetic. Only the path was ever available.
+- Measure the axis the complaint is on. The platter fold passed a harness that
+  checked body height and header *top* while the header's *height* ballooned
+  50px → 201px → 50px every fold — the collapsing grid row's surplus landed in
+  the auto header row, which re-centred its label the whole way. The user's
+  hunch ("the header takes the space and centers itself") was the exact
+  mechanism, and the probe confirmed it in one run. The fold now animates
+  measured px (the onboarding card's FLIP), which leaves the engine nothing to
+  resolve mid-flight.
 - An animated thing can lie where an instant one could not. `display: none`
   is honest by construction; a height animation can leave a platter clipped
   after it settles (cutting off the tooltips that reach outside it), leave a

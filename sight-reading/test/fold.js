@@ -51,6 +51,21 @@ const state = (page, sel) => page.evaluate((s) => {
     ok("starts open, unclipped, visible",
        !a.folded && a.h > 40 && a.overflow === "visible" && a.vis === "visible", JSON.stringify(a));
 
+    // The header's height, every frame. The grid-rows version of this fold
+    // passed every check below while ballooning the header from 50px to 201px
+    // and back mid-fold — the surplus space the collapsing row gave up landed
+    // in the auto header row, which re-centred its label the whole way. Body
+    // height and header top never saw it; only the header's own height does.
+    await page.evaluate((sel) => {
+      window.__hh = [];
+      const h = document.querySelector(sel + " .band-h");
+      const t = () => {
+        window.__hh.push(+h.getBoundingClientRect().height.toFixed(1));
+        if (window.__hh.length < 70) requestAnimationFrame(t);
+      };
+      requestAnimationFrame(t);
+    }, SEL);
+
     await page.click(`${SEL} .band-h`);
     await page.waitForTimeout(70);
     const mid = await state(page, SEL);
@@ -73,6 +88,11 @@ const state = (page, sel) => page.evaluate((s) => {
     // The reason the clip is transient: a settled platter's tooltips reach past it.
     ok("and stops clipping, so its tooltips can reach out",
        back.overflow === "visible", back.overflow);
+
+    const hh = await page.evaluate(() => window.__hh);
+    ok("the header holds its height through fold and reopen",
+       Math.max(...hh) - Math.min(...hh) < 1,
+       `${Math.min(...hh)}–${Math.max(...hh)}px over ${hh.length} frames`);
 
     // iOS paints a grey box over the whole border box on release. On this
     // header — the biggest tap target in the app, inheriting the platter's 24px

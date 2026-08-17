@@ -545,20 +545,15 @@ button.playing svg.state-alt { display: block; }
 /* A band is a platter: a white card on the rail's trough. The hairline that
    used to divide bands is gone — the trough showing between cards does that
    job, and does it without drawing a line. */
-/* A grid of two rows — header, then body — because a row measured in fr can be
-   transitioned to 0fr and height:auto cannot be transitioned at all. Same
-   problem the onboarding card has; there it is solved by measuring in JS,
-   because the card's height changes when its *content* is replaced. Here the
-   content is constant and only the fold moves, so the CSS can own it. */
+/* The fold animates the body's own height, in px measured by the click
+   handler — the same FLIP the onboarding card uses. It was a two-row grid
+   transitioning `auto 1fr` to `auto 0fr` first, which folded smoothly but
+   bounced the header: mid-interpolation the fr row gives up its space faster
+   than the band shrinks, the surplus lands in the `auto` header row (that is
+   where align-content puts it), and a header measured at 50px ballooned to
+   201px and back inside one fold, re-centring its label in the extra space the
+   whole way. Measured px leaves the engine nothing to resolve. */
 .band {
-  display: grid;
-  /* minmax(0, …), not a bare fr: an fr track is minmax(auto, fr), and that auto
-     floor is the body's own min-content — which includes its bottom padding, so
-     a bare 0fr still left an 18px sliver showing. */
-  grid-template-rows: auto minmax(0, 1fr);
-  transition: grid-template-rows calc(var(--band-fold-ms) * var(--motion) * 1ms)
-              cubic-bezier(0.32, 0.72, 0, 1);
-  /* --- and see .band-body's padding, which travels with it --- */
   background: var(--paper);
   border-radius: var(--platter-radius);
   border: 1px solid rgba(0, 0, 0, calc(0.07 * var(--platter-edge)));
@@ -611,11 +606,11 @@ button.playing svg.state-alt { display: block; }
 .band.folded .band-caret { transform: rotate(-90deg); }
 
 .band-body {
-  min-height: 0;            /* a grid item's floor is auto; 0fr cannot beat it */
-  /* The padding has to travel too. A border box cannot be shorter than its own
-     padding however small the grid row gets, so the 18px underneath the last
-     control was an irreducible floor — the platter shut to a visible sliver. */
-  transition: padding-bottom calc(var(--band-fold-ms) * var(--motion) * 1ms)
+  /* The padding snaps rather than travels: it flips under the clip while the
+     height is mid-animation, where 18px of empty space is invisible — and a
+     border box cannot be shorter than its padding, so animating height alone
+     would floor at a visible sliver. */
+  transition: height calc(var(--band-fold-ms) * var(--motion) * 1ms)
               cubic-bezier(0.32, 0.72, 0, 1);
   display: flex;
   flex-wrap: wrap;
@@ -623,8 +618,7 @@ button.playing svg.state-alt { display: block; }
   gap: calc(20px * var(--density)) calc(22px * var(--density));
   padding: 0 var(--platter-pad) var(--platter-pad);
 }
-.band.folded { grid-template-rows: auto minmax(0, 0fr); }
-.band.folded .band-body { padding-bottom: 0; }
+.band.folded .band-body { height: 0; padding-bottom: 0; }
 
 /* Clipped only while it matters. A settled-open platter must not clip, because
    the hover tooltips on its figure cells and cycle pills reach outside it —
@@ -637,7 +631,7 @@ button.playing svg.state-alt { display: block; }
 
 /* The stored fold state is applied after first paint, so without this every
    shut platter would play its collapse as the page loads. */
-.bands-init .band { transition: none; }
+.bands-init .band, .bands-init .band-body { transition: none; }
 
 /* Holds the rail's scroll length for the length of a fold — see holdScroll in
    app.js. Zero-height and inert the rest of the time. */
@@ -1124,14 +1118,17 @@ button.secondary {
 .matrix-head,
 .matrix-row {
   display: grid;
-  /* The track's own length, not "whatever is left over". min() so a narrow
-     rail still hands it the remaining width instead of overflowing.
+  /* The track's own length, not "whatever is left over". minmax(0, w) caps it
+     at w and lets it shrink to what actually remains — the min(w, 100%) it
+     replaces compared w against the whole row rather than the space beside the
+     other two columns, so it fit the desktop rail by luck (18px spare,
+     measured) and ran off a phone's.
      The label column was 46px to clear a colour dot that is no longer there.
      It cannot be max-content — every row is its own grid, so each would size
      to its own label and the tracks would stop lining up — so it is a width
      that follows the type scale instead, which is the only thing that moves
      it. */
-  grid-template-columns: 22px calc(38px * var(--type-scale)) min(var(--slider-w), 100%);
+  grid-template-columns: 22px calc(38px * var(--type-scale)) minmax(0, var(--slider-w));
   gap: 6px 10px;
   align-items: center;
 }

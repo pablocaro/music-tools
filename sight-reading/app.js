@@ -2843,19 +2843,38 @@
       }
       btn.addEventListener("click", function () {
         var closing = !shut[id];
-        shut[id] = !shut[id];
+        shut[id] = closing;
         try { localStorage.setItem(BAND_KEY, JSON.stringify(shut)); } catch (e) {}
         if (closing) holdScroll(band);
-        draw();
+
+        var body = band.querySelector(".band-body");
+        if (!body || stillness()) {
+          clearTimeout(timer);
+          band.classList.remove("moving");
+          draw();
+          return;
+        }
+
+        // FLIP on the body's height, from wherever it is now — mid-flight
+        // included, so a second tap reverses the fold instead of restarting it.
         // .moving clips the body for the length of the fold and no longer, so a
         // settled-open platter stops cutting off its own tooltips.
+        var h0 = body.getBoundingClientRect().height;
         band.classList.add("moving");
+        body.style.transition = "none";
+        draw();
+        body.style.height = "";                    // so the target measures true
+        var h1 = closing ? 0 : body.getBoundingClientRect().height;
+        body.style.height = h0 + "px";
+        void body.offsetHeight;                    // commit the start before animating
+        body.style.transition = "";
+        body.style.height = h1 + "px";
+
         clearTimeout(timer);
-        // Under stillness the fold is already over, so the clip must be too —
-        // the token still reads 260 there, and holding it would leave a settled
-        // platter cutting off its own tooltips for a quarter of a second.
-        timer = setTimeout(function () { band.classList.remove("moving"); },
-                           stillness() ? 0 : bandFoldMs() + 40);
+        timer = setTimeout(function () {
+          band.classList.remove("moving");
+          body.style.height = "";                  // the class holds 0 folded, auto open
+        }, bandFoldMs() + 40);
       });
       draw();
     });
