@@ -26,7 +26,7 @@
 
   if (!/[?&]tweaks(?:[=&]|$)/.test(location.search)) return;
 
-  var KEY = "sr_tweaks:v9";      // bumped when the defaults move, so a stored
+  var KEY = "sr_tweaks:v11";      // bumped when the defaults move, so a stored
                                  // set of slider values cannot mask the new baseline
   var FOLD = "sr_tweaks_fold";
 
@@ -52,7 +52,7 @@
     perLine: 6, staffSize: 1, musicFade: 160,
     // onboarding
     obLogoSize: 72, obLogoAlpha: 0.5, obLogoR: 20, obLogoSpread: 7,
-    obTitle: 30, obTitleWeight: 550,
+    obTitle: 30, obTitleWeight: 550, wordmark: 40, wordmarkTrack: -0.02,
     obBody: 24, obLeading: 1.4, obPad: 44, obRadius: 34,
     // motion
     motion: 1, reduceMotion: 0
@@ -74,7 +74,7 @@
         note: "the subtitle under the drill title" },
       { key: "titleSize",   label: "Drill title",  min: 18, max: 44, step: 1, unit: "px",
         note: "display type, riding over the scale" },
-      { key: "baseWeight",  label: "Base weight",  min: 300, max: 700, step: 25, unit: "",
+      { key: "baseWeight",  label: "Base weight",  min: 300, max: 800, step: 25, unit: "",
         note: "labels and body copy — the one running weight" },
       { key: "weightStep",  label: "Value step",   min: 0, max: 300, step: 25, unit: "",
         note: "how much heavier a value is than a label" },
@@ -156,6 +156,10 @@
         note: "radius of each of the three" },
       { key: "obLogoSpread", label: "Circle spread", min: 0, max: 16, step: 0.5, unit: "px",
         note: "less is more overlap; the mark refits itself either way" },
+      { key: "wordmark",     label: "Wordmark size", min: 20, max: 64, step: 1, unit: "px",
+        note: "Prima Vista on the onboarding card" },
+      { key: "wordmarkTrack",label: "Wordmark track", min: -0.06, max: 0.06, step: 0.005, unit: "em",
+        note: "in em, so the header and the card track alike" },
       { key: "obTitle",      label: "Title size",   min: 20, max: 40, step: 1, unit: "px",
         note: "the wordmark and each page's question" },
       { key: "obTitleWeight",label: "Title weight", min: 400, max: 900, step: 25, unit: "",
@@ -203,6 +207,7 @@
     obLogoSize: "--ob-logo-size", obLogoAlpha: "--ob-logo-alpha",
     obLogoR: "--ob-logo-r", obLogoSpread: "--ob-logo-spread",
     obTitle: "--ob-title-size", obTitleWeight: "--ob-title-weight",
+    wordmark: "--wordmark-size", wordmarkTrack: "--wordmark-track",
     obBody: "--ob-body-size", obLeading: "--ob-leading",
     obPad: "--ob-pad", obRadius: "--ob-radius",
     motion: "--motion", reduceMotion: ".reduce-motion on <html>"
@@ -278,6 +283,8 @@
     r.setProperty("--ob-logo-alpha",   String(state.obLogoAlpha));
     r.setProperty("--ob-logo-r",       String(state.obLogoR));      // unitless
     r.setProperty("--ob-logo-spread",  String(state.obLogoSpread));
+    r.setProperty("--wordmark-size",   state.wordmark + "px");
+    r.setProperty("--wordmark-track",  state.wordmarkTrack + "em");
     r.setProperty("--ob-title-size",   state.obTitle + "px");
     r.setProperty("--ob-title-weight", String(state.obTitleWeight));
     r.setProperty("--ob-body-size",    state.obBody + "px");

@@ -1,8 +1,23 @@
-/* Rubik, self-hosted (variable, latin) so it works offline via file:// */
+/* Rubik, self-hosted (variable, latin) so it works offline via file://. The
+   app's working type: variable, so a weight token means exactly what it says. */
 @font-face {
   font-family: "Rubik";
   src: url("fonts/rubik.woff2") format("woff2");
   font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Sharphy Bold — the wordmark only, never body text. One weight ships because
+   one weight is used; another means another 22KB file, not a slider move.
+   (Sharphy is five static faces, not a variable font, so weights between them
+   round — and CSS looks UP first inside [400,500], which would have turned a
+   425 body weight into Medium. Immaterial here at a flat 700, but the reason
+   this stayed out of the body stack.) */
+@font-face {
+  font-family: "Sharphy";
+  src: url("fonts/Sharphy-Bold.woff2") format("woff2");
+  font-weight: 700;
   font-style: normal;
   font-display: swap;
 }
@@ -116,6 +131,12 @@
 
   --ob-title-size: 30px; /* the wordmark and each page's question */
   --ob-title-weight: 550;
+  /* The wordmark. Sharphy set tight and capitalised rather than the uppercase
+     letter-spaced label it used to be: the face has enough character to be the
+     mark itself, and spacing it out was compensating for a font that did not.
+     Tracking in em so it holds at the header's 11px and onboarding's 40px. */
+  --wordmark-size: 40px;
+  --wordmark-track: -0.02em;
   --ob-body-size: 24px;
   --ob-leading: 1.4;
   --ob-pad: 44px;        /* the card's padding, desktop */
@@ -1500,15 +1521,22 @@ button.secondary {
   border-bottom: 1px solid var(--line);
 }
 .help-titles { min-width: 0; }
-/* The app's one branding moment, wherever it appears: small, blue, uppercase.
-   Shared by the help sheet's header and the main title above the drill name —
-   one rule so the two stay identical if either ever moves. */
-.kicker {
-  font-size: var(--type-caption);
-  font-weight: var(--weight-standard);
-  text-transform: uppercase;
-  letter-spacing: var(--track-caption);
+/* The wordmark, wherever the app writes its own name — the header, the help
+   sheet, the onboarding card. One rule, so the three cannot drift apart.
+   Sharphy Bold, capitalised and tracked in, taking the accent so it moves with
+   the app's colour rather than pinning a hex. It reads as a mark rather than a
+   label now, which is why the old uppercase-and-spaced treatment goes: that
+   was a body font being asked to look like a logo. */
+.kicker, .ob-body .ob-wordmark {
+  font-family: "Sharphy", "Rubik", sans-serif;
+  font-weight: 700;
+  text-transform: capitalize;
+  letter-spacing: var(--wordmark-track);
   color: var(--ctl-on);
+}
+.kicker {
+  font-size: var(--type-lead);
+  line-height: 1.1;
   margin-bottom: 2px;
 }
 .help-top h2 {
@@ -1626,11 +1654,8 @@ button.secondary {
    rather than a heading; the previous 46px read as a poster, not a page.
    Scoped to .ob-body so it outranks the body-copy sizing on its siblings. */
 .ob-body .ob-wordmark {
-  font-size: var(--ob-title-size);
-  font-weight: var(--ob-title-weight);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  line-height: 1.15;
+  font-size: var(--wordmark-size);
+  line-height: 1.1;
   margin-bottom: 26px;
 }
 
@@ -1648,6 +1673,21 @@ button.secondary {
   color: var(--ink);
 }
 .ob-body p + p { margin-top: 14px; }
+
+/* The preview staff on the vocab page. Paper-coloured ink at the app's own
+   weights: staff lines are the divider grey, noteheads are ink, so it reads as
+   notation rather than as a diagram. */
+.ob-preview-bar {
+  margin-top: 22px;
+  padding: 16px 4px;
+}
+.ob-preview {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.ob-preview line   { stroke: var(--line); stroke-width: 0.9; }
+.ob-preview ellipse { fill: var(--ink); }
 
 /* A quiet caption under a group of controls, saying what the choice does —
    working text, so it steps back down to the panel's label size while the

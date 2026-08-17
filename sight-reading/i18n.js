@@ -241,7 +241,7 @@ window.SR_I18N = {
     "ob.next":        "Next",
     "ob.instrTitle":  "What do you play?",
     "ob.instrNote":   "Sets your clef and range — both can be changed later.",
-    "ob.vocabTitle":  "Pick something to read",
+    "ob.vocabTitle":  "What do you want to practise?",
     // {icon} is replaced with the real settings glyph, so the sentence points
     // at the button the student will actually look for.
     "ob.vocabNote":   "Change any of it later in {icon}.",
@@ -461,7 +461,7 @@ window.SR_I18N = {
     "ob.next":        "Siguiente",
     "ob.instrTitle":  "¿Qué tocas?",
     "ob.instrNote":   "Define tu clave y tu registro — ambos se pueden cambiar después.",
-    "ob.vocabTitle":  "Elige algo para leer",
+    "ob.vocabTitle":  "\u00bfQu\u00e9 quieres practicar?",
     "ob.vocabNote":   "Puedes cambiar cualquier cosa despu\u00e9s en {icon}.",
     "ob.go":          "Empezar a practicar",
 
