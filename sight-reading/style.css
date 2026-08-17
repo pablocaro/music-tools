@@ -1527,18 +1527,22 @@ button.secondary {
    the app's colour rather than pinning a hex. It reads as a mark rather than a
    label now, which is why the old uppercase-and-spaced treatment goes: that
    was a body font being asked to look like a logo. */
-.kicker, .ob-body .ob-wordmark {
+.kicker, .ob-body .ob-wordmark, .ob-body .ob-wordmark-sm {
   font-family: "Sharphy", "Rubik", sans-serif;
   font-weight: 700;
   text-transform: capitalize;
-  letter-spacing: var(--wordmark-track);
   color: var(--ctl-on);
-}
-.kicker {
-  font-size: var(--type-lead);
   line-height: 1.1;
-  margin-bottom: 2px;
 }
+
+/* Tracking belongs to the large setting only. Drawing letters together is a
+   display move — it fixes the gaps that open up at size — and applying it at
+   18px just makes small text tight to read. Small instances take the face's
+   own spacing. */
+.ob-body .ob-wordmark { letter-spacing: var(--wordmark-track); }
+.kicker, .ob-body .ob-wordmark-sm { font-size: var(--type-lead); letter-spacing: normal; }
+.kicker { margin-bottom: 2px; }
+.ob-body .ob-wordmark-sm { margin-bottom: 24px; }
 .help-top h2 {
   font-size: var(--type-lead);
   font-weight: var(--weight-strong);
@@ -1687,7 +1691,8 @@ button.secondary {
   height: auto;
 }
 .ob-preview line   { stroke: var(--line); stroke-width: 0.9; }
-.ob-preview ellipse { fill: var(--ink); }
+.ob-preview ellipse    { fill: var(--ink); }
+.ob-preview line.stem  { stroke: var(--ink); stroke-width: 1.1; }
 
 /* A quiet caption under a group of controls, saying what the choice does —
    working text, so it steps back down to the panel's label size while the

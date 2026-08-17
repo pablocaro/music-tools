@@ -2849,44 +2849,56 @@
 
 
   // ===========================================================================
-  // Onboarding preview — eight notes showing what a preset actually reads like
+  // Onboarding preview — four notes showing what a preset actually reads like
   //
-  // Generated from the preset's own interval weights, not drawn by hand: those
-  // weights ARE what a preset is, so a hand-placed contour would start lying
-  // the day someone tunes one. Seeded rather than random, because a Wide Leaps
-  // sample that happened to come out stepwise would teach the opposite of its
-  // name — the picture has to show the character every time, not on average.
+  // The preset's CHARACTERISTIC move, not a sample of its distribution. With
+  // three moves a weighted draw is a lottery: Thirds Drill's pool is only four
+  // ninths thirds, and it duly came out a 2nd, a 4th and a 2nd — a picture of
+  // the wrong thing, on the one preset named after an interval. Ranking the
+  // weights and alternating the top two says what the name promises every
+  // time, which is the only reason the picture is there at all.
   //
-  // No clef. The preview is about the size of the moves, and a clef would
-  // promise specific pitches it is not choosing.
+  // Deterministic, so no seed: the same preset always draws the same four
+  // notes. Weights still come from BUILTIN, so tuning an alphabet moves the
+  // picture with it rather than leaving it to lie.
+  //
+  // No clef — the preview is about the size of the moves, and a clef would
+  // promise particular pitches it is not choosing.
   // ===========================================================================
   function previewWalk(weights, n) {
-    var seed = 1181783;
-    function rnd() { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; }
-    var pool = [];
-    weights.forEach(function (w, iv) { for (var k = 0; k < w; k++) pool.push(iv); });
-    if (!pool.length) pool = [1];
-    var pos = 3, out = [pos], dir = 1;
-    for (var i = 1; i < n; i++) {
-      var iv = pool[Math.floor(rnd() * pool.length)] || 1;
-      if (pos + dir * iv > 8 || pos + dir * iv < 0) dir = -dir;      // turn at the staff edge
+    var rank = [];
+    weights.forEach(function (w, iv) { if (w > 0 && iv > 0) rank.push({ iv: iv, w: w }); });
+    rank.sort(function (a, b) { return b.w - a.w || a.iv - b.iv; });
+    if (!rank.length) rank = [{ iv: 1 }];
+
+    // An interval's number IS its distance in staff slots: a 3rd moves two.
+    var pos = 1, out = [pos], dir = 1;
+    for (var i = 0; i < n - 1; i++) {
+      var iv = rank[i % Math.min(2, rank.length)].iv;
+      if (pos + dir * iv > 8 || pos + dir * iv < 0) dir = -dir;   // turn at the staff edge
       pos = Math.max(0, Math.min(8, pos + dir * iv));
       out.push(pos);
-      if (rnd() < 0.34) dir = -dir;                                  // and sometimes just turn
     }
     return out;
   }
 
   // Nine slots — five lines and four spaces — so nothing needs a ledger line.
-  // The viewBox carries a margin above and below the staff: a notehead sitting
-  // on the top or bottom line is centred ON it, so half of it lives outside
-  // the staff's own box and a tight viewBox slices it off.
+  // Stems make them read as notes rather than dots: up on the right below the
+  // middle line, down on the left at or above it, which is the rule real
+  // engraving follows and the reason the shape looks like music.
+  // The viewBox margin is derived, not guessed. Stems only point away from the
+  // middle line, so the furthest any of them reaches past the staff is a stem
+  // starting at that line — STEM minus half the staff — plus a little air. A
+  // flat generous margin left the bar mostly white space.
   function previewSvg(pos) {
-    var L = 9, W = 300, pad = 22, M = 6, span = (W - pad * 2) / (pos.length - 1), s = "";
+    var L = 9, W = 300, pad = 34, STEM = 3.3 * L, M = STEM - 2 * L + 4,
+        span = (W - pad * 2) / (pos.length - 1), s = "";
     for (var i = 0; i < 5; i++) s += '<line x1="0" y1="' + (i * L) + '" x2="' + W + '" y2="' + (i * L) + '"/>';
     pos.forEach(function (p, i) {
-      var cx = pad + i * span, cy = 4 * L - p * L / 2;
-      s += '<ellipse cx="' + cx + '" cy="' + cy + '" rx="4.4" ry="3.3" ' +
+      var cx = pad + i * span, cy = 4 * L - p * L / 2, up = p < 4;
+      var sx = cx + (up ? 4.1 : -4.1), sy = cy + (up ? -STEM : STEM);
+      s += '<line class="stem" x1="' + sx + '" y1="' + cy + '" x2="' + sx + '" y2="' + sy + '"/>';
+      s += '<ellipse cx="' + cx + '" cy="' + cy + '" rx="4.6" ry="3.4" ' +
            'transform="rotate(-20 ' + cx + ' ' + cy + ')"/>';
     });
     return '<svg class="ob-preview" viewBox="0 ' + (-M) + ' ' + W + ' ' + (4 * L + M * 2) +
@@ -2898,6 +2910,15 @@
     var page = OB_PAGES[obPage];
     host.innerHTML = "";
     host.scrollTop = 0;
+
+    // Introduced large on the first page, then small on the rest: the card
+    // should keep saying whose it is without re-announcing itself.
+    if (page !== "intro") {
+      var sm = document.createElement("p");
+      sm.className = "ob-wordmark-sm";
+      sm.textContent = "Prima Vista";
+      host.appendChild(sm);
+    }
 
     if (page === "intro") {
       host.insertAdjacentHTML("beforeend",
@@ -2952,7 +2973,7 @@
       prev.className = "ob-preview-bar";
       host.appendChild(prev);
       function drawPreview(name) {
-        prev.innerHTML = previewSvg(previewWalk(BUILTIN[name] || BUILTIN["steps only"], 8));
+        prev.innerHTML = previewSvg(previewWalk(BUILTIN[name] || BUILTIN["steps only"], 4));
       }
       drawPreview(picks.indexOf(activePreset) >= 0 ? activePreset : picks[0]);
 
