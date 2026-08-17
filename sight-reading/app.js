@@ -2707,7 +2707,7 @@
   // ===========================================================================
   var HELP_SECTIONS = ["exercise", "transport", "presets", "tempo", "accomp",
                        "hide", "rhythm", "step", "notes", "musicality",
-                       "chroma", "chunks", "staff"];
+                       "chroma", "chunks", "staff", "credits"];
 
   function buildHelpBody() {
     var host = document.getElementById("help-body");

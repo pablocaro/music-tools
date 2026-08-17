@@ -13,6 +13,11 @@ ahead under pressure.
 > For the philosophy, the full build arc, and an architecture/handoff overview,
 > see **[PROJECT.md](PROJECT.md)**.
 
+> Prima Vista stands on OSME, OpenSheetMusicDisplay, VexFlow, JSZip, Rubik and
+> the Versilian Community Sample Library. Notices and full licence texts are in
+> **[THIRD-PARTY.md](THIRD-PARTY.md)** — required ones, not courtesy ones: the
+> bundle ships minified with every banner comment stripped.
+
 ## Run it
 
 No build step. Serve the folder and open it:

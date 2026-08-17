@@ -13,7 +13,11 @@ const SP = __dirname + '/out/';
   const probe = id => p.evaluate(x=>{
     const el=document.getElementById(x), cs=getComputedStyle(el);
     const rows=[...el.querySelectorAll('.pop-row')].map(r=>{
-      const lab=r.querySelector('.pop-label'), ctl=r.lastElementChild;
+      // Not lastElementChild: the Voice row carries its own listbox after the
+      // button, so that measured a hidden menu at 0 and the accomp popover's
+      // alignment check could never pass. Ask for the control by what it is.
+      const lab=r.querySelector('.pop-label');
+      const ctl=r.querySelector('.sw, .cycle, input[type="range"]');
       return { label: lab?lab.textContent:null,
                ctlRight: Math.round(ctl.getBoundingClientRect().right) };
     });
