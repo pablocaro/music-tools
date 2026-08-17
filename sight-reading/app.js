@@ -641,6 +641,7 @@
     { id: "violin",   clef: "treble" },
     { id: "viola",    clef: "alto"   },
     { id: "cello",    clef: "bass"   },
+    { id: "bass",     clef: "bass"   },
     { id: "flute",    clef: "treble" },
     { id: "clarinet", clef: "treble" },
     { id: "sax",      clef: "treble" },
@@ -2905,11 +2906,13 @@
            '" aria-hidden="true">' + s + '</svg>';
   }
 
-  function buildObPage() {
-    var host = document.getElementById("ob-body");
+  function buildObPage(host) {
+    var body = document.getElementById("ob-body");
+    // Given a host, fill it; given none, this is the plain first render and the
+    // body is the host — which is what the initial page and every rebuild use.
+    if (!host) { host = body; host.innerHTML = ""; }
     var page = OB_PAGES[obPage];
-    host.innerHTML = "";
-    host.scrollTop = 0;
+    body.scrollTop = 0;
 
     // Introduced large on the first page, then small on the rest: the card
     // should keep saying whose it is without re-announcing itself.
@@ -3011,7 +3014,51 @@
     return h;
   }
 
+  // Slide the pages, ease the card's height, and never do either for someone
+  // who asked for stillness. The card is measured before and after because
+  // height:auto cannot be transitioned — the same read-the-geometry-back move
+  // the chunk highlighter and the hide curtain already make.
+  function stillness() {
+    return document.documentElement.classList.contains("reduce-motion") ||
+           (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }
+
+  function obSwap(build, back) {
+    var card = document.querySelector(".ob-card"), body = document.getElementById("ob-body");
+    if (!card || !body || stillness()) { build(); return; }
+
+    // The outgoing page leaves as a copy, lifted out of the flow so the
+    // incoming one can take the space immediately — otherwise the two would
+    // stack and the card would lurch to twice its height mid-transition.
+    var ghost = document.createElement("div");
+    ghost.className = "ob-ghost";
+    while (body.firstChild) ghost.appendChild(body.firstChild);
+    body.appendChild(ghost);
+
+    var h0 = card.offsetHeight;
+    var page = document.createElement("div");
+    page.className = "ob-page ob-enter" + (back ? " from-left" : "");
+    body.insertBefore(page, ghost);
+    build(page);
+
+    ghost.classList.add(back ? "to-right" : "to-left");
+    var h1 = card.offsetHeight;
+
+    card.style.height = h0 + "px";
+    void card.offsetHeight;                       // commit h0 before animating to h1
+    card.classList.add("ob-sizing");
+    card.style.height = h1 + "px";
+
+    requestAnimationFrame(function () { page.classList.remove("ob-enter"); });
+    setTimeout(function () {
+      if (ghost.parentNode) ghost.parentNode.removeChild(ghost);
+      card.classList.remove("ob-sizing");
+      card.style.height = "";                     // back to auto: the page can grow later
+    }, 360);
+  }
+
   function obGo(i) {
+    var back = i < obPage;
     obPage = i;
     if (OB_PAGES[obPage] === "vocab") {
       // Get Started puts a beginner on the gentlest built-in. It is applied as
@@ -3021,17 +3068,26 @@
       activePreset = "steps only";
       syncPanel();
     }
-    buildObPage();
+    obSwap(function (host) { buildObPage(host); }, back);
   }
 
+  // Leaving is the reveal. The line is generated while the card is still up and
+  // still blanked, so the churn happens unseen; then the ink and the title
+  // arrive as the card drops away, and the last frame of onboarding is the app
+  // rather than an empty stave that fills in a moment later.
   function obFinish() {
-    document.getElementById("ob").hidden = true;
-    obBlanking = false;  // the staff and title fill in with the first real exercise
-    // Opened by the flag: inspect it, do not consume it.
+    var ob = document.getElementById("ob");
     if (!OB_FLAG) { try { localStorage.setItem(OB_KEY, "1"); } catch (e) {} }
     syncPanel();
     persistSession();
-    generate();          // one render for everything chosen along the way
+    generate(function () {
+      obBlanking = false;
+      showAllInk();
+      updateHeader();                 // the title was blanked for the same reason
+      if (stillness()) { ob.hidden = true; return; }
+      ob.classList.add("ob-leaving");
+      setTimeout(function () { ob.hidden = true; ob.classList.remove("ob-leaving"); }, 320);
+    });
   }
 
   function wireOnboarding() {

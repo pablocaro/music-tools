@@ -1641,6 +1641,48 @@ button.secondary {
   overflow: visible;
 }
 
+/* Pages slide: the outgoing one leaves as a lifted copy so the incoming one can
+   take its place immediately, and the card eases between the two heights (set
+   in px by JS, since height:auto cannot transition). All of it multiplies by
+   --motion, and .reduce-motion zeroes the durations while obSwap skips the
+   choreography outright — a stilled transition that still reparents nodes is
+   not the same as not animating. */
+.ob-body { position: relative; overflow-x: hidden; }
+
+.ob-ghost {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  pointer-events: none;
+  transition: transform calc(0.3s * var(--motion)) cubic-bezier(0.32, 0.72, 0, 1),
+              opacity   calc(0.18s * var(--motion)) ease-out;
+}
+.ob-ghost.to-left  { transform: translateX(-38px); opacity: 0; }
+.ob-ghost.to-right { transform: translateX(38px);  opacity: 0; }
+
+.ob-page {
+  transition: transform calc(0.3s * var(--motion)) cubic-bezier(0.32, 0.72, 0, 1),
+              opacity   calc(0.24s * var(--motion)) ease-out;
+}
+.ob-page.ob-enter            { transform: translateX(38px);  opacity: 0; }
+.ob-page.ob-enter.from-left  { transform: translateX(-38px); }
+
+.ob-card.ob-sizing {
+  transition: height calc(0.3s * var(--motion)) cubic-bezier(0.32, 0.72, 0, 1);
+  overflow: hidden;
+}
+
+/* Leaving: the card drops away and the music it was covering is already there.
+   The scrim goes with it, so nothing is left dimming the reveal. */
+.ob, .ob .ob-card {
+  transition: opacity calc(0.28s * var(--motion)) ease-out,
+              transform calc(0.28s * var(--motion)) cubic-bezier(0.32, 0.72, 0, 1);
+}
+.ob.ob-leaving { opacity: 0; }
+.ob.ob-leaving .ob-card { transform: translateY(10px) scale(0.985); }
+
 /* The pages scroll; the footer never does, so Next is always reachable. */
 .ob-body {
   flex: 1;
