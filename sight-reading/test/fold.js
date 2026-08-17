@@ -149,6 +149,73 @@ const state = (page, sel) => page.evaluate((s) => {
     await p2.close();
   }
 
+  // --- folding near the end of the rail --------------------------------------
+  // Collapsing shortens the rail, so scrollTop has to come back, and that moves
+  // everything down — including the header under your finger. Where it lands is
+  // arithmetic and cannot be argued with; how it gets there is ours. Left to the
+  // browser it was an integer scrollTop clawing at a fractional layout: a
+  // sub-pixel shimmer on every header below the fold, and one 46px lurch.
+  {
+    const page = await open(ctx);
+    await page.evaluate(() => {
+      const rb = document.querySelector(".rail-body");
+      rb.scrollTop = rb.scrollHeight;
+    });
+    await page.waitForTimeout(400);
+    const pick = await page.evaluate(() => {
+      const hs = [...document.querySelectorAll(".band[data-band] .band-h")];
+      const rb = document.querySelector(".rail-body").getBoundingClientRect();
+      return hs.findIndex((h) => { const r = h.getBoundingClientRect();
+        return r.top > rb.top + 20 && r.bottom < rb.bottom - 20; });
+    });
+    ok("a header is reachable near the rail's end", pick >= 0, `index ${pick}`);
+
+    await page.evaluate(() => {
+      window.__f = [];
+      const hs = [...document.querySelectorAll(".band[data-band] .band-h")];
+      const t = () => {
+        window.__f.push(hs.map((h) => +h.getBoundingClientRect().top.toFixed(2)));
+        if (window.__f.length < 90) requestAnimationFrame(t);
+      };
+      requestAnimationFrame(t);
+    });
+    const at = await page.evaluate((i) => {
+      const r = document.querySelectorAll(".band[data-band] .band-h")[i].getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }, pick);
+    await page.mouse.move(at.x, at.y);
+    await page.mouse.down(); await page.mouse.up();
+    await page.waitForTimeout(1400);
+
+    const f = await page.evaluate(() => window.__f);
+    const runs = (s) => { let rev = 0, dir = 0;
+      for (let k = 1; k < s.length; k++) { const d = Math.sign(+(s[k] - s[k-1]).toFixed(2));
+        if (d !== 0) { if (dir !== 0 && d !== dir) rev++; dir = d; } }
+      return rev; };
+
+    let shimmer = 0;
+    for (let i = 0; i < f[0].length; i++) {
+      const s = f.map((x) => x[i]);
+      if (Math.max(...s) - Math.min(...s) < 5) shimmer = Math.max(shimmer, runs(s));
+    }
+    ok("headers that should be still do not shimmer", shimmer === 0, `${shimmer} reversals`);
+
+    const tapped = f.map((x) => x[pick]);
+    let biggest = 0;
+    for (let k = 1; k < tapped.length; k++) biggest = Math.max(biggest, Math.abs(tapped[k] - tapped[k-1]));
+    ok("the tapped header settles rather than lurching", biggest < 40, `${biggest.toFixed(0)}px in one frame`);
+    ok("and it never doubles back", runs(tapped) === 0, `${runs(tapped)} reversals`);
+
+    // The spacer is scaffolding: it must not outlive the fold and leave dead
+    // scroll length behind.
+    ok("the spacer is put away afterwards",
+       await page.evaluate(() => {
+         const s = document.querySelector(".rail-spacer");
+         return !s || s.getBoundingClientRect().height === 0;
+       }));
+    await page.close();
+  }
+
   // --- the stack arrives into an opened rail ---------------------------------
   {
     const page = await open(ctx);

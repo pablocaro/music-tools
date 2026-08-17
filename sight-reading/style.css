@@ -625,6 +625,10 @@ button.playing svg.state-alt { display: block; }
    shut platter would play its collapse as the page loads. */
 .bands-init .band { transition: none; }
 
+/* Holds the rail's scroll length for the length of a fold — see holdScroll in
+   app.js. Zero-height and inert the rest of the time. */
+.rail-spacer { flex: 0 0 auto; height: 0; }
+
 /* The intro platter states what the app is before any control does. No header
    button — there is nothing to fold, and folding away the explanation would
    defeat it. */

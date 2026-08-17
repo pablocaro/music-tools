@@ -2744,6 +2744,65 @@
     return (isNaN(ms) ? 260 : ms) * (isNaN(mo) ? 1 : mo);
   }
 
+  // Folding near the bottom of the rail used to shove the header you tapped
+  // down the screen, away from your finger — up to 176px of it, measured.
+  // Collapsing a platter shortens the rail, so the browser has to claw scrollTop
+  // back, and pulling scrollTop back moves everything down. The header's final
+  // position is fixed by that arithmetic and cannot be pinned: at the end of the
+  // scroll there is nowhere left to scroll to. Only the *path* is ours.
+  //
+  // So take it. A spacer holds the rail's scroll length for the length of the
+  // fold, which stops the browser clawing at all, and scrollTop is then moved by
+  // hand. Two things come of it: the shift is one rounded number per frame
+  // instead of an integer scrollTop fighting a fractional layout — that
+  // disagreement was a sub-pixel shimmer on every header below the fold — and it
+  // is spread evenly rather than arriving in one 46px lurch.
+  //
+  // The scroll gets its own, gentler curve rather than the fold's. Reading
+  // progress off the collapsing body keeps the two exactly in step, which sounds
+  // right and is not: the fold's easing is hard front-loaded on purpose, and a
+  // scroll that copies it throws the tapped header 55px in the first frame —
+  // a worse lurch than the one being fixed. A plain cubic ease-out over the same
+  // span puts the largest step near 30px and reads as a settle.
+  function holdScroll(band) {
+    var rb = band.closest(".rail-body");
+    var body = band.querySelector(".band-body");
+    if (!rb || !body || stillness()) return;
+
+    var h0 = body.getBoundingClientRect().height;
+    var from = rb.scrollTop;
+    // What the browser would have to take back once h0 leaves the flow.
+    var need = Math.max(0, from - ((rb.scrollHeight - rb.clientHeight) - h0));
+    if (!h0 || !need) return;                 // nothing to claw: the fold is free
+
+    // A real element, not padding-bottom: WebKit has historically left a scroll
+    // container's bottom padding out of scrollHeight, and this only works if the
+    // held length is held everywhere.
+    var spacer = rb.querySelector(".rail-spacer");
+    if (!spacer) {
+      spacer = document.createElement("div");
+      spacer.className = "rail-spacer";
+      spacer.setAttribute("aria-hidden", "true");
+      rb.appendChild(spacer);
+    }
+    spacer.style.height = h0 + "px";
+    // Fold a second platter before the first has settled and both runs share the
+    // one spacer; whichever finished first would drop it out from under the other
+    // and hand the clawing back to the browser mid-fold. Only the latest owner
+    // may release it.
+    var mine = (+spacer.dataset.gen || 0) + 1;
+    spacer.dataset.gen = mine;
+
+    var t0 = performance.now(), span = Math.max(1, bandFoldMs());
+    function step() {
+      var t = Math.min(1, (performance.now() - t0) / span);
+      rb.scrollTop = Math.round(from - need * (1 - Math.pow(1 - t, 3)));
+      if (t < 1) requestAnimationFrame(step);
+      else if (+spacer.dataset.gen === mine) spacer.style.height = "0px";
+    }
+    requestAnimationFrame(step);
+  }
+
   function wireBands() {
     var BAND_KEY = "sr_bands";
     var shut = {};
@@ -2765,8 +2824,10 @@
         btn.setAttribute("aria-expanded", shut[id] ? "false" : "true");
       }
       btn.addEventListener("click", function () {
+        var closing = !shut[id];
         shut[id] = !shut[id];
         try { localStorage.setItem(BAND_KEY, JSON.stringify(shut)); } catch (e) {}
+        if (closing) holdScroll(band);
         draw();
         // .moving clips the body for the length of the fold and no longer, so a
         // settled-open platter stops cutting off its own tooltips.

@@ -236,6 +236,13 @@ prefixes — because most of what matters here is invisible in a diff. Three
 lessons paid for:
 
 - A test that hangs is not evidence the app is broken.
+- Measure the thing being complained about before fixing the thing you
+  assume. "A bounce on tap" was three candidates — the iOS tap highlight, a
+  sub-pixel shimmer, and the tapped header sliding 176px down the screen — and
+  the first two theories (scroll anchoring, pinning the header) both measured
+  as *no change* before anything shipped. Pinning in particular is impossible
+  at the end of a scroll: there is nowhere left to scroll to, so the header's
+  final position is arithmetic. Only the path was ever available.
 - An animated thing can lie where an instant one could not. `display: none`
   is honest by construction; a height animation can leave a platter clipped
   after it settles (cutting off the tooltips that reach outside it), leave a
