@@ -26,7 +26,7 @@
 
   if (!/[?&]tweaks(?:[=&]|$)/.test(location.search)) return;
 
-  var KEY = "sr_tweaks:v12";      // bumped when the defaults move, so a stored
+  var KEY = "sr_tweaks:v13";      // bumped when the defaults move, so a stored
                                  // set of slider values cannot mask the new baseline
   var FOLD = "sr_tweaks_fold";
 
@@ -54,6 +54,7 @@
     obLogoSize: 72, obLogoAlpha: 0.5, obLogoR: 20, obLogoSpread: 7,
     obTitle: 30, obTitleWeight: 550, wordmark: 40, wordmarkTrack: -0.02,
     obBody: 24, obLeading: 1.4, obPad: 44, obRadius: 34,
+    obEnterMs: 420, obEnterRise: 16,
     obMarkMs: 620, obMarkTurn: 12, obMarkStagger: 70,
     // motion
     motion: 1, reduceMotion: 0
@@ -173,6 +174,10 @@
         note: "desktop card; the phone wall keeps its own" },
       { key: "obRadius",     label: "Card radius",  min: 12, max: 40, step: 1, unit: "px",
         note: "" },
+      { key: "obEnterMs",    label: "Card entrance", min: 0, max: 1000, step: 20, unit: "ms",
+        note: "reload to see it; the mark is timed against it" },
+      { key: "obEnterRise",  label: "Card rise",     min: 0, max: 48, step: 1, unit: "px",
+        note: "how far it comes up through; it leaves downward" },
       { key: "obMarkMs",     label: "Mark assembly", min: 0, max: 1400, step: 20, unit: "ms",
         note: "click the mark to play it again" },
       { key: "obMarkTurn",   label: "Mark spin",     min: 0, max: 60, step: 1, unit: "\u00b0",
@@ -217,6 +222,7 @@
     wordmark: "--wordmark-size", wordmarkTrack: "--wordmark-track",
     obBody: "--ob-body-size", obLeading: "--ob-leading",
     obPad: "--ob-pad", obRadius: "--ob-radius",
+    obEnterMs: "--ob-enter-ms", obEnterRise: "--ob-enter-rise",
     obMarkMs: "--ob-mark-ms", obMarkTurn: "--ob-mark-turn",
     obMarkStagger: "--ob-mark-stagger",
     motion: "--motion", reduceMotion: ".reduce-motion on <html>"
@@ -302,6 +308,8 @@
     r.setProperty("--ob-radius",       state.obRadius + "px");
     // Unitless — style.css multiplies them into ms and deg, so --motion can
     // scale the whole entrance the way it scales every other transition.
+    r.setProperty("--ob-enter-ms",     String(state.obEnterMs));
+    r.setProperty("--ob-enter-rise",   String(state.obEnterRise));
     r.setProperty("--ob-mark-ms",      String(state.obMarkMs));
     r.setProperty("--ob-mark-turn",    String(state.obMarkTurn));
     r.setProperty("--ob-mark-stagger", String(state.obMarkStagger));

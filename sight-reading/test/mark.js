@@ -130,6 +130,90 @@ const notes = (page) => page.evaluate(() =>
        JSON.stringify(r));
     ok("reduced motion: not stacked at any point",
        !(await page.evaluate(() => document.querySelector(".ob-logo").classList.contains("ob-stacked"))));
+    ok("reduced motion: the card is simply there too",
+       await page.evaluate(() => {
+         const ob = document.getElementById("ob");
+         return !ob.classList.contains("ob-entering") &&
+                getComputedStyle(ob).opacity === "1" &&
+                new DOMMatrix(getComputedStyle(ob.querySelector(".ob-card")).transform).f === 0;
+       }));
+    await page.close();
+  }
+
+  // --- 1b · the card arrives ---------------------------------------------------
+  // Same move as the exit, run backwards, and on the same font gate as the mark
+  // — the wordmark sits between them, so gating one without the other only
+  // moves the face-swap onto the name.
+  {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    await page.addInitScript(`(() => {
+      window.__card = [];
+      const tick = () => {
+        const ob = document.getElementById("ob");
+        if (ob && !ob.hidden) {
+          const c = ob.querySelector(".ob-card");
+          window.__card.push({
+            scrim: +(+getComputedStyle(ob).opacity).toFixed(3),
+            y: +new DOMMatrix(getComputedStyle(c).transform).f.toFixed(2),
+            markStacked: ob.querySelector(".ob-logo.ob-stacked") ? 1 : 0
+          });
+        }
+        if (window.__card.length < 200) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    })()`);
+    await page.goto(BASE + "?onboarding", { waitUntil: "load" });
+    await page.waitForSelector(".ob-logo-c");
+    await page.waitForTimeout(1500);
+
+    const c = await page.evaluate(() => window.__card);
+    const first = c[0], last = c[c.length - 1];
+    ok("the card starts down and the scrim clear",
+       first.scrim < 0.05 && Math.abs(first.y - 16) < 0.5, JSON.stringify(first));
+    ok("it rises without overshooting past its resting place",
+       c.every((f) => f.y >= -0.01), `min y ${Math.min(...c.map((f) => f.y)).toFixed(2)}`);
+    ok("it settles flush and opaque",
+       last.scrim === 1 && last.y === 0, JSON.stringify(last));
+
+    // The mark starts partway through the card, not after it: two entrances in
+    // sequence is one entrance too many.
+    const cardDone = c.findIndex((f) => f.y === 0);
+    const markGo = c.findIndex((f, i) => i > 0 && !f.markStacked && c[i - 1].markStacked);
+    ok("the mark starts while the card is still moving",
+       markGo > 0 && markGo < cardDone, `mark at frame ${markGo} of ${cardDone}`);
+    await page.close();
+  }
+
+  // --- 1c · and leaves the way it came ------------------------------------------
+  // The exit overrides the entrance's duration rather than owning the rule, so
+  // it is exactly the kind of thing that breaks silently: still 280ms, still
+  // finished inside obFinish's 320ms teardown, still landing on live ink.
+  {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    await page.goto(BASE + "?onboarding", { waitUntil: "load" });
+    await page.waitForSelector(".ob-logo-c");
+    await page.waitForTimeout(1200);
+    await page.click("#ob-next"); await page.waitForTimeout(420);
+    await page.click("#ob-next"); await page.waitForTimeout(420);
+
+    const dur = await page.evaluate(() => {
+      const ob = document.getElementById("ob");
+      ob.classList.add("ob-leaving");
+      const d = getComputedStyle(ob).transitionDuration;
+      ob.classList.remove("ob-leaving");
+      return d;
+    });
+    ok("the exit keeps its own, quicker duration", /^0\.28s/.test(dur), dur);
+
+    await page.click("#ob-next");                    // Start practicing
+    await page.waitForTimeout(120);
+    ok("it drops rather than rises on the way out",
+       await page.evaluate(() => new DOMMatrix(getComputedStyle(
+         document.querySelector(".ob-card")).transform).f > 0));
+    await page.waitForTimeout(500);
+    ok("and it is gone, over live ink",
+       await page.evaluate(() => document.getElementById("ob").hidden &&
+         document.querySelectorAll(".vf-stavenote").length > 0));
     await page.close();
   }
 

@@ -3038,6 +3038,36 @@
     });
   }
 
+
+  // One gate for the whole entrance. The card and the mark both wait on the
+  // fonts because the wordmark sits between them: gating only the mark would
+  // move the face-swap onto the name instead of removing it. The timeout is
+  // what keeps a slow font able to delay the entrance but never withhold it.
+  function obReady(fn) {
+    var fired = false;
+    function go() { if (fired) return; fired = true; fn(); }
+    setTimeout(go, 600);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(go);
+    else go();
+  }
+
+  // Two frames, because a class removed in the same frame it was added is not a
+  // style change the browser ever sees.
+  function obRelease(el, cls) {
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () { el.classList.remove(cls); });
+    });
+  }
+
+  // How long the card takes, read from the token so the mark stays timed
+  // against whatever the dial currently says rather than a number copied here.
+  function obEnterMs() {
+    var cs = getComputedStyle(document.documentElement);
+    var ms = parseFloat(cs.getPropertyValue("--ob-enter-ms"));
+    var mo = parseFloat(cs.getPropertyValue("--motion"));
+    return (isNaN(ms) ? 420 : ms) * (isNaN(mo) ? 1 : mo);
+  }
+
   var obMarkPlayed = false;
 
   function obAssemble(logo) {
@@ -3055,17 +3085,11 @@
     obMarkPlayed = true;
 
     logo.classList.add("ob-stacked");    // set before first paint, so nothing animates into it
-    var fired = false;
-    function go() {
-      if (fired) return;
-      fired = true;
-      requestAnimationFrame(function () {
-        requestAnimationFrame(function () { logo.classList.remove("ob-stacked"); });
-      });
-    }
-    setTimeout(go, 500);
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(go);
-    else go();
+    // Overlapping the card rather than following it: waiting for the card to
+    // finish before the mark starts makes an entrance out of two entrances.
+    obReady(function () {
+      setTimeout(function () { obRelease(logo, "ob-stacked"); }, obEnterMs() * 0.55);
+    });
   }
 
   function obHeading(host, key) {
@@ -3170,11 +3194,16 @@
       if (obPage > 0) obGo(obPage - 1);
     });
     if (seen) return;
+    // The card comes up through its rise as the scrim fades in — the same move
+    // the exit makes, run backwards. Set before it is unhidden so the first
+    // painted frame is the pre-state and not the settled card.
+    if (!stillness()) ob.classList.add("ob-entering");
     ob.hidden = false;
     // Set before init's generate() runs, so the first render comes up empty
     // rather than flashing a full exercise behind the card.
     obBlanking = true;
     buildObPage();
+    if (!stillness()) obReady(function () { obRelease(ob, "ob-entering"); });
     // Focus the dialog itself rather than Next: it puts keyboard and
     // screen-reader context inside the walkthrough without painting a
     // focus ring on a button nobody has reached for yet.

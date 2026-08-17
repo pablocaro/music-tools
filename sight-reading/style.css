@@ -123,6 +123,10 @@
      journey, not a dial — but everything geometric multiplies by it, so the
      dials keep owning the destination and the entrance only borrows the path. */
   --ob-assemble: 1;
+  /* The card's own entrance, which the mark's is timed against. */
+  --ob-enter-ms: 420;
+  --ob-enter-rise: 16;    /* px it comes up through; it leaves downward */
+  --ob-enter-scale: 0.98;
   --ob-mark-ms: 620;      /* unitless ms, so --motion can scale it */
   --ob-mark-turn: 12;     /* degrees the ring unwinds through on the way out */
   --ob-mark-stagger: 70;  /* ms between the three circles */
@@ -1743,11 +1747,28 @@ button.secondary {
   overflow: hidden;
 }
 
-/* Leaving: the card drops away and the music it was covering is already there.
-   The scrim goes with it, so nothing is left dimming the reveal. */
+/* Arriving and leaving are the same move in opposite directions: the card comes
+   up through --ob-enter-rise and drops back down through it, while the scrim —
+   the paper wall on a phone, the dimmed backdrop on a desktop — fades with it.
+   Leaving is quicker than arriving, because behind it is the music you asked
+   for and there is nothing to introduce.
+
+   The base duration is the entrance's: removing .ob-entering transitions with
+   whatever the settled rule says, so that is the rule the entrance has to be
+   written in, and the exit overrides it. */
 .ob, .ob .ob-card {
-  transition: opacity calc(0.28s * var(--motion)) ease-out,
-              transform calc(0.28s * var(--motion)) cubic-bezier(0.32, 0.72, 0, 1);
+  transition: opacity calc(var(--ob-enter-ms) * var(--motion) * 1ms) ease-out,
+              transform calc(var(--ob-enter-ms) * var(--motion) * 1ms)
+                        cubic-bezier(0.22, 0.9, 0.24, 1);
+}
+.ob.ob-entering { opacity: 0; }
+.ob.ob-entering .ob-card {
+  transform: translateY(calc(var(--ob-enter-rise) * 1px)) scale(var(--ob-enter-scale));
+}
+
+.ob.ob-leaving, .ob.ob-leaving .ob-card {
+  transition-duration: calc(0.28s * var(--motion));
+  transition-timing-function: ease-out, cubic-bezier(0.32, 0.72, 0, 1);
 }
 .ob.ob-leaving { opacity: 0; }
 .ob.ob-leaving .ob-card { transform: translateY(10px) scale(0.985); }
@@ -1955,7 +1976,13 @@ button.secondary {
 /* Mobile: trim the gutters and let the music column shrink below its desktop
    floor so narrow screens reflow instead of clipping. */
 @media (max-width: 720px) {
-  :root { --music-gutter: 14px; }
+  :root {
+    --music-gutter: 14px;
+    /* No scale on the way in here: the card is the whole screen, and a screen
+       that grows into place reads as a zoom rather than as a card arriving. It
+       still rises, which is the part that carries the gesture. */
+    --ob-enter-scale: 1;
+  }
   .sheet-area { padding: 8px var(--music-gutter) 18px; }
   :root {
     --fs-4-base: 24px; /* the title steps down; the rest of the scale holds */
