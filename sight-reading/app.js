@@ -2889,12 +2889,17 @@
     } else if (page === "vocab") {
       obHeading(host, "ob.vocabTitle");
 
-      // Three named drills rather than a blank vocabulary to author. Ticking a
+      // Three named drills rather than a blank vocabulary to author: ticking a
       // quarter-note cell asks a beginner to compose a syllabus before they
-      // know what one is; "Jig" is a thing you can want to read. The three
-      // span the range instead of leading the list: the floor, the first real
-      // skill, and one that proves compound time exists at all.
-      var picks = ["steps only", "thirds drill", "jig"];
+      // know what one is.
+      // These three are one dimension, ordered — small, medium, large jumps —
+      // which is what lets the row be read at all. The previous set (Steps
+      // Only / Thirds / Jig) spanned feature space instead: a constraint, an
+      // interval set and a genre, three kinds of noun with no basis for
+      // comparison. Ordering beats coverage for a first choice, and "step" and
+      // "leap" are ordinary English about size, so the row needs no theory to
+      // rank.
+      var picks = ["steps only", "thirds drill", "wide leaps"];
       obPills(host, picks.map(function (n) { return { id: n, html: presetLabel(n) }; }),
         function (it) { return activePreset === it.id; },
         function (it) {

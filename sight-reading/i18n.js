@@ -84,12 +84,23 @@ window.SR_I18N = {
     "clef.bass":   "Bass",
 
     // built-in presets, keyed by their stable id
+    // Preset labels name what is IN the exercise, never what you do with it:
+    // "Thirds", not "Thirds Drill". Three systems used to run here at once —
+    // content (Wide Leaps), format (Drill, Workout) and tradition (Long Tones,
+    // from wind practice) — and a row of them could not be compared because
+    // the reader could not tell which question the row was asking. The rule is
+    // the app's own: the vocabulary is explicit, so a name states vocabulary.
+    // Jig is the one deliberate exception, kept because it is the only label
+    // that says how something feels, and it is what sells 6/8 to someone who
+    // would never pick "Compound Time".
+    // These are labels only. BUILTIN keys stay as they were, so nothing stored
+    // migrates and no saved setup moves.
     "preset.steps only":   "Steps Only",
-    "preset.thirds drill": "Thirds Drill",
+    "preset.thirds drill": "Thirds",
     "preset.wide leaps":   "Wide Leaps",
     "preset.arpeggios":    "Arpeggios",
-    "preset.long tones":      "Long Tones",
-    "preset.rhythm workout":  "Rhythm Workout",
+    "preset.long tones":      "Long Notes",
+    "preset.rhythm workout":  "Mixed Rhythms",
     "preset.jig":             "Jig",
     "preset.chromatic steps": "Chromatic Steps",
     "preset.minor cadences":  "Minor Cadences",
@@ -317,7 +328,7 @@ window.SR_I18N = {
     "preset.wide leaps":   "Saltos amplios",
     "preset.arpeggios":    "Arpegios",
     "preset.long tones":      "Notas largas",
-    "preset.rhythm workout":  "Entrenamiento r\u00edtmico",
+    "preset.rhythm workout":  "Ritmos variados",
     "preset.jig":             "Giga",
     "preset.chromatic steps": "Grados crom\u00e1ticos",
     "preset.minor cadences":  "Cadencias menores",
