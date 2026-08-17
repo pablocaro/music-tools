@@ -1987,6 +1987,17 @@ button.secondary {
 .ob-pnote.up .stem.up      { opacity: 1; }
 .ob-pnote:not(.up) .stem.dn { opacity: 1; }
 
+/* A subtitle of the question, between the heading and the controls: it
+   qualifies the choice being asked for, so it reads before the answer rather
+   than after it. Body copy's size would compete with the question; the panel's
+   label size sits under it without whispering. */
+.ob-body .ob-sub {
+  margin-top: -14px;
+  margin-bottom: 22px;
+  font-size: var(--type-label);
+  color: var(--muted);
+}
+
 /* A quiet caption under a group of controls, saying what the choice does —
    working text, so it steps back down to the panel's label size while the
    page's own copy runs at display size. Scoped under .ob-body to outrank the
@@ -2057,13 +2068,22 @@ button.secondary {
 }
 .ob-dots i.on { background: var(--ctl-on); }
 
-/* Back. Icon-only and muted, at the head of the footer where the dots already
-   say where you are — a step backwards is the same axis, so it belongs in the
-   same cluster rather than as a second thing in a corner. It is held rather
-   than hidden on the first page: the dots are the fixed landmark in this row,
-   and a control appearing beside them would shove them sideways on every page
-   turn. Pulled left by its own optical padding so the glyph, not the tap
-   target, lines up with the card's edge. */
+/* Back sits beside the small wordmark rather than in the footer, and the two
+   are built together because they appear on exactly the same pages. It was at
+   the head of the footer, where it had to be held-not-hidden on the first page
+   so the dots would not shift under it — which meant the dots were permanently
+   indented by a control that was invisible half the time. Out of that row they
+   sit at the card's edge, where a progress indicator belongs.
+   Pulled left by its own optical padding so the glyph, not the tap target,
+   lines up with everything below it. */
+.ob-crumb {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: 18px;
+}
+.ob-crumb .ob-wordmark-sm { margin: 0; }
+
 .ob-back {
   flex-shrink: 0;
   display: grid;
@@ -2078,7 +2098,6 @@ button.secondary {
   transition: color 0.15s;
 }
 .ob-back:hover { color: var(--ink); opacity: 1; }
-.ob-back.is-off { visibility: hidden; pointer-events: none; }
 .ob-back-caret {
   width: calc(var(--caret-size) * 1px);
   height: calc(var(--caret-size) * 1px);

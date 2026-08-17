@@ -3057,12 +3057,26 @@
     body.scrollTop = 0;
 
     // Introduced large on the first page, then small on the rest: the card
-    // should keep saying whose it is without re-announcing itself.
+    // should keep saying whose it is without re-announcing itself. Back rides
+    // with it, because the two appear on exactly the same pages — and having
+    // left the footer, the dots can sit at the card's edge instead of being
+    // pushed off it by a control that was invisible half the time.
     if (page !== "intro") {
+      var crumb = document.createElement("div");
+      crumb.className = "ob-crumb";
+      var back = document.createElement("button");
+      back.className = "ob-back";
+      back.type = "button";
+      back.setAttribute("data-i18n-aria", "ob.back");
+      back.setAttribute("aria-label", t("ob.back"));
+      back.innerHTML = '<svg class="ob-back-caret" aria-hidden="true"><use href="#ic-chevron"/></svg>';
+      back.addEventListener("click", function () { if (obPage > 0) obGo(obPage - 1); });
+      crumb.appendChild(back);
       var sm = document.createElement("p");
       sm.className = "ob-wordmark-sm";
       sm.textContent = "Prima Vista";
-      host.appendChild(sm);
+      crumb.appendChild(sm);
+      host.appendChild(crumb);
     }
 
     if (page === "intro") {
@@ -3079,6 +3093,7 @@
 
     } else if (page === "instrument") {
       obHeading(host, "ob.instrTitle");
+      obPara(host, "ob.instrNote", "ob-sub");
       var items = INSTRUMENTS.map(function (ins) {
         return { id: ins.id, html: t("instr." + ins.id) };
       });
@@ -3086,7 +3101,6 @@
         function (it) { return instrumentPref() === it.id; },
         function (it) { setInstrument(it.id); },
         "ob-instr");
-      obPara(host, "ob.instrNote", "ob-note");
       // Piano is the loudest absence on this list — more people play it than
       // everything else here put together, and a pianist who scans the row and
       // does not find themselves has no way to tell "not supported" from "not
@@ -3095,6 +3109,10 @@
 
     } else if (page === "vocab") {
       obHeading(host, "ob.vocabTitle");
+      // A subtitle of the question, not a footnote under the answer. It
+      // qualifies the choice you are being asked to make — "pick one, this is
+      // not binding" — which is worth knowing before you pick rather than after.
+      obPara(host, "ob.vocabNote", "ob-sub");
 
       // Three named drills rather than a blank vocabulary to author: ticking a
       // quarter-note cell asks a beginner to compose a syllabus before they
@@ -3138,7 +3156,7 @@
       // reading, on the page that also has to hold Start practicing. The grid
       // is the rail's, and "change any of it later" is the promise that it is
       // there.
-      obPara(host, "ob.vocabNote", "ob-note");
+
     }
 
     var dots = document.getElementById("ob-dots");
@@ -3155,8 +3173,6 @@
     // Skip only sits on the pages that ask something. The intro has nothing to
     // skip past, and the closing page is already the end.
     document.getElementById("ob-skip").hidden = (page === "intro" || last);
-    // Back is held, not hidden, on the first page — see .ob-back in style.css.
-    document.getElementById("ob-back").classList.toggle("is-off", obPage === 0);
   }
 
   // The mark arrives rather than appears. The three circles start stacked on the
@@ -3331,9 +3347,6 @@
     // student skips, they should still be told where the settings are.
     document.getElementById("ob-skip").addEventListener("click", function () {
       obGo(OB_PAGES.length - 1);
-    });
-    document.getElementById("ob-back").addEventListener("click", function () {
-      if (obPage > 0) obGo(obPage - 1);
     });
     if (seen) return;
     // The card comes up through its rise as the scrim fades in — the same move

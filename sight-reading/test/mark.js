@@ -251,26 +251,35 @@ const notes = (page) => page.evaluate(() =>
     await page.waitForSelector(".ob-logo-c");
     await page.waitForTimeout(1200);
 
-    const off = () => page.evaluate(() =>
-      document.getElementById("ob-back").classList.contains("is-off"));
-    const dotsX = () => page.evaluate(() =>
-      +document.getElementById("ob-dots").getBoundingClientRect().x.toFixed(1));
+    // Back lives beside the small wordmark now, built with it, so on the intro
+    // — which has neither — it is simply not in the document. It used to sit at
+    // the head of the footer, held-not-hidden on the first page so the dots
+    // would not shift under it, which left the dots permanently indented by a
+    // control that was invisible half the time.
+    const off = () => page.evaluate(() => !document.querySelector(".ob-back"));
+    const edges = () => page.evaluate(() => {
+      const l = (s) => { const e = document.querySelector(s);
+        return e ? +e.getBoundingClientRect().left.toFixed(1) : null; };
+      return { body: l(".ob-body"), dots: l("#ob-dots"), heading: l("#ob-title"),
+               back: l(".ob-back svg") };
+    });
 
-    const x0 = await dotsX();
-    ok("back is held, not shown, on the intro", await off());
+    ok("no back on the intro — there is nowhere behind it", await off());
 
     await page.click("#ob-next");
     await page.waitForTimeout(450);
     ok("back appears on page two", !(await off()));
-    ok("the dots do not move when it appears", Math.abs((await dotsX()) - x0) < 0.5,
-       `${x0} → ${await dotsX()}`);
+    const e = await edges();
+    ok("the dots sit at the card's edge, with the heading and the back glyph",
+       Math.abs(e.dots - e.body) < 1 && Math.abs(e.heading - e.body) < 1 &&
+       Math.abs(e.back - e.body) < 2, JSON.stringify(e));
 
     await page.click("#ob-next");
     await page.waitForTimeout(450);
     const onVocab = await page.evaluate(() => document.querySelector("#ob-title").textContent);
 
     // Back walks the pages in reverse, and slides the other way doing it.
-    await page.click("#ob-back");
+    await page.click(".ob-back");
     await page.waitForTimeout(30);
     ok("back slides the other way",
        await page.evaluate(() => !!document.querySelector(".ob-page.from-left") ||
@@ -280,7 +289,7 @@ const notes = (page) => page.evaluate(() =>
        await page.evaluate(() => !!document.getElementById("ob-instr-cello") ||
                                  !!document.querySelector(".ob-instr")));
 
-    await page.click("#ob-back");
+    await page.click(".ob-back");
     await page.waitForTimeout(500);
     ok("back reaches the intro", await off());
     const again = await ring(page);
