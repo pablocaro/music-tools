@@ -26,7 +26,7 @@
 
   if (!/[?&]tweaks(?:[=&]|$)/.test(location.search)) return;
 
-  var KEY = "sr_tweaks:v11";      // bumped when the defaults move, so a stored
+  var KEY = "sr_tweaks:v12";      // bumped when the defaults move, so a stored
                                  // set of slider values cannot mask the new baseline
   var FOLD = "sr_tweaks_fold";
 
@@ -54,6 +54,7 @@
     obLogoSize: 72, obLogoAlpha: 0.5, obLogoR: 20, obLogoSpread: 7,
     obTitle: 30, obTitleWeight: 550, wordmark: 40, wordmarkTrack: -0.02,
     obBody: 24, obLeading: 1.4, obPad: 44, obRadius: 34,
+    obMarkMs: 620, obMarkTurn: 12, obMarkStagger: 70,
     // motion
     motion: 1, reduceMotion: 0
   };
@@ -171,7 +172,13 @@
       { key: "obPad",        label: "Card padding", min: 24, max: 64, step: 2, unit: "px",
         note: "desktop card; the phone wall keeps its own" },
       { key: "obRadius",     label: "Card radius",  min: 12, max: 40, step: 1, unit: "px",
-        note: "" }
+        note: "" },
+      { key: "obMarkMs",     label: "Mark assembly", min: 0, max: 1400, step: 20, unit: "ms",
+        note: "click the mark to play it again" },
+      { key: "obMarkTurn",   label: "Mark spin",     min: 0, max: 60, step: 1, unit: "\u00b0",
+        note: "how far the ring unwinds as the circles part" },
+      { key: "obMarkStagger", label: "Mark stagger", min: 0, max: 200, step: 5, unit: "ms",
+        note: "delay between the three circles" }
     ] },
     { id: "motion", title: "Motion", controls: [
       { key: "motion",       label: "Transition speed", min: 0, max: 2, step: 0.05, unit: "×",
@@ -210,6 +217,8 @@
     wordmark: "--wordmark-size", wordmarkTrack: "--wordmark-track",
     obBody: "--ob-body-size", obLeading: "--ob-leading",
     obPad: "--ob-pad", obRadius: "--ob-radius",
+    obMarkMs: "--ob-mark-ms", obMarkTurn: "--ob-mark-turn",
+    obMarkStagger: "--ob-mark-stagger",
     motion: "--motion", reduceMotion: ".reduce-motion on <html>"
   };
 
@@ -291,6 +300,11 @@
     r.setProperty("--ob-leading",      String(state.obLeading));
     r.setProperty("--ob-pad",          state.obPad + "px");
     r.setProperty("--ob-radius",       state.obRadius + "px");
+    // Unitless — style.css multiplies them into ms and deg, so --motion can
+    // scale the whole entrance the way it scales every other transition.
+    r.setProperty("--ob-mark-ms",      String(state.obMarkMs));
+    r.setProperty("--ob-mark-turn",    String(state.obMarkTurn));
+    r.setProperty("--ob-mark-stagger", String(state.obMarkStagger));
     r.setProperty("--motion", String(state.motion));
     el.classList.toggle("reduce-motion", !!state.reduceMotion);
 

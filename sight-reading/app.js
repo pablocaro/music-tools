@@ -2835,19 +2835,6 @@
   // Same, but with {icon} swapped for the actual settings glyph — pointing at
   // the real button beats naming a gear the interface doesn't have. The token
   // lets each language put it wherever its own word order wants it.
-  function obIconPara(host, key, cls) {
-    var p = document.createElement("p");
-    if (cls) p.className = cls;
-    var parts = t(key).split("{icon}");
-    parts.forEach(function (chunk, i) {
-      if (i) p.insertAdjacentHTML("beforeend",
-        '<svg class="ic ic-settings ob-ic" aria-hidden="true"><use href="#ic-settings"/></svg>');
-      p.appendChild(document.createTextNode(chunk));
-    });
-    host.appendChild(p);
-    return p;
-  }
-
 
   // ===========================================================================
   // Onboarding preview — four notes showing what a preset actually reads like
@@ -2891,19 +2878,37 @@
   // middle line, so the furthest any of them reaches past the staff is a stem
   // starting at that line — STEM minus half the staff — plus a little air. A
   // flat generous margin left the bar mostly white space.
+  var PV_L = 9, PV_W = 300, PV_PAD = 34, PV_STEM = 3.3 * PV_L;
+  function previewY(p) { return 4 * PV_L - p * PV_L / 2; }
+
+  // Drawn once. Each note is a group holding a notehead on its own origin and
+  // both stems; where it sits and which stem shows are the only things that
+  // change afterwards, so switching preset moves these four notes instead of
+  // replacing them — the widening is the explanation.
   function previewSvg(pos) {
-    var L = 9, W = 300, pad = 34, STEM = 3.3 * L, M = STEM - 2 * L + 4,
-        span = (W - pad * 2) / (pos.length - 1), s = "";
-    for (var i = 0; i < 5; i++) s += '<line x1="0" y1="' + (i * L) + '" x2="' + W + '" y2="' + (i * L) + '"/>';
+    var M = PV_STEM - 2 * PV_L + 4, span = (PV_W - PV_PAD * 2) / (pos.length - 1), s = "";
+    for (var i = 0; i < 5; i++) {
+      s += '<line class="staff" x1="0" y1="' + (i * PV_L) + '" x2="' + PV_W + '" y2="' + (i * PV_L) + '"/>';
+    }
     pos.forEach(function (p, i) {
-      var cx = pad + i * span, cy = 4 * L - p * L / 2, up = p < 4;
-      var sx = cx + (up ? 4.1 : -4.1), sy = cy + (up ? -STEM : STEM);
-      s += '<line class="stem" x1="' + sx + '" y1="' + cy + '" x2="' + sx + '" y2="' + sy + '"/>';
-      s += '<ellipse cx="' + cx + '" cy="' + cy + '" rx="4.6" ry="3.4" ' +
-           'transform="rotate(-20 ' + cx + ' ' + cy + ')"/>';
+      s += '<g class="ob-pnote' + (p < 4 ? " up" : "") + '" style="--x:' +
+             (PV_PAD + i * span).toFixed(2) + '; --y:' + previewY(p) + '">' +
+             '<line class="stem up" x1="4.1" y1="0" x2="4.1" y2="' + (-PV_STEM) + '"/>' +
+             '<line class="stem dn" x1="-4.1" y1="0" x2="-4.1" y2="' + PV_STEM + '"/>' +
+             '<ellipse cx="0" cy="0" rx="4.6" ry="3.4" transform="rotate(-20)"/>' +
+           '</g>';
     });
-    return '<svg class="ob-preview" viewBox="0 ' + (-M) + ' ' + W + ' ' + (4 * L + M * 2) +
+    return '<svg class="ob-preview" viewBox="0 ' + (-M) + ' ' + PV_W + ' ' + (4 * PV_L + M * 2) +
            '" aria-hidden="true">' + s + '</svg>';
+  }
+
+  function previewMove(root, pos) {
+    var notes = root.querySelectorAll(".ob-pnote");
+    pos.forEach(function (p, i) {
+      if (!notes[i]) return;
+      notes[i].style.setProperty("--y", String(previewY(p)));
+      notes[i].classList.toggle("up", p < 4);
+    });
   }
 
   function buildObPage(host) {
@@ -2924,8 +2929,10 @@
     }
 
     if (page === "intro") {
-      host.insertAdjacentHTML("beforeend",
-        '<svg class="ob-logo" aria-hidden="true"><use href="#ic-logo"/></svg>');
+      var tpl = document.getElementById("tpl-logo");
+      var logo = tpl.content.firstElementChild.cloneNode(true);
+      host.appendChild(logo);
+      obAssemble(logo);
       var mark = document.createElement("p");
       mark.className = "ob-wordmark";
       mark.id = "ob-title";
@@ -2976,7 +2983,9 @@
       prev.className = "ob-preview-bar";
       host.appendChild(prev);
       function drawPreview(name) {
-        prev.innerHTML = previewSvg(previewWalk(BUILTIN[name] || BUILTIN["steps only"], 4));
+        var pos = previewWalk(BUILTIN[name] || BUILTIN["steps only"], 4);
+        if (prev.firstChild) previewMove(prev, pos);
+        else prev.innerHTML = previewSvg(pos);
       }
       drawPreview(picks.indexOf(activePreset) >= 0 ? activePreset : picks[0]);
 
@@ -2987,7 +2996,7 @@
       // reading, on the page that also has to hold Start practicing. The grid
       // is the rail's, and "change any of it later" is the promise that it is
       // there.
-      obIconPara(host, "ob.vocabNote", "ob-note");
+      obPara(host, "ob.vocabNote", "ob-note");
     }
 
     var dots = document.getElementById("ob-dots");
@@ -3004,6 +3013,59 @@
     // Skip only sits on the pages that ask something. The intro has nothing to
     // skip past, and the closing page is already the end.
     document.getElementById("ob-skip").hidden = (page === "intro" || last);
+    // Back is held, not hidden, on the first page — see .ob-back in style.css.
+    document.getElementById("ob-back").classList.toggle("is-off", obPage === 0);
+  }
+
+  // The mark arrives rather than appears. The three circles start stacked on the
+  // centre — at half strength they multiply into a disc darker than any of them
+  // — and travel out to their overlap while the ring unwinds a few degrees, so
+  // the spiral falls out of two plain transforms rather than being described.
+  // The note is on top and cannot be uncovered, so it scales up and fades in
+  // once they are roughly half apart.
+  //
+  // Held until the fonts land: the wordmark under it is font-display: swap, and
+  // an entrance that finishes just as the name jumps a face is worse than a
+  // slightly later one. The timeout is there so a slow font can delay the mark
+  // but never strand it.
+  function obPlayMark(logo) {
+    // Land in the stacked state without a frame of transition, then release it.
+    logo.classList.add("ob-nowind", "ob-stacked");
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        logo.classList.remove("ob-nowind", "ob-stacked");
+      });
+    });
+  }
+
+  var obMarkPlayed = false;
+
+  function obAssemble(logo) {
+    if (stillness()) return;             // no assembly at all — the mark is there
+    // Clicking the mark plays it again. Without that the timing dials in the
+    // tweaks panel drive an animation that is already over by the time you
+    // reach them. Wired on every copy of the mark, including the ones built by
+    // stepping back to the intro.
+    logo.addEventListener("click", function () {
+      if (!stillness()) obPlayMark(logo);
+    });
+    // The entrance itself is once. Back lands on the intro again, and a mark
+    // that reassembles every time you step backwards stops being an entrance.
+    if (obMarkPlayed) return;
+    obMarkPlayed = true;
+
+    logo.classList.add("ob-stacked");    // set before first paint, so nothing animates into it
+    var fired = false;
+    function go() {
+      if (fired) return;
+      fired = true;
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () { logo.classList.remove("ob-stacked"); });
+      });
+    }
+    setTimeout(go, 500);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(go);
+    else go();
   }
 
   function obHeading(host, key) {
@@ -3103,6 +3165,9 @@
     // student skips, they should still be told where the settings are.
     document.getElementById("ob-skip").addEventListener("click", function () {
       obGo(OB_PAGES.length - 1);
+    });
+    document.getElementById("ob-back").addEventListener("click", function () {
+      if (obPage > 0) obGo(obPage - 1);
     });
     if (seen) return;
     ob.hidden = false;

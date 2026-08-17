@@ -238,6 +238,7 @@ window.SR_I18N = {
     // onboarding \u2014 the first-run walkthrough, which doubles as a tour of the
     // settings panel: each page names a section the student will meet later
     "ob.pitch":       "This is a tool that writes you a new sight-reading exercise every time you ask \u2014 built from the notes and rhythms you choose.",
+    "ob.back":        "Back",
     "ob.skip":        "Skip",
     "ob.next":        "Next",
     "ob.instrTitle":  "What do you play?",
@@ -245,7 +246,7 @@ window.SR_I18N = {
     "ob.vocabTitle":  "What do you want to practise?",
     // {icon} is replaced with the real settings glyph, so the sentence points
     // at the button the student will actually look for.
-    "ob.vocabNote":   "Change any of it later in {icon}.",
+    "ob.vocabNote":   "You can change this later in settings.",
     "ob.go":          "Start practicing",
 
     // prompts and messages
@@ -459,12 +460,13 @@ window.SR_I18N = {
     "help.staff":       "Al cambiar la clave, las notas se mueven a las octavas de esa clave, para que queden sobre el pentagrama y no bajo un montón de líneas adicionales.",
 
     "ob.pitch":       "Esta es una herramienta que te escribe un ejercicio de lectura a primera vista nuevo cada vez que se lo pides \u2014 construido con las notas y los ritmos que elijas.",
+    "ob.back":        "Atr\u00e1s",
     "ob.skip":        "Omitir",
     "ob.next":        "Siguiente",
     "ob.instrTitle":  "¿Qué tocas?",
     "ob.instrNote":   "Define tu clave y tu registro — ambos se pueden cambiar después.",
     "ob.vocabTitle":  "\u00bfQu\u00e9 quieres practicar?",
-    "ob.vocabNote":   "Puedes cambiar cualquier cosa despu\u00e9s en {icon}.",
+    "ob.vocabNote":   "Puedes cambiar esto m\u00e1s tarde en ajustes.",
     "ob.go":          "Empezar a practicar",
 
     "msg.newPresetName": "Nombre del preset:",

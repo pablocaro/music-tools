@@ -55,19 +55,6 @@
       <path d="M20.3796 14.541C20.6238 14.9707 20.7605 15.4492 20.7605 15.9082C20.7605 17.4023 19.7546 18.5547 18.0945 18.5547L2.948 18.5547C1.29761 18.5547 0.291753 17.4023 0.291753 15.9082C0.291753 15.4492 0.408941 14.9805 0.672613 14.541L1.05937 13.8672L19.9929 13.8672ZM7.03003 12.5879L1.79364 12.5879L3.70315 9.26101ZM12.8015 1.33789L19.2586 12.5879L13.025 12.5879L11.2878 10.8524L11.2878 4.4043C11.2878 3.91602 10.9949 3.60352 10.5164 3.60352C10.0281 3.60352 9.73511 3.91602 9.73511 4.4043L9.73511 9.30106L5.88689 5.45635L8.25074 1.33789C8.74878 0.449219 9.62769 0 10.5261 0C11.4148 0 12.2937 0.449219 12.8015 1.33789Z"/>
       <path d="M9.11011 12.7734L11.2976 12.7539L2.68433 4.14062C2.36207 3.81836 1.93238 3.80859 1.58082 4.14062C1.23902 4.48242 1.25855 4.93164 1.58082 5.26367Z"/>
     </symbol>
-    <!-- The mark: three circles of the accent at half strength, multiplying
-         where they overlap the way the chunk highlighter's pigment does, with
-         an eighth note (the play-along glyph, reused) knocked out of the
-         middle. Styled by inline var() so the tweak panel's colour and logo
-         dials reach inside the <use> shadow tree — external CSS cannot. -->
-    <symbol id="ic-logo" viewBox="0 0 48 48">
-      <g style="isolation:isolate">
-        <circle style="cx:calc(24px - 0.866px * var(--ob-logo-spread,7) * var(--ob-logo-fit,0.889)); cy:calc(24px - 0.5px * var(--ob-logo-spread,7) * var(--ob-logo-fit,0.889)); r:calc(var(--ob-logo-r,20) * var(--ob-logo-fit,0.889) * 1px); fill:var(--accent,#0a84ff); fill-opacity:var(--ob-logo-alpha,0.5); mix-blend-mode:multiply"/>
-        <circle style="cx:calc(24px + 0.866px * var(--ob-logo-spread,7) * var(--ob-logo-fit,0.889)); cy:calc(24px - 0.5px * var(--ob-logo-spread,7) * var(--ob-logo-fit,0.889)); r:calc(var(--ob-logo-r,20) * var(--ob-logo-fit,0.889) * 1px); fill:var(--accent,#0a84ff); fill-opacity:var(--ob-logo-alpha,0.5); mix-blend-mode:multiply"/>
-        <circle style="cx:24px; cy:calc(24px + 1px * var(--ob-logo-spread,7) * var(--ob-logo-fit,0.889)); r:calc(var(--ob-logo-r,20) * var(--ob-logo-fit,0.889) * 1px); fill:var(--accent,#0a84ff); fill-opacity:var(--ob-logo-alpha,0.5); mix-blend-mode:multiply"/>
-      </g>
-      <use href="#ic-accomp-on" x="20" y="17.4" width="8" height="13.1" style="fill:var(--paper,#fff)"/>
-    </symbol>
     <symbol id="ic-chevron" viewBox="0 0 12 12">
       <path d="M2.5 4.75 L6 8.25 L9.5 4.75" fill="none"
             stroke-linecap="round" stroke-linejoin="round"/>
@@ -80,6 +67,30 @@
       <path d="M20.9766 18.9355C21.2793 19.2383 21.7383 19.2578 22.041 18.9355C22.3633 18.6133 22.3438 18.1738 22.041 17.8711L5.71289 1.55273C5.41992 1.25977 4.94141 1.25977 4.63867 1.55273C4.35547 1.83594 4.35547 2.33398 4.63867 2.61719Z"/>
     </symbol>
   </svg>
+
+  <!-- The mark: three circles of the accent at half strength, multiplying where
+       they overlap the way the chunk highlighter's pigment does, with an eighth
+       note (the play-along glyph, reused) sitting in the middle.
+
+       A <template> rather than a sprite <symbol> because the mark assembles when
+       onboarding opens, and animating it needs elements both the stylesheet and
+       JS can reach — inside a <use> shadow tree neither can, which is why the
+       geometry used to be a wall of inline calc(). Cloned by buildObPage.
+
+       Each circle is drawn at r="1" about the origin and placed by a transform,
+       so radius and spread are both plain numbers a slider can drive, and the
+       assembly can borrow the same transform to pull them to the centre without
+       touching the geometry the dials set. -->
+  <template id="tpl-logo">
+    <svg class="ob-logo" viewBox="0 0 48 48" aria-hidden="true">
+      <g class="ob-logo-ring">
+        <circle class="ob-logo-c a" r="1"/>
+        <circle class="ob-logo-c b" r="1"/>
+        <circle class="ob-logo-c c" r="1"/>
+      </g>
+      <use class="ob-logo-note" href="#ic-accomp-on" x="20" y="17.4" width="8" height="13.1"/>
+    </svg>
+  </template>
 
   <div class="layout">
 
@@ -490,6 +501,9 @@
       <div class="ob-card">
         <div class="ob-body" id="ob-body"></div>
         <div class="ob-foot">
+          <button id="ob-back" class="ob-back" type="button"
+                  data-i18n-aria="ob.back"><svg class="ob-back-caret"
+                  aria-hidden="true"><use href="#ic-chevron"/></svg></button>
           <div class="ob-dots" id="ob-dots" aria-hidden="true"></div>
           <button id="ob-skip" class="ob-skip" type="button"
                   data-i18n="ob.skip">Skip</button>

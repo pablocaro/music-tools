@@ -168,8 +168,9 @@ Four rules, and the first is the one that keeps it useful:
   first run, and the type-scale slider resized them as it went. `test/tweaks.js`
   measures it rather than trusting the eye.
 
-Six sets, and they fold independently — which is what keeps twenty controls
-navigable rather than a wall: typography, spacing, shape, colour, music, motion.
+Eight sets, and they fold independently — which is what keeps thirty controls
+navigable rather than a wall: typography, spacing, shape, rail platters, colour,
+music, onboarding, motion.
 
 Making a value reachable by a slider is most of the work, and it is the same
 move every time: **express it in parts, or as a calc off a base.** The accent
@@ -199,6 +200,7 @@ python3 -m http.server 8091 --directory sight-reading &
 node sight-reading/test/sweep.js      # highlighter integrity, presets × meters
 node sight-reading/test/rail.js       # settings rail: push vs overlay, transport pill
 node sight-reading/test/tweaks.js     # ?tweaks drives its tokens, and nothing else
+node sight-reading/test/mark.js       # the mark's entrance, and the preview's glide
 ```
 
 They measure the running app — chord-tone rates, beat crossings, hidden-note
@@ -206,6 +208,12 @@ prefixes — because most of what matters here is invisible in a diff. Three
 lessons paid for:
 
 - A test that hangs is not evidence the app is broken.
+- Measure the thing being animated, not a box around it. The mark's circles
+  were first checked with getBoundingClientRect, which for a child of a
+  rotating group is the axis-aligned box of a rotated box — it grows and
+  shrinks on its own and reported a radius that changes while the radius is
+  the one thing the entrance never touches. Reading the computed transform
+  measures what the animation actually drives.
 - A test that pokes hidden form elements directly can bypass the code path
   users actually take. Drive the visible controls — the mode remap and the
   progression-pill rebuild hang off the cycle button's click, so setting
