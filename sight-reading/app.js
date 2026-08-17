@@ -2790,18 +2790,6 @@
   var OB_PAGES = ["intro", "instrument", "vocab"];
   var obPage = 0;
 
-  function obSetFigure(id, on) {
-    var cb = beatsEl.querySelector('.beat[value="' + id + '"]');
-    if (!cb) return;
-    cb.checked = on;
-    cb.parentNode.classList.toggle("on", on);
-  }
-
-  function obFigureOn(id) {
-    var cb = beatsEl.querySelector('.beat[value="' + id + '"]');
-    return !!(cb && cb.checked);
-  }
-
   // A row of pills that behave like the panel control they stand for —
   // intervals here are independent toggles, same as the Step checkboxes.
   function obPills(host, items, isOn, onPick, cls) {
@@ -2910,34 +2898,13 @@
         },
         "ob-preset");
 
-      // The real figures for whatever meter is now in play, not a fixed six —
-      // so picking Jig flips the grid to compound time in front of you, and
-      // the vocabulary a name stands for is something you watch arrive rather
-      // than something you are told about. The cells stay live: tap a preset,
-      // then change one thing, which is exactly what the panel does.
-      var grid = document.createElement("div");
-      grid.className = "fig-grid";
-      host.appendChild(grid);
-      // Basic group only: the full palette runs to eighteen cells in 4/4, which
-      // is a wall on a card whose job is to be read once. The across-the-beat
-      // set is precisely what "change any of it later" is promising.
-      currentBeatFigures().filter(function (f) { return (f.group || "basic") === "basic"; })
-                          .forEach(function (item) {
-        var cell = document.createElement("button");
-        cell.type = "button";
-        cell.className = "fig-cell" + (item.wide ? " wide" : "");
-        cell.setAttribute("aria-label", t("fig." + item.id));
-        cell.innerHTML = figureGlyph(item.id);
-        cell.classList.toggle("on", obFigureOn(item.id));
-        cell.addEventListener("click", function () {
-          obSetFigure(item.id, !obFigureOn(item.id));
-          cell.classList.toggle("on", obFigureOn(item.id));
-          activePreset = null;         // edited past the preset — the pills unlight
-          host.querySelectorAll(".ob-preset").forEach(function (p) { p.classList.remove("on"); });
-        });
-        grid.appendChild(cell);
-      });
-
+      // No figure grid here. It was added to let you watch a name become a
+      // vocabulary, and with three presets from one interval dimension there is
+      // nothing to watch — the lit cells were measured identical for all three.
+      // What remained was fourteen unexplained symbols under a heading about
+      // reading, on the page that also has to hold Start practicing. The grid
+      // is the rail's, and "change any of it later" is the promise that it is
+      // there.
       obIconPara(host, "ob.vocabNote", "ob-note");
     }
 
