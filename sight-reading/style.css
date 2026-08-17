@@ -66,6 +66,12 @@
                             viewports just gain negative space on the sides */
   --music-min: 640px;    /* …and never shrinks narrower than this */
   --music-gutter: 28px;  /* air either side of the staff */
+  /* Air around the page itself — the title block's inset and the floor under
+     the music. Not the same decision as --music-gutter, and they were never
+     going to line up: the title is left-aligned inside a column capped at
+     --music-max, while the staff is centred in whatever width is left. One is
+     the frame, the other is how close the notation runs to its own edges. */
+  --page-pad: 40px;
   --music-fade: 60px;    /* the music dissolves over this on its way down to the
                             transport pill, instead of clipping. 0 restores the
                             hard edge (and the bottom paper cover with it). */
@@ -1341,7 +1347,7 @@ button.secondary {
   min-height: 0;
   overflow: hidden;
   background: var(--paper);
-  padding: 12px var(--music-gutter) 40px;
+  padding: 12px var(--music-gutter) var(--page-pad);
   display: flex;
   flex-direction: column;
   align-items: center;           /* center the music column in the window */
@@ -1396,7 +1402,7 @@ button.secondary {
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
-  padding: 22px 40px 6px;
+  padding: calc(var(--page-pad) * 0.55) var(--page-pad) 6px;
 }
 .tb-titles { min-width: 0; }
 #sh-title { font-size: var(--type-title); font-weight: var(--weight-strong); color: var(--ink); letter-spacing: 0.2px; line-height: 1.15; }
@@ -2138,12 +2144,13 @@ button.secondary {
 @media (max-width: 720px) {
   :root {
     --music-gutter: 14px;
+    --page-pad: 16px;
     /* No scale on the way in here: the card is the whole screen, and a screen
        that grows into place reads as a zoom rather than as a card arriving. It
        still rises, which is the part that carries the gesture. */
     --ob-enter-scale: 1;
   }
-  .sheet-area { padding: 8px var(--music-gutter) 18px; }
+  .sheet-area { padding: 8px var(--music-gutter) 18px; }   /* its own floor down here */
   :root {
     --fs-4-base: 24px; /* the title steps down; the rest of the scale holds */
     /* Kept at 16 while the desktop default came down to 8, so this is now twice
@@ -2152,7 +2159,9 @@ button.secondary {
        it is a deliberate divergence rather than the small adjustment it was. */
     --tb-gap: 16px;
   }
-  .topbar { padding: 20px 16px 10px; }
+  /* The phone keeps its own vertical rhythm: 0.55 of a 16px inset would put
+     9px over the title, and the notch needs more than that. */
+  .topbar { padding: 20px var(--page-pad) 10px; }
   /* The pill loses its desktop neighbours (nothing else sits at this edge on
      a phone), so it can afford more air on both counts: from the last
      system above it and from the screen edge below — clear of a thumb, and

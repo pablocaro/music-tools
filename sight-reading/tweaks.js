@@ -38,7 +38,7 @@
     titleSize: 29, baseWeight: 425, weightStep: 175,
     tracking: 0.9, leading: 1.5,
     // spacing
-    density: 1.15, controlH: 40, headerGap: 8, railW: 400, gutter: 28,
+    density: 1.15, controlH: 40, headerGap: 8, railW: 400, gutter: 28, pagePad: 40,
     // shape
     pillRadius: 999, boxRadius: 18, surfaceRadius: 26, shadowDepth: 0.65,
     cornerCurve: 1,
@@ -103,6 +103,8 @@
         note: "between the three buttons top right" },
       { key: "railW",     label: "Rail width",    min: 300, max: 520, step: 10, unit: "px", re: 1,
         note: "the settings rail; also moves the push breakpoint" },
+      { key: "pagePad",   label: "Page margin",   min: 8,   max: 80,  step: 2, unit: "px",
+        note: "the title's inset and the floor under the music" },
       { key: "gutter",    label: "Music margin",  min: 8,   max: 96,  step: 2, unit: "px", re: 1,
         note: "air either side of the staff" }
     ] },
@@ -218,7 +220,7 @@
     density: "--density", controlH: "--ctl-h", headerGap: "--tb-gap",
     swScale: "--sw-scale", thumbW: "--thumb-w", thumbGap: "--thumb-gap",
     sliderW: "--slider-w",
-    railW: "--rail-w", gutter: "--music-gutter",
+    railW: "--rail-w", gutter: "--music-gutter", pagePad: "--page-pad",
     pillRadius: "--ctl-radius", boxRadius: "--ctl-radius-box",
     surfaceRadius: "--radius-card", shadowDepth: "--shadow-depth",
     cornerCurve: "--corner-curve", checkRadius: "--check-radius",
@@ -286,6 +288,7 @@
     r.setProperty("--slider-w",     state.sliderW + "px");
     r.setProperty("--rail-w",       state.railW + "px");
     r.setProperty("--music-gutter", state.gutter + "px");
+    r.setProperty("--page-pad",     state.pagePad + "px");
 
     // pillRadius carries a sentinel: its top step means "fully round", which is
     // the shipped value (999px) and the app's identity. A linear slider to 999
