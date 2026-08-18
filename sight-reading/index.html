@@ -122,8 +122,16 @@
            controls means the preset / session snapshot logic is unchanged. -->
       <div class="state" hidden>
         <input type="range" id="tempo" min="40" max="180" step="1" value="80">
-        <input type="checkbox" id="click-on">
-        <input type="checkbox" id="play-along">
+        <!-- Both start on. The cursor already did (cursor-mode = beat below).
+             A beginner opening this for the first time is better served by a
+             pulse to read against and a voice to check themselves with than by
+             silence they have to go and find the switch for. All three ride in
+             the session, so this moves the starting point only — nobody who
+             has already turned one off gets it back. Built-in presets carry
+             none of the three and so cannot stomp them; a preset you saved
+             yourself restores whatever you saved, which is the point of it. -->
+        <input type="checkbox" id="click-on" checked>
+        <input type="checkbox" id="play-along" checked>
         <input type="range" id="volume" min="0" max="100" step="5" value="80">
         <input type="checkbox" id="hide-behind">
         <!-- The lead in clock beats. A hidden *text* input on purpose: a range
@@ -268,7 +276,7 @@
             <section class="sec sec-musicality">
               <h2 class="sec-h" data-i18n="sec.musicality">How Musical?</h2>
               <div class="sec-row">
-                <input type="range" class="stepper-range bare-range" id="musicality" min="0" max="100" step="5" value="0" aria-label="Musicality" data-i18n-aria="aria.musicality">
+                <input type="range" class="stepper-range bare-range" id="musicality" min="0" max="100" step="5" value="100" aria-label="Musicality" data-i18n-aria="aria.musicality">
               </div>
               <!-- Which chords the bars sit on, once the dial brings the harmony
                    in. Roman numerals are language-neutral, so no i18n keys. -->

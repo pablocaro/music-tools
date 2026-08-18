@@ -111,7 +111,12 @@
   // What a built-in leaves alone would otherwise be whatever the last drill
   // happened to use, so each one carries the same five fields a saved preset
   // does — the alphabet it's named for, plus the neutral staff to read it on.
-  var BUILTIN_DEFAULTS = { musicality: "0", progression: "I-IV-V-I", chroma: "0", bowing: "", ties: "off", key: "major_0-0", clef: "treble", timesig: "4/4", measures: "16" };
+  // musicality starts at the top. The markup default alone would never have
+  // survived: onboarding finishes by applying "steps only", and every built-in
+  // inherits this baseline, so a fresh user would have been dropped back to a
+  // random walk before they saw a bar. That makes this a change to what the
+  // built-in presets mean, for everyone — not only to a starting value.
+  var BUILTIN_DEFAULTS = { musicality: "100", progression: "I-IV-V-I", chroma: "0", bowing: "", ties: "off", key: "major_0-0", clef: "treble", timesig: "4/4", measures: "16" };
 
   // What a drill needs beyond its alphabet. The first four interval drills
   // deliberately carry no rhythm, so switching between them leaves your
