@@ -2941,8 +2941,11 @@
   // than clearing storage.
   var OB_FLAG = /[?&]onboarding(?:[=&]|$)/.test(location.search);
   // Remembered across page rebuilds, so stepping back and forward does not
-  // silently reset the rhythm row while the interval row keeps its answer.
-  var obRhythmPick = "eighths";
+  // silently reset either row's answer. Both start on the gentlest rung: a
+  // first line of steps in quarter notes is the one that everybody can read,
+  // and the rows are there to be moved up from, not defended against.
+  var obRhythmPick = "quarters";
+  var obIvPick = "";
   var OB_PAGES = ["intro", "instrument", "vocab"];
   var obPage = 0;
 
@@ -3022,15 +3025,38 @@
   // promise particular pitches it is not choosing.
   // ===========================================================================
   function previewWalk(weights, n) {
-    var rank = [];
-    weights.forEach(function (w, iv) { if (w > 0 && iv > 0) rank.push({ iv: iv, w: w }); });
-    rank.sort(function (a, b) { return b.w - a.w || a.iv - b.iv; });
-    if (!rank.length) rank = [{ iv: 1 }];
+    // The bar has four to seven notes, so it cannot sample the alphabet — it
+    // has to *represent* it. Ranking by weight and cycling the top two was the
+    // first attempt and it made A Mix unreadable: its two commonest intervals
+    // are the 2nd and the 3rd, so the broadest alphabet in the app drew the
+    // same tight line as Steps. What the row promises is range, so the preview
+    // spreads its moves evenly across the whole alphabet instead.
+    //
+    // The bag holds each interval repeated by its weight, ascending, and the
+    // moves are read off it at even offsets. Weight then decides how much of
+    // the bag an interval owns, which is how a common 2nd still shows up more
+    // often than a rare 7th without crowding it out entirely.
+    var bag = [];
+    weights.forEach(function (w, iv) {
+      if (iv > 0) for (var k = 0; k < w; k++) bag.push(iv);
+    });
+    if (!bag.length) bag = [1];
+
+    var moves = Math.max(1, n - 1), pick = [];
+    for (var i = 0; i < moves; i++) {
+      pick.push(bag[Math.floor(i * bag.length / moves)]);
+    }
+    // Read straight off an ascending bag the line would open out and never
+    // close, which reads as a ramp rather than as music. Swapping neighbours
+    // keeps the spread and takes the monotony out of it.
+    for (var j = 1; j < pick.length; j += 2) {
+      var sw = pick[j]; pick[j] = pick[j - 1]; pick[j - 1] = sw;
+    }
 
     // An interval's number IS its distance in staff slots: a 3rd moves two.
     var pos = 1, out = [pos], dir = 1;
-    for (var i = 0; i < n - 1; i++) {
-      var iv = rank[i % Math.min(2, rank.length)].iv;
+    for (var m = 0; m < moves; m++) {
+      var iv = pick[m];
       if (pos + dir * iv > 8 || pos + dir * iv < 0) dir = -dir;   // turn at the staff edge
       pos = Math.max(0, Math.min(8, pos + dir * iv));
       out.push(pos);
@@ -3255,7 +3281,7 @@
         mix:      ["q", "ee", "ssss", "des", "qr"]
       };
 
-      var obRhythm = obRhythmPick || "eighths";
+      var obRhythm = obRhythmPick || "quarters";
 
       obRow(host, "sec.step", ivPicks.map(function (it) {
         return { id: it.id, html: t(it.key) };
@@ -3263,7 +3289,7 @@
         applyPreset(builtinPreset(it.id));
         applyBeats(RH_BEATS[obRhythm]);      // the preset carries none; keep ours
         syncPanel();
-        activePreset = it.id;
+        activePreset = obIvPick = it.id;
         drawPreview();
       }, "ob-preset");
 
@@ -3444,8 +3470,12 @@
       // Get Started puts a beginner on the gentlest built-in. It is applied as
       // the current setup, not saved as a new preset — naming one is a later
       // idea, and it would drag a keyboard into the first thirty seconds.
-      applyPreset(builtinPreset("steps only"));
-      activePreset = "steps only";
+      // Once you have answered, your answer is what gets re-applied: stepping
+      // back to the instrument page and forward again used to silently drop you
+      // to steps while the rhythm row kept what you chose.
+      var iv = obIvPick || "steps only";
+      applyPreset(builtinPreset(iv));
+      activePreset = iv;
       syncPanel();
     }
     obSwap(function (host) { buildObPage(host); }, back);
