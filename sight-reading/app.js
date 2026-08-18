@@ -298,7 +298,14 @@
     if (p.cursor != null) cursorModeEl.value = p.cursor;
     if (p.metronome != null) clickOnEl.checked = p.metronome;
     if (p.playAlong != null) playAlongEl.checked = p.playAlong;
-    if (p.instrument != null) instrumentEl.value = p.instrument;
+    // Organ and Vibraphone left the menu. A session saved on either would set a
+    // value the <select> no longer has, which silently blanks it — so they land
+    // on marimba instead. The organ *synth* is untouched: scheduleNote still
+    // stands in with it for every note until the samples decode.
+    if (p.instrument != null) {
+      instrumentEl.value =
+        (p.instrument === "organ" || p.instrument === "vibraphone") ? "marimba" : p.instrument;
+    }
     if (p.volume != null) volumeEl.value = p.volume;
     if (p.hideBehind != null) hideBehindEl.checked = p.hideBehind;
     if (p.hideLead != null) hideLeadEl.value = p.hideLead;
@@ -2047,8 +2054,7 @@
   // set is ready (or if it fails), the organ stands in.
   var SAMPLE_SETS = {
     marimba: { data: "SR_MARIMBA", notes: [["F1",29],["C2",36],["G2",43],["B2",47],["F3",53],["C4",60],["G4",67],["B4",71],["F5",77],["C6",84]] },
-    piano:   { data: "SR_PIANO",   notes: [["C2",36],["F#2",42],["C3",48],["F#3",54],["C4",60],["F#4",66],["C5",72],["F#5",78],["C6",84]] },
-    vibraphone: { data: "SR_VIBRAPHONE", notes: [["F2",41],["A2",45],["C3",48],["E3",52],["G3",55],["B3",59],["D4",62],["F4",65],["A4",69],["C5",72],["E5",76]] }
+    piano:   { data: "SR_PIANO",   notes: [["C2",36],["F#2",42],["C3",48],["F#3",54],["C4",60],["F#4",66],["C5",72],["F#5",78],["C6",84]] }
   };
   var sampleBuffers = {};   // name -> { midi: {buf, norm} } once decoded
   var sampleLoading = {};   // name -> true while decoding
