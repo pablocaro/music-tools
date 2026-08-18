@@ -1956,6 +1956,22 @@ button.secondary {
 }
 .ob-body p + p { margin-top: 14px; }
 
+/* Two captioned rows, so the page's two questions are visibly parallel rather
+   than one long list of pills. The caption is the panel's own label size — it
+   names the axis, it is not part of the question. */
+.ob-row { margin-bottom: 14px; }
+/* Scoped under .ob-body for the third time in this file: bare .ob-row-label is
+   one class against .ob-body p's class-plus-type, so the page's display sizing
+   wins and the caption comes out at 24px. */
+.ob-body .ob-row-label {
+  margin-bottom: 7px;
+  font-size: var(--type-caption);
+  font-weight: var(--weight-standard);
+  text-transform: uppercase;
+  letter-spacing: var(--track-caption);
+  color: var(--muted);
+}
+
 /* The preview staff on the vocab page. Paper-coloured ink at the app's own
    weights: staff lines are the divider grey, noteheads are ink, so it reads as
    notation rather than as a diagram. */
@@ -1970,6 +1986,16 @@ button.secondary {
 }
 .ob-preview .staff  { stroke: var(--line); stroke-width: 0.9; }
 .ob-preview ellipse { fill: var(--ink); }
+.ob-preview .stem, .ob-pbeam rect { fill: var(--ink); }
+
+/* The beam rides on its own height, so a change of pitch slides it with the
+   notes under it instead of forcing a redraw. */
+.ob-pbeam {
+  transform-box: view-box;
+  transform-origin: 0 0;
+  transform: translateY(calc(var(--by) * 1px));
+  transition: transform calc(0.36s * var(--motion)) cubic-bezier(0.32, 0.72, 0, 1);
+}
 
 /* Switching preset moves the same four notes rather than drawing four new ones,
    so the interval you picked is something you watch widen. Each note is a group
@@ -1984,11 +2010,16 @@ button.secondary {
   transform: translate(calc(var(--x) * 1px), calc(var(--y) * 1px));
   transition: transform calc(0.36s * var(--motion)) cubic-bezier(0.32, 0.72, 0, 1);
 }
+/* A rect scaled on Y rather than a line, because scaleY leaves a rect's width
+   alone and would have thinned a line's stroke as it stretched. Its origin is
+   the notehead, so the scale reads as the stem growing to meet its beam. */
 .ob-preview .stem {
-  stroke: var(--ink);
-  stroke-width: 1.1;
   opacity: 0;
-  transition: opacity calc(0.2s * var(--motion)) ease-out;
+  transform-box: view-box;
+  transform-origin: 0 0;
+  transform: scaleY(var(--stem));
+  transition: opacity calc(0.2s * var(--motion)) ease-out,
+              transform calc(0.36s * var(--motion)) cubic-bezier(0.32, 0.72, 0, 1);
 }
 .ob-pnote.up .stem.up      { opacity: 1; }
 .ob-pnote:not(.up) .stem.dn { opacity: 1; }

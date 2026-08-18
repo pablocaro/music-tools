@@ -137,6 +137,31 @@ emit `<alter>` and OSMD draws the sharp from the key signature.
   counterpart to the musicality dial, and the thing that stops generated
   lines sounding generated.
 
+### 4.5 · Onboarding asks both axes — DONE
+The vocab page grew a second row. It is two named vocabularies and then
+everything, twice: Steps / Thirds / A Mix, and Quarters / Eighths / A Mix. The
+ordered version it replaced (Steps Only / Thirds / Wide Leaps) was wrong about
+its own data — only "steps only" is a real restriction, `[0,4,0,0,0,0,0,0]`,
+while thirds and wide leaps are both mixtures with different centres of
+gravity. "A bit of everything" is also the honest end state, because real
+reading is not restricted.
+
+Both rows on one page, because one bar of preview can only answer both
+questions if both are asked together; split across pages each gets half a
+preview. The rhythm row writes the figure grid directly rather than going
+through a preset — the interval built-ins deliberately carry no rhythm so that
+switching between them leaves your figures alone, and `presetMatchesPanel`
+skips a preset's absent keys, so the title still reads the drill's name instead
+of falling to Custom.
+
+The preview draws a bar rather than four loose notes, since rhythm means
+nothing without a measure, and everything that moves is a transform on a CSS
+variable: the note's place, its stem's length (a rect scaled on Y, so the
+stroke width does not scale with it), and the beam's height. Nothing animates a
+geometry attribute, so the bar glides in every engine rather than only where
+cx/cy/r happen to be animatable — and it glides through a change of interval
+even with beams overhead, because the x positions depend only on the durations.
+
 ### 5 · The feedback loop — ramp built, then cut; the rest needs a decision
 Adaptive letting-go and weak-spot targeting both need the app to know how
 you're doing, and it currently has no input at all. Options, cheapest first:

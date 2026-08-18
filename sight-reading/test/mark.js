@@ -327,18 +327,20 @@ const notes = (page) => page.evaluate(() =>
     await ids();
 
     const steps = await notes(page);
-    ok("four notes", steps.length === 4, JSON.stringify(steps.map((n) => n.y)));
+    // Five, not four: the preview is a bar of 4/4 now, and the default rhythm
+    // row is Eighths — one quarter, a beamed pair, two quarters.
+    ok("a bar of the default rhythm", steps.length === 5, JSON.stringify(steps.map((n) => n.y)));
 
     const pills = await page.$$(".ob-preset");
-    await pills[2].click();                        // wide leaps
+    await pills[2].click();                        // A Mix
     await page.waitForTimeout(60);
     const mid = await notes(page);
     await page.waitForTimeout(600);
     const leaps = await notes(page);
 
     const spanOf = (ns) => Math.max(...ns.map((n) => n.y)) - Math.min(...ns.map((n) => n.y));
-    ok("leaps span more staff than steps", spanOf(leaps) > spanOf(steps) + 8,
-       `steps ${spanOf(steps).toFixed(1)} leaps ${spanOf(leaps).toFixed(1)}`);
+    ok("a mix spans more staff than steps", spanOf(leaps) > spanOf(steps) + 8,
+       `steps ${spanOf(steps).toFixed(1)} mix ${spanOf(leaps).toFixed(1)}`);
     ok("they glided rather than jumped",
        spanOf(mid) > spanOf(steps) && spanOf(mid) < spanOf(leaps) - 2,
        `mid ${spanOf(mid).toFixed(1)}`);

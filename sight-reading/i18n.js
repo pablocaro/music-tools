@@ -103,6 +103,7 @@ window.SR_I18N = {
     "preset.jig":             "Jig",
     "preset.chromatic steps": "Chromatic Steps",
     "preset.minor cadences":  "Minor Cadences",
+    "preset.mixed intervals": "Mixed Intervals",
 
     // control names, used for aria-label and therefore the hover tooltip
     "aria.settings":     "Settings",
@@ -249,6 +250,11 @@ window.SR_I18N = {
     "ob.instrTitle":  "What do you play?",
     "ob.instrNote":   "Sets your clef and range — both can be changed later.",
     "ob.instrSoon":   "Piano and other harmony instruments are coming.",
+    "ob.iv.steps":    "Steps",
+    "ob.iv.thirds":   "Thirds",
+    "ob.rh.quarters": "Quarters",
+    "ob.rh.eighths":  "Eighths",
+    "ob.mix":         "A Mix",
     "ob.vocabTitle":  "What do you want to practise?",
     // {icon} is replaced with the real settings glyph, so the sentence points
     // at the button the student will actually look for.
@@ -339,6 +345,7 @@ window.SR_I18N = {
     "preset.jig":             "Giga",
     "preset.chromatic steps": "Grados crom\u00e1ticos",
     "preset.minor cadences":  "Cadencias menores",
+    "preset.mixed intervals": "Intervalos variados",
 
     "aria.settings":     "Ajustes",
     "aria.fromTop":      "Desde el principio",
@@ -473,6 +480,11 @@ window.SR_I18N = {
     "ob.instrTitle":  "¿Qué tocas?",
     "ob.instrNote":   "Define tu clave y tu registro — ambos se pueden cambiar después.",
     "ob.instrSoon":   "El piano y otros instrumentos con armonía están en camino.",
+    "ob.iv.steps":    "Grados",
+    "ob.iv.thirds":   "Terceras",
+    "ob.rh.quarters": "Negras",
+    "ob.rh.eighths":  "Corcheas",
+    "ob.mix":         "Variado",
     "ob.vocabTitle":  "\u00bfQu\u00e9 quieres practicar?",
     "ob.vocabNote":   "Puedes cambiar esto m\u00e1s tarde en ajustes.",
     "ob.go":          "Empezar a practicar",

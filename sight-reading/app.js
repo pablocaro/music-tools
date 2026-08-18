@@ -105,7 +105,11 @@
     "rhythm workout":  [1, 4, 2, 0, 0, 0, 0, 0],
     "jig":             [0, 3, 2, 1, 1, 0, 0, 0],
     "chromatic steps": [0, 4, 0, 0, 0, 0, 0, 0],
-    "minor cadences":  [1, 3, 3, 1, 1, 0, 0, 0]
+    "minor cadences":  [1, 3, 3, 1, 1, 0, 0, 0],
+    // Not "everything at once": steps commonest, thirds next, a thinning tail.
+    // Flat weights read as noise, because real melodies are not uniform over
+    // the interval set.
+    "mixed intervals": [0, 4, 3, 2, 2, 1, 1, 1]
   };
 
   // What a built-in leaves alone would otherwise be whatever the last drill
@@ -2936,11 +2940,27 @@
   // obFinish): a flag you had to clear storage to use twice would be no better
   // than clearing storage.
   var OB_FLAG = /[?&]onboarding(?:[=&]|$)/.test(location.search);
+  // Remembered across page rebuilds, so stepping back and forward does not
+  // silently reset the rhythm row while the interval row keeps its answer.
+  var obRhythmPick = "eighths";
   var OB_PAGES = ["intro", "instrument", "vocab"];
   var obPage = 0;
 
   // A row of pills that behave like the panel control they stand for —
   // intervals here are independent toggles, same as the Step checkboxes.
+  // A row of pills under a caption. The caption uses the rail's own section
+  // names, so the page keeps naming things the student will meet again later.
+  function obRow(host, labelKey, items, isOn, onPick, cls) {
+    var wrap = document.createElement("div");
+    wrap.className = "ob-row";
+    var lab = document.createElement("p");
+    lab.className = "ob-row-label";
+    lab.textContent = t(labelKey);
+    wrap.appendChild(lab);
+    host.appendChild(wrap);
+    return obPills(wrap, items, isOn, onPick, cls);
+  }
+
   function obPills(host, items, isOn, onPick, cls) {
     var row = document.createElement("div");
     row.className = "ob-pills";
@@ -3026,23 +3046,93 @@
   // middle line, so the furthest any of them reaches past the staff is a stem
   // starting at that line — STEM minus half the staff — plus a little air. A
   // flat generous margin left the bar mostly white space.
-  var PV_L = 9, PV_W = 300, PV_PAD = 34, PV_STEM = 3.3 * PV_L;
+  var PV_L = 9, PV_W = 300, PV_PAD = 34, PV_STEM = 3.3 * PV_L, PV_SX = 4.1;
+
+  // One bar of 4/4 per rhythm choice, in quarters. The preview is a bar rather
+  // than four loose notes because rhythm only means anything against a measure.
+  var PV_RHYTHM = {
+    quarters: [1, 1, 1, 1],
+    eighths:  [1, 0.5, 0.5, 1, 1],
+    mix:      [1, 0.25, 0.25, 0.25, 0.25, 1, 1]
+  };
+
   function previewY(p) { return 4 * PV_L - p * PV_L / 2; }
 
-  // Drawn once. Each note is a group holding a notehead on its own origin and
-  // both stems; where it sits and which stem shows are the only things that
-  // change afterwards, so switching preset moves these four notes instead of
-  // replacing them — the widening is the explanation.
-  function previewSvg(pos) {
-    var M = PV_STEM - 2 * PV_L + 4, span = (PV_W - PV_PAD * 2) / (pos.length - 1), s = "";
+  // Width by duration, but sublinear: a sixteenth gets less room than a quarter
+  // and more than a quarter of it. Strict proportion crushes a run of them into
+  // an unreadable clump at this size, which is why engravers do not use it
+  // either.
+  function previewX(durs) {
+    var w = durs.map(function (d) { return Math.pow(d, 0.55); }), tot = 0;
+    w.forEach(function (v) { tot += v; });
+    var span = PV_W - PV_PAD * 2, at = PV_PAD, out = [];
+    for (var i = 0; i < w.length; i++) { out.push(at); at += span * w[i] / tot; }
+    return out;
+  }
+
+  // Where every stem ends and every beam sits. Held apart from the drawing so
+  // the same numbers serve both the first build and every later move — the
+  // beam's height depends on the pitches under it, so a preview that glides has
+  // to recompute this, not just the noteheads.
+  function previewLayout(pos, durs) {
+    var xs = previewX(durs), ys = pos.map(previewY);
+    var notes = xs.map(function (x, i) {
+      return { x: x, y: ys[i], up: pos[i] < 4, stem: PV_STEM };
+    });
+
+    // Consecutive notes shorter than a quarter beam together.
+    var beams = [], run = null;
+    durs.forEach(function (d, i) {
+      if (d >= 1) { run = null; return; }
+      if (run) { run.to = i; run.dur = Math.min(run.dur, d); }
+      else { run = { from: i, to: i, dur: d }; beams.push(run); }
+    });
+    beams = beams.filter(function (g) { return g.to > g.from; });
+
+    beams.forEach(function (g) {
+      // One direction for the whole group, taken from where its notes average —
+      // a beam cannot have some stems up and some down.
+      var n = g.to - g.from + 1, avg = 0, j;
+      for (j = g.from; j <= g.to; j++) avg += pos[j];
+      g.up = (avg / n) < 4;
+      var tips = [];
+      for (j = g.from; j <= g.to; j++) tips.push(g.up ? ys[j] - PV_STEM : ys[j] + PV_STEM);
+      g.y = g.up ? Math.min.apply(null, tips) : Math.max.apply(null, tips);
+      for (j = g.from; j <= g.to; j++) {
+        notes[j].up = g.up;
+        notes[j].stem = g.up ? ys[j] - g.y : g.y - ys[j];   // every stem reaches the beam
+      }
+      g.x1 = xs[g.from] + (g.up ? PV_SX : -PV_SX);
+      g.x2 = xs[g.to]   + (g.up ? PV_SX : -PV_SX);
+      g.double = g.dur <= 0.25;
+    });
+    return { notes: notes, beams: beams };
+  }
+
+  // Everything that moves is a transform on a CSS variable — the note's place,
+  // its stem's length (a rect scaled on Y, so the stroke width does not scale
+  // with it), and the beam's height. Nothing animates a geometry attribute, so
+  // it glides in every engine rather than only where cx/cy/r are animatable.
+  function previewSvg(pos, durs) {
+    var L = previewLayout(pos, durs);
+    var M = PV_STEM - 2 * PV_L + 10, s = "";
     for (var i = 0; i < 5; i++) {
       s += '<line class="staff" x1="0" y1="' + (i * PV_L) + '" x2="' + PV_W + '" y2="' + (i * PV_L) + '"/>';
     }
-    pos.forEach(function (p, i) {
-      s += '<g class="ob-pnote' + (p < 4 ? " up" : "") + '" style="--x:' +
-             (PV_PAD + i * span).toFixed(2) + '; --y:' + previewY(p) + '">' +
-             '<line class="stem up" x1="4.1" y1="0" x2="4.1" y2="' + (-PV_STEM) + '"/>' +
-             '<line class="stem dn" x1="-4.1" y1="0" x2="-4.1" y2="' + PV_STEM + '"/>' +
+    L.beams.forEach(function (g, i) {
+      s += '<g class="ob-pbeam" data-g="' + i + '" style="--by:' + g.y.toFixed(2) + '">' +
+           '<rect x="' + g.x1.toFixed(2) + '" y="-1.3" width="' + (g.x2 - g.x1).toFixed(2) + '" height="2.6"/>' +
+           (g.double
+             ? '<rect x="' + g.x1.toFixed(2) + '" y="' + (g.up ? 2.4 : -4.9).toFixed(2) +
+               '" width="' + (g.x2 - g.x1).toFixed(2) + '" height="2.6"/>'
+             : '') +
+           '</g>';
+    });
+    L.notes.forEach(function (n) {
+      s += '<g class="ob-pnote' + (n.up ? " up" : "") + '" style="--x:' + n.x.toFixed(2) +
+             '; --y:' + n.y.toFixed(2) + '; --stem:' + n.stem.toFixed(2) + '">' +
+             '<rect class="stem up" x="' + (PV_SX - 0.55) + '" y="-1" width="1.1" height="1"/>' +
+             '<rect class="stem dn" x="' + (-PV_SX - 0.55) + '" y="0" width="1.1" height="1"/>' +
              '<ellipse cx="0" cy="0" rx="4.6" ry="3.4" transform="rotate(-20)"/>' +
            '</g>';
     });
@@ -3050,12 +3140,22 @@
            '" aria-hidden="true">' + s + '</svg>';
   }
 
-  function previewMove(root, pos) {
+  // Same rhythm, new pitches: move what is already drawn. The x positions and
+  // the beam widths depend only on the durations, so nothing but heights change
+  // and the whole bar can glide — which is the point of the preview, since the
+  // intervals widening is what the row is asking you to compare.
+  function previewMove(root, pos, durs) {
+    var L = previewLayout(pos, durs);
     var notes = root.querySelectorAll(".ob-pnote");
-    pos.forEach(function (p, i) {
+    L.notes.forEach(function (n, i) {
       if (!notes[i]) return;
-      notes[i].style.setProperty("--y", String(previewY(p)));
-      notes[i].classList.toggle("up", p < 4);
+      notes[i].style.setProperty("--y", n.y.toFixed(2));
+      notes[i].style.setProperty("--stem", n.stem.toFixed(2));
+      notes[i].classList.toggle("up", n.up);
+    });
+    var bs = root.querySelectorAll(".ob-pbeam");
+    L.beams.forEach(function (g, i) {
+      if (bs[i]) bs[i].style.setProperty("--by", g.y.toFixed(2));
     });
   }
 
@@ -3125,48 +3225,73 @@
       // not binding" — which is worth knowing before you pick rather than after.
       obPara(host, "ob.vocabNote", "ob-sub");
 
-      // Three named drills rather than a blank vocabulary to author: ticking a
-      // quarter-note cell asks a beginner to compose a syllabus before they
-      // know what one is.
-      // These three are one dimension, ordered — small, medium, large jumps —
-      // which is what lets the row be read at all. The previous set (Steps
-      // Only / Thirds / Jig) spanned feature space instead: a constraint, an
-      // interval set and a genre, three kinds of noun with no basis for
-      // comparison. Ordering beats coverage for a first choice, and "step" and
-      // "leap" are ordinary English about size, so the row needs no theory to
-      // rank.
-      var picks = ["steps only", "thirds drill", "wide leaps"];
-      obPills(host, picks.map(function (n) { return { id: n, html: presetLabel(n) }; }),
-        function (it) { return activePreset === it.id; },
-        function (it) {
-          applyPreset(builtinPreset(it.id));
-          syncPanel();                 // a preset moves any control, meter included
-          activePreset = it.id;
-          drawPreview(it.id);          // …and the bar below shows what it reads like
-        },
-        "ob-preset");
+      // Two rows, one preview. They are the app's two axes — what the notes do
+      // and how long they last — and putting them on one page is what lets a
+      // single bar answer both; split across pages each gets half a preview.
+      // Each row is two named vocabularies and then everything, which is what
+      // the alphabets always were: "steps only" is the one real restriction,
+      // while thirds and the mix are both mixtures with different centres.
+      // Labels are short here and longer in the rail's preset list, because a
+      // first-run row and a catalogue want different lengths.
+      var ivPicks = [
+        { id: "steps only",      key: "ob.iv.steps" },
+        { id: "thirds drill",    key: "ob.iv.thirds" },
+        { id: "mixed intervals", key: "ob.mix" }
+      ];
+      var rhPicks = [
+        { id: "quarters", key: "ob.rh.quarters" },
+        { id: "eighths",  key: "ob.rh.eighths" },
+        { id: "mix",      key: "ob.mix" }
+      ];
+      // The figures each rhythm lights. Set straight onto the grid rather than
+      // through a preset: the interval built-ins deliberately carry no rhythm,
+      // so that switching between them leaves your figures alone, and routing
+      // this through a preset would break that promise. presetMatchesPanel
+      // skips a preset's absent keys, so the title still reads the interval
+      // drill's name rather than falling to Custom.
+      var RH_BEATS = {
+        quarters: ["h", "q"],
+        eighths:  ["h", "q", "ee"],
+        mix:      ["q", "ee", "ssss", "des", "qr"]
+      };
 
-      // One preview, following the selection, rather than a thumbnail on each
-      // pill: the names now carry the comparison — Steps Only / Thirds / Wide
-      // Leaps is one ordered system — so the picture only has to make one word
-      // concrete at a time, and gets the whole width to do it in.
+      var obRhythm = obRhythmPick || "eighths";
+
+      obRow(host, "sec.step", ivPicks.map(function (it) {
+        return { id: it.id, html: t(it.key) };
+      }), function (it) { return activePreset === it.id; }, function (it) {
+        applyPreset(builtinPreset(it.id));
+        applyBeats(RH_BEATS[obRhythm]);      // the preset carries none; keep ours
+        syncPanel();
+        activePreset = it.id;
+        drawPreview();
+      }, "ob-preset");
+
+      obRow(host, "sec.rhythm", rhPicks.map(function (it) {
+        return { id: it.id, html: t(it.key) };
+      }), function (it) { return obRhythm === it.id; }, function (it) {
+        obRhythm = obRhythmPick = it.id;
+        applyBeats(RH_BEATS[it.id]);
+        syncPanel();
+        drawPreview();
+      }, "ob-rhythm");
+
       var prev = document.createElement("div");
       prev.className = "ob-preview-bar";
       host.appendChild(prev);
-      function drawPreview(name) {
-        var pos = previewWalk(BUILTIN[name] || BUILTIN["steps only"], 4);
-        if (prev.firstChild) previewMove(prev, pos);
-        else prev.innerHTML = previewSvg(pos);
+      function drawPreview() {
+        var name = ivPicks.some(function (it) { return it.id === activePreset; })
+          ? activePreset : "steps only";
+        var durs = PV_RHYTHM[obRhythm];
+        var pos = previewWalk(BUILTIN[name] || BUILTIN["steps only"], durs.length);
+        // Same rhythm, so the bar can glide; a new rhythm changes how many
+        // notes there are and has to be redrawn.
+        if (prev.firstChild && prev.dataset.rh === obRhythm) previewMove(prev, pos, durs);
+        else { prev.innerHTML = previewSvg(pos, durs); prev.dataset.rh = obRhythm; }
       }
-      drawPreview(picks.indexOf(activePreset) >= 0 ? activePreset : picks[0]);
-
-      // No figure grid here. It was added to let you watch a name become a
-      // vocabulary, and with three presets from one interval dimension there is
-      // nothing to watch — the lit cells were measured identical for all three.
-      // What remained was fourteen unexplained symbols under a heading about
-      // reading, on the page that also has to hold Start practicing. The grid
-      // is the rail's, and "change any of it later" is the promise that it is
-      // there.
+      applyBeats(RH_BEATS[obRhythm]);
+      syncPanel();
+      drawPreview();
 
     }
 
