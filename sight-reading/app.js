@@ -126,8 +126,13 @@
   // deliberately carry no rhythm, so switching between them leaves your
   // figures alone; the newer ones ARE their rhythm (or their key, or their
   // chromaticism), so they set it — a jig without 6/8 is just leaps.
+  //
+  // Nothing here sets musicality any more. Both entries that did were written
+  // when the baseline was near zero, where "70" and "100" meant turn this well
+  // up. Once the baseline moved to the top they stopped meaning that — 100
+  // became a restatement and 70 became a brake, on the one drill in the list
+  // whose whole subject is the harmony.
   var BUILTIN_EXTRA = {
-    "arpeggios":       { musicality: "100" },
     "long tones":      { beats: ["w", "h:2"], measures: "8" },
     // beats arrays are written in the grid's own order — presetMatchesPanel
     // compares against readBeatIds, which reads the DOM top to bottom, and a
@@ -135,7 +140,7 @@
     "rhythm workout":  { beats: ["q", "ee", "des:2", "sde", "re", "eqe:2", "dqe:2"] },
     "jig":             { timesig: "6/8", beats: ["dq", "eee:2", "qe"] },
     "chromatic steps": { chroma: "60", beats: ["q:2", "ee"] },
-    "minor cadences":  { key: "minor_5-0", progression: "i-VII-VI-V", musicality: "70",
+    "minor cadences":  { key: "minor_5-0", progression: "i-VII-VI-V",
                          beats: ["h", "q:2", "ee"] }
   };
 
