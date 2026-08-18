@@ -89,6 +89,18 @@
   // arpeggio drill is for, and smoothing them would blunt the drill.
   var SMOOTH_PULL = 1.5;
 
+  // Momentum. A random walk turns direction about half the time, which is why
+  // it noodles; a real line runs a few notes one way before it turns. A step
+  // begun prefers to carry — after a leap the gap-fill rule is turning the
+  // line around instead, so the two never apply to the same note. The one
+  // leap that does carry is the chordal skip: chord tone to chord tone in the
+  // same direction is an arpeggio, not a gap that needs filling, so it earns
+  // a fraction of this bonus inside the leap branch rather than the turn
+  // penalty. Momentum has to shout a little (the chord pull talks over it on
+  // the beats), which is why it outweighs gap-fill's 1.3 — they are never in
+  // the same room, so the comparison never happens.
+  var MOMENTUM = 1.4;
+
   // The dominant, as a 0-based scale degree: 0 is I, so 4 is V. Named because
   // it is asked for in two places that must agree — the seventh added to its
   // chord here, and the leading tone raised in its bars in minor.
@@ -248,8 +260,16 @@
             else if (tones.indexOf(degree) >= 0) bonus += 0.5 * ctx.cadence;
           }
           if (leap) {                                                                 // gap-fill: step back after a leap
+            // …unless the leap is a chordal skip carrying on: chord tone to
+            // chord tone in the same direction is an arpeggio being spelled,
+            // not a gap. Gated on the chord actually being in force here.
+            var arp = pull > 0 && mv.d !== 0 && (mv.d > 0) === (ctx.prevDelta > 0) &&
+                      tones.indexOf(degreeAt(0)) >= 0 && tones.indexOf(degree) >= 0;
+            if (arp) bonus += MOMENTUM * 0.7;
             if (mv.d !== 0 && Math.abs(mv.d) <= 1 && (mv.d > 0) !== (ctx.prevDelta > 0)) bonus += 1.3;
-            if (Math.abs(mv.d) >= 2) bonus -= 0.5;
+            if (Math.abs(mv.d) >= 2 && !arp) bonus -= 0.5;
+          } else if (ctx.prevDelta !== 0) {                                           // momentum: a step begun carries
+            if (mv.d !== 0 && (mv.d > 0) === (ctx.prevDelta > 0)) bonus += MOMENTUM;
           }
           if (ctx.targetP != null && Math.abs(np - ctx.targetP) < Math.abs(ctx.p - ctx.targetP)) bonus += 0.5; // contour
         }
@@ -453,7 +473,40 @@
     var isTieStop = !!ev.tieStop;
 
     if (this._p === undefined || this._p === null) {
-      this._p = PMIN; // start at the bottom of the chosen range
+      // The opening note is a choice, not a tell. It used to be PMIN — every
+      // exercise began on the very bottom of the range, which no melody does
+      // and every regular user learns to expect. Now it is drawn from a
+      // comfort curve peaking a third of the way up the range and fading at
+      // both extremes; once the dial is on at all, only the first bar's chord
+      // tones qualify — a melody opens by establishing its harmony — and the
+      // root gets an edge for stating the key. At dial zero the chord is not
+      // consulted, so zero stays a walk that owes nothing to the harmony;
+      // only the dead constant is gone. The second pass drops the chord
+      // filter for a range too narrow to hold any chord tone.
+      var sMus = this.options.musicality || 0;
+      var sProg = this.options.progression || [0, 3, 4, 0];
+      var sRoot = sProg[0] % N;
+      var sTones = [sRoot, (sRoot + 2) % N, (sRoot + 4) % N];
+      var sSpan = Math.max(1, PMAX - PMIN);
+      var sCands = [], sTot = 0;
+      for (var sPass = 0; sPass < 2 && !sCands.length; sPass++) {
+        for (var sp = PMIN; sp <= PMAX; sp++) {
+          var sDeg = ((sp % N) + N) % N;
+          if (sPass === 0 && sMus > 0 && sTones.indexOf(sDeg) < 0) continue;
+          var sw = Math.max(0.05, 1 - Math.abs((sp - PMIN) / sSpan - 0.33) * 1.8);
+          if (sMus > 0 && sDeg === sRoot) sw *= 1.4;
+          sCands.push({ p: sp, w: sw }); sTot += sw;
+        }
+      }
+      this._p = PMIN;
+      if (sCands.length) {
+        var sR = Math.random() * sTot;
+        this._p = sCands[sCands.length - 1].p;
+        for (var sc = 0; sc < sCands.length; sc++) {
+          sR -= sCands[sc].w;
+          if (sR <= 0) { this._p = sCands[sc].p; break; }
+        }
+      }
     } else if (!makeRest && !isTieStop) {
       var alpha = this.options.alphabet || { down: [0, 1, 0, 0, 0, 0, 0], up: [0, 1, 0, 0, 0, 0, 0] };
       var musicality = this.options.musicality || 0;

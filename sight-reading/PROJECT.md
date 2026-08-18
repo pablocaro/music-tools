@@ -162,7 +162,7 @@ geometry attribute, so the bar glides in every engine rather than only where
 cx/cy/r happen to be animatable — and it glides through a change of interval
 even with beams overhead, because the x positions depend only on the durations.
 
-### 4.6 · Musical lines — seams done, four milestones behind them
+### 4.6 · Musical lines — seams, momentum and the opening done; three left
 A campaign against the ways the walk still sounds like a walk, measured end
 to end by `test/melody.js` (built first, engine touched second). Standing
 rules for every entry: no rule ever names a preset, progression, key or
@@ -192,7 +192,16 @@ rides the musicality dial, so zero stays a pure random walk.
    2.37→1.78 (Arpeggios), 2.25→1.66 (Mixed), 1.79→1.25 (Cadences) staff
    steps against a nearest-available floor of ~1.3 — Cadences lands under
    the floor because its common tones arrive at distance zero.
-3. Momentum and the starting note (`_p = PMIN` is a tell, not a choice).
+3. **Momentum and the starting note — DONE.** A step begun prefers to
+   carry; after a leap gap-fill still turns the line, except for the
+   chordal skip — chord tone to chord tone in the same direction is an
+   arpeggio being spelled, not a gap. Mean same-direction runs went
+   1.6→2.0–2.15 at full dial, with Arpeggios moving most because its turns
+   were the structural ones. And the opening note stopped being `PMIN`
+   every time: it is drawn from a comfort curve peaking a third of the way
+   up the range, restricted to the first bar's chord tones once the dial
+   is on (root favoured). Five to six distinct openings per 18 exercises,
+   all chord tones; at dial zero the chord is not consulted.
 4. Antecedent/consequent phrase endings — odd phrases ask, even answer.
 5. Passing and neighbour figures for the off-beats.
 6. Pitch motif and sequence — the rhythm echo machinery learns contour.

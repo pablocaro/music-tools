@@ -73,7 +73,8 @@ function parse(xml, tonic) {
 function newAcc() {
   return { moves: 0, iv: { same: 0, step: 0, third: 0, wide: 0 }, runs: [], run: 0, lastSgn: 0,
            seam: { n: 0, jump: 0, near: 0, opt: 0 }, anchor: { n: 0, jump: 0 },
-           ob: { n: 0, jump: 0, res: 0 }, lead: { n: 0, res: 0 }, sev: { n: 0, res: 0 } };
+           ob: { n: 0, jump: 0, res: 0 }, lead: { n: 0, res: 0 }, sev: { n: 0, res: 0 },
+           starts: [] };
 }
 
 function collect(xml, tonic, roots, a) {
@@ -81,6 +82,10 @@ function collect(xml, tonic, roots, a) {
 
   // Fingerprint over the whole line.
   const flat = [].concat(...bars);
+  // The opening note — one per exercise. Distinct starts across a batch is
+  // the anti-tell metric; membership in the first bar's chord is the musical
+  // one (only expected once the dial is up).
+  if (flat.length) a.starts.push({ pos: flat[0].pos, tone: chordOf(roots[0]).includes(flat[0].deg) });
   for (let i = 1; i < flat.length; i++) {
     const g = flat[i].pos - flat[i - 1].pos, ab = Math.abs(g);
     a.iv[ab === 0 ? 'same' : ab === 1 ? 'step' : ab === 2 ? 'third' : 'wide']++;
@@ -143,7 +148,7 @@ function collect(xml, tonic, roots, a) {
     M.value = x; M.dispatchEvent(new Event('input')); M.dispatchEvent(new Event('change')); }, v);
 
   console.log(`${GENS} exercises per row.  jump/near in staff steps; opt = took a jump no wider than the nearest option.`);
-  console.log('preset            dial │ seam jump near  opt │ anchr │ obliged n res │ lead n res │ 7th n res │ same/step/3rd/wide │ run');
+  console.log('preset            dial │ seam jump near  opt │ anchr │ obliged n res │ lead n res │ 7th n res │ same/step/3rd/wide │ run │ starts d tone');
 
   for (const [label, rx] of [['Arpeggios', 'arpegg'], ['Mixed Intervals', 'mixed int'], ['Minor Cadences', 'caden']]) {
     await p.evaluate((r) => {
@@ -168,7 +173,9 @@ function collect(xml, tonic, roots, a) {
       const pc = (x, n) => n ? Math.round(100 * x / n) + '%' : '—';
       const avg = (x, n, d = 2) => n ? (x / n).toFixed(d) : '—';
       const mrun = a.runs.length ? (a.runs.reduce((x, y) => x + y, 0) / a.runs.length).toFixed(2) : '—';
-      console.log(`${label.padEnd(16)} ${f(dial)} │ ${f(avg(a.seam.jump, a.seam.n))} ${f(avg(a.seam.near, a.seam.n))} ${f(pc(a.seam.opt, a.seam.n))} │ ${f(avg(a.anchor.jump, a.anchor.n))} │ ${f(a.ob.n, 6)} ${f(pc(a.ob.res, a.ob.n))} │ ${f(a.lead.n, 3)} ${f(pc(a.lead.res, a.lead.n))} │ ${f(a.sev.n, 2)} ${f(pc(a.sev.res, a.sev.n))} │ ${f(pc(a.iv.same, a.moves), 3)} ${f(pc(a.iv.step, a.moves), 4)} ${f(pc(a.iv.third, a.moves), 4)} ${f(pc(a.iv.wide, a.moves), 4)} │ ${mrun}`);
+      const sd = new Set(a.starts.map((s) => s.pos)).size;
+      const st = pc(a.starts.filter((s) => s.tone).length, a.starts.length);
+      console.log(`${label.padEnd(16)} ${f(dial)} │ ${f(avg(a.seam.jump, a.seam.n))} ${f(avg(a.seam.near, a.seam.n))} ${f(pc(a.seam.opt, a.seam.n))} │ ${f(avg(a.anchor.jump, a.anchor.n))} │ ${f(a.ob.n, 6)} ${f(pc(a.ob.res, a.ob.n))} │ ${f(a.lead.n, 3)} ${f(pc(a.lead.res, a.lead.n))} │ ${f(a.sev.n, 2)} ${f(pc(a.sev.res, a.sev.n))} │ ${f(pc(a.iv.same, a.moves), 3)} ${f(pc(a.iv.step, a.moves), 4)} ${f(pc(a.iv.third, a.moves), 4)} ${f(pc(a.iv.wide, a.moves), 4)} │ ${mrun} │ ${f(sd, 2)} ${f(st, 4)}`);
     }
   }
   console.log('errors:', errs);
