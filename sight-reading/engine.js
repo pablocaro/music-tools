@@ -80,6 +80,15 @@
   var OBLIGE_KNEE = 0.6;
   var OBLIGE_PULL = 4;
 
+  // Seam smoothing, the gentler sibling. At a chord change every note — not
+  // only a tendency tone — leans toward arriving on the NEAREST tone of the
+  // incoming chord, including the common tone: the one note both chords
+  // share, held while its meaning changes underneath, which is the smoothest
+  // seam there is. Deliberately weaker than the obligation (a nudge, not a
+  // rule), and confined to the barline: the leaps *inside* a bar are what an
+  // arpeggio drill is for, and smoothing them would blunt the drill.
+  var SMOOTH_PULL = 1.5;
+
   // The dominant, as a 0-based scale degree: 0 is I, so 4 is V. Named because
   // it is asked for in two places that must agree — the seventh added to its
   // chord here, and the leading tone raised in its bars in minor.
@@ -163,7 +172,9 @@
   // apart), and punishing both neighbours equally is just a slower way of
   // picking at random. And a unison never counts as reaching the chord — sitting
   // still would otherwise be the cheapest way to satisfy it, which is how the
-  // line used to freeze into a drone.
+  // line used to freeze into a drone. The one exception is the seam: across a
+  // chord change a held note that belongs to the incoming chord is a common
+  // tone, not loitering (see SMOOTH_PULL).
   function pickMusicalDelta(alpha, ctx) {
     var moves = [];
     for (var i = 0; i < STEPS.length; i++) {
@@ -206,13 +217,13 @@
         pull *= (totalW > 0) ? Math.min(1, (reachW / totalW) / REACH_SAT) : 0;
       }
 
-      // A tendency tone resolves to the NEAREST tone of the new chord — but
-      // nearest among the moves this alphabet actually offers, so a student
-      // who unticked 2nds gets the closest resolution they asked for rather
-      // than none. If no move reaches the chord at all, obNear stays 0 and
-      // the obligation quietly withdraws.
-      var ob = ctx.oblige || 0, obNear = 0;
-      if (ob > 0) {
+      // A seam resolves to the NEAREST tone of the new chord — but nearest
+      // among the moves this alphabet actually offers, so a student who
+      // unticked 2nds gets the closest resolution they asked for rather than
+      // none. If no move reaches the chord at all, obNear stays 0 and both
+      // seam preferences quietly withdraw.
+      var ob = ctx.oblige || 0, sm = ctx.smooth || 0, obNear = 0;
+      if (ob > 0 || sm > 0) {
         for (j = 0; j < moves.length; j++) {
           var od = moves[j].d;
           if (od === 0 || !inRange(od)) continue;
@@ -243,18 +254,31 @@
           if (ctx.targetP != null && Math.abs(np - ctx.targetP) < Math.abs(ctx.p - ctx.targetP)) bonus += 0.5; // contour
         }
         mv.sw = mv.w * (1 + ph * bonus);
-        // guard 2 lives in the `mv.d === 0` half of this test: a unison is never
-        // an arrival, however good the note it stays on happens to be.
-        if (pull > 0 && (mv.d === 0 || tones.indexOf(degree) < 0)) mv.sw *= (1 - pull);
-        // The obligation is a weighted preference, never a pick: a looping
+        // guard 2 lives in the `mv.d === 0` half of this test: a unison is
+        // never an arrival WITHIN a bar, however good the note it stays on
+        // happens to be — sitting still was the cheapest way to satisfy the
+        // pull, and the line froze into a drone. Across a chord change the
+        // same interval means the opposite thing: the note holds while the
+        // chord moves underneath it, a common tone, not loitering. So the
+        // seam is the one place the unison is exempted, and only when the
+        // held note actually belongs to the incoming chord.
+        var common = sm > 0 && mv.d === 0 && tones.indexOf(degree) >= 0;
+        if (pull > 0 && !common && (mv.d === 0 || tones.indexOf(degree) < 0)) mv.sw *= (1 - pull);
+        // Both seam preferences are weighted, never a pick: a looping
         // progression fed a deterministic "always nearest" would print the
-        // same four-bar shape forever. When both directions tie for nearest —
-        // the seventh's F sits a step from E and from G alike — the falling
-        // side gets the edge, because dissonance falls; the leading tone is
-        // never ambiguous this way, its upper neighbour being the tonic.
-        if (ob > 0 && obNear && mv.d !== 0 && Math.abs(mv.d) === obNear &&
-            tones.indexOf(degree) >= 0) {
-          mv.sw *= 1 + ob * OBLIGE_PULL * (mv.d < 0 ? 1.3 : 1);
+        // same four-bar shape forever. The obligation is the strong form (the
+        // old note lost its chord and owes a resolution), smoothing the
+        // gentle one (any seam prefers the close arrival). When both
+        // directions tie for nearest — the seventh's F sits a step from E
+        // and from G alike — the falling side gets the edge, because
+        // dissonance falls; the leading tone is never ambiguous this way,
+        // its upper neighbour being the tonic.
+        if (common) {
+          mv.sw *= 1 + sm * SMOOTH_PULL;
+        } else if (obNear && mv.d !== 0 && Math.abs(mv.d) === obNear &&
+                   tones.indexOf(degree) >= 0) {
+          var g = (ob > 0) ? ob * OBLIGE_PULL : sm * SMOOTH_PULL;
+          mv.sw *= 1 + g * (mv.d < 0 ? 1.3 : 1);
         }
         if (mv.sw < 0.0001) mv.sw = 0.0001;
         if (np < lo || np > hi) { mv.sw = 0; continue; }
@@ -456,19 +480,24 @@
         // is already raised in these bars, so this lands as a true V7.
         if (root === DOMINANT) chordTones.push((root + 6) % N);
 
-        // The seam (see OBLIGE_KNEE). Only the first walked note of a bar is
-        // the seam — a tie held across the barline skips the walk, so when a
-        // suspension hangs over the change the obligation simply waits and
-        // lands on the note after the hold, which is where a suspension
-        // resolves anyway. A downbeat rest defers it the same way.
-        var oblige = 0;
+        // The seam (see OBLIGE_KNEE / SMOOTH_PULL). Only the first walked
+        // note of a bar is the seam — a tie held across the barline skips the
+        // walk, so when a suspension hangs over the change the obligation
+        // simply waits and lands on the note after the hold, which is where a
+        // suspension resolves anyway. A downbeat rest defers it the same way.
+        // Every seam smooths; the seams where the old note lost its chord
+        // carry the stronger obligation on top.
+        var oblige = 0, smooth = 0;
         if (mi > 0 && this._seamMeasure !== mi) {
           var proot = prog[(mi - 1) % prog.length];
-          var ptones = [proot % N, (proot + 2) % N, (proot + 4) % N];
-          if (proot === DOMINANT) ptones.push((proot + 6) % N);
-          var oldDeg = ((oldP % N) + N) % N;
-          if (ptones.indexOf(oldDeg) >= 0 && chordTones.indexOf(oldDeg) < 0) {
-            oblige = ramp(musicality, OBLIGE_KNEE, 1.0);
+          if (proot !== root) {
+            smooth = ramp(musicality, OBLIGE_KNEE, 1.0);
+            var ptones = [proot % N, (proot + 2) % N, (proot + 4) % N];
+            if (proot === DOMINANT) ptones.push((proot + 6) % N);
+            var oldDeg = ((oldP % N) + N) % N;
+            if (ptones.indexOf(oldDeg) >= 0 && chordTones.indexOf(oldDeg) < 0) {
+              oblige = smooth;
+            }
           }
         }
         this._seamMeasure = mi;
@@ -504,7 +533,7 @@
           phrase: phrase, pull: chord * anchor * PULL_MAX, p: oldP, N: N,
           pMin: PMIN, pMax: PMAX, chordTones: chordTones, chordRoot: root % N,
           cadence: cadence, targetP: targetP, prevDelta: this._prevDelta || 0,
-          oblige: oblige
+          oblige: oblige, smooth: smooth
         });
       } else {
         delta = pickDelta(alpha);

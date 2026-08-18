@@ -162,7 +162,7 @@ geometry attribute, so the bar glides in every engine rather than only where
 cx/cy/r happen to be animatable — and it glides through a change of interval
 even with beams overhead, because the x positions depend only on the durations.
 
-### 4.6 · Musical lines — tendency tones done, five milestones behind it
+### 4.6 · Musical lines — seams done, four milestones behind them
 A campaign against the ways the walk still sounds like a walk, measured end
 to end by `test/melody.js` (built first, engine touched second). Standing
 rules for every entry: no rule ever names a preset, progression, key or
@@ -182,9 +182,16 @@ rides the musicality dial, so zero stays a pure random walk.
    36→58% (Cadences); the seventh falling went 32→50/77/56%. A tie across
    the seam defers the obligation to the note after the hold, which is
    where a suspension resolves anyway.
-2. Seam smoothing — nearest-tone preference at every chord change, and the
-   common tone allowed to hold *across* a change while staying banned as
-   loitering within a bar.
+2. **Seam smoothing — DONE.** Every chord change now prefers the nearest
+   arrival, at about a third of the obligation's strength — a nudge, and
+   confined to the barline, because the leaps *inside* a bar are what an
+   arpeggio drill is for. The common tone is the exception to the unison
+   guard: across a change a held note that belongs to the incoming chord
+   is the chord moving underneath it, not loitering, so the seam is the one
+   place a unison counts as an arrival. Mean seam width at full dial:
+   2.37→1.78 (Arpeggios), 2.25→1.66 (Mixed), 1.79→1.25 (Cadences) staff
+   steps against a nearest-available floor of ~1.3 — Cadences lands under
+   the floor because its common tones arrive at distance zero.
 3. Momentum and the starting note (`_p = PMIN` is a tell, not a choice).
 4. Antecedent/consequent phrase endings — odd phrases ask, even answer.
 5. Passing and neighbour figures for the off-beats.
