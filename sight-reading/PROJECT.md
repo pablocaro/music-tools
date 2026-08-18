@@ -162,6 +162,34 @@ geometry attribute, so the bar glides in every engine rather than only where
 cx/cy/r happen to be animatable — and it glides through a change of interval
 even with beams overhead, because the x positions depend only on the durations.
 
+### 4.6 · Musical lines — tendency tones done, five milestones behind it
+A campaign against the ways the walk still sounds like a walk, measured end
+to end by `test/melody.js` (built first, engine touched second). Standing
+rules for every entry: no rule ever names a preset, progression, key or
+meter — everything is derived from membership tests the engine can run on
+any chord it is handed; everything is a weighted preference, never a pick
+(a looping progression fed a deterministic rule prints the same four bars
+forever); everything scales by what the alphabet can reach; everything
+rides the musicality dial, so zero stays a pure random walk.
+
+1. **Tendency tones — DONE.** A note that belonged to the last bar's chord
+   but not this one owes its resolution to the nearest tone of the chord
+   that displaced it — leading tone up and dominant seventh down fall out
+   as instances of a rule that never asks which chord it is looking at.
+   Knees in at 0.6, above the chord pull, because resolving between chords
+   means nothing until the line lands on chords at all. At the top of the
+   dial, leading-tone resolution went 19→57% (Arpeggios), 33→67% (Mixed),
+   36→58% (Cadences); the seventh falling went 32→50/77/56%. A tie across
+   the seam defers the obligation to the note after the hold, which is
+   where a suspension resolves anyway.
+2. Seam smoothing — nearest-tone preference at every chord change, and the
+   common tone allowed to hold *across* a change while staying banned as
+   loitering within a bar.
+3. Momentum and the starting note (`_p = PMIN` is a tell, not a choice).
+4. Antecedent/consequent phrase endings — odd phrases ask, even answer.
+5. Passing and neighbour figures for the off-beats.
+6. Pitch motif and sequence — the rhythm echo machinery learns contour.
+
 ### 5 · The feedback loop — ramp built, then cut; the rest needs a decision
 Adaptive letting-go and weak-spot targeting both need the app to know how
 you're doing, and it currently has no input at all. Options, cheapest first:

@@ -68,6 +68,18 @@
   // put a step.
   var OFFBEAT_ANCHOR = 0.7;
 
+  // Tendency tones. A note that belonged to the last bar's chord but not to
+  // this one is under an obligation: the chord moved out from under it, and it
+  // owes its resolution to the nearest tone of the chord that displaced it.
+  // The leading tone rising to the tonic and the dominant seventh falling to
+  // the third are the two famous instances, but the rule never asks which
+  // chord it is looking at — membership is the whole test, so it fires just as
+  // correctly in progressions nobody thought to enumerate. It knees in above
+  // the chord pull: resolving between chords means nothing until the line is
+  // landing on chords at all.
+  var OBLIGE_KNEE = 0.6;
+  var OBLIGE_PULL = 4;
+
   // The dominant, as a 0-based scale degree: 0 is I, so 4 is V. Named because
   // it is asked for in two places that must agree — the seventh added to its
   // chord here, and the leading tone raised in its bars in minor.
@@ -194,6 +206,21 @@
         pull *= (totalW > 0) ? Math.min(1, (reachW / totalW) / REACH_SAT) : 0;
       }
 
+      // A tendency tone resolves to the NEAREST tone of the new chord — but
+      // nearest among the moves this alphabet actually offers, so a student
+      // who unticked 2nds gets the closest resolution they asked for rather
+      // than none. If no move reaches the chord at all, obNear stays 0 and
+      // the obligation quietly withdraws.
+      var ob = ctx.oblige || 0, obNear = 0;
+      if (ob > 0) {
+        for (j = 0; j < moves.length; j++) {
+          var od = moves[j].d;
+          if (od === 0 || !inRange(od)) continue;
+          if (tones.indexOf(degreeAt(od)) < 0) continue;
+          if (!obNear || Math.abs(od) < obNear) obNear = Math.abs(od);
+        }
+      }
+
       var last = -1;
       for (j = 0; j < moves.length; j++) {
         var mv = moves[j], np = ctx.p + mv.d, degree = degreeAt(mv.d), bonus = 0;
@@ -219,6 +246,16 @@
         // guard 2 lives in the `mv.d === 0` half of this test: a unison is never
         // an arrival, however good the note it stays on happens to be.
         if (pull > 0 && (mv.d === 0 || tones.indexOf(degree) < 0)) mv.sw *= (1 - pull);
+        // The obligation is a weighted preference, never a pick: a looping
+        // progression fed a deterministic "always nearest" would print the
+        // same four-bar shape forever. When both directions tie for nearest —
+        // the seventh's F sits a step from E and from G alike — the falling
+        // side gets the edge, because dissonance falls; the leading tone is
+        // never ambiguous this way, its upper neighbour being the tonic.
+        if (ob > 0 && obNear && mv.d !== 0 && Math.abs(mv.d) === obNear &&
+            tones.indexOf(degree) >= 0) {
+          mv.sw *= 1 + ob * OBLIGE_PULL * (mv.d < 0 ? 1.3 : 1);
+        }
         if (mv.sw < 0.0001) mv.sw = 0.0001;
         if (np < lo || np > hi) { mv.sw = 0; continue; }
         last = j;
@@ -419,6 +456,23 @@
         // is already raised in these bars, so this lands as a true V7.
         if (root === DOMINANT) chordTones.push((root + 6) % N);
 
+        // The seam (see OBLIGE_KNEE). Only the first walked note of a bar is
+        // the seam — a tie held across the barline skips the walk, so when a
+        // suspension hangs over the change the obligation simply waits and
+        // lands on the note after the hold, which is where a suspension
+        // resolves anyway. A downbeat rest defers it the same way.
+        var oblige = 0;
+        if (mi > 0 && this._seamMeasure !== mi) {
+          var proot = prog[(mi - 1) % prog.length];
+          var ptones = [proot % N, (proot + 2) % N, (proot + 4) % N];
+          if (proot === DOMINANT) ptones.push((proot + 6) % N);
+          var oldDeg = ((oldP % N) + N) % N;
+          if (ptones.indexOf(oldDeg) >= 0 && chordTones.indexOf(oldDeg) < 0) {
+            oblige = ramp(musicality, OBLIGE_KNEE, 1.0);
+          }
+        }
+        this._seamMeasure = mi;
+
         // Where this note falls in the bar, in felt pulses — a quarter in the
         // simple meters, a dotted quarter in 6/8, so "on the beat" means the
         // same thing to a reader in every meter.
@@ -449,7 +503,8 @@
         delta = pickMusicalDelta(alpha, {
           phrase: phrase, pull: chord * anchor * PULL_MAX, p: oldP, N: N,
           pMin: PMIN, pMax: PMAX, chordTones: chordTones, chordRoot: root % N,
-          cadence: cadence, targetP: targetP, prevDelta: this._prevDelta || 0
+          cadence: cadence, targetP: targetP, prevDelta: this._prevDelta || 0,
+          oblige: oblige
         });
       } else {
         delta = pickDelta(alpha);
