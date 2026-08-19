@@ -162,7 +162,7 @@ geometry attribute, so the bar glides in every engine rather than only where
 cx/cy/r happen to be animatable — and it glides through a change of interval
 even with beams overhead, because the x positions depend only on the durations.
 
-### 4.6 · Musical lines — seams, momentum and the opening done; three left
+### 4.6 · Musical lines — question-and-answer done; two milestones left
 A campaign against the ways the walk still sounds like a walk, measured end
 to end by `test/melody.js` (built first, engine touched second). Standing
 rules for every entry: no rule ever names a preset, progression, key or
@@ -202,7 +202,16 @@ rides the musicality dial, so zero stays a pure random walk.
    up the range, restricted to the first bar's chord tones once the dial
    is on (root favoured). Five to six distinct openings per 18 exercises,
    all chord tones; at dial zero the chord is not consulted.
-4. Antecedent/consequent phrase endings — odd phrases ask, even answer.
+4. **Antecedent/consequent — DONE.** First and third phrases end ON their
+   chord but OFF its root (the classical imperfect close: settled enough to
+   breathe, unsettled enough to need the next phrase); second, fourth and
+   the final bar land the root. Parity is the whole test, so a period falls
+   out of any progression at all. Two mechanisms made it work: the bar's
+   FINAL note carries most of the cadence weight, and the notes before it
+   aim NEXT to the root rather than onto it — rewarding an early root was
+   self-defeating, since the unison ban forces the line off it and it
+   rarely gets back in one move. Questions open ~80%, answers close ~66%,
+   from chance (~50/~40).
 5. Passing and neighbour figures for the off-beats.
 6. Pitch motif and sequence — the rhythm echo machinery learns contour.
 

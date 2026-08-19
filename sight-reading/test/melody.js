@@ -74,7 +74,7 @@ function newAcc() {
   return { moves: 0, iv: { same: 0, step: 0, third: 0, wide: 0 }, runs: [], run: 0, lastSgn: 0,
            seam: { n: 0, jump: 0, near: 0, opt: 0 }, anchor: { n: 0, jump: 0 },
            ob: { n: 0, jump: 0, res: 0 }, lead: { n: 0, res: 0 }, sev: { n: 0, res: 0 },
-           starts: [] };
+           starts: [], q: { n: 0, tone: 0, root: 0 }, ans: { n: 0, tone: 0, root: 0 } };
 }
 
 function collect(xml, tonic, roots, a) {
@@ -96,6 +96,22 @@ function collect(xml, tonic, roots, a) {
     if (s !== 0) a.lastSgn = s;
   }
   if (a.run > 0) { a.runs.push(a.run); a.run = 0; a.lastSgn = 0; }
+
+  // Phrase endings — the question/answer split. A phrase-end bar's last note
+  // scored against that bar's own chord: the root is a close, another chord
+  // tone leaves the phrase open, anything else is neither. First and third
+  // phrases are the questions; second, fourth and the final bar answer.
+  for (let i = 0; i < bars.length; i++) {
+    const isLast = i === bars.length - 1;
+    if (i % 4 !== 3 && !isLast) continue;
+    const bar = bars[i];
+    if (!bar.length) continue;
+    const r = roots[i % roots.length], t = chordOf(r);
+    const d = bar[bar.length - 1].deg;
+    const slot = (Math.floor(i / 4) % 2 === 0 && !isLast) ? a.q : a.ans;
+    slot.n++;
+    if (t.includes(d)) { slot.tone++; if (d === r % 7) slot.root++; }
+  }
 
   // Seams.
   for (let i = 1; i < bars.length; i++) {
@@ -148,7 +164,7 @@ function collect(xml, tonic, roots, a) {
     M.value = x; M.dispatchEvent(new Event('input')); M.dispatchEvent(new Event('change')); }, v);
 
   console.log(`${GENS} exercises per row.  jump/near in staff steps; opt = took a jump no wider than the nearest option.`);
-  console.log('preset            dial │ seam jump near  opt │ anchr │ obliged n res │ lead n res │ 7th n res │ same/step/3rd/wide │ run │ starts d tone');
+  console.log('preset            dial │ seam jump near  opt │ anchr │ obliged n res │ lead n res │ 7th n res │ same/step/3rd/wide │ run │ starts d tone │ Qopen Aclose');
 
   for (const [label, rx] of [['Arpeggios', 'arpegg'], ['Mixed Intervals', 'mixed int'], ['Minor Cadences', 'caden']]) {
     await p.evaluate((r) => {
@@ -175,7 +191,8 @@ function collect(xml, tonic, roots, a) {
       const mrun = a.runs.length ? (a.runs.reduce((x, y) => x + y, 0) / a.runs.length).toFixed(2) : '—';
       const sd = new Set(a.starts.map((s) => s.pos)).size;
       const st = pc(a.starts.filter((s) => s.tone).length, a.starts.length);
-      console.log(`${label.padEnd(16)} ${f(dial)} │ ${f(avg(a.seam.jump, a.seam.n))} ${f(avg(a.seam.near, a.seam.n))} ${f(pc(a.seam.opt, a.seam.n))} │ ${f(avg(a.anchor.jump, a.anchor.n))} │ ${f(a.ob.n, 6)} ${f(pc(a.ob.res, a.ob.n))} │ ${f(a.lead.n, 3)} ${f(pc(a.lead.res, a.lead.n))} │ ${f(a.sev.n, 2)} ${f(pc(a.sev.res, a.sev.n))} │ ${f(pc(a.iv.same, a.moves), 3)} ${f(pc(a.iv.step, a.moves), 4)} ${f(pc(a.iv.third, a.moves), 4)} ${f(pc(a.iv.wide, a.moves), 4)} │ ${mrun} │ ${f(sd, 2)} ${f(st, 4)}`);
+      const qo = pc(a.q.tone - a.q.root, a.q.n), ac = pc(a.ans.root, a.ans.n);
+      console.log(`${label.padEnd(16)} ${f(dial)} │ ${f(avg(a.seam.jump, a.seam.n))} ${f(avg(a.seam.near, a.seam.n))} ${f(pc(a.seam.opt, a.seam.n))} │ ${f(avg(a.anchor.jump, a.anchor.n))} │ ${f(a.ob.n, 6)} ${f(pc(a.ob.res, a.ob.n))} │ ${f(a.lead.n, 3)} ${f(pc(a.lead.res, a.lead.n))} │ ${f(a.sev.n, 2)} ${f(pc(a.sev.res, a.sev.n))} │ ${f(pc(a.iv.same, a.moves), 3)} ${f(pc(a.iv.step, a.moves), 4)} ${f(pc(a.iv.third, a.moves), 4)} ${f(pc(a.iv.wide, a.moves), 4)} │ ${mrun} │ ${f(sd, 2)} ${f(st, 4)} │ ${f(qo, 4)} ${f(ac, 4)}`);
     }
   }
   console.log('errors:', errs);

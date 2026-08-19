@@ -250,14 +250,32 @@
         if (ph > 0) {
           if (ctx.cadence > 0) {                                                      // resolve at phrase ends
             // Onto the chord the phrase actually ends on, not always the
-            // tonic. A phrase ending on V is a half cadence and wants the
-            // dominant under it; pulling it to the tonic fought the harmony
-            // in exactly the bar where the chord matters most. When the last
-            // bar is I — the common case — the root is 0 and its other tones
-            // are 2 and 4, so this is the old rule unchanged.
+            // tonic — a phrase ending on V is a half cadence and wants the
+            // dominant under it. On top of that, phrases alternate question
+            // and answer. An asking phrase ends ON its chord but OFF the
+            // chord's root: the classical imperfect close, settled enough to
+            // breathe, unsettled enough to need the next phrase. An answering
+            // phrase — and always the final bar — lands the root. Parity is
+            // the whole test; no knowledge of which chords the progression
+            // put where, so a period falls out of any progression at all.
             var croot = (ctx.chordRoot == null) ? 0 : ctx.chordRoot;
-            if (degree === croot) bonus += 3.0 * ctx.cadence;
-            else if (tones.indexOf(degree) >= 0) bonus += 0.5 * ctx.cadence;
+            if (ctx.cadOpen) {
+              if (tones.indexOf(degree) >= 0 && degree !== croot) bonus += 2.0 * ctx.cadence;
+              else if (degree === croot) bonus += 0.3 * ctx.cadence;
+            } else if (ctx.cadFinal) {
+              if (degree === croot) bonus += 6.0 * ctx.cadence;
+              else if (tones.indexOf(degree) >= 0) bonus += 0.5 * ctx.cadence;
+            } else {
+              // The approach. Rewarding the root here was self-defeating: an
+              // early arrival only has to leave again (the unison ban) and
+              // rarely gets back in one move. So the notes before the close
+              // aim NEXT to the root — a step or a third away, where the
+              // final note can reach it — and landing on it early costs.
+              var dr = ((degree - croot) % ctx.N + ctx.N) % ctx.N;
+              dr = Math.min(dr, ctx.N - dr);
+              if (dr === 1 || dr === 2) bonus += 1.5 * ctx.cadence;
+              else if (dr === 0) bonus -= 1.0 * ctx.cadence;
+            }
           }
           if (leap) {                                                                 // gap-fill: step back after a leap
             // …unless the leap is a chordal skip carrying on: chord tone to
@@ -579,14 +597,27 @@
         // made the cadence fire early and the contour arch run fast in 3/4
         // and 6/8.
         var barQ = currentMeasure.Duration.RealValue * 4;
-        var cadence = ((phrasePos === 3 || lastM) && beatF >= barQ / 2) ? (lastM ? 1.5 : 0.8) : 0;
+        // The second half of a phrase-end bar drifts toward the cadence; the
+        // bar's FINAL note carries most of the weight. Flat weighting landed
+        // the root early, got pushed off it (the unison ban), and left the
+        // actual last note under no more pressure than its neighbours — the
+        // close rate sat at chance. The walk knows this note's duration, so
+        // it knows when it is placing the one the phrase will be judged by.
+        var lastNote = beatF + duration.RealValue * 4 >= barQ - 0.05;
+        var cadence = ((phrasePos === 3 || lastM) && beatF >= barQ / 2)
+          ? (lastM ? 1.5 : 0.8) * (lastNote ? 2.5 : 0.6) : 0;
+        // Phrases alternate question and answer. The first and third phrases
+        // end open; the second, fourth and always the final bar close. Parity
+        // is the whole test — what "open" and "closed" mean melodically is
+        // decided at the pick (see the cadence branch there).
+        var cadOpen = (Math.floor(mi / 4) % 2 === 0) && !lastM;
         var progress = Math.max(0, Math.min(1, (mi + beatF / barQ) / totalM));
         var targetP = PMIN + (PMAX - PMIN) * (0.35 + 0.4 * Math.sin(Math.PI * progress));   // gentle arch
         delta = pickMusicalDelta(alpha, {
           phrase: phrase, pull: chord * anchor * PULL_MAX, p: oldP, N: N,
           pMin: PMIN, pMax: PMAX, chordTones: chordTones, chordRoot: root % N,
-          cadence: cadence, targetP: targetP, prevDelta: this._prevDelta || 0,
-          oblige: oblige, smooth: smooth
+          cadence: cadence, cadOpen: cadOpen, cadFinal: lastNote, targetP: targetP,
+          prevDelta: this._prevDelta || 0, oblige: oblige, smooth: smooth
         });
       } else {
         delta = pickDelta(alpha);
