@@ -114,6 +114,22 @@
   var NCT_STEP = 1.5;
   var NCT_LEAP = 0.9;
 
+  // Pitch memory. The rhythm echo has remembered each phrase-start bar and
+  // replayed it for a while now; pitch walked on unrelated, so bar two
+  // recalled bar one's rhythm while its notes had never met — backwards from
+  // how melody works, where what returns is a SHAPE. The phrase-start bar
+  // now records the deltas it actually took, and an echo bar replays them at
+  // the same note positions as a strong preference: strong enough to be
+  // heard as a sequence, and by now the shape has to argue against five
+  // milestones of other opinions — pull, momentum, dissonance grammar — so
+  // it speaks at the seam rules' volume. A cadence still outvotes it (6x on
+  // the phrase's last note), and the chord pull still vetoes a dissonant
+  // exact interval on a beat, which is precisely the tonal-sequence bend.
+  // The echo bar's FIRST note is placed by the seam rules like any other, so
+  // the harmony chooses each repetition's transposition — which is what a
+  // sequence is.
+  var MOTIF_PULL = 6.0;
+
   // The dominant, as a 0-based scale degree: 0 is I, so 4 is V. Named because
   // it is asked for in two places that must agree — the seventh added to its
   // chord here, and the leading tone raised in its bars in minor.
@@ -315,6 +331,18 @@
                                 : (Math.abs(mv.d) === 1 ? NCT_STEP : -NCT_LEAP);
           }
           if (ctx.targetP != null && Math.abs(np - ctx.targetP) < Math.abs(ctx.p - ctx.targetP)) bonus += 0.5; // contour
+          if (ctx.motif != null && mv.d !== 0 && ctx.motif !== 0) {                    // the phrase's shape, returning
+            // A tonal sequence, not a real one: the exact interval is worth
+            // the most, but same direction at nearly the size still reads as
+            // the shape — and leaves the chord pull free to pick whichever
+            // variant fits the new harmony, which is how sequences actually
+            // bend as they climb.
+            if (mv.d === ctx.motif) bonus += MOTIF_PULL;
+            else if ((mv.d > 0) === (ctx.motif > 0) &&
+                     Math.abs(Math.abs(mv.d) - Math.abs(ctx.motif)) === 1) bonus += MOTIF_PULL * 0.6;
+          } else if (ctx.motif === 0 && mv.d === 0) {
+            bonus += MOTIF_PULL;
+          }
         }
         mv.sw = mv.w * (1 + ph * bonus);
         // guard 2 lives in the `mv.d === 0` half of this test: a unison is
@@ -494,9 +522,23 @@
         if (!carry && mm > 0 && phrasePosR > 0 && this._motifCells && Math.random() < mm * 0.85) {
           cells = this._motifCells.map(copyCell);
           if (Math.random() < 0.4) cells = varyBar(cells, this.options.beatPatterns);
+          // An echo bar echoes pitch as well as rhythm (see MOTIF_PULL): the
+          // walk will replay the phrase-start bar's recorded deltas as a
+          // strong preference, note for note.
+          this._echoPitch = true;
+          this._recordPitch = false;
         } else {
           cells = drawFreshBar(this.options.beatPatterns, remaining);
-          if (!carry && mm > 0 && phrasePosR === 0) this._motifCells = cells.map(copyCell);
+          this._echoPitch = false;
+          this._recordPitch = false;
+          if (!carry && mm > 0 && phrasePosR === 0) {
+            this._motifCells = cells.map(copyCell);
+            // The phrase-start bar states the idea in pitch too: record the
+            // deltas the walk actually takes (post-reflection, so the shape
+            // remembered is the shape that sounded).
+            this._motifDeltas = [];
+            this._recordPitch = true;
+          }
         }
         this._beatQueue = carry ? [carry] : [];
         for (var ci = 0; ci < cells.length; ci++) this._beatQueue = this._beatQueue.concat(cells[ci]);
@@ -598,6 +640,18 @@
         }
         this._seamMeasure = mi;
 
+        // Note ordinal within the bar, for the pitch motif. The first walked
+        // note is the seam — its placement (and with it the sequence's
+        // transposition) belongs to the seam rules — so deltas are recorded
+        // and replayed from the second walked note on.
+        if (this._noteBar !== mi) { this._noteBar = mi; this._noteIdx = 0; }
+        else this._noteIdx++;
+        var motif = null;
+        if (this._echoPitch && this._noteIdx >= 1 && this._motifDeltas &&
+            this._motifDeltas[this._noteIdx - 1] != null) {
+          motif = this._motifDeltas[this._noteIdx - 1];
+        }
+
         // Where this note falls in the bar, in felt pulses — a quarter in the
         // simple meters, a dotted quarter in 6/8, so "on the beat" means the
         // same thing to a reader in every meter.
@@ -642,7 +696,8 @@
           phrase: phrase, pull: chord * anchor * PULL_MAX, p: oldP, N: N,
           pMin: PMIN, pMax: PMAX, chordTones: chordTones, chordRoot: root % N,
           cadence: cadence, cadOpen: cadOpen, cadFinal: lastNote, targetP: targetP,
-          prevDelta: this._prevDelta || 0, oblige: oblige, smooth: smooth
+          prevDelta: this._prevDelta || 0, oblige: oblige, smooth: smooth,
+          motif: motif
         });
       } else {
         delta = pickDelta(alpha);
@@ -684,6 +739,11 @@
       if (np > PMAX) np = PMAX;
       if (np < PMIN) np = PMIN;
       this._prevDelta = np - oldP;
+      // The shape remembered is the shape that sounded: deltas are recorded
+      // after reflection and any chromatic figure had their say.
+      if (this._recordPitch && this._noteIdx >= 1 && this._motifDeltas) {
+        this._motifDeltas.push(np - oldP);
+      }
       this._p = np;
       this._alterDir = alterDir;
     }

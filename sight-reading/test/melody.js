@@ -75,7 +75,7 @@ function newAcc() {
            seam: { n: 0, jump: 0, near: 0, opt: 0 }, anchor: { n: 0, jump: 0 },
            ob: { n: 0, jump: 0, res: 0 }, lead: { n: 0, res: 0 }, sev: { n: 0, res: 0 },
            starts: [], q: { n: 0, tone: 0, root: 0 }, ans: { n: 0, tone: 0, root: 0 },
-           nct: { n: 0, ok: 0 }, off: { n: 0, step: 0 } };
+           nct: { n: 0, ok: 0 }, off: { n: 0, step: 0 }, ctr: { n: 0, hit: 0 } };
 }
 
 function collect(xml, tonic, roots, a) {
@@ -127,6 +127,25 @@ function collect(xml, tonic, roots, a) {
     if (s !== 0) a.lastSgn = s;
   }
   if (a.run > 0) { a.runs.push(a.run); a.run = 0; a.lastSgn = 0; }
+
+  // Contour memory: how much of the phrase-start bar's shape returns in the
+  // two bars that may echo it. In-bar delta sequences compared at the same
+  // ordinal against the phrase's opening bar; the cadence bar is excluded —
+  // it answers to the cadence, not the motif.
+  for (let p = 0; p + 3 < bars.length; p += 4) {
+    const dseq = (b) => b.slice(1).map((n, j) => n.pos - b[j].pos);
+    const base = dseq(bars[p]);
+    if (base.length < 2) continue;
+    for (let k = 1; k <= 2; k++) {
+      const d = dseq(bars[p + k]);
+      const m = Math.min(base.length, d.length);
+      for (let j = 0; j < m; j++) {
+        a.ctr.n++;
+        if (d[j] === base[j]) a.ctr.hit++;
+        if (Math.sign(d[j]) === Math.sign(base[j])) a.ctr.dir = (a.ctr.dir || 0) + 1;
+      }
+    }
+  }
 
   // Phrase endings — the question/answer split. A phrase-end bar's last note
   // scored against that bar's own chord: the root is a close, another chord
@@ -195,7 +214,7 @@ function collect(xml, tonic, roots, a) {
     M.value = x; M.dispatchEvent(new Event('input')); M.dispatchEvent(new Event('change')); }, v);
 
   console.log(`${GENS} exercises per row.  jump/near in staff steps; opt = took a jump no wider than the nearest option.`);
-  console.log('preset            dial │ seam jump near  opt │ anchr │ obliged n res │ lead n res │ 7th n res │ same/step/3rd/wide │ run │ starts d tone │ Qopen Aclose │ nct n ok offstep');
+  console.log('preset            dial │ seam jump near  opt │ anchr │ obliged n res │ lead n res │ 7th n res │ same/step/3rd/wide │ run │ starts d tone │ Qopen Aclose │ nct n ok offstep │ ctr');
 
   for (const [label, rx] of [['Arpeggios', 'arpegg'], ['Mixed Intervals', 'mixed int'], ['Minor Cadences', 'caden']]) {
     await p.evaluate((r) => {
@@ -225,7 +244,8 @@ function collect(xml, tonic, roots, a) {
       const qo = pc(a.q.tone - a.q.root, a.q.n), ac = pc(a.ans.root, a.ans.n);
       const nc = pc(a.nct.ok, a.nct.n), os = pc(a.off.step, a.off.n);
       const ni = pc(a.nct.in || 0, a.nct.n), no = pc(a.nct.out || 0, a.nct.n);
-      console.log(`${label.padEnd(16)} ${f(dial)} │ ${f(avg(a.seam.jump, a.seam.n))} ${f(avg(a.seam.near, a.seam.n))} ${f(pc(a.seam.opt, a.seam.n))} │ ${f(avg(a.anchor.jump, a.anchor.n))} │ ${f(a.ob.n, 6)} ${f(pc(a.ob.res, a.ob.n))} │ ${f(a.lead.n, 3)} ${f(pc(a.lead.res, a.lead.n))} │ ${f(a.sev.n, 2)} ${f(pc(a.sev.res, a.sev.n))} │ ${f(pc(a.iv.same, a.moves), 3)} ${f(pc(a.iv.step, a.moves), 4)} ${f(pc(a.iv.third, a.moves), 4)} ${f(pc(a.iv.wide, a.moves), 4)} │ ${mrun} │ ${f(sd, 2)} ${f(st, 4)} │ ${f(qo, 4)} ${f(ac, 4)} │ ${f(a.nct.n, 4)} ${f(nc, 4)} in${f(ni, 4)} out${f(no, 4)} ${f(os, 4)}`);
+      const ct = pc(a.ctr.hit, a.ctr.n), cd = pc(a.ctr.dir || 0, a.ctr.n);
+      console.log(`${label.padEnd(16)} ${f(dial)} │ ${f(avg(a.seam.jump, a.seam.n))} ${f(avg(a.seam.near, a.seam.n))} ${f(pc(a.seam.opt, a.seam.n))} │ ${f(avg(a.anchor.jump, a.anchor.n))} │ ${f(a.ob.n, 6)} ${f(pc(a.ob.res, a.ob.n))} │ ${f(a.lead.n, 3)} ${f(pc(a.lead.res, a.lead.n))} │ ${f(a.sev.n, 2)} ${f(pc(a.sev.res, a.sev.n))} │ ${f(pc(a.iv.same, a.moves), 3)} ${f(pc(a.iv.step, a.moves), 4)} ${f(pc(a.iv.third, a.moves), 4)} ${f(pc(a.iv.wide, a.moves), 4)} │ ${mrun} │ ${f(sd, 2)} ${f(st, 4)} │ ${f(qo, 4)} ${f(ac, 4)} │ ${f(a.nct.n, 4)} ${f(nc, 4)} in${f(ni, 4)} out${f(no, 4)} ${f(os, 4)} │ ${f(ct, 4)} dir${f(cd, 4)}`);
     }
   }
   console.log('errors:', errs);

@@ -162,7 +162,7 @@ geometry attribute, so the bar glides in every engine rather than only where
 cx/cy/r happen to be animatable — and it glides through a change of interval
 even with beams overhead, because the x positions depend only on the durations.
 
-### 4.6 · Musical lines — dissonance grammar done; the sequence remains
+### 4.6 · Musical lines — DONE, all six milestones
 A campaign against the ways the walk still sounds like a walk, measured end
 to end by `test/melody.js` (built first, engine touched second). Standing
 rules for every entry: no rule ever names a preset, progression, key or
@@ -224,7 +224,18 @@ rides the musicality dial, so zero stays a pure random walk.
    not planned: obliged seam resolutions rose to 94–98% and the dominant
    seventh's fall to ~65%, because the seventh IS a dissonance leaving by
    step.
-6. Pitch motif and sequence — the rhythm echo machinery learns contour.
+6. **Pitch motif and sequence — DONE.** The phrase-start bar records the
+   deltas the walk actually took (post-reflection: the shape remembered is
+   the shape that sounded); an echo bar replays them at the same note
+   ordinals as a strong preference. A tonal sequence, not a real one — the
+   exact interval scores highest, same-direction-nearly-the-size scores
+   most of it, and the chord pull is left free to bend the shape into each
+   new harmony, which is how sequences actually climb. The echo bar's
+   first note is placed by the seam rules like any note, so the harmony
+   picks each repetition's transposition. Contour similarity between a
+   phrase's opening bar and its echoes: ~27% exact-delta (from 7–18%
+   chance), with the strict metric underselling what the page shows —
+   bars visibly rhyme, and descending two-note sequences appear.
 
 ### 5 · The feedback loop — ramp built, then cut; the rest needs a decision
 Adaptive letting-go and weak-spot targeting both need the app to know how
