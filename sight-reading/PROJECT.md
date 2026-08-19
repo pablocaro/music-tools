@@ -276,6 +276,15 @@ skill on its own.
   made "Ramp: On" beside "Hide Ahead: Off" a dead control wearing a live face.
   The idea (pressure that creeps per finished line) may return as part of Hide
   Ahead itself rather than as a sibling switch.
+- Modal minor (the lowercase v) — deliberately not supported, for now. Every
+  degree-4 bar in minor gets the raised leading tone and the seventh: the
+  classical dialect, hardcoded. Folk/pop progressions built on the natural
+  minor v (i–v–VI–VII and friends) would come out wearing a tuxedo. Opening
+  that door costs one honest bit on the progression definition (`modal:
+  true`) respected in the two places that share the DOMINANT constant — plus
+  accepting that modal cadences lose the leading tone, their strongest
+  tendency tone, and close softer. Decided 2026-08: classical is enough for
+  a sight-reading trainer today.
 
 ## Tweaks — dragging the design instead of describing it
 
