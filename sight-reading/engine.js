@@ -101,6 +101,19 @@
   // the same room, so the comparison never happens.
   var MOMENTUM = 1.4;
 
+  // Non-chord tones have jobs. A note off the current chord reads as a
+  // passing or neighbour figure exactly when it is approached by step and
+  // left by step; leapt onto or leapt away from, it is just a note that
+  // happens to be off the chord — the thing every counterpoint teacher
+  // circles. Two rules, both sides of the same coin: don't leap ONTO a
+  // dissonance (damping, not a bonus, so the rate of non-chord tones is not
+  // inflated — only their treatment), and once ON one, leave by step. Strong
+  // enough to overrule a 3rd-heavy alphabet, deliberately: the alphabet says
+  // which intervals the line is made of, but dissonance treatment is grammar,
+  // and a 4:1 weight on thirds should not buy leaps off a dissonance.
+  var NCT_STEP = 1.5;
+  var NCT_LEAP = 0.9;
+
   // The dominant, as a 0-based scale degree: 0 is I, so 4 is V. Named because
   // it is asked for in two places that must agree — the seventh added to its
   // chord here, and the leading tone raised in its bars in minor.
@@ -244,6 +257,10 @@
         }
       }
 
+      // Whether the note we stand on is off the current chord — a dissonance
+      // that owes its exit a step (see NCT_STEP).
+      var offHome = tones.length > 0 && tones.indexOf(degreeAt(0)) < 0;
+
       var last = -1;
       for (j = 0; j < moves.length; j++) {
         var mv = moves[j], np = ctx.p + mv.d, degree = degreeAt(mv.d), bonus = 0;
@@ -288,6 +305,14 @@
             if (Math.abs(mv.d) >= 2 && !arp) bonus -= 0.5;
           } else if (ctx.prevDelta !== 0) {                                           // momentum: a step begun carries
             if (mv.d !== 0 && (mv.d > 0) === (ctx.prevDelta > 0)) bonus += MOMENTUM;
+          }
+          if (tones.length > 0) {                                                     // dissonances are stepwise business
+            if (mv.d !== 0 && Math.abs(mv.d) >= 2 && tones.indexOf(degree) < 0) bonus -= NCT_LEAP;
+            // Sitting on one is no better than leaping off it: a repeated
+            // dissonance is a job postponed, and the postponer fails 'left
+            // by step' just as surely as a leap does.
+            if (offHome) bonus += (mv.d === 0) ? -NCT_LEAP
+                                : (Math.abs(mv.d) === 1 ? NCT_STEP : -NCT_LEAP);
           }
           if (ctx.targetP != null && Math.abs(np - ctx.targetP) < Math.abs(ctx.p - ctx.targetP)) bonus += 0.5; // contour
         }

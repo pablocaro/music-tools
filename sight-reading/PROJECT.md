@@ -162,7 +162,7 @@ geometry attribute, so the bar glides in every engine rather than only where
 cx/cy/r happen to be animatable — and it glides through a change of interval
 even with beams overhead, because the x positions depend only on the durations.
 
-### 4.6 · Musical lines — question-and-answer done; two milestones left
+### 4.6 · Musical lines — dissonance grammar done; the sequence remains
 A campaign against the ways the walk still sounds like a walk, measured end
 to end by `test/melody.js` (built first, engine touched second). Standing
 rules for every entry: no rule ever names a preset, progression, key or
@@ -212,7 +212,18 @@ rides the musicality dial, so zero stays a pure random walk.
    self-defeating, since the unison ban forces the line off it and it
    rarely gets back in one move. Questions open ~80%, answers close ~66%,
    from chance (~50/~40).
-5. Passing and neighbour figures for the off-beats.
+5. **Non-chord tones have jobs — DONE.** Two rules, both sides of one
+   coin: don't leap onto a dissonance (damping, so the rate of non-chord
+   tones is not inflated — only their treatment), and once on one, leave
+   by step — a repeated dissonance counts as a postponed job and is
+   penalised the same. Strong enough to overrule a 3rd-heavy alphabet on
+   purpose: the alphabet is vocabulary, dissonance treatment is grammar.
+   Entries by step ~84%, complete passing/neighbour figures ~51% (from
+   ~33%), with the residual exits owned by rules that legitimately outrank
+   the step (seam obligations, cadence landings). Side benefit measured,
+   not planned: obliged seam resolutions rose to 94–98% and the dominant
+   seventh's fall to ~65%, because the seventh IS a dissonance leaving by
+   step.
 6. Pitch motif and sequence — the rhythm echo machinery learns contour.
 
 ### 5 · The feedback loop — ramp built, then cut; the rest needs a decision

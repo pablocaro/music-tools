@@ -66,7 +66,7 @@ function parse(xml, tonic) {
     });
     let t = 0;
     for (const n of notes) { n.beat = t / div; t += n.dur; }
-    return notes.filter((n) => !n.rest && n.pos != null);
+    return notes;   // rests kept — adjacency tests need to see them
   });
 }
 
@@ -74,14 +74,45 @@ function newAcc() {
   return { moves: 0, iv: { same: 0, step: 0, third: 0, wide: 0 }, runs: [], run: 0, lastSgn: 0,
            seam: { n: 0, jump: 0, near: 0, opt: 0 }, anchor: { n: 0, jump: 0 },
            ob: { n: 0, jump: 0, res: 0 }, lead: { n: 0, res: 0 }, sev: { n: 0, res: 0 },
-           starts: [], q: { n: 0, tone: 0, root: 0 }, ans: { n: 0, tone: 0, root: 0 } };
+           starts: [], q: { n: 0, tone: 0, root: 0 }, ans: { n: 0, tone: 0, root: 0 },
+           nct: { n: 0, ok: 0 }, off: { n: 0, step: 0 } };
 }
 
 function collect(xml, tonic, roots, a) {
-  const bars = parse(xml, tonic);
+  const evBars = parse(xml, tonic);
+  const bars = evBars.map((b) => b.filter((n) => !n.rest && n.pos != null));
 
-  // Fingerprint over the whole line.
-  const flat = [].concat(...bars);
+  // Fingerprint over the whole line (each note keeps its bar for chord tests).
+  const flat = [];
+  bars.forEach((b, bi) => b.forEach((n) => flat.push({ pos: n.pos, deg: n.deg, beat: n.beat, bar: bi })));
+
+  // Non-chord tones and how they are treated. A non-chord tone with a job —
+  // passing or neighbour — is entered by step and left by step. Judged over
+  // the EVENT stream, rests included: a dissonance beside silence has no line
+  // to judge, so it is excluded rather than failed. Also: of all moves that
+  // LAND off the beat, how many are steps — leaps belong to the beats and the
+  // chords, and the space between the beats is stepwise business.
+  const evFlat = [];
+  evBars.forEach((b, bi) => b.forEach((n) => evFlat.push({ pos: n.pos, deg: n.deg, beat: n.beat, rest: n.rest, bar: bi })));
+  const isNote = (e) => e && !e.rest && e.pos != null;
+  for (let i = 1; i < evFlat.length - 1; i++) {
+    const n = evFlat[i];
+    if (!isNote(n)) continue;
+    const pv = evFlat[i - 1], nx = evFlat[i + 1];
+    if (!chordOf(roots[n.bar % roots.length]).includes(n.deg)) {
+      if (!isNote(pv) || !isNote(nx)) continue;
+      a.nct.n++;
+      const inOk = Math.abs(n.pos - pv.pos) === 1;
+      const outOk = Math.abs(nx.pos - n.pos) === 1;
+      if (inOk) a.nct.in = (a.nct.in || 0) + 1;
+      if (outOk) a.nct.out = (a.nct.out || 0) + 1;
+      if (inOk && outOk) a.nct.ok++;
+    }
+    if (Math.abs(n.beat - Math.round(n.beat)) >= 0.02 && isNote(pv)) {
+      a.off.n++;
+      if (Math.abs(n.pos - pv.pos) === 1) a.off.step++;
+    }
+  }
   // The opening note — one per exercise. Distinct starts across a batch is
   // the anti-tell metric; membership in the first bar's chord is the musical
   // one (only expected once the dial is up).
@@ -164,7 +195,7 @@ function collect(xml, tonic, roots, a) {
     M.value = x; M.dispatchEvent(new Event('input')); M.dispatchEvent(new Event('change')); }, v);
 
   console.log(`${GENS} exercises per row.  jump/near in staff steps; opt = took a jump no wider than the nearest option.`);
-  console.log('preset            dial │ seam jump near  opt │ anchr │ obliged n res │ lead n res │ 7th n res │ same/step/3rd/wide │ run │ starts d tone │ Qopen Aclose');
+  console.log('preset            dial │ seam jump near  opt │ anchr │ obliged n res │ lead n res │ 7th n res │ same/step/3rd/wide │ run │ starts d tone │ Qopen Aclose │ nct n ok offstep');
 
   for (const [label, rx] of [['Arpeggios', 'arpegg'], ['Mixed Intervals', 'mixed int'], ['Minor Cadences', 'caden']]) {
     await p.evaluate((r) => {
@@ -192,7 +223,9 @@ function collect(xml, tonic, roots, a) {
       const sd = new Set(a.starts.map((s) => s.pos)).size;
       const st = pc(a.starts.filter((s) => s.tone).length, a.starts.length);
       const qo = pc(a.q.tone - a.q.root, a.q.n), ac = pc(a.ans.root, a.ans.n);
-      console.log(`${label.padEnd(16)} ${f(dial)} │ ${f(avg(a.seam.jump, a.seam.n))} ${f(avg(a.seam.near, a.seam.n))} ${f(pc(a.seam.opt, a.seam.n))} │ ${f(avg(a.anchor.jump, a.anchor.n))} │ ${f(a.ob.n, 6)} ${f(pc(a.ob.res, a.ob.n))} │ ${f(a.lead.n, 3)} ${f(pc(a.lead.res, a.lead.n))} │ ${f(a.sev.n, 2)} ${f(pc(a.sev.res, a.sev.n))} │ ${f(pc(a.iv.same, a.moves), 3)} ${f(pc(a.iv.step, a.moves), 4)} ${f(pc(a.iv.third, a.moves), 4)} ${f(pc(a.iv.wide, a.moves), 4)} │ ${mrun} │ ${f(sd, 2)} ${f(st, 4)} │ ${f(qo, 4)} ${f(ac, 4)}`);
+      const nc = pc(a.nct.ok, a.nct.n), os = pc(a.off.step, a.off.n);
+      const ni = pc(a.nct.in || 0, a.nct.n), no = pc(a.nct.out || 0, a.nct.n);
+      console.log(`${label.padEnd(16)} ${f(dial)} │ ${f(avg(a.seam.jump, a.seam.n))} ${f(avg(a.seam.near, a.seam.n))} ${f(pc(a.seam.opt, a.seam.n))} │ ${f(avg(a.anchor.jump, a.anchor.n))} │ ${f(a.ob.n, 6)} ${f(pc(a.ob.res, a.ob.n))} │ ${f(a.lead.n, 3)} ${f(pc(a.lead.res, a.lead.n))} │ ${f(a.sev.n, 2)} ${f(pc(a.sev.res, a.sev.n))} │ ${f(pc(a.iv.same, a.moves), 3)} ${f(pc(a.iv.step, a.moves), 4)} ${f(pc(a.iv.third, a.moves), 4)} ${f(pc(a.iv.wide, a.moves), 4)} │ ${mrun} │ ${f(sd, 2)} ${f(st, 4)} │ ${f(qo, 4)} ${f(ac, 4)} │ ${f(a.nct.n, 4)} ${f(nc, 4)} in${f(ni, 4)} out${f(no, 4)} ${f(os, 4)}`);
     }
   }
   console.log('errors:', errs);
