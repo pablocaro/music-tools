@@ -186,6 +186,70 @@ const OUT = process.env.OUT || '/tmp/';
   await p.click('#tw-reset'); await p.waitForTimeout(200);
   console.log('reset    : ' + JSON.stringify(await tokens(p)));
 
+  // 6 · the viewport baseline
+  // Four tokens are overridden below 720px. The panel used to seed its sliders
+  // from the desktop numbers and then write them inline on <html>, where they
+  // outrank the media query — so opening it on a phone restored desktop
+  // spacing and every "was" it printed named a value that screen never had.
+  // These four checks are that bug, from three angles.
+  const RESP = ['--page-pad', '--music-gutter', '--fs-4-base', '--tb-gap'];
+  const rootOf = (pg) => pg.evaluate((t) => {
+    const cs = getComputedStyle(document.documentElement);
+    const o = { __inline: document.documentElement.getAttribute('style') || '' };
+    t.forEach((k) => { o[k] = cs.getPropertyValue(k).trim(); });
+    return o;
+  }, RESP);
+  const say = (name, cond, detail) => {
+    console.log(`${cond ? '  ok  ' : 'FAIL  '}${name}${detail ? '  ' + detail : ''}`);
+    if (!cond) errs.push(name);
+  };
+
+  const phone = await b.newContext({ viewport: { width: 390, height: 844 } });
+  let ph = await phone.newPage();
+  await ph.goto('http://localhost:8091/', { waitUntil: 'networkidle' });          // no ?tweaks
+  await ph.waitForTimeout(900);
+  const bare = await rootOf(ph); await ph.close();
+
+  ph = await phone.newPage();
+  await ph.goto('http://localhost:8091/?tweaks', { waitUntil: 'networkidle' });
+  await ph.waitForTimeout(900);
+  const withPanel = await rootOf(ph);
+  say('phone layout survives the panel', RESP.every((k) => bare[k] === withPanel[k]),
+      RESP.map((k) => k.replace('--', '') + ' ' + withPanel[k]).join(' '));
+  say('untouched tokens are not pinned inline', !RESP.some((k) => withPanel.__inline.includes(k)));
+
+  // "was" must name the phone's value, and flag that the base differs.
+  await ph.evaluate(() => {
+    const s = [...document.querySelectorAll('#tw input[type=range]')]
+      .find((i) => i.getAttribute('aria-label') === 'Page margin');
+    s.value = 24; s.dispatchEvent(new Event('input'));
+  });
+  await ph.waitForTimeout(500);
+  const phBlock = await ph.evaluate(() => {
+    let got = null;
+    const real = navigator.clipboard && navigator.clipboard.writeText;
+    if (real) navigator.clipboard.writeText = (t) => { got = t; return Promise.resolve(); };
+    document.getElementById('tw-copy').click();
+    return new Promise((r) => setTimeout(() => r(got), 150));
+  });
+  say('"was" names the phone value, not the desktop one',
+      /was 16px/.test(phBlock) && !/was 48px/.test(phBlock));
+  say('the prompt flags the override', /overridden for this screen/.test(phBlock) && /48px on the base/.test(phBlock));
+  await ph.close(); await phone.close();
+
+  // A resize across the breakpoint still re-evaluates, since untouched tokens
+  // were never pinned.
+  const wide = await b.newContext({ viewport: { width: 1280, height: 900 } });
+  const wp = await wide.newPage();
+  await wp.goto('http://localhost:8091/?tweaks', { waitUntil: 'networkidle' }); await wp.waitForTimeout(900);
+  const atDesk = await rootOf(wp);
+  await wp.setViewportSize({ width: 390, height: 844 }); await wp.waitForTimeout(600);
+  const afterRotate = await rootOf(wp);
+  say('desktop is unchanged by the panel', atDesk['--page-pad'] === '48px', atDesk['--page-pad']);
+  say('resize past 720px re-evaluates', afterRotate['--page-pad'] === '16px' && afterRotate['--tb-gap'] === '16px',
+      `page-pad ${afterRotate['--page-pad']} tb-gap ${afterRotate['--tb-gap']}`);
+  await wp.close(); await wide.close();
+
   console.log('errors:', JSON.stringify(errs));
   await b.close();
   process.exit(errs.length ? 1 : 0);

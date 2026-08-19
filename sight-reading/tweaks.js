@@ -26,8 +26,9 @@
 
   if (!/[?&]tweaks(?:[=&]|$)/.test(location.search)) return;
 
-  var KEY = "sr_tweaks:v15";      // bumped when the defaults move, so a stored
+  var KEY = "sr_tweaks:v16";      // bumped when the defaults move, so a stored
                                  // set of slider values cannot mask the new baseline
+                                 // (v16: stores only what moved — see save())
   var FOLD = "sr_tweaks_fold";
 
   // 1 · Defaults — one flat object, one entry per decision. Every value here is
@@ -246,25 +247,63 @@
     motion: "--motion", reduceMotion: ".reduce-motion on <html>"
   };
 
+  // --- the baseline this viewport actually shipped -------------------------
+  // DEFAULTS is one flat object, but the stylesheet's defaults are conditional:
+  // four tokens change under the 720px media query. The panel used to ignore
+  // that twice over. It seeded its sliders from the desktop numbers, and then
+  // apply() wrote them inline on <html>, where they outrank the media query —
+  // so merely opening the panel on a phone restored desktop spacing (a 390px
+  // screen got a 48px page margin), and every "was" reported afterwards named
+  // a value that viewport had never had.
+  //
+  // So the baseline is read rather than assumed, and read BEFORE the first
+  // apply(), while :root is still the only thing setting these. Anything that
+  // is not a plain number with a simple unit keeps its DEFAULTS entry, so an
+  // exotic value degrades to the old behaviour instead of to nonsense.
+  var NUMERIC = /^-?\d*\.?\d+(px|ms|s|em|rem|%|deg)?$/;
+  var SHIPPED = (function () {
+    var cs = getComputedStyle(document.documentElement), v = {}, k, t, raw;
+    for (k in DEFAULTS) {
+      v[k] = DEFAULTS[k];
+      t = TOKEN[k];
+      if (!t || t.slice(0, 2) !== "--") continue;      // app.js knobs, class flags
+      raw = cs.getPropertyValue(t).trim();
+      if (NUMERIC.test(raw)) v[k] = parseFloat(raw);
+    }
+    return v;
+  })();
+
   // --- state ---------------------------------------------------------------
   var state = load();
 
   function load() {
     var v = {}, k;
-    for (k in DEFAULTS) v[k] = DEFAULTS[k];
+    for (k in DEFAULTS) v[k] = SHIPPED[k];
     try {
       var raw = JSON.parse(localStorage.getItem(KEY) || "{}");
       for (k in DEFAULTS) if (typeof raw[k] === "number") v[k] = raw[k];
     } catch (e) {}
     return v;
   }
+  // Only what was actually moved is stored. Storing the whole set conflated
+  // "the user chose 48" with "48 was the desktop default at the time", which
+  // is what let a phone reload into desktop spacing even after the seeding
+  // above was right — and it makes one saved set mean the same thing on both
+  // viewports, since an untouched token now falls to whatever that screen
+  // ships rather than to whatever screen it was last saved from.
   function save() {
-    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+    try {
+      var out = {}, k;
+      for (k in DEFAULTS) if (state[k] !== SHIPPED[k]) out[k] = state[k];
+      localStorage.setItem(KEY, JSON.stringify(out));
+    } catch (e) {}
   }
 
   // 3 · Wiring — the one place a value becomes a CSS variable. Set on <html>,
   //     so these inline properties beat the stylesheet's :root, including the
   //     mobile media query (deliberate: on a phone the sliders still bite).
+  //     Only for values that were moved, though — see the release pass at the
+  //     end, and SHIPPED above for why that distinction had to be drawn.
   function apply() {
     var el = document.documentElement, r = el.style;
 
@@ -346,6 +385,20 @@
       window.__srLayout.perLine = state.perLine;
       window.__srLayout.zoomCap = state.staffSize;
     }
+
+    // Then hand back everything that was not actually moved. Writing all 60
+    // inline pinned them to whatever the viewport was at load: an untouched
+    // token could no longer answer a media query, so rotating a phone past
+    // 720px — or opening the panel on one at all — froze the layout at the
+    // other screen's spacing. An inline property is how a slider overrules
+    // the stylesheet, so only a moved slider should get one; the rest stay
+    // where the stylesheet can still reach them. Every token the panel drives
+    // is defined on :root, so removal always lands on a real value.
+    for (var k in DEFAULTS) {
+      if (state[k] === SHIPPED[k] && TOKEN[k] && TOKEN[k].slice(0, 2) === "--") {
+        r.removeProperty(TOKEN[k]);
+      }
+    }
   }
 
   // A control the engraver cares about needs the score laid out again. app.js
@@ -376,17 +429,28 @@
   }
 
   // 5 · The block you paste back — only what moved, named by its token.
+  //     "was" names what THIS viewport shipped, not what the desktop :root
+  //     says, and where those differ the note says so: a number dragged on a
+  //     phone belongs in the media query, and pasting it as the base value
+  //     would move the desktop silently.
   function toPrompt() {
-    var lines = [], k;
+    var lines = [], notes = [], k;
     for (k in DEFAULTS) {
-      if (state[k] !== DEFAULTS[k]) {
+      if (state[k] !== SHIPPED[k]) {
         lines.push("  " + TOKEN[k] + ": " + shown(k, state[k]) +
-                   "   (was " + shown(k, DEFAULTS[k]) + ", " + ctl(k).label.toLowerCase() + ")");
+                   "   (was " + shown(k, SHIPPED[k]) + ", " + ctl(k).label.toLowerCase() + ")");
+        if (SHIPPED[k] !== DEFAULTS[k]) {
+          notes.push("  " + TOKEN[k] + " is overridden for this screen — " +
+                     shown(k, SHIPPED[k]) + " here, " + shown(k, DEFAULTS[k]) +
+                     " on the base :root. Change the override, not the base.");
+        }
       }
     }
     if (!lines.length) return "Nothing moved — the sight-reading defaults are unchanged.";
     return "Update the sight-reading design defaults:\n\n" +
-           lines.join("\n") + "\n\nEverything else unchanged.";
+           lines.join("\n") +
+           (notes.length ? "\n\nHeads up:\n" + notes.join("\n") : "") +
+           "\n\nEverything else unchanged.";
   }
 
   // --- 4 · panel -----------------------------------------------------------
@@ -598,7 +662,7 @@
     });
 
     reset.addEventListener("click", function () {
-      for (var k in DEFAULTS) state[k] = DEFAULTS[k];
+      for (var k in DEFAULTS) state[k] = SHIPPED[k];   // back to what this screen ships
       apply(); save(); nudge();
       syncers.forEach(function (f) { f(); });
     });
