@@ -1317,6 +1317,13 @@
       { id: "ii-V-I",     roots: [1, 4, 0] }
     ],
     minor: [
+      // First on purpose: an id from the other mode falls back to the mode's
+      // first entry, and i-iv-V-i is I-IV-V-I's exact mirror — so flipping a
+      // major exercise into minor keeps the progression's identity instead of
+      // trading it for a different harmonic story. The engine already makes
+      // its V real: dominant bars raise the leading tone and carry the
+      // seventh, so this arrives as a true V7, not the diatonic minor v.
+      { id: "i-iv-V-i",   roots: [0, 3, 4, 0] },
       { id: "i-VI-VII-i", roots: [0, 5, 6, 0] },
       { id: "i-VII-VI-V", roots: [0, 6, 5, 4] }   // Andalusian
     ]

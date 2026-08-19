@@ -58,8 +58,11 @@ function parse(xml) {
   await p.waitForTimeout(900);
   await p.evaluate(() => document.getElementById('mode-cycle').click());
   await p.waitForTimeout(1200);
+  // By id, not by text: "contains V but not VII-i" also described i-iv-V-i
+  // the day that progression was added, and the test silently clicked it
+  // while still scoring bars against the Andalusian's layout.
   await p.evaluate(() => [...document.querySelectorAll('#progression-pills .opt')]
-    .find(x => x.textContent.includes('V') && !x.textContent.includes('VII–i')).click());
+    .find(x => x.dataset.prog === 'i-VII-VI-V').click());
   await p.waitForTimeout(1400);
   notes = parse(await p.evaluate(() => window.__xml));
   const prog = [0, 6, 5, 4];                       // i-VII-VI-V
