@@ -204,11 +204,25 @@ const OUT = process.env.OUT || '/tmp/';
     if (!cond) errs.push(name);
   };
 
+  // Both baselines are READ from an un-flagged page, never written down here.
+  // The first version of these checks hardcoded 16px, and the day the phone's
+  // page margin was tuned to 32 they failed while the panel was behaving
+  // perfectly — a test asserting a design decision it has no stake in. What
+  // it should assert is the relationship: the panel matches the page, and the
+  // prompt quotes this screen rather than the other one.
+  const wideBase = await b.newContext({ viewport: { width: 1280, height: 900 } });
+  let wb = await wideBase.newPage();
+  await wb.goto('http://localhost:8091/', { waitUntil: 'networkidle' });
+  await wb.waitForTimeout(900);
+  const baseRoot = await rootOf(wb); await wb.close(); await wideBase.close();
+
   const phone = await b.newContext({ viewport: { width: 390, height: 844 } });
   let ph = await phone.newPage();
   await ph.goto('http://localhost:8091/', { waitUntil: 'networkidle' });          // no ?tweaks
   await ph.waitForTimeout(900);
   const bare = await rootOf(ph); await ph.close();
+  say('the phone really does override the base', bare['--page-pad'] !== baseRoot['--page-pad'],
+      `phone ${bare['--page-pad']} vs base ${baseRoot['--page-pad']}`);
 
   ph = await phone.newPage();
   await ph.goto('http://localhost:8091/?tweaks', { waitUntil: 'networkidle' });
@@ -232,9 +246,12 @@ const OUT = process.env.OUT || '/tmp/';
     document.getElementById('tw-copy').click();
     return new Promise((r) => setTimeout(() => r(got), 150));
   });
-  say('"was" names the phone value, not the desktop one',
-      /was 16px/.test(phBlock) && !/was 48px/.test(phBlock));
-  say('the prompt flags the override', /overridden for this screen/.test(phBlock) && /48px on the base/.test(phBlock));
+  say('"was" names the phone value, not the base one',
+      phBlock.includes('was ' + bare['--page-pad']) && !phBlock.includes('was ' + baseRoot['--page-pad']),
+      `expected "was ${bare['--page-pad']}", never "was ${baseRoot['--page-pad']}"`);
+  say('the prompt flags the override',
+      /overridden for this screen/.test(phBlock) &&
+      phBlock.includes(baseRoot['--page-pad'] + ' on the base'));
   await ph.close(); await phone.close();
 
   // A resize across the breakpoint still re-evaluates, since untouched tokens
@@ -245,9 +262,11 @@ const OUT = process.env.OUT || '/tmp/';
   const atDesk = await rootOf(wp);
   await wp.setViewportSize({ width: 390, height: 844 }); await wp.waitForTimeout(600);
   const afterRotate = await rootOf(wp);
-  say('desktop is unchanged by the panel', atDesk['--page-pad'] === '48px', atDesk['--page-pad']);
-  say('resize past 720px re-evaluates', afterRotate['--page-pad'] === '16px' && afterRotate['--tb-gap'] === '16px',
-      `page-pad ${afterRotate['--page-pad']} tb-gap ${afterRotate['--tb-gap']}`);
+  say('desktop is unchanged by the panel', atDesk['--page-pad'] === baseRoot['--page-pad'],
+      `${atDesk['--page-pad']} vs base ${baseRoot['--page-pad']}`);
+  say('resize past 720px re-evaluates',
+      RESP.every((k) => afterRotate[k] === bare[k]),
+      RESP.map((k) => k.replace('--', '') + ' ' + afterRotate[k]).join(' '));
   await wp.close(); await wide.close();
 
   console.log('errors:', JSON.stringify(errs));
