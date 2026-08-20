@@ -2200,11 +2200,14 @@ button.secondary {
   .sheet-area { padding: 8px var(--music-gutter) 18px; }   /* its own floor down here */
   :root {
     --fs-4-base: 24px; /* the title steps down; the rest of the scale holds */
-    /* Kept at 16 while the desktop default came down to 8, so this is now twice
-       it rather than a nudge off it. That is a touch-target decision, not a
-       stylistic one — fingers need the separation that a cursor does not — but
-       it is a deliberate divergence rather than the small adjustment it was. */
-    --tb-gap: 16px;
+    /* Was 16 — double the desktop 8 — on the reasoning that fingers need
+       separation a cursor does not. That reasoning was aimed at the wrong
+       measurement: the buttons are 40px square, so the TARGETS are what clears
+       a fingertip, and the gap between them was only ever making the row look
+       loose. It reads as three buttons drifting apart on a phone, which is the
+       one screen where the header has no width to waste. Two pixels over
+       desktop is enough to acknowledge the thumb. */
+    --tb-gap: 10px;
   }
   /* The phone keeps its own vertical rhythm: 0.55 of a 16px inset would put
      9px over the title, and the notch needs more than that. */
