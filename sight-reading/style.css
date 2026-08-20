@@ -2184,8 +2184,14 @@ button.secondary {
    floor so narrow screens reflow instead of clipping. */
 @media (max-width: 720px) {
   :root {
-    --music-gutter: 14px;
-    --page-pad: 16px;
+    /* These two move in opposite directions on purpose, and only here — the
+       desktop pair stays 28/48. A phone has no width to spare for the staff,
+       so the music runs nearly to the edges; the page chrome above it wants
+       the opposite, because a title and a row of round buttons crammed to the
+       edge of a phone reads as an accident. Wider margin around the words,
+       narrower around the notes. */
+    --music-gutter: 8px;
+    --page-pad: 32px;
     /* No scale on the way in here: the card is the whole screen, and a screen
        that grows into place reads as a zoom rather than as a card arriving. It
        still rises, which is the part that carries the gesture. */
