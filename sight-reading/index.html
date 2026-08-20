@@ -273,8 +273,18 @@
 
             <section class="sec sec-musicality">
               <h2 class="sec-h" data-i18n="sec.musicality">How Musical?</h2>
+              <!-- Three stops, not twenty-one. The dial is genuinely
+                   continuous under the hood, but nobody can hear 65 against
+                   70, and the two ends plus the middle are the three settings
+                   that name themselves: a random walk, real music, and the
+                   place between them. The ends are labelled the way the
+                   interval matrix labels its own axis — the middle needs no
+                   word, since halfway between two labels is self-explanatory. -->
               <div class="sec-row">
-                <input type="range" class="stepper-range bare-range" id="musicality" min="0" max="100" step="5" value="100" aria-label="Musicality" data-i18n-aria="aria.musicality">
+                <span class="axis"><em data-i18n="col.less">less</em><em data-i18n="col.more">more</em></span>
+              </div>
+              <div class="sec-row">
+                <input type="range" class="stepper-range bare-range" id="musicality" min="0" max="100" step="50" value="100" aria-label="Musicality" data-i18n-aria="aria.musicality">
               </div>
               <!-- Which chords the bars sit on, once the dial brings the harmony
                    in. Roman numerals are language-neutral, so no i18n keys. -->

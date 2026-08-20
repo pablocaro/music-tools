@@ -286,7 +286,7 @@
     if (p.clef != null) clefEl.value = p.clef;
     if (p.timesig != null) timesigEl.value = p.timesig;
     if (p.measures != null) measuresEl.value = String(Math.max(8, parseInt(p.measures, 10) || 16));
-    if (p.musicality != null) musicalityEl.value = p.musicality;
+    if (p.musicality != null) musicalityEl.value = snapMusicality(p.musicality);
     // Validated through progressionDef: an id saved under the other mode falls
     // back to this mode's first entry instead of sticking as a dead string.
     if (p.progression != null) progressionEl.value = progressionDef(p.progression).id;
@@ -299,7 +299,7 @@
     // then carries both; the survivor is whichever was set higher, so an old
     // "follow the chords hard, never mind the phrasing" preset still reads as
     // a strong setting rather than collapsing to zero.
-    if (p.harmony != null) musicalityEl.value = String(Math.max(+musicalityEl.value || 0, +p.harmony || 0));
+    if (p.harmony != null) musicalityEl.value = snapMusicality(Math.max(+musicalityEl.value || 0, +p.harmony || 0));
     syncBeatsFamily();   // meter may have just changed the figure grid — rebuild
                          // before applyBeats looks for checkboxes in it
     if (p.beats) applyBeats(p.beats);
@@ -777,6 +777,23 @@
   // before that carry a single value, and "off" from before there was a way to
   // say it with no selection at all — both still load, which matters because
   // they are sitting in people's browsers.
+  // How Musical? offered twenty-one positions and now offers three. Nobody
+  // could hear 65 against 70, and a bare track with no readout gave no way to
+  // find either again — so the control keeps its range and loses the
+  // resolution it could not spend. The values in between are still real to the
+  // engine; they are simply no longer reachable by hand.
+  //
+  // Same shape of problem as canonSlurs below: presets saved under the old
+  // control carry values the new one cannot represent, and they are sitting in
+  // people's browsers. Snapping on the way in — and again when a preset is
+  // compared against the panel — is what stops a saved 65 from reading as
+  // "not the current panel" forever after.
+  function snapMusicality(v) {
+    var n = +v;
+    if (!isFinite(n)) return "100";
+    return String(Math.round(Math.max(0, Math.min(100, n)) / 50) * 50);
+  }
+
   function canonSlurs(v) {
     var s = String(v == null ? "" : v).trim();
     if (!s || s === "off") return [];        // "off" is the pre-multi-select spelling
@@ -1435,8 +1452,10 @@
       // Slurs went from one value to a set, so "off", "2" and "2,3" are all
       // spellings a saved preset might carry. Compare what they mean, or every
       // preset saved before the change would read as "not the current panel".
-      var a = (f === "bowing") ? canonSlurs(p[f]).join(",") : String(p[f]);
-      var b = (f === "bowing") ? canonSlurs(cur[f]).join(",") : String(cur[f]);
+      var a = (f === "bowing") ? canonSlurs(p[f]).join(",")
+            : (f === "musicality") ? snapMusicality(p[f]) : String(p[f]);
+      var b = (f === "bowing") ? canonSlurs(cur[f]).join(",")
+            : (f === "musicality") ? snapMusicality(cur[f]) : String(cur[f]);
       if (a !== b) return false;
     }
     return true;

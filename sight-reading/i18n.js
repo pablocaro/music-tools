@@ -224,7 +224,7 @@ window.SR_I18N = {
     "help.notes":       "Which pitches the line may use. Tick a whole octave with the box on the left, or single notes in the grid.",
 
     "help.g.musicality": "How Musical?",
-    "help.musicality":  "At zero the line is a plain random walk. Higher, it starts shaping itself — leaps resolve, phrases arch and settle. Past halfway it also begins landing on the bar’s chord: first on downbeats, then on every beat, until a chord-shaped set of intervals comes out as pure arpeggios. What you tick under Intervals decides whether that reads as a scale study or an arpeggio study.",
+    "help.musicality":  "Three settings. At less the line is a plain random walk — nothing to predict by ear, so you read every note. In the middle it shapes itself: leaps resolve, phrases arch, and the line runs mostly stepwise, which is the easiest setting to sing. At more it lands on the bar’s chord, resolves its leading tones, ends phrases like questions and answers, and repeats a shape across a phrase — real music, and the leaps come back with the harmony. What you tick under Intervals decides whether that reads as a scale study or an arpeggio study.",
 
     "help.g.chroma":    "How Chromatic?",
     "help.chroma":      "At zero everything stays in the key. Higher, chromatic passing tones start filling whole steps and neighbour notes dip a semitone and return \u2014 the accidentals you actually meet on real pages. Minor keys raise their 7th in dominant bars regardless: that one is what makes a cadence lean.",
@@ -460,7 +460,7 @@ window.SR_I18N = {
     "help.notes":       "Qué alturas puede usar la línea. Marca una octava entera con la casilla de la izquierda, o notas sueltas en la cuadrícula.",
 
     "help.g.musicality": "¿Qué tan musical?",
-    "help.musicality":  "En cero la línea es un recorrido al azar. Más arriba empieza a tomar forma: los saltos se resuelven y las frases trazan un arco. Pasada la mitad también empieza a apoyarse en el acorde del compás: primero en el primer tiempo, luego en cada uno, hasta que un conjunto de intervalos con forma de acorde sale como puro arpegio. Lo que marques en Intervalos decide si eso suena a estudio de escalas o de arpegios.",
+    "help.musicality":  "Tres posiciones. En menos la línea es un recorrido al azar: nada que anticipar de oído, así que lees cada nota. En el medio toma forma — los saltos se resuelven, las frases trazan un arco y la línea avanza sobre todo por grados conjuntos, que es la posición más fácil de cantar. En más se apoya en el acorde del compás, resuelve sus sensibles, termina las frases como pregunta y respuesta y repite una figura a lo largo de la frase — música de verdad, y los saltos vuelven con la armonía. Lo que marques en Intervalos decide si eso suena a estudio de escalas o de arpegios.",
 
     "help.g.chroma":    "\u00bfQu\u00e9 tan crom\u00e1tico?",
     "help.chroma":      "En cero todo queda dentro de la tonalidad. M\u00e1s arriba aparecen notas de paso crom\u00e1ticas entre tonos enteros y bordaduras que bajan medio tono y vuelven \u2014 las alteraciones que de verdad encuentras en una partitura. En menor, el 7\u00ba grado se eleva en los compases de dominante siempre: eso es lo que hace que la cadencia se apoye.",
