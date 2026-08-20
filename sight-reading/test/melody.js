@@ -23,6 +23,12 @@
 //              move when a seam rule lands.
 //
 //   node sight-reading/test/melody.js        (GENS=n to change sample size)
+//
+// DIALS=0,20,40,60,80,100 sweeps the musicality dial instead of the default
+// two ends, which is how you ask whether the middle of that control is a real
+// place or just a blend of the ends. (It is real: the step share peaks around
+// 40-60 and falls again by 100, so the middle is the most scalar setting and
+// the top brings chordal leaps back.)
 // Environment: PW points at a playwright install, CHROMIUM at a browser binary.
 const PW = process.env.PW || '/opt/node22/lib/node_modules/playwright';
 const CHROMIUM = process.env.CHROMIUM || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
@@ -228,7 +234,7 @@ function collect(xml, tonic, roots, a) {
     const roots = ROOTS[progId];
     if (!roots) { console.log(`${label}: unknown progression ${progId}`); continue; }
 
-    for (const dial of [0, 100]) {
+    for (const dial of (process.env.DIALS ? process.env.DIALS.split(',').map(Number) : [0, 100])) {
       await setDial(dial); await p.waitForTimeout(400);
       const a = newAcc();
       for (let k = 0; k < GENS; k++) {
