@@ -415,7 +415,10 @@ body {
 .ic-play       { width: 19px; height: 19px; }
 .ic-pause      { width: 18px; height: 18px; }
 .ic-accomp     { width: 20px; height: 20px; }
-.ic-piano      { width: 22px; height: 22px; }
+/* The on and off glyphs share a width but not a height — the slash overhangs —
+   so a square box scales both by width and the keyboard itself comes out the
+   same size in either state. 23 matches the metronome beside it. */
+.ic-piano      { width: 23px; height: 23px; }
 .ic-metro      { width: 23px; height: 23px; }
 .ic-eye        { width: 23px; height: 23px; }
 .ic-regenerate { width: 19px; height: 19px; }
@@ -1542,13 +1545,18 @@ button.secondary {
 .range-end { display: flex; flex-direction: column; gap: 5px; }
 .range-end .fig-h { margin-bottom: 0; }
 
-/* The readout. A drawing, not a control: it takes no pointer events, and the
-   height comes from the SVG's own aspect so ledger lines can push it taller
+/* The readout, and also the control: the notes are draggable, with the whole
+   staff as the grab target and the nearer note winning. touch-action stops a
+   vertical drag from scrolling the panel out from under the finger — without
+   it the gesture is claimed by the scroller and the note never moves. The
+   height comes from the SVG's own aspect, so ledger lines can push it taller
    without anything here having to know how many there are. */
 #range-staff {
   margin-top: 6px;
-  pointer-events: none;
+  touch-action: none;
+  cursor: ns-resize;
 }
+#range-staff.dragging { cursor: grabbing; }
 /* The viewBox is set to this element's own pixel width, so 100% here is 1:1 —
    which is what lets a notehead sit at the same x as the stepper above it. */
 #range-staff svg { display: block; width: 100%; overflow: visible; }
@@ -1567,6 +1575,12 @@ button.secondary {
 .rs-band { fill: color-mix(in srgb, var(--accent) 8%, transparent); }
 .rs-note { fill: var(--ctl-on); }
 .rs-clef { fill: var(--ink); }
+
+/* The grip disc behind each notehead — what tells a finger these two are the
+   handles. Faint at rest so it does not compete with the staff, and it firms
+   up while a drag is in progress to confirm which one was caught. */
+.rs-grip { fill: color-mix(in srgb, var(--accent) 14%, transparent); }
+#range-staff.dragging .rs-grip { fill: color-mix(in srgb, var(--accent) 24%, transparent); }
 
 /* ---------------------------------------------------------------------------
    PATTERN: help

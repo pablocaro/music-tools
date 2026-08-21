@@ -183,6 +183,7 @@
     return (!isFinite(n) || n <= 0) ? 0 : (n <= 2 ? 2 : 4);
   }
 
+  var staffGeom = null;  // last render's step<->y mapping, for the drag handler
   var matrixRows = [];
   var matrixEl  = document.getElementById("matrix");
   var presetsEl = document.getElementById("presets");
@@ -671,6 +672,9 @@
     var maxStep = Math.max(top, hiStep) + 2;
     var H = (maxStep - minStep) * HALF;
     var y = function (s) { return (maxStep - s) * HALF; };
+    // Kept for the drag handler, which has to run this mapping backwards. The
+    // drawing is 1:1 with the page, so these need no scaling to be useful.
+    staffGeom = { maxStep: maxStep, half: HALF };
 
     // Hard against the left edge: the low stepper's centre is only ~60px in, so
     // the clef has to keep out of the way of that note's ledger lines.
@@ -704,6 +708,16 @@
     // the same rule an engraver follows.
     [[loStep, LO_X], [hiStep, HI_X]].forEach(function (p) {
       var s = p[0], x = p[1], j;
+      // A soft disc behind the notehead: the thing that says "this is a handle"
+      // on a touch screen, where there is no cursor to change shape. It costs no
+      // height — it sits inside the staff — and the drag itself is not limited
+      // to it, so it can stay small enough not to clutter the lines. Drawn
+      // before the ledger lines, which have to stay legible through it: a
+      // ledger line is what tells you the note is above or below the staff.
+      // Deliberately narrower than LEDGE, so a ledger line still shows its tips
+      // either side of the disc instead of vanishing under it.
+      svg.push('<circle class="rs-grip" cx="' + x + '" cy="' + y(s).toFixed(1) +
+               '" r="' + (GAP * 0.72).toFixed(1) + '"/>');
       for (j = bottom - 2; j >= s; j -= 2) {
         svg.push('<line class="rs-ledger" x1="' + (x - LEDGE) + '" x2="' + (x + LEDGE) +
                  '" y1="' + y(j).toFixed(1) + '" y2="' + y(j).toFixed(1) + '"/>');
@@ -734,13 +748,79 @@
     renderRangeStaff(lo, hi);
   }
 
-  function nudgeRange(which, delta) {
+  // Move one end to an absolute note, clamped by the other end and the outer
+  // octaves. Returns whether anything actually moved, so a drag that has not
+  // crossed into the next note does not redraw or regenerate.
+  function setRangeEnd(which, idx) {
     var b = rangeBounds(), lo = b[0], hi = b[1];
-    if (which === "low") lo = Math.max(0, Math.min(hi - MIN_SPAN, lo + delta));
-    else                 hi = Math.max(lo + MIN_SPAN, Math.min(NOTE_MAX, hi + delta));
+    if (which === "low") lo = Math.max(0, Math.min(hi - MIN_SPAN, idx));
+    else                 hi = Math.max(lo + MIN_SPAN, Math.min(NOTE_MAX, idx));
+    if (lo === b[0] && hi === b[1]) return false;
     setRangeBounds(lo, hi);
     syncRangeUI();
-    generate();
+    return true;
+  }
+
+  function nudgeRange(which, delta) {
+    var b = rangeBounds();
+    if (setRangeEnd(which, (which === "low" ? b[0] : b[1]) + delta)) generate();
+  }
+
+  // Dragging the notes. The whole staff is the grab target and the nearer end
+  // wins, which is how a two-thumb slider behaves — so neither handle needs a
+  // finger-sized box of its own and the drawing stays as short as it is.
+  // generate() waits for the release: redrawing the staff on every pointermove
+  // is cheap, re-engraving sixteen bars is not.
+  function bindRangeDrag() {
+    var host = document.getElementById("range-staff");
+    if (!host || !window.PointerEvent) return;
+    var active = null, moved = false, startY = 0, startIdx = 0, grabHalf = 6;
+
+    // Absolute read — only valid at the moment of the press, see below.
+    var idxAt = function (clientY) {
+      var svg = host.querySelector("svg");
+      if (!svg || !staffGeom) return null;
+      var step = Math.round(staffGeom.maxStep -
+                            (clientY - svg.getBoundingClientRect().top) / staffGeom.half);
+      var oct = Math.floor(step / 7), col = step - oct * 7;
+      var oi = RANGE_OCTAVES.indexOf(oct);
+      // Off the end of the represented octaves: clamp to whichever end it ran
+      // past, so pressing beyond the drawing pins rather than does nothing.
+      if (oi < 0) return oct < RANGE_OCTAVES[0] ? 0 : NOTE_MAX;
+      return oi * NOTE_COLS.length + col;
+    };
+
+    host.addEventListener("pointerdown", function (e) {
+      var idx = idxAt(e.clientY);
+      if (idx == null) return;
+      var b = rangeBounds();
+      active = Math.abs(idx - b[0]) <= Math.abs(idx - b[1]) ? "low" : "high";
+      moved = setRangeEnd(active, idx);
+      // From here the gesture is measured as movement, not as position. The
+      // drawing re-renders on every step and its vertical extent tracks the
+      // notes, so the y that meant B5 at the press does not mean B5 a moment
+      // later — reading absolutely made the note run away from the finger.
+      startY = e.clientY;
+      startIdx = (active === "low") ? rangeBounds()[0] : rangeBounds()[1];
+      grabHalf = (staffGeom && staffGeom.half) || 6;
+      host.classList.add("dragging");
+      if (host.setPointerCapture) host.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    host.addEventListener("pointermove", function (e) {
+      if (!active) return;
+      var steps = Math.round((startY - e.clientY) / grabHalf);
+      if (setRangeEnd(active, startIdx + steps)) moved = true;
+    });
+    var release = function () {
+      if (!active) return;
+      active = null;
+      host.classList.remove("dragging");
+      if (moved) generate();
+      moved = false;
+    };
+    host.addEventListener("pointerup", release);
+    host.addEventListener("pointercancel", release);
   }
 
   function buildRangeUI() {
@@ -761,6 +841,7 @@
         renderRangeStaff(b[0], b[1]);
       }).observe(row);
     }
+    bindRangeDrag();
     syncRangeUI();
   }
 
