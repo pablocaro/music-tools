@@ -57,8 +57,6 @@
   // staff, so the code is learned in one place and recognised in the other.
   var HL_STEP = "#4fd9ef";       // highlighter cyan — stepwise motion
   var HL_LEAP = "#a8e63c";       // highlighter lime — leaps / arpeggios
-  var WEIGHT_MIN = 1;            // min per-interval slider weight (the checkbox owns off)
-  var WEIGHT_MAX = 4;            // max per-interval slider weight
   var MEASURES_PER_LINE = 6;     // cap on a wide screen
   var MIN_PER_LINE = 2;          // never fewer than this; shrink to fit if needed
   var MEASURE_PX = 175;          // ~full-size measure width (FixedMeasureWidth keeps it stable)
@@ -164,11 +162,29 @@
 
   // One weight per interval. There used to be two — an up column and a down one
   // — but the pair couldn't express the only directional drill worth having
-  // ("descending 3rds only"): the slider floors at WEIGHT_MIN and the checkbox
-  // owns the whole row, so neither direction could be zeroed on its own. It
-  // cost eight extra sliders to offer ratios nobody reaches for. The engine
-  // still takes {down, up}; readAlphabet just emits the same value for both.
-  var weightInputs = [], stepChecks = [], matrixRows = [];
+  // ("descending 3rds only"): a weight of 0 owns off and every other row was
+  // symmetric anyway. The engine still takes {down, up}; readAlphabet just
+  // emits the same value for both.
+  //
+  // The weight itself used to be a checkbox plus a 1-4 slider: two controls
+  // for one idea, and a slider whose four rungs read as one continuum when
+  // rhythm figures' own weight already proved most of a dial like this goes
+  // unheard (off/on/x2 was every shipped figure's ceiling). Intervals turned
+  // out to be the exception, not the rule — sweeping a single row's weight
+  // against a fixed preset (test/melody.js's sibling, run ad hoc) moved that
+  // interval's measured share by several points at EVERY step, 3 vs 4
+  // included, on two shipped presets that lean on the top rung. So the rungs
+  // stay at four; what goes is the second control. Off/Some/Lots is the exact
+  // vocabulary Ties already uses for a frequency dial, tapped directly rather
+  // than cycled, and it snaps to the two ends of the old range (2, 4) — the
+  // middle two rungs were the ones nobody was reaching for on purpose.
+  var STEP_LEVELS = [{ id: "off", w: 0 }, { id: "some", w: 2 }, { id: "lots", w: 4 }];
+  function snapIntervalWeight(w) {
+    var n = +w;
+    return (!isFinite(n) || n <= 0) ? 0 : (n <= 2 ? 2 : 4);
+  }
+
+  var matrixRows = [];
   var matrixEl  = document.getElementById("matrix");
   var presetsEl = document.getElementById("presets");
 
@@ -177,56 +193,58 @@
   // 2nd. All eight are three characters wide, so the column stays narrow.
   function stepLabel(i) { return t("step." + i); }
 
-  // No numeric readout: 1–4 named nothing a student could act on, and the
-  // less/more header above the column already says which way the slider runs.
-  // The value still reaches assistive tech through the range input itself.
-  function makeCell(arr) {
-    var cell = document.createElement("div");
-    cell.className = "cell";
-    var input = document.createElement("input");
-    input.type = "range"; input.min = WEIGHT_MIN; input.max = WEIGHT_MAX; input.step = 1; input.value = WEIGHT_MIN;
-    input.addEventListener("change", generate);
-    cell.appendChild(input);
-    arr.push(input);
-    return cell;
-  }
-
-  // Each interval row: a checkbox (is it in play?) + its weight.
-  // The checkbox owns on/off, so a weight never has to mean "never" — it floors
-  // at WEIGHT_MIN and readAlphabet() zeroes out unchecked rows instead.
+  // Each interval row: a label plus a 3-way off/some/lots pill group. The
+  // current weight lives on the row itself (data-w), the one thing every
+  // reader (readAlphabet, setRow, syncStepRow) agrees on.
   function buildMatrix() {
     INTERVALS.forEach(function (iv, i) {
       var row = document.createElement("div");
       row.className = "matrix-row";
-
-      var cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.setAttribute("aria-label", t("interval." + i));
-      cb.addEventListener("change", function () { syncStepRow(i); generate(); });
-      stepChecks.push(cb);
-      row.appendChild(cb);
+      row.dataset.w = "0";
 
       var label = document.createElement("div");
       label.className = "row-label";
       label.textContent = stepLabel(i);
       row.appendChild(label);
 
-      row.appendChild(makeCell(weightInputs));
+      var seg = document.createElement("div");
+      seg.className = "seg";
+      seg.setAttribute("role", "group");
+      seg.setAttribute("aria-label", t("interval." + i));
+      STEP_LEVELS.forEach(function (lv) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "opt";
+        b.textContent = t("val." + lv.id);
+        b.dataset.w = lv.w;
+        b.addEventListener("click", function () {
+          row.dataset.w = String(lv.w);
+          syncStepRow(i);
+          generate();
+        });
+        seg.appendChild(b);
+      });
+      row.appendChild(seg);
+
       matrixRows.push(row);
       matrixEl.appendChild(row);
     });
   }
 
   function syncStepRow(i) {
-    if (matrixRows[i]) matrixRows[i].classList.toggle("off", !stepChecks[i].checked);
+    var row = matrixRows[i];
+    if (!row) return;
+    var w = +row.dataset.w || 0;
+    row.querySelectorAll(".seg .opt").forEach(function (b) {
+      b.classList.toggle("on", +b.dataset.w === w);
+    });
   }
 
-  // Apply a weight to a row. 0 means "not in play" — the checkbox goes off and
-  // the slider rests at the floor.
+  // Apply a weight to a row, snapped to the nearest of the three rungs a
+  // preset or saved session might carry any of the old 1-4 range in.
   function setRow(i, w) {
-    var on = w > 0, v = on ? Math.max(WEIGHT_MIN, Math.min(WEIGHT_MAX, w)) : WEIGHT_MIN;
-    stepChecks[i].checked = on;
-    weightInputs[i].value = v;
+    if (!matrixRows[i]) return;
+    matrixRows[i].dataset.w = String(snapIntervalWeight(w));
     syncStepRow(i);
   }
 
@@ -235,10 +253,10 @@
     for (var i = 0; i < weights.length && i < INTERVALS.length; i++) setRow(i, +weights[i] || 0);
   }
 
-  // An unchecked interval contributes 0, which is what the engine's weighted
-  // draw already understands — so nothing downstream needed to change.
+  // Off is just weight 0, which is what the engine's weighted draw already
+  // understands — so nothing downstream needed to change.
   function readAlphabet() {
-    var w = weightInputs.map(function (x, i) { return stepChecks[i].checked ? +x.value : 0; });
+    var w = matrixRows.map(function (row) { return +row.dataset.w || 0; });
     return { down: w.slice(), up: w.slice() };   // engine still wants both; they're symmetric now
   }
 
@@ -330,10 +348,6 @@
   // saved preset leaves them alone — whatever's currently set stays set.
   function readPresetConfig() {
     return {
-      // readAlphabet, not the raw sliders: an unchecked row's slider still
-      // reads WEIGHT_MIN (the checkbox owns off, the slider floors at 1), so
-      // reading it raw saved every switched-off interval as weight 1 — and
-      // reloading the preset turned them all back on.
       alphabet: readAlphabet(),
       range: JSON.parse(JSON.stringify(rangeState)),
       // Which figures are in play is as much a part of the drill as which
@@ -3574,10 +3588,17 @@
     });
 
     // runtime-built labels
-    stepChecks.forEach(function (cb, i) { cb.setAttribute("aria-label", t("interval." + i)); });
     matrixRows.forEach(function (row, i) {
-      var n = row.querySelector(".row-name");   // 2nd / 2ª — ordinals translate
+      var n = row.querySelector(".row-label");   // 2nd / 2ª — ordinals translate
       if (n) n.textContent = stepLabel(i);
+      var seg = row.querySelector(".seg");
+      if (seg) {
+        seg.setAttribute("aria-label", t("interval." + i));
+        seg.querySelectorAll(".opt").forEach(function (b) {
+          var lv = STEP_LEVELS.filter(function (l) { return l.w === +b.dataset.w; })[0];
+          if (lv) b.textContent = t("val." + lv.id);
+        });
+      }
     });
     buildInstrumentPills();   // word labels, so they re-render per language
     // Same reason, and they were missed: the slur row's "Off" and the tie

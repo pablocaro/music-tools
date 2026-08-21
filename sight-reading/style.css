@@ -1120,40 +1120,35 @@ button.secondary {
    shape, muted label. */
 .pill.save { color: var(--muted); }
 
-/* Alphabet matrix — a checkbox owns whether an interval is in play; the two
-   sliders are its up / down weight (which therefore never needs to reach 0). */
-.matrix-head,
+/* Alphabet matrix — a label plus a direct-tap off/some/lots choice, replacing
+   what used to be a checkbox (in play?) and a separate 1-4 weight slider.
+   Two rungs, not four: see the note above STEP_LEVELS in app.js for the
+   measurement that decided it. */
 .matrix-row {
   display: grid;
   /* The track's own length, not "whatever is left over". minmax(0, w) caps it
      at w and lets it shrink to what actually remains — the min(w, 100%) it
      replaces compared w against the whole row rather than the space beside the
-     other two columns, so it fit the desktop rail by luck (18px spare,
-     measured) and ran off a phone's.
+     other column, so it fit the desktop rail by luck (18px spare, measured)
+     and ran off a phone's.
      The label column was 46px to clear a colour dot that is no longer there.
      It cannot be max-content — every row is its own grid, so each would size
      to its own label and the tracks would stop lining up — so it is a width
      that follows the type scale instead, which is the only thing that moves
      it. */
-  grid-template-columns: 22px calc(38px * var(--type-scale)) minmax(0, var(--slider-w));
+  grid-template-columns: calc(38px * var(--type-scale)) minmax(0, var(--slider-w));
   gap: 6px 10px;
   align-items: center;
 }
 
-/* Names the axis the sliders below run along, which is the job the per-row
-   1–4 readout was doing badly — a number the student couldn't act on. The
-   two words sit at the ends of the track they describe.
-
-   Not scoped to .matrix-head any more: How Musical? runs the same way and
-   wants the same two words, and a slider with named ends needs nothing said
-   about its middle — halfway between two labels explains itself. */
+/* Names the axis a bare slider runs along — still used by How Musical?,
+   whose ends are self-explanatory but whose middle needs no word. */
 .axis {
   display: flex;
   /* Fills whatever row it is in, so the two words really do sit at the ends of
-     the track. In .matrix-head it is a grid item and gets its column for free;
-     in a .sec-row it is a flex item, where content width would have bunched
-     both labels against the left of a slider three times wider. Ignored in the
-     grid, decisive in the flex row. */
+     the track. In a .sec-row it is a flex item, where content width would
+     have bunched both labels against the left of a slider three times wider.
+     Ignored in a grid, decisive in the flex row. */
   flex: 1;
   justify-content: space-between;
   font-size: var(--type-micro);
@@ -1162,11 +1157,7 @@ button.secondary {
   letter-spacing: 0.5px;
   color: var(--muted);
 }
-.matrix-head em, .axis em { font-style: normal; }
-
-/* An interval that's switched off dims its weights, but they stay legible and
-   draggable — so you can dial a weight in before enabling the row. */
-.matrix-row.off .cell { opacity: 0.38; }
+.axis em { font-style: normal; }
 
 .matrix {
   display: flex;
@@ -1181,13 +1172,20 @@ button.secondary {
   font-weight: var(--weight-standard);
 }
 
-.cell {
+/* The row's own off/some/lots choice, stretched across the track the slider
+   used to occupy. Same pill as Ties (PATTERN: opt), sized down so eight rows
+   stack without the section growing past what it used to be. */
+.seg {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
-
-.cell input[type="range"] { flex: 1; }
+.seg .opt {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  padding: 0 4px;
+  font-size: var(--type-micro);
+}
 
 /* Rhythm figures: a flat grid of notation cells toggled on/off, name on hover */
 /* Figures are grouped by whether they stay inside a beat or reach across one.
