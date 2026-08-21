@@ -539,8 +539,26 @@
     { name: "B", semi: 11 }
   ];
 
+  // Still stored as a per-octave bitmap, because that is the shape every preset
+  // and session in localStorage already carries. What changed is that the panel
+  // now only ever writes a contiguous span into it: the range is two boundary
+  // notes, which is all readRange ever extracted anyway.
   var rangeState = {};   // { [oct]: [bool × 7] }
-  var rangeCells = {};   // { "oct-i": button }
+
+  // Natural notes, numbered straight through: C2 = 0 … B6 = 34. The index the
+  // steppers walk.
+  var NOTE_MAX = RANGE_OCTAVES.length * NOTE_COLS.length - 1;
+  function idxOf(oct, col) { return RANGE_OCTAVES.indexOf(oct) * NOTE_COLS.length + col; }
+  function octOfIdx(i)  { return RANGE_OCTAVES[Math.floor(i / NOTE_COLS.length)]; }
+  function colOfIdx(i)  { return i % NOTE_COLS.length; }
+  function nameOfIdx(i) { return NOTE_COLS[colOfIdx(i)].name + octOfIdx(i); }
+  // Where the note sits on a staff, counted in diatonic steps from C0 — one
+  // step per line-or-space, which is exactly how staves are spaced.
+  function staffStepOfIdx(i) { return octOfIdx(i) * 7 + colOfIdx(i); }
+
+  // Five notes: the first-position pentachord, and the narrowest span the
+  // generator can still make a line out of.
+  var MIN_SPAN = 4;
 
   // A clef's home octaves — the starting selection, and what a built-in resets
   // to. defaultRange() keeps its old meaning (treble) for callers that predate
@@ -557,99 +575,158 @@
 
   function initRangeState() { rangeState = defaultRange(); }
 
-  function syncRangeCells(oct) {
-    NOTE_COLS.forEach(function (nc, i) {
-      var cell = rangeCells[oct + "-" + i];
-      if (cell) cell.className = "note-cell" + (rangeState[oct][i] ? " on" : "");
+  // The two boundaries, read back off the bitmap. A preset saved under the old
+  // grid may hold any scattered set of notes; its outer two are what the
+  // generator was using, so that is what it becomes.
+  function rangeBounds() {
+    var lo = -1, hi = -1;
+    RANGE_OCTAVES.forEach(function (oct, oi) {
+      NOTE_COLS.forEach(function (nc, i) {
+        if (rangeState[oct] && rangeState[oct][i]) {
+          var idx = oi * NOTE_COLS.length + i;
+          if (lo < 0) lo = idx;
+          hi = idx;
+        }
+      });
     });
-    syncOctCheck(oct);
+    if (lo < 0) return [idxOf(4, 0), idxOf(5, 6)];   // fallback C4–B5
+    return [lo, hi];
+  }
+
+  function setRangeBounds(lo, hi) {
+    RANGE_OCTAVES.forEach(function (oct, oi) {
+      rangeState[oct] = NOTE_COLS.map(function (nc, i) {
+        var idx = oi * NOTE_COLS.length + i;
+        return idx >= lo && idx <= hi;
+      });
+    });
   }
 
   function applyRange(r) {
     RANGE_OCTAVES.forEach(function (oct) {
-      if (r[oct]) {
-        rangeState[oct] = NOTE_COLS.map(function (nc, i) { return !!r[oct][i]; });
-        syncRangeCells(oct);
+      if (r[oct]) rangeState[oct] = NOTE_COLS.map(function (nc, i) { return !!r[oct][i]; });
+    });
+    syncRangeUI();
+  }
+
+  // ---- the staff readout ----
+  // Which diatonic step the bottom line of each clef carries: treble's is E4,
+  // bass's G2, alto's F3, tenor's D3. Everything else on the staff follows from
+  // it at half a line-gap per step.
+  var CLEF_BOTTOM_STEP = { treble: 30, alto: 24, tenor: 22, bass: 18 };
+  // Where each clef's glyph wants to sit, and how big — a treble clef centres
+  // on its G and overhangs the staff, an F clef sits low and compact.
+  // `at` is the diatonic step the glyph centres on: a treble clef sits around
+  // the middle of its staff and overhangs both ends, an F clef hangs off its
+  // fourth line, and a C clef centres on the middle C it points at — which is
+  // the middle line in alto and the fourth in tenor.
+  // Sizes are eyeballed against the rendered staff rather than derived: these
+  // are text glyphs, and how much of the em box each one inks is a property of
+  // the font, not of the notation.
+  var CLEF_ART = {
+    treble: { size: 46, at: 34 },
+    bass:   { size: 46, at: 21 },
+    alto:   { size: 46, at: 27.2 },
+    tenor:  { size: 46, at: 27.2 }
+  };
+
+  function renderRangeStaff(lo, hi) {
+    var host = document.getElementById("range-staff");
+    if (!host) return;
+    var clef  = (typeof clefEl !== "undefined" && clefEl) ? clefEl.value : "treble";
+    var bottom = CLEF_BOTTOM_STEP[clef] != null ? CLEF_BOTTOM_STEP[clef] : CLEF_BOTTOM_STEP.treble;
+    var art    = CLEF_ART[clef] || CLEF_ART.treble;
+    var top    = bottom + 8;
+    var loStep = staffStepOfIdx(lo), hiStep = staffStepOfIdx(hi);
+
+    // Drawn at its natural size: the viewBox is in px, and the CSS caps the
+    // width at W so it renders 1:1 on a wide rail and scales down (never up)
+    // on a narrow one. A gap of 9px is about engraved size for a readout.
+    var GAP = 9, HALF = GAP / 2, W = 280;
+    // The drawing grows only as far as the notes actually reach past the staff,
+    // so a range inside it costs no extra height and a ledger-line excursion
+    // shows itself instead of being cropped.
+    var minStep = Math.min(bottom, loStep) - 2;
+    var maxStep = Math.max(top, hiStep) + 2;
+    var H = (maxStep - minStep) * HALF;
+    var y = function (s) { return (maxStep - s) * HALF; };
+
+    var CLEF_X = 10, LO_X = 150, HI_X = 232;
+    var NOTE_RX = 5, NOTE_RY = 3.6, LEDGE = 8.5;
+    var svg = [];
+    svg.push('<svg viewBox="0 0 ' + W + ' ' + H.toFixed(1) + '" width="100%" role="img">');
+
+    // The band between the two notes — what "in play" means, vertically. Full
+    // width and drawn first, so it reads as the paper being lit rather than a
+    // bar laid over the staff; stopping it short of the clef only produced a
+    // hard vertical edge halfway along the lines.
+    svg.push('<rect class="rs-band" x="0" y="' + y(hiStep).toFixed(1) +
+             '" width="' + W + '" height="' + ((hiStep - loStep) * HALF).toFixed(1) + '"/>');
+
+    for (var k = 0; k <= 8; k += 2) {
+      svg.push('<line class="rs-line" x1="0" x2="' + W +
+               '" y1="' + y(bottom + k).toFixed(1) + '" y2="' + y(bottom + k).toFixed(1) + '"/>');
+    }
+    svg.push('<text class="rs-clef" x="' + CLEF_X + '" y="' + y(art.at).toFixed(1) +
+             '" font-size="' + art.size + '" dominant-baseline="central">' +
+             clefDef(clef).label + '</text>');
+
+    // Ledger lines are drawn per note, only as far out as that note reaches —
+    // the same rule an engraver follows.
+    [[loStep, LO_X], [hiStep, HI_X]].forEach(function (p) {
+      var s = p[0], x = p[1], j;
+      for (j = bottom - 2; j >= s; j -= 2) {
+        svg.push('<line class="rs-ledger" x1="' + (x - LEDGE) + '" x2="' + (x + LEDGE) +
+                 '" y1="' + y(j).toFixed(1) + '" y2="' + y(j).toFixed(1) + '"/>');
       }
+      for (j = top + 2; j <= s; j += 2) {
+        svg.push('<line class="rs-ledger" x1="' + (x - LEDGE) + '" x2="' + (x + LEDGE) +
+                 '" y1="' + y(j).toFixed(1) + '" y2="' + y(j).toFixed(1) + '"/>');
+      }
+      svg.push('<ellipse class="rs-note" cx="' + x + '" cy="' + y(s).toFixed(1) +
+               '" rx="' + NOTE_RX + '" ry="' + NOTE_RY + '" transform="rotate(-20 ' +
+               x + ' ' + y(s).toFixed(1) + ')"/>');
     });
+
+    svg.push('</svg>');
+    host.innerHTML = svg.join("");
   }
 
-  // Octave checkbox: on when any note in the row is picked; toggling it turns the
-  // whole octave on or off (matching the Step rows' checkbox-owns-the-row idea).
-  var octChecks = {};
-
-  function syncOctCheck(oct) {
-    if (octChecks[oct]) octChecks[oct].checked = rangeState[oct].some(Boolean);
+  function syncRangeUI() {
+    var b = rangeBounds(), lo = b[0], hi = b[1];
+    var loEl = document.getElementById("low-val"), hiEl = document.getElementById("high-val");
+    if (loEl) loEl.textContent = nameOfIdx(lo);
+    if (hiEl) hiEl.textContent = nameOfIdx(hi);
+    var dis = function (id, off) { var e = document.getElementById(id); if (e) e.disabled = off; };
+    dis("low-down",  lo <= 0);
+    dis("low-up",    lo >= hi - MIN_SPAN);
+    dis("high-down", hi <= lo + MIN_SPAN);
+    dis("high-up",   hi >= NOTE_MAX);
+    renderRangeStaff(lo, hi);
   }
 
-  function buildRangeGrid() {
-    var container = document.getElementById("range-grid");
-    container.innerHTML = "";
-    // column headers
-    var hdr = document.createElement("div");
-    hdr.className = "note-row";
-    hdr.appendChild(document.createElement("span")); // checkbox corner
-    hdr.appendChild(document.createElement("span")); // octave-label corner
-    NOTE_COLS.forEach(function (nc) {
-      var h = document.createElement("span");
-      h.className = "note-col-hdr"; h.textContent = nc.name;
-      hdr.appendChild(h);
+  function nudgeRange(which, delta) {
+    var b = rangeBounds(), lo = b[0], hi = b[1];
+    if (which === "low") lo = Math.max(0, Math.min(hi - MIN_SPAN, lo + delta));
+    else                 hi = Math.max(lo + MIN_SPAN, Math.min(NOTE_MAX, hi + delta));
+    setRangeBounds(lo, hi);
+    syncRangeUI();
+    generate();
+  }
+
+  function buildRangeUI() {
+    [["low-down", "low", -1], ["low-up", "low", 1],
+     ["high-down", "high", -1], ["high-up", "high", 1]].forEach(function (spec) {
+      var el = document.getElementById(spec[0]);
+      if (el) el.addEventListener("click", function () { nudgeRange(spec[1], spec[2]); });
     });
-    container.appendChild(hdr);
-    // octave rows
-    RANGE_OCTAVES.forEach(function (oct) {
-      var row = document.createElement("div");
-      row.className = "note-row";
-
-      var cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.checked = rangeState[oct].some(Boolean);
-      cb.setAttribute("aria-label", t("aria.octave") + " " + oct);
-      (function (o) {
-        cb.addEventListener("change", function () {
-          var on = cb.checked;
-          rangeState[o] = rangeState[o].map(function () { return on; });
-          syncRangeCells(o);
-          generate();
-        });
-      })(oct);
-      octChecks[oct] = cb;
-      row.appendChild(cb);
-
-      var lbl = document.createElement("span");
-      lbl.className = "note-row-lbl"; lbl.textContent = String(oct);
-      row.appendChild(lbl);
-
-      NOTE_COLS.forEach(function (nc, i) {
-        var cell = document.createElement("button");
-        cell.className = "note-cell" + (rangeState[oct][i] ? " on" : "");
-        rangeCells[oct + "-" + i] = cell;
-        (function (o, idx) {
-          cell.addEventListener("click", function () {
-            rangeState[o][idx] = !rangeState[o][idx];
-            syncRangeCells(o);
-            generate();
-          });
-        })(oct, i);
-        row.appendChild(cell);
-      });
-      container.appendChild(row);
-    });
+    syncRangeUI();
   }
 
   function readRange() {
-    var lowH = Infinity, highH = -Infinity;
-    RANGE_OCTAVES.forEach(function (oct) {
-      NOTE_COLS.forEach(function (nc, i) {
-        if (rangeState[oct][i]) {
-          var h = oct * 12 + nc.semi;
-          if (h < lowH) lowH = h;
-          if (h > highH) highH = h;
-        }
-      });
-    });
-    if (!isFinite(lowH)) { lowH = 48; highH = 71; } // fallback C4–B5
-    return { lowH: lowH, highH: highH };
+    var b = rangeBounds();
+    var pitch = function (i) { return octOfIdx(i) * 12 + NOTE_COLS[colOfIdx(i)].semi; };
+    return { lowH: pitch(b[0]), highH: pitch(b[1]) };
   }
 
   // ===========================================================================
@@ -1014,16 +1091,15 @@
     return new XMLSerializer().serializeToString(doc);
   }
 
-  // Move the picked notes onto the new clef's staff: select every pitch in that
-  // clef's two octaves. (Hand-picking afterwards is untouched until the next
-  // clef change.)
+  // Move the range onto the new clef's staff: its two home octaves, end to end.
+  // (Stepping it afterwards is untouched until the next clef change.) This is
+  // also what keeps the staff readout honest — the notes can only be sitting on
+  // a pile of ledger lines if you deliberately stepped them there.
   function shiftRangeToClef(id) {
     var octs = clefDef(id).octaves;
-    RANGE_OCTAVES.forEach(function (oct) {
-      var on = (octs.indexOf(oct) >= 0);
-      rangeState[oct] = NOTE_COLS.map(function () { return on; });
-      syncRangeCells(oct);
-    });
+    var lo = Math.min.apply(null, octs), hi = Math.max.apply(null, octs);
+    setRangeBounds(idxOf(lo, 0), idxOf(hi, NOTE_COLS.length - 1));
+    syncRangeUI();
   }
 
   // ===========================================================================
@@ -3603,9 +3679,6 @@
     // switching to Spanish left them reading Off / Some / Lots.
     buildBowingPills();
     buildTiesPills();
-    RANGE_OCTAVES.forEach(function (oct) {
-      if (octChecks[oct]) octChecks[oct].setAttribute("aria-label", t("aria.octave") + " " + oct);
-    });
     beatsEl.querySelectorAll(".beat").forEach(function (cb) {
       var cell = cb.closest(".fig-cell");
       if (cell) cell.setAttribute("aria-label", t("fig." + cb.value));
@@ -4185,7 +4258,7 @@
 
   probeKeys();                 // which accidentals each letter supports
   initRangeState();
-  buildRangeGrid();
+  buildRangeUI();
   buildBeatsPalette(currentBeatFigures());
   buildMatrix();
   buildMeasuresPills();

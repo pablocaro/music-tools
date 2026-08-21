@@ -270,9 +270,34 @@
           <!-- Notes and How Musical stack in one column below the interval
                grid: the dial belongs with the line it shapes. -->
           <div class="sec-col">
+            <!-- Two boundary notes, not a grid of thirty-five toggles: the
+                 generator only ever read the lowest and highest pitch picked
+                 (see readRange), so every cell between them was decoration.
+                 The staff below is a readout of those two numbers — it draws
+                 what the range means rather than asking you to imagine it. -->
             <section class="sec sec-notes">
               <h2 class="sec-h" data-i18n="sec.notes">Notes</h2>
-              <div id="range-grid"></div>
+              <div class="sec-row range-row">
+                <span class="fig-h" data-i18n="lbl.low">Low</span>
+                <div class="stepper stepper-fit">
+                  <span class="stepper-val" id="low-val">C4</span>
+                  <span class="step-pair">
+                    <button id="low-down" class="step-btn" type="button" aria-label="Lower" data-i18n-aria="aria.lower">&#8722;</button>
+                    <button id="low-up" class="step-btn" type="button" aria-label="Higher" data-i18n-aria="aria.higher">+</button>
+                  </span>
+                </div>
+              </div>
+              <div class="sec-row range-row">
+                <span class="fig-h" data-i18n="lbl.high">High</span>
+                <div class="stepper stepper-fit">
+                  <span class="stepper-val" id="high-val">B5</span>
+                  <span class="step-pair">
+                    <button id="high-down" class="step-btn" type="button" aria-label="Lower" data-i18n-aria="aria.lower">&#8722;</button>
+                    <button id="high-up" class="step-btn" type="button" aria-label="Higher" data-i18n-aria="aria.higher">+</button>
+                  </span>
+                </div>
+              </div>
+              <div id="range-staff" aria-hidden="true"></div>
             </section>
 
             <section class="sec sec-musicality">

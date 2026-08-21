@@ -1525,54 +1525,33 @@ button.secondary {
 @keyframes srBlink { 0%, 100% { opacity: 0.55; } 50% { opacity: 0.05; } }
 .sr-cursor-blink { animation: srBlink 0.5s ease-in-out infinite; }
 
-/* Note range grid */
-#range-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  margin-top: 4px;
+/* Note range — two steppers and the staff that shows what they mean.
+   The caption sits beside its stepper the way the Slurs and Ties rows do, so
+   "Low" and "High" read as labels for the control rather than headings. */
+.range-row { align-items: center; gap: 12px; }
+.range-row .fig-h { margin-bottom: 0; min-width: 34px; }
+
+/* The readout. A drawing, not a control: it takes no pointer events, and the
+   height comes from the SVG's own aspect so ledger lines can push it taller
+   without anything here having to know how many there are. */
+#range-staff {
+  margin-top: 6px;
+  pointer-events: none;
 }
+/* 280 is the viewBox's own width, so the drawing renders 1:1 where there is
+   room and scales down rather than up where there is not. */
+#range-staff svg { display: block; max-width: 280px; overflow: visible; }
 
-.note-row {
-  display: grid;
-  grid-template-columns: 22px 22px repeat(7, 1fr);
-  gap: 4px;
-  align-items: center;
+.rs-line, .rs-ledger {
+  stroke: var(--line);
+  stroke-width: 1;
+  shape-rendering: crispEdges;   /* hairlines, not a grey blur */
 }
-
-.note-col-hdr {
-  font-size: var(--type-micro);
-  font-weight: var(--weight-standard);
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: var(--muted);
-  text-align: center;
-}
-
-/* The octave number beside its checkbox — the checkbox toggles the whole row. */
-.note-row-lbl {
-  font-size: var(--type-micro);
-  font-weight: var(--weight-standard);
-  color: var(--muted);
-  text-align: left;
-  letter-spacing: 0.2px;
-}
-
-.note-cell {
-  height: 22px;
-  width: 100%;
-  border-radius: 4px;
-  border: 1px solid transparent;
-  background: var(--ctl-fill);
-  cursor: pointer;
-  padding: 0;
-  display: block;
-  transition: background 0.1s, border-color 0.1s;
-}
-
-.note-cell.on { background: var(--ctl-on); }
-
-.note-cell:hover:not(.on) { background: var(--ctl-fill-hover); }
+/* The span between the two notes. Sits under the staff lines, so it reads as
+   the paper being lit rather than a bar drawn over the music. */
+.rs-band { fill: color-mix(in srgb, var(--accent) 8%, transparent); }
+.rs-note { fill: var(--ctl-on); }
+.rs-clef { fill: var(--ink); }
 
 /* ---------------------------------------------------------------------------
    PATTERN: help
