@@ -633,6 +633,23 @@
     tenor:  { size: 5.1, at: 27.2 }
   };
 
+  // Where each stepper's centre falls, in the staff's own coordinates. Measured
+  // rather than assumed: the steppers are sized off --ctl-h and the type scale,
+  // and the tweaks panel moves both.
+  function stepperCentres(host, W) {
+    var def = [W * 0.30, W * 0.72];
+    var lo = document.getElementById("low-val"), hi = document.getElementById("high-val");
+    if (!lo || !hi) return def;
+    lo = lo.closest(".stepper"); hi = hi.closest(".stepper");
+    if (!lo || !hi) return def;
+    var hr = host.getBoundingClientRect(), a = lo.getBoundingClientRect(), b = hi.getBoundingClientRect();
+    if (!a.width || !b.width || !hr.width) return def;
+    // Wrapped onto separate lines — they are no longer side by side, so lining
+    // the notes up with them would stack both notes in the same place.
+    if (Math.abs(a.top - b.top) > 4) return def;
+    return [a.left + a.width / 2 - hr.left, b.left + b.width / 2 - hr.left];
+  }
+
   function renderRangeStaff(lo, hi) {
     var host = document.getElementById("range-staff");
     if (!host) return;
@@ -642,11 +659,11 @@
     var top    = bottom + 8;
     var loStep = staffStepOfIdx(lo), hiStep = staffStepOfIdx(hi);
 
-    // Drawn at its natural size: the viewBox is in px, and the CSS caps the
-    // width at W so it renders 1:1 on a wide rail and scales down (never up)
-    // on a narrow one. Every vertical measurement below is a multiple of GAP,
-    // so opening the staff up is a one-number change.
-    var GAP = 12, HALF = GAP / 2, W = 280;
+    // The viewBox is the host's own pixel width, so the drawing is 1:1 with the
+    // page and a notehead can be put at the same x as the control it belongs to
+    // with no scale conversion in between. Every vertical measurement is a
+    // multiple of GAP, so opening the staff up is a one-number change.
+    var GAP = 12, HALF = GAP / 2, W = Math.round(host.clientWidth) || 280;
     // The drawing grows only as far as the notes actually reach past the staff,
     // so a range inside it costs no extra height and a ledger-line excursion
     // shows itself instead of being cropped.
@@ -655,9 +672,16 @@
     var H = (maxStep - minStep) * HALF;
     var y = function (s) { return (maxStep - s) * HALF; };
 
-    var CLEF_X = 10, LO_X = 150, HI_X = 232;
+    // Hard against the left edge: the low stepper's centre is only ~60px in, so
+    // the clef has to keep out of the way of that note's ledger lines.
+    var CLEF_X = 3;
     // A notehead fills its space, and a ledger line clears it either side.
     var NOTE_RX = GAP * 0.56, NOTE_RY = GAP * 0.4, LEDGE = GAP * 0.95;
+    // Each note under the stepper that sets it, kept clear of the clef and of
+    // the right edge so its ledger lines have somewhere to go.
+    var xs = stepperCentres(host, W);
+    var pin = function (x) { return Math.max(CLEF_X + GAP * 3, Math.min(W - LEDGE - 2, x)); };
+    var LO_X = pin(xs[0]), HI_X = pin(xs[1]);
     var svg = [];
     svg.push('<svg viewBox="0 0 ' + W + ' ' + H.toFixed(1) + '" width="100%" role="img">');
 
@@ -725,6 +749,18 @@
       var el = document.getElementById(spec[0]);
       if (el) el.addEventListener("click", function () { nudgeRange(spec[1], spec[2]); });
     });
+    // The staff is drawn in page pixels so its notes can line up with the
+    // steppers, which means a width change — the rail opening, a rotation, the
+    // tweaks panel moving --ctl-h — has to redraw it. Watched on the row of
+    // steppers rather than on the staff itself: the staff's own height changes
+    // every time it redraws, and observing that would feed straight back in.
+    var row = document.querySelector(".range-row");
+    if (row && window.ResizeObserver) {
+      new ResizeObserver(function () {
+        var b = rangeBounds();
+        renderRangeStaff(b[0], b[1]);
+      }).observe(row);
+    }
     syncRangeUI();
   }
 

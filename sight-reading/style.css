@@ -1549,9 +1549,9 @@ button.secondary {
   margin-top: 6px;
   pointer-events: none;
 }
-/* 280 is the viewBox's own width, so the drawing renders 1:1 where there is
-   room and scales down rather than up where there is not. */
-#range-staff svg { display: block; max-width: 280px; overflow: visible; }
+/* The viewBox is set to this element's own pixel width, so 100% here is 1:1 —
+   which is what lets a notehead sit at the same x as the stepper above it. */
+#range-staff svg { display: block; width: 100%; overflow: visible; }
 
 /* Darker than --line, which is tuned for dividers sitting quietly behind
    content. These lines ARE the content: they have to read as a staff at a
