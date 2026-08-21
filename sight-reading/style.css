@@ -191,7 +191,6 @@
   --thumb: 17px;         /* the thumb's height */
   --thumb-w: 22px;       /* …and its width: a capsule, not a dot */
   --thumb-gap: 2px;      /* air the track leaves on either side of it */
-  --slider-w: 300px;     /* how long an interval weight's track runs */
   /* The checkbox's corner. It follows --corner-curve like every other
      squircled surface, but a superellipse needs a corner to work in: at 5px
      on a 19px box there is almost none, and raising the curve only reads as
@@ -1120,29 +1119,8 @@ button.secondary {
    shape, muted label. */
 .pill.save { color: var(--muted); }
 
-/* Alphabet matrix — a label plus a direct-tap off/some/lots choice, replacing
-   what used to be a checkbox (in play?) and a separate 1-4 weight slider.
-   Two rungs, not four: see the note above STEP_LEVELS in app.js for the
-   measurement that decided it. */
-.matrix-row {
-  display: grid;
-  /* The track's own length, not "whatever is left over". minmax(0, w) caps it
-     at w and lets it shrink to what actually remains — the min(w, 100%) it
-     replaces compared w against the whole row rather than the space beside the
-     other column, so it fit the desktop rail by luck (18px spare, measured)
-     and ran off a phone's.
-     The label column was 46px to clear a colour dot that is no longer there.
-     It cannot be max-content — every row is its own grid, so each would size
-     to its own label and the tracks would stop lining up — so it is a width
-     that follows the type scale instead, which is the only thing that moves
-     it. */
-  grid-template-columns: calc(38px * var(--type-scale)) minmax(0, var(--slider-w));
-  gap: 6px 10px;
-  align-items: center;
-}
-
-/* Names the axis a bare slider runs along — still used by How Musical?,
-   whose ends are self-explanatory but whose middle needs no word. */
+/* Names the axis a bare slider runs along — used by How Musical?, whose ends
+   are self-explanatory but whose middle needs no word. */
 .axis {
   display: flex;
   /* Fills whatever row it is in, so the two words really do sit at the ends of
@@ -1159,35 +1137,12 @@ button.secondary {
 }
 .axis em { font-style: normal; }
 
-.matrix {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-
-.matrix-row .row-label {
-  display: flex;
-  align-items: center;
-  font-size: var(--type-label);
-  font-weight: var(--weight-standard);
-}
-
-/* The row's own off/some/lots choice, stretched across the track the slider
-   used to occupy. Same pill as Ties (PATTERN: opt), sized down so eight rows
-   stack without the section growing past what it used to be. */
-.seg {
-  display: flex;
-  gap: 4px;
-}
-.seg .opt {
-  flex: 1;
-  min-width: 0;
-  height: 30px;
-  padding: 0 4px;
-  font-size: var(--type-micro);
-}
-
-/* Rhythm figures: a flat grid of notation cells toggled on/off, name on hover */
+/* Rhythm figures: a flat grid of notation cells toggled on/off, name on hover.
+   The alphabet matrix (#matrix) is the same .fig-grid of .fig-cell, one per
+   interval, off/on/×2 cycling the same way a figure's weight does — see the
+   note above snapIntervalWeight in app.js for why it stayed three rungs
+   rather than the old slider's four. Its cells carry a text label (.fig-txt)
+   in the glyph's place, since an interval has no notation shape of its own. */
 /* Figures are grouped by whether they stay inside a beat or reach across one.
    The heading is dropped when only one group is on screen — it would be naming
    the only thing there. */
@@ -1257,6 +1212,17 @@ button.secondary {
 
 .fig-svg { width: var(--fig-svg-w); height: var(--fig-svg-h); display: block; }
 .fig-cell.wide .fig-svg { width: calc(var(--fig-svg-w) * 2); }
+
+/* An interval cell's label stands in for the glyph a rhythm figure draws.
+   text-transform: none undoes the global label{} caption treatment (all
+   caps) — the .fig-cell is a <label> like every other figure, but this is
+   the first one showing real text through it rather than an SVG glyph, and
+   "2ND" loses the ordinal a plain "2nd" reads at a glance. */
+.fig-txt {
+  font-size: var(--type-label);
+  font-weight: var(--weight-standard);
+  text-transform: none;
+}
 
 /* ---------------------------------------------------------------------------
    PATTERN: tooltip

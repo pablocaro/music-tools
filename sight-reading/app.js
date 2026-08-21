@@ -174,11 +174,10 @@
   // against a fixed preset (test/melody.js's sibling, run ad hoc) moved that
   // interval's measured share by several points at EVERY step, 3 vs 4
   // included, on two shipped presets that lean on the top rung. So the rungs
-  // stay at four; what goes is the second control. Off/Some/Lots is the exact
-  // vocabulary Ties already uses for a frequency dial, tapped directly rather
-  // than cycled, and it snaps to the two ends of the old range (2, 4) — the
-  // middle two rungs were the ones nobody was reaching for on purpose.
-  var STEP_LEVELS = [{ id: "off", w: 0 }, { id: "some", w: 2 }, { id: "lots", w: 4 }];
+  // stay at four in the numbers the engine sees; what changed is the control.
+  // Same fig-cell tap-cycle as rhythm figures now — off / on / on×2, one cell
+  // per interval — with "on×2" landing on 4 rather than 2 so the weight scale
+  // an interval reaches is exactly the one the sweep measured, not a new one.
   function snapIntervalWeight(w) {
     var n = +w;
     return (!isFinite(n) || n <= 0) ? 0 : (n <= 2 ? 2 : 4);
@@ -188,64 +187,66 @@
   var matrixEl  = document.getElementById("matrix");
   var presetsEl = document.getElementById("presets");
 
-  // Row labels live in the catalogue: they used to be bare digits, which needed
-  // no translating, but ordinals do — Spanish writes 2ª where English writes
-  // 2nd. All eight are three characters wide, so the column stays narrow.
+  // Cell labels live in the catalogue: they used to be bare digits, which
+  // needed no translating, but ordinals do — Spanish writes 2ª where English
+  // writes 2nd.
   function stepLabel(i) { return t("step." + i); }
 
-  // Each interval row: a label plus a 3-way off/some/lots pill group. The
-  // current weight lives on the row itself (data-w), the one thing every
-  // reader (readAlphabet, setRow, syncStepRow) agrees on.
+  // Each interval is one fig-cell, tapped through the same off → on → ×2 → off
+  // cycle as a rhythm figure. A hidden checkbox owns in-or-out (so an old
+  // saved alphabet — a plain weight array — still reads back through it), and
+  // the weight rides in data-w exactly like a figure's does.
   function buildMatrix() {
     INTERVALS.forEach(function (iv, i) {
-      var row = document.createElement("div");
-      row.className = "matrix-row";
-      row.dataset.w = "0";
+      var cell = document.createElement("label");
+      cell.className = "fig-cell";
+      cell.setAttribute("aria-label", t("interval." + i));
 
-      var label = document.createElement("div");
-      label.className = "row-label";
-      label.textContent = stepLabel(i);
-      row.appendChild(label);
+      var cb = document.createElement("input");
+      cb.type = "checkbox"; cb.hidden = true; cb.dataset.w = "2";
 
-      var seg = document.createElement("div");
-      seg.className = "seg";
-      seg.setAttribute("role", "group");
-      seg.setAttribute("aria-label", t("interval." + i));
-      STEP_LEVELS.forEach(function (lv) {
-        var b = document.createElement("button");
-        b.type = "button";
-        b.className = "opt";
-        b.textContent = t("val." + lv.id);
-        b.dataset.w = lv.w;
-        b.addEventListener("click", function () {
-          row.dataset.w = String(lv.w);
-          syncStepRow(i);
-          generate();
-        });
-        seg.appendChild(b);
+      var txt = document.createElement("span");
+      txt.className = "fig-txt";
+      txt.textContent = stepLabel(i);
+
+      var badge = document.createElement("span");
+      badge.className = "wt";
+      function syncWt() {
+        var w = +cb.dataset.w || 2;
+        badge.textContent = (cb.checked && w > 2) ? "×2" : "";
+      }
+      cb.addEventListener("change", function () { cell.classList.toggle("on", cb.checked); syncWt(); generate(); });
+      cell.addEventListener("click", function (e) {
+        e.preventDefault();      // labels re-dispatch to the checkbox; we own the cycle
+        var w = cb.checked ? (+cb.dataset.w || 2) : 0;
+        var next = (w === 0) ? 2 : (w === 2) ? 4 : 0;
+        cb.checked = next > 0;
+        cb.dataset.w = next > 0 ? next : 2;
+        cb.dispatchEvent(new Event("change"));
       });
-      row.appendChild(seg);
 
-      matrixRows.push(row);
-      matrixEl.appendChild(row);
+      cell.appendChild(cb);
+      cell.appendChild(txt);
+      cell.appendChild(badge);
+      matrixRows.push(cell);
+      matrixEl.appendChild(cell);
     });
   }
 
-  function syncStepRow(i) {
-    var row = matrixRows[i];
-    if (!row) return;
-    var w = +row.dataset.w || 0;
-    row.querySelectorAll(".seg .opt").forEach(function (b) {
-      b.classList.toggle("on", +b.dataset.w === w);
-    });
-  }
-
-  // Apply a weight to a row, snapped to the nearest of the three rungs a
-  // preset or saved session might carry any of the old 1-4 range in.
+  // Apply a weight to a cell, snapped to the nearest of the three rungs a
+  // preset or saved session might carry any of the old 1-4 range in. Mirrors
+  // applyBeats: sets state directly rather than through the change event, so
+  // callers that apply a whole alphabet at once don't trigger a regenerate
+  // per interval.
   function setRow(i, w) {
-    if (!matrixRows[i]) return;
-    matrixRows[i].dataset.w = String(snapIntervalWeight(w));
-    syncStepRow(i);
+    var cell = matrixRows[i];
+    if (!cell) return;
+    var cb = cell.querySelector("input"), snapped = snapIntervalWeight(w);
+    cb.checked = snapped > 0;
+    cb.dataset.w = snapped > 0 ? snapped : 2;
+    cell.classList.toggle("on", cb.checked);
+    var badge = cell.querySelector(".wt");
+    if (badge) badge.textContent = (cb.checked && snapped > 2) ? "×2" : "";
   }
 
   function setWeights(weights) {
@@ -256,7 +257,10 @@
   // Off is just weight 0, which is what the engine's weighted draw already
   // understands — so nothing downstream needed to change.
   function readAlphabet() {
-    var w = matrixRows.map(function (row) { return +row.dataset.w || 0; });
+    var w = matrixRows.map(function (cell) {
+      var cb = cell.querySelector("input");
+      return cb.checked ? (+cb.dataset.w || 2) : 0;
+    });
     return { down: w.slice(), up: w.slice() };   // engine still wants both; they're symmetric now
   }
 
@@ -3588,17 +3592,10 @@
     });
 
     // runtime-built labels
-    matrixRows.forEach(function (row, i) {
-      var n = row.querySelector(".row-label");   // 2nd / 2ª — ordinals translate
+    matrixRows.forEach(function (cell, i) {
+      var n = cell.querySelector(".fig-txt");   // 2nd / 2ª — ordinals translate
       if (n) n.textContent = stepLabel(i);
-      var seg = row.querySelector(".seg");
-      if (seg) {
-        seg.setAttribute("aria-label", t("interval." + i));
-        seg.querySelectorAll(".opt").forEach(function (b) {
-          var lv = STEP_LEVELS.filter(function (l) { return l.w === +b.dataset.w; })[0];
-          if (lv) b.textContent = t("val." + lv.id);
-        });
-      }
+      cell.setAttribute("aria-label", t("interval." + i));
     });
     buildInstrumentPills();   // word labels, so they re-render per language
     // Same reason, and they were missed: the slur row's "Off" and the tie

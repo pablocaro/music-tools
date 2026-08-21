@@ -47,7 +47,7 @@
     railTone: 4, platterRadius: 24, platterPad: 18, platterGap: 10,
     platterLift: 0.1, platterEdge: 0, railInset: 20,
     caretSize: 12, caretWeight: 2, bandFold: 260,
-    swScale: 0.63, thumbW: 22, thumbGap: 2, sliderW: 300, checkRadius: 6,
+    swScale: 0.63, thumbW: 22, thumbGap: 2, checkRadius: 6,
     // colour
     accentH: 208, accentS: 100, paperWarmth: 18, inkL: 16, chunkAlpha: 0.5,
     // music
@@ -98,8 +98,6 @@
         note: "its width — the height follows the track" },
       { key: "thumbGap",  label: "Thumb gap",     min: 0,   max: 10,  step: 0.5, unit: "px",
         note: "where the track breaks around it; 0 is one unbroken line" },
-      { key: "sliderW",   label: "Slider length", min: 120, max: 420, step: 10, unit: "px",
-        note: "the interval weight tracks; capped by the rail's width" },
       { key: "headerGap", label: "Header gap",    min: 6,   max: 28,  step: 1, unit: "px",
         note: "between the three buttons top right" },
       { key: "railW",     label: "Rail width",    min: 300, max: 520, step: 10, unit: "px", re: 1,
@@ -220,7 +218,6 @@
     leading: "--leading",
     density: "--density", controlH: "--ctl-h", headerGap: "--tb-gap",
     swScale: "--sw-scale", thumbW: "--thumb-w", thumbGap: "--thumb-gap",
-    sliderW: "--slider-w",
     railW: "--rail-w", gutter: "--music-gutter", pagePad: "--page-pad",
     pillRadius: "--ctl-radius", boxRadius: "--ctl-radius-box",
     surfaceRadius: "--radius-card", shadowDepth: "--shadow-depth",
@@ -324,7 +321,6 @@
     r.setProperty("--sw-scale",     String(state.swScale));
     r.setProperty("--thumb-w",      state.thumbW + "px");
     r.setProperty("--thumb-gap",    state.thumbGap + "px");
-    r.setProperty("--slider-w",     state.sliderW + "px");
     r.setProperty("--rail-w",       state.railW + "px");
     r.setProperty("--music-gutter", state.gutter + "px");
     r.setProperty("--page-pad",     state.pagePad + "px");
