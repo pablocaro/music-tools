@@ -596,6 +596,32 @@
       var alpha = this.options.alphabet || { down: [0, 1, 0, 0, 0, 0, 0], up: [0, 1, 0, 0, 0, 0, 0] };
       var musicality = this.options.musicality || 0;
       var oldP = this._p, delta;
+
+      // Where this note falls in the bar, in felt pulses — a quarter in the
+      // simple meters, a dotted quarter in 6/8, so "on the beat" means the same
+      // thing to a reader in every meter. Hoisted out of the musical branch
+      // below: the chromatic layer needs it whatever the musicality dial says.
+      var beatF = startPosition.RealValue * 4;               // in quarter notes
+      var pulseLen = this.options.pulseBeats || 1;
+      var pulses = beatF / pulseLen;
+      var onDownbeat = Math.abs(beatF) < 0.05;
+      var onPulse = Math.abs(pulses - Math.round(pulses)) < 0.05;
+
+      // How much the chromatic layer has to answer to the structure. This IS
+      // the musicality dial, and that is the whole idea: at 0 there is no
+      // structure to answer to — the line is a random walk, no bar is on a
+      // chord, no phrase is closing — so an accidental anywhere is as good as
+      // anywhere else and chroma stays exactly as free as it has always been.
+      // As the dial climbs, the notes carrying the harmony and the phrase are
+      // progressively taken off the table, because that is what was making the
+      // two dials at maximum fight each other: the walk was choosing the third
+      // of the chord for a downbeat and the chromatic layer was raising it a
+      // semitone immediately afterwards.
+      // 1 = unrestricted. Assigned inside the musical branch, which is the only
+      // place the structure is known.
+      var chromaGuard = 1;
+      var chromaLTGuard = null;   // set on a minor dominant bar; see below
+
       if (musicality > 0) {
         // One dial, two things. Phrasing tracks it directly; chord-following
         // lags, because a wandering line first needs direction, and committing
@@ -652,15 +678,6 @@
           motif = this._motifDeltas[this._noteIdx - 1];
         }
 
-        // Where this note falls in the bar, in felt pulses — a quarter in the
-        // simple meters, a dotted quarter in 6/8, so "on the beat" means the
-        // same thing to a reader in every meter.
-        var beatF = startPosition.RealValue * 4;               // in quarter notes
-        var pulseLen = this.options.pulseBeats || 1;
-        var pulses = beatF / pulseLen;
-        var onDownbeat = Math.abs(beatF) < 0.05;
-        var onPulse = Math.abs(pulses - Math.round(pulses)) < 0.05;
-
         // How hard this particular note is asked to be a chord tone. Downbeats
         // always are, once chord-following is on at all; the weaker positions
         // are recruited as the dial climbs, until at the top every note is an
@@ -690,6 +707,35 @@
         // is the whole test — what "open" and "closed" mean melodically is
         // decided at the pick (see the cadence branch there).
         var cadOpen = (Math.floor(mi / 4) % 2 === 0) && !lastM;
+        // What the chromatic layer below may not touch, scaled by the dial.
+        // Each factor is a note the structure has already spoken for:
+        //   the downbeat   — a chromatic tone is unaccented by definition; it
+        //                    lives between two chord tones, not on the beat
+        //   the cadence    — the note the phrase is judged by
+        //   the seam       — a note carrying a resolution obligation
+        // A minor dominant bar's 7th is a fourth case, handled per-candidate
+        // below: it is already raised to make the leading tone, and a second
+        // alteration on top of that is not colour, it is a wrong note. (The
+        // emission path applies the leading tone only `if (!alt)`, so without
+        // this the chromatic layer silently wins and the cadence loses its
+        // lean.)
+        // The metric factors damp rather than forbid. An accented chromatic
+        // tone is a real device — the appoggiatura — it is just not the default
+        // one, and zeroing the downbeat outright killed the dial stone dead on
+        // any preset whose rhythm has no weak positions to put a passing tone
+        // in (an arpeggio drill in plain quarters measured 0% chromatic at the
+        // top of the chroma dial). Rare, not forbidden.
+        // The structural factors DO forbid: a cadence note and a note owing a
+        // resolution are spoken for, and there is no reading under which
+        // altering them is the interesting choice.
+        var g = 1;
+        if (onDownbeat)      g *= 1 - musicality * 0.85;
+        else if (onPulse)    g *= 1 - musicality * 0.5;
+        if (cadence > 0)     g *= 1 - musicality;
+        if (oblige > 0)      g *= 1 - musicality;
+        chromaGuard = g;
+        if (this.options.mode === "minor" && root === DOMINANT) chromaLTGuard = 1 - musicality;
+
         var progress = Math.max(0, Math.min(1, (mi + beatF / barQ) / totalM));
         var targetP = PMIN + (PMAX - PMIN) * (0.35 + 0.4 * Math.sin(Math.PI * progress));   // gentle arch
         delta = pickMusicalDelta(alpha, {
@@ -712,18 +758,38 @@
       // -----------------------------------------------------------------------
       var alterDir = 0;
       var chroma = this.options.chroma || 0;
+
+      // Density. Chromaticism is inflection, not texture: past a couple of
+      // figures a bar the ear stops hearing a diatonic line being coloured and
+      // starts hearing no key at all. The cap tightens as musicality rises —
+      // two a bar at the top, and none at all at musicality 0, where there is
+      // no key to lose.
+      var cmi = this._measureIdx || 0;
+      if (this._chromaBar !== cmi) { this._chromaBar = cmi; this._chromaCount = 0; }
+      var chromaCap = musicality > 0 ? Math.max(2, Math.ceil(4 - 2 * musicality)) : Infinity;
+
+      // A figure spans two notes, and the second one is its resolution, so the
+      // guard is only consulted when STARTING one. Landing the resolution on a
+      // downbeat is not a violation — it is the whole point: the chromatic tone
+      // is the weak-beat approach to a strong-beat chord tone.
       if (this._forced != null) {
         delta = this._forced;
         this._forced = null;
-      } else if (chroma > 0) {
-        if (delta === 0 && Math.random() < chroma * 0.5 && oldP - 1 >= PMIN
-            && semitoneGap(tones, ladder, N, oldP - 1, oldP) === 2) {
+      } else if (chroma > 0 && chromaGuard > 0 && this._chromaCount < chromaCap) {
+        // The raised 7th of a minor dominant bar, per candidate note.
+        var ltGate = function (q) {
+          return (chromaLTGuard != null && ((q % N) + N) % N === 6) ? chromaLTGuard : 1;
+        };
+        if (delta === 0 && oldP - 1 >= PMIN
+            && semitoneGap(tones, ladder, N, oldP - 1, oldP) === 2
+            && Math.random() < chroma * 0.5 * chromaGuard * ltGate(oldP - 1)) {
           // Chromatic lower neighbour: instead of repeating the note, dip to
           // the scale step below raised a semitone (G -> F# -> G), which is the
           // correct spelling, then the obligation returns us home.
-          delta = -1; alterDir = +1; this._forced = +1;
-        } else if (Math.abs(delta) === 1 && Math.random() < chroma * 0.35
-            && semitoneGap(tones, ladder, N, oldP, oldP + delta) === 2) {
+          delta = -1; alterDir = +1; this._forced = +1; this._chromaCount++;
+        } else if (Math.abs(delta) === 1
+            && semitoneGap(tones, ladder, N, oldP, oldP + delta) === 2
+            && Math.random() < chroma * 0.35 * chromaGuard * ltGate(oldP)) {
           // Chromatic passing tone: the chosen step is delayed one slot and the
           // gap is filled — D -> D# -> E ascending (sharp side), E -> Eb -> D
           // descending (flat side). Spelled as the old note altered toward the
@@ -731,6 +797,7 @@
           this._forced = delta;
           alterDir = (delta > 0) ? +1 : -1;
           delta = 0;
+          this._chromaCount++;
         }
       }
 

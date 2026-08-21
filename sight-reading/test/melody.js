@@ -21,8 +21,22 @@
 //   shape    — the fingerprint: same/step/3rd/wider shares and the mean length
 //              of a same-direction run. These are the numbers that must NOT
 //              move when a seam rule lands.
+//   chrom    — how much of the line is altered away from the key signature,
+//              and WHERE it lands: @down and @pulse are the shares of those
+//              notes on a downbeat and on any pulse. A chromatic tone is
+//              unaccented by definition — it lives between two chord tones on
+//              a weak part of the beat — so a high @down is the sound of the
+//              chroma dial fighting the musicality dial instead of colouring
+//              it. /bar and max are density: chromaticism is inflection, and
+//              past a couple a bar the ear stops hearing a key at all.
 //
 //   node sight-reading/test/melody.js        (GENS=n to change sample size)
+//
+// CHROMA=n forces the chromaticism dial for every row, which is how you ask
+// whether the two dials still fight at the top. CHROMA=100 DIALS=0,100 is the
+// pair that matters: at musicality 0 there is no structure for chroma to
+// answer to and it should stay entirely free, while at 100 it should have
+// moved off the strong beats and thinned out.
 //
 // DIALS=0,20,40,60,80,100 sweeps the musicality dial instead of the default
 // two ends, which is how you ask whether the middle of that control is a real
@@ -50,6 +64,18 @@ const ROOTS = {
   'i-VII-VI-V': [0, 6, 5, 4]
 };
 
+// What the key signature already alters, so a diatonic F# in G major is not
+// counted as chromaticism. Letter indices, in the order accidentals are added.
+const SHARP_ORDER = [3, 0, 4, 1, 5, 2, 6];   // F C G D A E B
+const FLAT_ORDER  = [6, 2, 5, 1, 4, 0, 3];   // B E A D G C F
+function keyAlters(fifths) {
+  const a = [0, 0, 0, 0, 0, 0, 0];
+  for (let i = 0; i < Math.abs(fifths) && i < 7; i++) {
+    if (fifths > 0) a[SHARP_ORDER[i]] = 1; else a[FLAT_ORDER[i]] = -1;
+  }
+  return a;
+}
+
 function chordOf(root) {
   const c = [root % 7, (root + 2) % 7, (root + 4) % 7];
   if (root === DOMINANT) c.push((root + 6) % 7);   // the seventh, as the engine does
@@ -62,13 +88,20 @@ function chordOf(root) {
 function parse(xml, tonic) {
   const dv = /<divisions>(\d+)<\/divisions>/.exec(xml);
   const div = dv ? +dv[1] : 1;
+  const ff = /<fifths>(-?\d+)<\/fifths>/.exec(xml);
+  const kAlt = keyAlters(ff ? +ff[1] : 0);
   return xml.split(/<measure[ >]/).slice(1).map((m) => {
     const notes = [...m.matchAll(/<note[\s\S]*?<\/note>/g)].map((t) => {
       const st = /<step>([A-G])<\/step>/.exec(t), oc = /<octave>(\d)<\/octave>/.exec(t);
       const du = /<duration>(\d+)<\/duration>/.exec(t);
+      const al = /<alter>(-?\d+)<\/alter>/.exec(t);
+      const li = st ? LET[st[1]] : null;
       return { pos: st && oc ? +oc[1] * 7 + LET[st[1]] : null,
                deg: st ? ((LET[st[1]] - tonic) % 7 + 7) % 7 : null,
                dur: du ? +du[1] : 0,
+               // Chromatic = altered away from what the key signature already
+               // gives this letter. Anything else is just the key.
+               chrom: li != null && (al ? +al[1] : 0) !== kAlt[li],
                rest: /<rest\s*\/?>/.test(t) };
     });
     let t = 0;
@@ -82,7 +115,12 @@ function newAcc() {
            seam: { n: 0, jump: 0, near: 0, opt: 0 }, anchor: { n: 0, jump: 0 },
            ob: { n: 0, jump: 0, res: 0 }, lead: { n: 0, res: 0 }, sev: { n: 0, res: 0 },
            starts: [], q: { n: 0, tone: 0, root: 0 }, ans: { n: 0, tone: 0, root: 0 },
-           nct: { n: 0, ok: 0 }, off: { n: 0, step: 0 }, ctr: { n: 0, hit: 0 } };
+           nct: { n: 0, ok: 0 }, off: { n: 0, step: 0 }, ctr: { n: 0, hit: 0 },
+           // Chromaticism, and where it lands. `down`/`pulse` are the ones that
+           // matter: a chromatic tone is unaccented by definition, so a high
+           // share of them on strong beats is the sound of the chroma dial
+           // fighting the musicality dial rather than colouring it.
+           chr: { notes: 0, n: 0, down: 0, pulse: 0, bars: 0, maxBar: 0 } };
 }
 
 function collect(xml, tonic, roots, a) {
@@ -120,6 +158,23 @@ function collect(xml, tonic, roots, a) {
       if (Math.abs(n.pos - pv.pos) === 1) a.off.step++;
     }
   }
+  // Chromaticism: how much, and how much of it lands on a strong beat. Counted
+  // over the sounding notes of each bar so the per-bar maximum is meaningful.
+  const pulseLen = 1;   // the measured presets are all simple meters
+  bars.forEach((bar) => {
+    let inBar = 0;
+    bar.forEach((n) => {
+      a.chr.notes++;
+      if (!n.chrom) return;
+      a.chr.n++; inBar++;
+      const onPulse = Math.abs(n.beat / pulseLen - Math.round(n.beat / pulseLen)) < 0.02;
+      if (Math.abs(n.beat) < 0.02) a.chr.down++;
+      if (onPulse) a.chr.pulse++;
+    });
+    a.chr.bars++;
+    if (inBar > a.chr.maxBar) a.chr.maxBar = inBar;
+  });
+
   // The opening note — one per exercise. Distinct starts across a batch is
   // the anti-tell metric; membership in the first bar's chord is the musical
   // one (only expected once the dial is up).
@@ -219,11 +274,20 @@ function collect(xml, tonic, roots, a) {
 
   const setDial = (v) => p.evaluate((x) => { const M = document.getElementById('musicality');
     M.value = x; M.dispatchEvent(new Event('input')); M.dispatchEvent(new Event('change')); }, v);
+  // CHROMA=n forces the chromaticism dial for every row, which is how you ask
+  // whether the two dials still fight each other at the top.
+  const setChroma = (v) => p.evaluate((x) => { const C = document.getElementById('chroma');
+    C.value = x; C.dispatchEvent(new Event('input')); C.dispatchEvent(new Event('change')); }, v);
 
   console.log(`${GENS} exercises per row.  jump/near in staff steps; opt = took a jump no wider than the nearest option.`);
-  console.log('preset            dial │ seam jump near  opt │ anchr │ obliged n res │ lead n res │ 7th n res │ same/step/3rd/wide │ run │ starts d tone │ Qopen Aclose │ nct n ok offstep │ ctr');
+  console.log('preset            dial │ seam jump near  opt │ anchr │ obliged n res │ lead n res │ 7th n res │ same/step/3rd/wide │ run │ starts d tone │ Qopen Aclose │ nct n ok offstep │ ctr │ chrom% @down @pulse /bar max');
 
-  for (const [label, rx] of [['Arpeggios', 'arpegg'], ['Mixed Intervals', 'mixed int'], ['Minor Cadences', 'caden']]) {
+  // Chromatic Steps earns its place in this list: it is the one preset whose
+  // subject IS the chroma dial, and the only one whose rhythm has weak
+  // positions for a passing tone to live in. Judging chromaticism by the
+  // arpeggio drill alone measures a rhythm with nowhere to put one.
+  for (const [label, rx] of [['Arpeggios', 'arpegg'], ['Mixed Intervals', 'mixed int'],
+                             ['Minor Cadences', 'caden'], ['Chromatic Steps', 'chromatic']]) {
     await p.evaluate((r) => {
       const el = [...document.querySelectorAll('#presets .pill')].find((e) => new RegExp(r, 'i').test(e.textContent));
       if (el) el.click();
@@ -236,6 +300,7 @@ function collect(xml, tonic, roots, a) {
 
     for (const dial of (process.env.DIALS ? process.env.DIALS.split(',').map(Number) : [0, 100])) {
       await setDial(dial); await p.waitForTimeout(400);
+      if (process.env.CHROMA != null) { await setChroma(+process.env.CHROMA); await p.waitForTimeout(300); }
       const a = newAcc();
       for (let k = 0; k < GENS; k++) {
         await p.evaluate(() => document.getElementById('generate').click());
@@ -252,7 +317,9 @@ function collect(xml, tonic, roots, a) {
       const nc = pc(a.nct.ok, a.nct.n), os = pc(a.off.step, a.off.n);
       const ni = pc(a.nct.in || 0, a.nct.n), no = pc(a.nct.out || 0, a.nct.n);
       const ct = pc(a.ctr.hit, a.ctr.n), cd = pc(a.ctr.dir || 0, a.ctr.n);
-      console.log(`${label.padEnd(16)} ${f(dial)} │ ${f(avg(a.seam.jump, a.seam.n))} ${f(avg(a.seam.near, a.seam.n))} ${f(pc(a.seam.opt, a.seam.n))} │ ${f(avg(a.anchor.jump, a.anchor.n))} │ ${f(a.ob.n, 6)} ${f(pc(a.ob.res, a.ob.n))} │ ${f(a.lead.n, 3)} ${f(pc(a.lead.res, a.lead.n))} │ ${f(a.sev.n, 2)} ${f(pc(a.sev.res, a.sev.n))} │ ${f(pc(a.iv.same, a.moves), 3)} ${f(pc(a.iv.step, a.moves), 4)} ${f(pc(a.iv.third, a.moves), 4)} ${f(pc(a.iv.wide, a.moves), 4)} │ ${mrun} │ ${f(sd, 2)} ${f(st, 4)} │ ${f(qo, 4)} ${f(ac, 4)} │ ${f(a.nct.n, 4)} ${f(nc, 4)} in${f(ni, 4)} out${f(no, 4)} ${f(os, 4)} │ ${f(ct, 4)} dir${f(cd, 4)}`);
+      const chAll = pc(a.chr.n, a.chr.notes), chDn = pc(a.chr.down, a.chr.n),
+            chPu = pc(a.chr.pulse, a.chr.n), chPer = a.chr.bars ? (a.chr.n / a.chr.bars).toFixed(2) : '—';
+      console.log(`${label.padEnd(16)} ${f(dial)} │ ${f(avg(a.seam.jump, a.seam.n))} ${f(avg(a.seam.near, a.seam.n))} ${f(pc(a.seam.opt, a.seam.n))} │ ${f(avg(a.anchor.jump, a.anchor.n))} │ ${f(a.ob.n, 6)} ${f(pc(a.ob.res, a.ob.n))} │ ${f(a.lead.n, 3)} ${f(pc(a.lead.res, a.lead.n))} │ ${f(a.sev.n, 2)} ${f(pc(a.sev.res, a.sev.n))} │ ${f(pc(a.iv.same, a.moves), 3)} ${f(pc(a.iv.step, a.moves), 4)} ${f(pc(a.iv.third, a.moves), 4)} ${f(pc(a.iv.wide, a.moves), 4)} │ ${mrun} │ ${f(sd, 2)} ${f(st, 4)} │ ${f(qo, 4)} ${f(ac, 4)} │ ${f(a.nct.n, 4)} ${f(nc, 4)} in${f(ni, 4)} out${f(no, 4)} ${f(os, 4)} │ ${f(ct, 4)} dir${f(cd, 4)} │ ${f(chAll, 5)} ${f(chDn, 5)} ${f(chPu, 6)} ${f(chPer, 5)} ${f(a.chr.maxBar, 3)}`);
     }
   }
   console.log('errors:', errs);
