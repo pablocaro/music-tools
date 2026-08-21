@@ -620,14 +620,17 @@
   // the middle of its staff and overhangs both ends, an F clef hangs off its
   // fourth line, and a C clef centres on the middle C it points at — which is
   // the middle line in alto and the fourth in tenor.
-  // Sizes are eyeballed against the rendered staff rather than derived: these
-  // are text glyphs, and how much of the em box each one inks is a property of
-  // the font, not of the notation.
+  // `size` is a multiple of the staff's line gap, not a px value, so the whole
+  // drawing scales from that one number. All four happen to want the same
+  // multiple; what differs is where each sits, which is why they stay separate.
+  // Both numbers are eyeballed against the rendered staff rather than derived —
+  // these are text glyphs, and how much of the em box each one inks is a
+  // property of the font, not of the notation.
   var CLEF_ART = {
-    treble: { size: 46, at: 34 },
-    bass:   { size: 46, at: 21 },
-    alto:   { size: 46, at: 27.2 },
-    tenor:  { size: 46, at: 27.2 }
+    treble: { size: 5.1, at: 34 },
+    bass:   { size: 5.1, at: 21 },
+    alto:   { size: 5.1, at: 27.2 },
+    tenor:  { size: 5.1, at: 27.2 }
   };
 
   function renderRangeStaff(lo, hi) {
@@ -641,8 +644,9 @@
 
     // Drawn at its natural size: the viewBox is in px, and the CSS caps the
     // width at W so it renders 1:1 on a wide rail and scales down (never up)
-    // on a narrow one. A gap of 9px is about engraved size for a readout.
-    var GAP = 9, HALF = GAP / 2, W = 280;
+    // on a narrow one. Every vertical measurement below is a multiple of GAP,
+    // so opening the staff up is a one-number change.
+    var GAP = 12, HALF = GAP / 2, W = 280;
     // The drawing grows only as far as the notes actually reach past the staff,
     // so a range inside it costs no extra height and a ledger-line excursion
     // shows itself instead of being cropped.
@@ -652,7 +656,8 @@
     var y = function (s) { return (maxStep - s) * HALF; };
 
     var CLEF_X = 10, LO_X = 150, HI_X = 232;
-    var NOTE_RX = 5, NOTE_RY = 3.6, LEDGE = 8.5;
+    // A notehead fills its space, and a ledger line clears it either side.
+    var NOTE_RX = GAP * 0.56, NOTE_RY = GAP * 0.4, LEDGE = GAP * 0.95;
     var svg = [];
     svg.push('<svg viewBox="0 0 ' + W + ' ' + H.toFixed(1) + '" width="100%" role="img">');
 
@@ -668,7 +673,7 @@
                '" y1="' + y(bottom + k).toFixed(1) + '" y2="' + y(bottom + k).toFixed(1) + '"/>');
     }
     svg.push('<text class="rs-clef" x="' + CLEF_X + '" y="' + y(art.at).toFixed(1) +
-             '" font-size="' + art.size + '" dominant-baseline="central">' +
+             '" font-size="' + (art.size * GAP).toFixed(1) + '" dominant-baseline="central">' +
              clefDef(clef).label + '</text>');
 
     // Ledger lines are drawn per note, only as far out as that note reaches —

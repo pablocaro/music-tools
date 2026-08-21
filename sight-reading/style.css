@@ -968,6 +968,16 @@ input[type="checkbox"]:checked::after {
 .step-btn:hover { background: rgba(0, 0, 0, 0.12); opacity: 1; }
 .step-btn:active { transform: scale(0.92); opacity: 1; }
 
+/* The note range is the first stepper that can run out of travel — its ends
+   stop at the outer octaves and at the narrowest useful span — so this is the
+   first disabled state the pattern has needed. Dimmed, and inert under hover
+   and press: a button that cannot act should not answer as though it can.
+   These sit after :hover/:active deliberately, and restate the opacity, since
+   those rules set opacity themselves and would otherwise win. */
+.step-btn:disabled { opacity: 0.3; cursor: default; }
+.step-btn:disabled:hover { background: rgba(0, 0, 0, 0.07); opacity: 0.3; }
+.step-btn:disabled:active { transform: none; opacity: 0.3; }
+
 /* ---------------------------------------------------------------------------
    PATTERN: icon-toggle
    A round icon button that is on or off — the panel-sized sibling of the
@@ -1526,10 +1536,11 @@ button.secondary {
 .sr-cursor-blink { animation: srBlink 0.5s ease-in-out infinite; }
 
 /* Note range — two steppers and the staff that shows what they mean.
-   The caption sits beside its stepper the way the Slurs and Ties rows do, so
-   "Low" and "High" read as labels for the control rather than headings. */
-.range-row { align-items: center; gap: 12px; }
-.range-row .fig-h { margin-bottom: 0; min-width: 34px; }
+   The two ends sit side by side under their captions, so they read as one
+   control with a low end and a high end rather than two stacked settings. */
+.range-row { align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.range-end { display: flex; flex-direction: column; gap: 5px; }
+.range-end .fig-h { margin-bottom: 0; }
 
 /* The readout. A drawing, not a control: it takes no pointer events, and the
    height comes from the SVG's own aspect so ledger lines can push it taller
@@ -1542,8 +1553,12 @@ button.secondary {
    room and scales down rather than up where there is not. */
 #range-staff svg { display: block; max-width: 280px; overflow: visible; }
 
+/* Darker than --line, which is tuned for dividers sitting quietly behind
+   content. These lines ARE the content: they have to read as a staff at a
+   glance, and they carry a tinted band behind them. Mixed from --ink rather
+   than pinned, so it holds wherever the ink token goes. */
 .rs-line, .rs-ledger {
-  stroke: var(--line);
+  stroke: color-mix(in srgb, var(--ink) 34%, transparent);
   stroke-width: 1;
   shape-rendering: crispEdges;   /* hairlines, not a grey blur */
 }
