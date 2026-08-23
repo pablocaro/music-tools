@@ -192,12 +192,12 @@
           <option data-i18n="clef.tenor" value="tenor">Tenor</option>
           <option data-i18n="clef.bass" value="bass">Bass</option>
         </select>
-        <select id="timesig">
-          <option value="2/4">2/4</option>
-          <option value="3/4">3/4</option>
-          <option value="4/4" selected>4/4</option>
-          <option value="6/8">6/8</option>
-        </select>
+        <!-- A comma list, not a <select>: the meter is a SET now (tick 4/4 and
+             6/8 and each exercise is drawn in one of them), and a select can
+             only ever hold one of its own options — assigning "4/4,6/8" to one
+             silently yields "". Same shape as #bowing above, for the same
+             reason. -->
+        <input type="hidden" id="timesig" value="4/4">
       </div>
 
       <!-- What this is, before any control. Takes the place of the ? that used
@@ -234,7 +234,13 @@
         </button>
         <div class="band-body" id="bb-rhythm">
           <section class="sec">
-            <div class="sec-row" id="timesig-pills"></div>
+            <!-- Two grids of identical-looking cells, so each says which it
+                 is. The figures need no heading — there is only one group of
+                 them now — but without a word above the meters the two run
+                 together into one undifferentiated field. -->
+            <h3 class="fig-h" data-i18n="lbl.meter">Meter</h3>
+            <div class="fig-grid" id="timesig-pills"></div>
+            <h3 class="fig-h" data-i18n="lbl.figures">Figures</h3>
             <div class="beats" id="beats"></div>
             <!-- Slurs: group the line in twos, threes or fours. A slur is one
                  instruction to every instrument — one bow, one tongue, one

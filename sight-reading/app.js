@@ -307,7 +307,7 @@
     if (p.range) applyRange(p.range);
     if (p.key != null) setKeyFromCode(p.key);
     if (p.clef != null) clefEl.value = p.clef;
-    if (p.timesig != null) timesigEl.value = p.timesig;
+    if (p.timesig != null) timesigEl.value = canonSigs(p.timesig).join(",");
     if (p.measures != null) measuresEl.value = String(Math.max(8, parseInt(p.measures, 10) || 16));
     if (p.musicality != null) musicalityEl.value = snapMusicality(p.musicality);
     // Validated through progressionDef: an id saved under the other mode falls
@@ -323,8 +323,7 @@
     // "follow the chords hard, never mind the phrasing" preset still reads as
     // a strong setting rather than collapsing to zero.
     if (p.harmony != null) musicalityEl.value = snapMusicality(Math.max(+musicalityEl.value || 0, +p.harmony || 0));
-    syncBeatsFamily();   // meter may have just changed the figure grid — rebuild
-                         // before applyBeats looks for checkboxes in it
+    syncFigureCells();   // the meter set may have just changed which cells apply
     if (p.beats) applyBeats(p.beats);
     if (p.tempo != null) { tempoEl.value = p.tempo; tempoValEl.textContent = p.tempo; }
     if (p.cursor != null) cursorModeEl.value = p.cursor;
@@ -936,11 +935,43 @@
     return TIME_SIGS[2];   // 4/4
   }
 
+  // The meter is a SET now, and every exercise is drawn entirely in one of them.
+  // Two different questions follow from that, and keeping them apart is what
+  // makes the rest of this work:
+  //
+  //   selectedSigs()  what the panel is offering — drives the figure palette
+  //                   and the meter cells, and nothing else.
+  //   currentSig()    the meter the exercise ON SCREEN is actually in — drives
+  //                   the generator, the beaming, the playback clock and
+  //                   hide-ahead. Reading the selection here would break the
+  //                   moment the set held more than one.
+  //
+  // Stored as a comma list in the hidden input, so a preset saved as plain
+  // "4/4" still reads back correctly and nothing in localStorage has to move.
+  var drawnSig = null;
+
+  function canonSigs(v) {
+    var want = String(v == null ? "" : v).split(",").map(function (s) { return s.trim(); });
+    var ids = TIME_SIGS.filter(function (s) { return want.indexOf(s.id) >= 0; })
+                       .map(function (s) { return s.id; });
+    return ids.length ? ids : ["4/4"];   // never nothing; the cells clamp at one
+  }
+  function selectedSigIds() { return canonSigs(timesigEl.value); }
+  function selectedSigs() { return selectedSigIds().map(timeSigDef); }
+  function currentSig() { return timeSigDef(drawnSig || selectedSigIds()[0]); }
+  // Which meter this exercise gets. Called once per generation; everything
+  // downstream then agrees on the answer.
+  function drawSig() {
+    var ids = selectedSigIds();
+    drawnSig = ids[Math.floor(Math.random() * ids.length)];
+    return timeSigDef(drawnSig);
+  }
+
   // One felt pulse, in quarter notes — what a reader counts. A quarter in the
   // simple meters, a dotted quarter in 6/8, which is why 6/8 gets two pulses to
   // a bar rather than six. The generator anchors chord tones to these, so "on
   // the beat" has to mean the same thing in every meter.
-  function pulseBeats() { return timeSigDef(timesigEl.value).compound ? 1.5 : 1; }
+  function pulseBeats() { return currentSig().compound ? 1.5 : 1; }
 
   // Rewrite the exported score's clef. The exporter emits exactly one
   // <clef><sign>G</sign><line>2</line></clef> per part, at the first measure.
@@ -1391,36 +1422,29 @@
     });
   });
 
-  function currentBeatFigures() {
-    return timeSigDef(timesigEl.value).compound ? BEAT_FIGURES_COMPOUND : BEAT_FIGURES_SIMPLE;
-  }
-
-  // Figures are grouped, and a group can be hidden without being torn down —
-  // switching to 2/4 hides the across-the-beat set rather than rebuilding the
-  // palette, so whatever you had ticked is still ticked when you come back.
-  // Headings only appear when more than one group is showing: a lone "Basic"
-  // above the only grid on screen would be labelling nothing.
-  var FIG_GROUPS = ["basic", "more"];
-
-  function buildBeatsPalette(figures) {
+  // One grid, every figure, both families — built once and never torn down.
+  //
+  // It used to be two palettes that swapped, which had a bug nobody hit often
+  // enough to report: the swap rebuilt the grid from `item.def`, so going
+  // 4/4 → 6/8 → 4/4 silently threw away whatever you had ticked. Multi-select
+  // would have made that constant. Now nothing is rebuilt on a meter change —
+  // cells are only shown or hidden, and a hidden cell keeps its tick.
+  //
+  // The Basic/More headings are gone with it. They were describing the shape of
+  // the DOM (two groups) rather than anything a reader cares about, and with a
+  // third family's cells arriving they would have needed a third heading to
+  // explain a distinction that was never the point. One grid of figures.
+  function buildBeatsPalette() {
     beatsEl.innerHTML = "";
-    beatsEl.dataset.family = timeSigDef(timesigEl.value).compound ? "compound" : "simple";
-    FIG_GROUPS.forEach(function (gid) {
-      var members = figures.filter(function (f) { return (f.group || "basic") === gid; });
-      if (!members.length) return;
-      var group = document.createElement("div");
-      group.className = "fig-group";
-      group.dataset.group = gid;
-      var h = document.createElement("h3");
-      h.className = "fig-h";
-      h.setAttribute("data-i18n", "grp." + gid);
-      h.textContent = t("grp." + gid);
-      group.appendChild(h);
-      var grid = document.createElement("div");
-      grid.className = "fig-grid";
-      members.forEach(function (item) {
+    var grid = document.createElement("div");
+    grid.className = "fig-grid";
+    beatsEl.appendChild(grid);
+    [[BEAT_FIGURES_SIMPLE, "simple"], [BEAT_FIGURES_COMPOUND, "compound"]].forEach(function (set) {
+      set[0].forEach(function (item) {
         var cell = document.createElement("label");
         cell.className = "fig-cell" + (item.wide ? " wide" : "");
+        cell.dataset.fam = set[1];
+        if (item.wide) cell.dataset.wide = "1";
         cell.setAttribute("aria-label", t("fig." + item.id));
         var cb = document.createElement("input");
         cb.type = "checkbox"; cb.className = "beat"; cb.value = item.id; cb.checked = !!item.def; cb.hidden = true;
@@ -1455,48 +1479,41 @@
         cell.appendChild(badge);
         grid.appendChild(cell);
       });
-      group.appendChild(grid);
-      beatsEl.appendChild(group);
     });
-    syncFigureGroups();
+    syncFigureCells();
   }
 
-  // A two-beat figure fills a 2/4 bar on its own, leaving no room for anything
-  // else, and compound time's syncopation is a different animal (hemiola) that
-  // this set doesn't cover. In both cases the group is hidden — and hidden
-  // means out of play, since readBeatIds skips it.
-  function syncFigureGroups() {
-    var ts = timeSigDef(timesigEl.value);
-    var allowWide = !ts.compound && ts.num > 2;
-    var shown = 0;
-    beatsEl.querySelectorAll(".fig-group").forEach(function (g) {
-      var hide = g.dataset.group === "more" && !allowWide;
-      g.hidden = hide;
-      if (!hide) shown++;
+  // Which cells the selected meters can use. A compound figure is meaningless
+  // without a compound meter and vice versa; a two-beat figure needs a simple
+  // meter with room for it (it fills a 2/4 bar on its own, and compound
+  // syncopation is hemiola, a different animal this set doesn't cover).
+  // Gated per cell rather than per group, because the groups are gone — and
+  // a hidden cell keeps its tick, so turning 6/8 off and on again brings your
+  // compound figures back exactly as you left them.
+  function syncFigureCells() {
+    var sigs = selectedSigs();
+    var anySimple   = sigs.some(function (s) { return !s.compound; });
+    var anyCompound = sigs.some(function (s) { return !!s.compound; });
+    var allowWide   = sigs.some(function (s) { return !s.compound && s.num > 2; });
+    beatsEl.querySelectorAll(".fig-cell").forEach(function (cell) {
+      var show = cell.dataset.fam === "compound" ? anyCompound : anySimple;
+      if (show && cell.dataset.wide === "1" && !allowWide) show = false;
+      cell.hidden = !show;
     });
-    beatsEl.classList.toggle("one-group", shown < 2);
   }
 
-  // Only rebuilds (and resets to that family's defaults) when the meter
-  // actually crosses the simple/compound line — cycling among 2/4, 3/4 and
-  // 4/4 shares one grid and leaves whatever is checked alone.
-  function syncBeatsFamily() {
-    var wantCompound = !!timeSigDef(timesigEl.value).compound;
-    var have = beatsEl.dataset.family === "compound";
-    // The palette is only rebuilt when the meter crosses the simple/compound
-    // line. Every other meter change still has to re-gate the groups, though —
-    // 2/4 has no room for a two-beat figure — so that runs either way.
-    if (wantCompound !== have) buildBeatsPalette(currentBeatFigures());
-    else syncFigureGroups();
-  }
-
-  function buildBeatPatterns() {
+  // The bag for ONE exercise, so it filters by the meter that was drawn — not
+  // by what the panel is showing. With both families offered the grid holds
+  // cells that cannot tile this bar at all, and a compound cell in a 4/4 bag
+  // would simply never fit and skew the draw.
+  function buildBeatPatterns(sig) {
     var out = [];
-    // Scoped past hidden groups for the same reason readBeatIds is: what the
-    // panel isn't showing must not turn up in the music. A figure's weight is
-    // expressed the cheapest way possible — the cell goes into the bag that
-    // many times, and the uniform draw does the rest.
-    beatsEl.querySelectorAll(".fig-group:not([hidden]) .beat:checked").forEach(function (cb) {
+    var fam = sig.compound ? "compound" : "simple";
+    var wideOk = !sig.compound && sig.num > 2;
+    beatsEl.querySelectorAll(".fig-cell:not([hidden]) .beat:checked").forEach(function (cb) {
+      var cell = cb.closest(".fig-cell");
+      if (!cell || cell.dataset.fam !== fam) return;
+      if (cell.dataset.wide === "1" && !wideOk) return;
       var w = +cb.dataset.w || 1;
       for (var k = 0; k < w; k++)
       if (BEAT_PATTERNS[cb.value]) out.push(BEAT_PATTERNS[cb.value]);
@@ -1505,13 +1522,15 @@
     return out;
   }
 
+  // Every ticked figure, hidden or not. A preset now carries the meter SET it
+  // was saved with, so the figures of a family that set does not use are still
+  // part of the drill and have to travel with it — saving only what is on
+  // screen would quietly drop your compound figures the moment 6/8 was off.
+  // A weighted figure is stored as "id:w"; weight 1 stays a bare id, so presets
+  // saved before weights existed read back unchanged.
   function readBeatIds() {
     var ids = [];
-    // A hidden group is out of play but keeps its ticks, so the setting comes
-    // back intact when the meter allows it again. A weighted figure is stored
-    // as "id:w"; weight 1 stays a bare id, so presets saved before weights
-    // existed read back unchanged — and ones saved now read back in old code.
-    beatsEl.querySelectorAll(".fig-group:not([hidden]) .beat:checked").forEach(function (cb) {
+    beatsEl.querySelectorAll(".beat:checked").forEach(function (cb) {
       var w = +cb.dataset.w || 1;
       ids.push(w > 1 ? cb.value + ":" + w : cb.value);
     });
@@ -1587,6 +1606,9 @@
   };
 
   function buildOptions() {
+    // Draw this exercise's meter first: buildBeatPatterns and pulseBeats both
+    // have to be answering about the same one.
+    var sig = drawSig();
     var scaleKey = makeScaleKey(currentKeyCode());
     var ladder = SREngine.buildLadder(scaleKey);
     var range = readRange();
@@ -1596,7 +1618,7 @@
       complexity: 0.5,  // required by OSME; pitch/rhythm are driven by our settings
       measure_count: parseInt(measuresEl.value, 10),
       tempo: 80,
-      time_signature: new RhythmInstruction(new Fraction(timeSigDef(timesigEl.value).num, timeSigDef(timesigEl.value).den, 0, false), RhythmSymbolEnum.NONE),
+      time_signature: new RhythmInstruction(new Fraction(sig.num, sig.den, 0, false), RhythmSymbolEnum.NONE),
       scale_key: scaleKey,
       instruments: [DefaultInstrumentOptions.get("trumpet")],
       pitch_settings: ComplexityMap.getPitchSettings(0.5), // unused (overridden) but kept valid
@@ -1604,7 +1626,7 @@
       ladder: ladder,
       rangeMin: bounds.min,
       rangeMax: bounds.max,
-      beatPatterns: buildBeatPatterns(),
+      beatPatterns: buildBeatPatterns(sig),
       musicality: (+musicalityEl.value) / 100,
       chroma: (+chromaEl.value) / 100,
       mode: keyModeEl.value,
@@ -1630,7 +1652,7 @@
       xml = tied.xml;
       lastTieBars = tied.applied;
       xml = applySlursToXml(xml, slurLengths());
-      if (timeSigDef(timesigEl.value).compound) xml = applyBeamsToXml(xml);
+      if (currentSig().compound) xml = applyBeamsToXml(xml);
       var fm = /<fifths>(-?\d+)<\/fifths>/.exec(xml);
       lastFifths = fm ? +fm[1] : 0;   // the chord names spell themselves from this
       osmd.load(xml).then(function () {
@@ -1678,8 +1700,10 @@
       // spellings a saved preset might carry. Compare what they mean, or every
       // preset saved before the change would read as "not the current panel".
       var a = (f === "bowing") ? canonSlurs(p[f]).join(",")
+            : (f === "timesig") ? canonSigs(p[f]).join(",")
             : (f === "musicality") ? snapMusicality(p[f]) : String(p[f]);
       var b = (f === "bowing") ? canonSlurs(cur[f]).join(",")
+            : (f === "timesig") ? canonSigs(cur[f]).join(",")
             : (f === "musicality") ? snapMusicality(cur[f]) : String(cur[f]);
       if (a !== b) return false;
     }
@@ -2168,7 +2192,7 @@
   // as many as a 3/4 bar, since duration is duration regardless of how the bar
   // is felt). barBeats() is that one number; nothing else here is meter-aware.
   function barBeats() {
-    var ts = timeSigDef(timesigEl.value);
+    var ts = currentSig();
     return ts.num * 4 / ts.den;
   }
   var playing = false;
@@ -2863,26 +2887,42 @@
     clefCycleEl.textContent = clefDef(clefEl.value).label;
   }
 
+  // The meters an exercise may be written in. A set, not a value: tick 4/4 and
+  // 6/8 and each new exercise is entirely one or the other, which is the one
+  // setting in the app that makes you actually READ the time signature instead
+  // of assuming it. That makes it part of the material rather than a frame
+  // around it, so it wears the material's clothes — the same solid cell as the
+  // figures and intervals, not the tinted pill of a pick-one.
   function buildTimesigPills() {
     timesigPillsEl.innerHTML = "";
     TIME_SIGS.forEach(function (ts) {
-      var b = document.createElement("button");
-      b.type = "button";
-      b.className = "opt";
-      b.textContent = ts.id;
-      b.addEventListener("click", function () {
-        timesigEl.value = ts.id;
+      var cell = document.createElement("label");
+      cell.className = "fig-cell";
+      cell.setAttribute("aria-label", ts.id);
+      var txt = document.createElement("span");
+      txt.className = "fig-txt";
+      txt.textContent = ts.id;
+      cell.appendChild(txt);
+      cell.addEventListener("click", function (e) {
+        e.preventDefault();
+        var ids = selectedSigIds(), at = ids.indexOf(ts.id);
+        // Clamped at one. Nothing can be written in no meter, and a silent
+        // fallback to 4/4 would be a setting changing itself behind you.
+        if (at >= 0) { if (ids.length === 1) return; ids.splice(at, 1); }
+        else ids.push(ts.id);
+        timesigEl.value = canonSigs(ids.join(",")).join(",");
         syncTimesigPills();
-        syncBeatsFamily();    // swaps the figure grid only if simple<->compound changed
+        syncFigureCells();
         generate();
       });
-      timesigPillsEl.appendChild(b);
+      timesigPillsEl.appendChild(cell);
     });
     syncTimesigPills();
   }
   function syncTimesigPills() {
-    Array.prototype.forEach.call(timesigPillsEl.children, function (b, i) {
-      b.classList.toggle("on", TIME_SIGS[i].id === timesigEl.value);
+    var ids = selectedSigIds();
+    Array.prototype.forEach.call(timesigPillsEl.children, function (cell, i) {
+      cell.classList.toggle("on", ids.indexOf(TIME_SIGS[i].id) >= 0);
     });
   }
 
@@ -4045,7 +4085,7 @@
   function syncPanel() {
     syncKeyRow();
     syncTimesigPills();
-    syncBeatsFamily();    // a preset/session restore can change meter family too
+    syncFigureCells();    // a preset/session restore can change the meter set too
     syncInstrument();
     syncChunks();
     syncCursorBtn();
@@ -4390,7 +4430,7 @@
   probeKeys();                 // which accidentals each letter supports
   initRangeState();
   buildRangeUI();
-  buildBeatsPalette(currentBeatFigures());
+  buildBeatsPalette();
   buildMatrix();
   buildMeasuresPills();
   buildTimesigPills();
