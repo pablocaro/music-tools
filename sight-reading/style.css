@@ -1553,10 +1553,23 @@ button.secondary {
    without anything here having to know how many there are. */
 #range-staff {
   margin-top: 6px;
+  position: relative;   /* the two hit targets are placed against this */
+}
+/* The grab targets, and the ONLY things here that take a gesture. touch-action
+   lived on the whole block once, which meant the staff swallowed every vertical
+   swipe over it and the panel would not scroll past this control on a phone.
+   Finger-sized, but narrow enough that most of the staff's width is still free
+   to scroll at the same height. The drawing itself takes no pointer events, so
+   a press either lands on a note or passes through to the page. */
+.rs-hit {
+  position: absolute;
+  width: 46px; height: 34px;
+  margin: -17px 0 0 -23px;      /* centred on the notehead */
   touch-action: none;
   cursor: ns-resize;
 }
-#range-staff.dragging { cursor: grabbing; }
+#range-staff.dragging .rs-hit { cursor: grabbing; }
+.rs-draw { pointer-events: none; }
 /* The viewBox is set to this element's own pixel width, so 100% here is 1:1 —
    which is what lets a notehead sit at the same x as the stepper above it. */
 #range-staff svg { display: block; width: 100%; overflow: visible; }

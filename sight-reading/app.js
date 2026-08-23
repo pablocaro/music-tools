@@ -732,7 +732,26 @@
     });
 
     svg.push('</svg>');
-    host.innerHTML = svg.join("");
+    // Only the drawing is replaced. The two hit targets are persistent nodes:
+    // a pointer capture taken on one of them would be lost the moment the
+    // drawing re-rendered, which is every single step of a drag.
+    var draw = host.querySelector(".rs-draw");
+    if (!draw) { draw = document.createElement("div"); draw.className = "rs-draw"; host.appendChild(draw); }
+    draw.innerHTML = svg.join("");
+    [["low", LO_X, loStep], ["high", HI_X, hiStep]].forEach(function (p) {
+      var hit = host.querySelector('.rs-hit[data-end="' + p[0] + '"]');
+      if (!hit) {
+        hit = document.createElement("div");
+        hit.className = "rs-hit";
+        hit.dataset.end = p[0];
+        hit.setAttribute("aria-hidden", "true");
+        host.appendChild(hit);
+      }
+      // The drawing is 1:1 with the page, so the note's SVG coordinates are
+      // already the offsets this needs.
+      hit.style.left = p[1] + "px";
+      hit.style.top  = y(p[2]).toFixed(1) + "px";
+    });
   }
 
   function syncRangeUI() {
@@ -776,33 +795,23 @@
     if (!host || !window.PointerEvent) return;
     var active = null, moved = false, startY = 0, startIdx = 0, grabHalf = 6;
 
-    // Absolute read — only valid at the moment of the press, see below.
-    var idxAt = function (clientY) {
-      var svg = host.querySelector("svg");
-      if (!svg || !staffGeom) return null;
-      var step = Math.round(staffGeom.maxStep -
-                            (clientY - svg.getBoundingClientRect().top) / staffGeom.half);
-      var oct = Math.floor(step / 7), col = step - oct * 7;
-      var oi = RANGE_OCTAVES.indexOf(oct);
-      // Off the end of the represented octaves: clamp to whichever end it ran
-      // past, so pressing beyond the drawing pins rather than does nothing.
-      if (oi < 0) return oct < RANGE_OCTAVES[0] ? 0 : NOTE_MAX;
-      return oi * NOTE_COLS.length + col;
-    };
-
+    // A drag starts on a note and nowhere else. Grabbing the nearest end from
+    // anywhere on the staff made the whole block swallow vertical swipes, so on
+    // a phone the panel would not scroll past this control. Only the two hit
+    // targets take the gesture now — everything else on the staff scrolls, and
+    // they are the only elements carrying touch-action: none.
     host.addEventListener("pointerdown", function (e) {
-      var idx = idxAt(e.clientY);
-      if (idx == null) return;
-      var b = rangeBounds();
-      active = Math.abs(idx - b[0]) <= Math.abs(idx - b[1]) ? "low" : "high";
-      moved = setRangeEnd(active, idx);
-      // From here the gesture is measured as movement, not as position. The
-      // drawing re-renders on every step and its vertical extent tracks the
-      // notes, so the y that meant B5 at the press does not mean B5 a moment
-      // later — reading absolutely made the note run away from the finger.
+      var hit = e.target.closest && e.target.closest(".rs-hit");
+      if (!hit) return;
+      active = hit.dataset.end;
+      // Measured as movement, not position: the drawing re-renders on every
+      // step and its vertical extent tracks the notes, so the y that meant B5
+      // at the press does not mean B5 a moment later — reading absolutely made
+      // the note run away from the finger.
       startY = e.clientY;
       startIdx = (active === "low") ? rangeBounds()[0] : rangeBounds()[1];
       grabHalf = (staffGeom && staffGeom.half) || 6;
+      moved = false;
       host.classList.add("dragging");
       if (host.setPointerCapture) host.setPointerCapture(e.pointerId);
       e.preventDefault();
