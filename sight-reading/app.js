@@ -1407,6 +1407,43 @@
     return '<svg viewBox="0 0 ' + w + ' 28" class="fig-svg">' + g + "</svg>";
   }
 
+  // A slur, drawn. The words ("Apart 2 3 4") never said what the setting does —
+  // a curve over n noteheads does, and it puts slurs in the same visual family
+  // as the figures above them, which is where they belong: both are marks on
+  // the notes rather than settings about them.
+  //
+  // Noteheads without stems on purpose. This is an icon for "how many notes
+  // under one curve", and stems would add ink that carries no part of that.
+  // Group 4 is a wide cell for the same reason a two-beat figure is: how wide
+  // it sits is how far the slur reaches.
+  function slurGlyph(n) {
+    var H = 19, wide = n >= 4;
+    var w = wide ? 88 : 44;
+    var count = n === 1 ? 3 : n;            // "apart" shows three loose notes
+    var span = wide ? 62 : (n === 3 ? 30 : 22);
+    var x0 = (w - span) / 2;
+    var gap = count > 1 ? span / (count - 1) : 0;
+    var g = "", i, x;
+    for (i = 0; i < count; i++) {
+      x = x0 + gap * i;
+      g += '<ellipse cx="' + x.toFixed(1) + '" cy="' + H + '" rx="3.3" ry="2.5" fill="currentColor"/>';
+    }
+    if (n > 1) {
+      // One arc from the first notehead to the last, rising clear of both. Its
+      // height grows with the span but sub-linearly, the way an engraved slur
+      // does — a flat rise looked like a tie at group 4, where the span is
+      // nearly three times the group-2 one. A quadratic peaks halfway to its
+      // control point, so the control sits at twice the wanted rise.
+      var a = x0, b = x0 + span, mid = (a + b) / 2;
+      var endY = H - 5, rise = 5 + span * 0.06;
+      g += '<path d="M ' + a.toFixed(1) + ' ' + endY +
+           ' Q ' + mid.toFixed(1) + ' ' + (endY - rise * 2).toFixed(1) +
+           ' ' + b.toFixed(1) + ' ' + endY +
+           '" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>';
+    }
+    return '<svg viewBox="0 0 ' + w + ' 28" class="fig-svg">' + g + "</svg>";
+  }
+
   // Flat grid of rhythm figures — each cell is a notation glyph toggled on/off,
   // its name revealed on hover. A hidden .beat checkbox keeps the read/apply
   // path (buildBeatPatterns / readBeatIds / applyBeats) unchanged.
@@ -1436,10 +1473,21 @@
   // explain a distinction that was never the point. One grid of figures.
   function buildBeatsPalette() {
     beatsEl.innerHTML = "";
-    var grid = document.createElement("div");
-    grid.className = "fig-grid";
-    beatsEl.appendChild(grid);
     [[BEAT_FIGURES_SIMPLE, "simple"], [BEAT_FIGURES_COMPOUND, "compound"]].forEach(function (set) {
+      // One section per family, each headed by the meters it serves. A simple
+      // figure and a compound one cannot share a bar, so a single mixed grid
+      // would be showing you 26 cells without saying which of them the meter
+      // you are about to read can actually use.
+      var fam = document.createElement("div");
+      fam.className = "fig-fam";
+      fam.dataset.fam = set[1];
+      var h = document.createElement("h3");
+      h.className = "fig-h";
+      fam.appendChild(h);
+      var grid = document.createElement("div");
+      grid.className = "fig-grid";
+      fam.appendChild(grid);
+      beatsEl.appendChild(fam);
       set[0].forEach(function (item) {
         var cell = document.createElement("label");
         cell.className = "fig-cell" + (item.wide ? " wide" : "");
@@ -1492,13 +1540,19 @@
   // compound figures back exactly as you left them.
   function syncFigureCells() {
     var sigs = selectedSigs();
-    var anySimple   = sigs.some(function (s) { return !s.compound; });
-    var anyCompound = sigs.some(function (s) { return !!s.compound; });
-    var allowWide   = sigs.some(function (s) { return !s.compound && s.num > 2; });
+    var allowWide = sigs.some(function (s) { return !s.compound && s.num > 2; });
+    // Each family's section is headed by the meters it serves, taken from the
+    // selection — so with 4/4 and 6/8 both ticked the two grids say "4/4" and
+    // "6/8" rather than leaving you to know which cells are which.
+    beatsEl.querySelectorAll(".fig-fam").forEach(function (fam) {
+      var wantCompound = fam.dataset.fam === "compound";
+      var mine = sigs.filter(function (s) { return !!s.compound === wantCompound; });
+      fam.hidden = !mine.length;
+      var h = fam.querySelector(".fig-h");
+      if (h) h.textContent = mine.map(function (s) { return s.id; }).join(" · ");
+    });
     beatsEl.querySelectorAll(".fig-cell").forEach(function (cell) {
-      var show = cell.dataset.fam === "compound" ? anyCompound : anySimple;
-      if (show && cell.dataset.wide === "1" && !allowWide) show = false;
-      cell.hidden = !show;
+      cell.hidden = cell.dataset.wide === "1" && !allowWide;
     });
   }
 
@@ -3915,23 +3969,24 @@
     if (!host) return;
     host.innerHTML = "";
     BOWINGS.forEach(function (n) {
-      var b = document.createElement("button");
-      b.type = "button";
-      b.className = "opt";
+      var cell = document.createElement("label");
+      cell.className = "fig-cell" + (n >= 4 ? " wide" : "");
       // A group of 1 draws no curve — it is the separate bow, the air between
-      // slurred groups. "1" made the row read as a quantity of nothing; the
-      // word says what it does. The rest stay numbers, which is what they are.
-      b.textContent = n === 1 ? t("val.apart") : String(n);
-      b.dataset.bowing = String(n);
-      b.setAttribute("aria-pressed", "false");
-      b.addEventListener("click", function () {
+      // slurred groups. The glyph says that without a word: three noteheads
+      // and nothing over them.
+      cell.setAttribute("aria-label", n === 1 ? t("val.apart") : t("aria.slurOf") + " " + n);
+      cell.dataset.bowing = String(n);
+      cell.setAttribute("aria-pressed", "false");
+      cell.insertAdjacentHTML("beforeend", slurGlyph(n));
+      cell.addEventListener("click", function (e) {
+        e.preventDefault();
         var on = slurLengths(), at = on.indexOf(n);
         if (at >= 0) on.splice(at, 1); else on.push(n);
         bowingEl.value = on.sort(function (a, c) { return a - c; }).join(",");
         syncBowingPills();
         generate();
       });
-      host.appendChild(b);
+      host.appendChild(cell);
     });
     syncBowingPills();
   }

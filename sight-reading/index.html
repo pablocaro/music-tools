@@ -240,16 +240,18 @@
                  together into one undifferentiated field. -->
             <h3 class="fig-h" data-i18n="lbl.meter">Meter</h3>
             <div class="fig-grid" id="timesig-pills"></div>
-            <h3 class="fig-h" data-i18n="lbl.figures">Figures</h3>
             <div class="beats" id="beats"></div>
             <!-- Slurs: group the line in twos, threes or fours. A slur is one
                  instruction to every instrument — one bow, one tongue, one
                  breath — and reading it is a real skill, not decoration. It's
                  exercise content, so presets carry it. -->
-            <div class="sec-row bowing-row">
-              <span class="fig-h" data-i18n="lbl.slurs">Slurs</span>
-              <div id="bowing-pills"></div>
-            </div>
+            <!-- Slurs are drawn now, not spelled: a curve over n noteheads,
+                 in the same cell as the figures above. They are a mark ON the
+                 notes, like a figure is, rather than a setting about them —
+                 so the caption sits above its grid the way Meter's does,
+                 instead of inline beside a row of words. -->
+            <h3 class="fig-h" data-i18n="lbl.slurs">Slurs</h3>
+            <div class="fig-grid" id="bowing-pills"></div>
             <!-- Ties: how often a bar holds its last note over the barline. The
                  reader has to carry the sound across instead of re-attacking,
                  which is a skill of its own — and it's exercise content, so

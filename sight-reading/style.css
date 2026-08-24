@@ -1163,7 +1163,12 @@ button.secondary {
 /* Air between the meter grid and the figure grid. They are the same cell in
    the same section, so without it the two read as one undifferentiated field
    of blue and grey. */
-#timesig-pills + .fig-h { margin-top: 14px; }
+#timesig-pills + .fig-h,
+.fig-fam + .fig-h,
+#beats + .fig-h { margin-top: 14px; }
+/* Each meter family's own section, headed by the meters it serves. */
+.fig-fam[hidden] { display: none; }
+.fig-fam + .fig-fam { margin-top: 14px; }
 .fig-h {
   font-size: var(--type-caption);
   font-weight: var(--weight-standard);
