@@ -592,6 +592,15 @@
           if (sR <= 0) { this._p = sCands[sc].p; break; }
         }
       }
+      // …and it is the bar's note 0, the standing the seam note holds in every
+      // later bar: placed by rules of its own, with the pitch motif recorded
+      // from the note after it. Claiming that ordinal here is the whole of it —
+      // left unclaimed, the first phrase-start bar handed out its ordinals one
+      // late, so bars 2 and 3 replayed its shape shifted by a note and the
+      // opening phrase was the one phrase whose echo did not line up with what
+      // it was echoing. A silent opening claims nothing: rests never walk, so
+      // the first sounding note takes note 0 for itself.
+      if (!makeRest) { this._noteBar = this._measureIdx; this._noteIdx = 0; }
     } else if (!makeRest && !isTieStop) {
       var alpha = this.options.alphabet || { down: [0, 1, 0, 0, 0, 0, 0], up: [0, 1, 0, 0, 0, 0, 0] };
       var musicality = this.options.musicality || 0;
@@ -788,12 +797,20 @@
           // correct spelling, then the obligation returns us home.
           delta = -1; alterDir = +1; this._forced = +1; this._chromaCount++;
         } else if (Math.abs(delta) === 1
+            && oldP + delta >= PMIN && oldP + delta <= PMAX
             && semitoneGap(tones, ladder, N, oldP, oldP + delta) === 2
             && Math.random() < chroma * 0.35 * chromaGuard * ltGate(oldP)) {
           // Chromatic passing tone: the chosen step is delayed one slot and the
           // gap is filled — D -> D# -> E ascending (sharp side), E -> Eb -> D
           // descending (flat side). Spelled as the old note altered toward the
           // target, which is the conventional spelling for each direction.
+          // The target has to be inside the range, and it is not free to
+          // assume so the way the lower neighbour is: the musical walk drops
+          // out-of-range moves before it picks, but at musicality 0 the plain
+          // weighted pick is range-blind and the reflection below turns the
+          // resolution round. The alteration is already spelled toward the
+          // target by then, so the figure came out as a raised note falling a
+          // diminished third — a wrong note, not a colour.
           this._forced = delta;
           alterDir = (delta > 0) ? +1 : -1;
           delta = 0;

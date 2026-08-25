@@ -193,6 +193,31 @@
   // writes 2nd.
   function stepLabel(i) { return t("step." + i); }
 
+  // Every ingredient in the app — meters, rhythm figures, intervals, slurs — is
+  // a fig-cell, and a fig-cell is a <label> wrapping a hidden checkbox with the
+  // tap-cycle hung off the label itself. That put the whole vocabulary outside
+  // the tab order: a label is not focusable, and the checkbox that would have
+  // been is hidden. Nothing in the panel's top half could be reached, let alone
+  // operated, without a pointer. So each cell is given the role it already
+  // behaves as and a stop of its own; setSwitch writes the pressed state.
+  function figCellRole(cell) {
+    cell.setAttribute("role", "button");
+    cell.setAttribute("aria-pressed", "false");
+    cell.tabIndex = 0;
+  }
+
+  // The other half of that: a label does not turn Enter or Space into a click
+  // the way a real <button> does, so the tab stop would land on a cell that
+  // then refused to cycle. Delegated, since every cell is built at runtime and
+  // three of the four grids are rebuilt as the language or the meter changes.
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" && e.key !== " " && e.key !== "Spacebar") return;
+    var cell = (e.target && e.target.closest) ? e.target.closest(".fig-cell") : null;
+    if (!cell) return;
+    e.preventDefault();      // Space would otherwise scroll the rail out from under it
+    cell.click();
+  });
+
   // Each interval is one fig-cell, tapped through the same off → on → ×2 → off
   // cycle as a rhythm figure. A hidden checkbox owns in-or-out (so an old
   // saved alphabet — a plain weight array — still reads back through it), and
@@ -202,6 +227,7 @@
       var cell = document.createElement("label");
       cell.className = "fig-cell";
       cell.setAttribute("aria-label", t("interval." + i));
+      figCellRole(cell);
 
       var cb = document.createElement("input");
       cb.type = "checkbox"; cb.hidden = true; cb.dataset.w = "2";
@@ -216,7 +242,7 @@
         var w = +cb.dataset.w || 2;
         badge.textContent = (cb.checked && w > 2) ? "×2" : "";
       }
-      cb.addEventListener("change", function () { cell.classList.toggle("on", cb.checked); syncWt(); generate(); });
+      cb.addEventListener("change", function () { setSwitch(cell, cb.checked); syncWt(); generate(); });
       cell.addEventListener("click", function (e) {
         e.preventDefault();      // labels re-dispatch to the checkbox; we own the cycle
         // A cell the range can't reach doesn't cycle. Letting it turn "on"
@@ -309,7 +335,7 @@
     var cb = cell.querySelector("input"), snapped = snapIntervalWeight(w);
     cb.checked = snapped > 0;
     cb.dataset.w = snapped > 0 ? snapped : 2;
-    cell.classList.toggle("on", cb.checked);
+    setSwitch(cell, cb.checked);
     var badge = cell.querySelector(".wt");
     if (badge) badge.textContent = (cb.checked && snapped > 2) ? "×2" : "";
   }
@@ -1582,9 +1608,10 @@
         cell.dataset.fam = set[1];
         if (item.wide) cell.dataset.wide = "1";
         cell.setAttribute("aria-label", t("fig." + item.id));
+        figCellRole(cell);
         var cb = document.createElement("input");
         cb.type = "checkbox"; cb.className = "beat"; cb.value = item.id; cb.checked = !!item.def; cb.hidden = true;
-        if (cb.checked) cell.classList.add("on");
+        setSwitch(cell, cb.checked);
         // A figure carries a weight, like an interval row does: how *often* it
         // is drawn, not just whether. The checkbox still owns in-or-out (so
         // every existing reader keeps working); the weight rides in data-w and
@@ -1601,7 +1628,7 @@
           var w = +cb.dataset.w || 1;
           badge.textContent = (cb.checked && w > 1) ? "\u00d7" + w : "";
         }
-        cb.addEventListener("change", function () { cell.classList.toggle("on", cb.checked); syncWt(); generate(); });
+        cb.addEventListener("change", function () { setSwitch(cell, cb.checked); syncWt(); generate(); });
         cell.addEventListener("click", function (e) {
           e.preventDefault();      // labels re-dispatch to the checkbox; we own the cycle
           var w = cb.checked ? (+cb.dataset.w || 1) : 0;
@@ -1691,7 +1718,7 @@
       cb.checked = !!set[cb.value];
       cb.dataset.w = set[cb.value] || 1;
       var cell = cb.closest(".fig-cell");
-      if (cell) cell.classList.toggle("on", cb.checked);
+      if (cell) setSwitch(cell, cb.checked);
       // Fires the change so the weight badge redraws — but applyBeats runs
       // inside applyPreset, whose caller generates once at the end, so the
       // change handler's own generate() would stack regenerations. The badge
@@ -1829,10 +1856,25 @@
   // applyPreset — so a preset saved before a field existed still matches.
   var PRESET_FIELDS = ["musicality", "progression", "chroma", "bowing", "ties", "key", "clef", "timesig", "measures"];
 
+  // What applyAlphabet would actually leave in the cells: the louder of the two
+  // directions, snapped to a rung the tap-cycle can hold. Comparing the stored
+  // arrays raw was wrong on both counts. The BUILTIN tables are still written on
+  // the engine's 1-4 scale (previewWalk ranks them, so they have to stay that
+  // way), while the cells only offer 0 / 2 / 4 — so eight of the ten built-ins
+  // could not match themselves the instant they were applied, and every one of
+  // them dropped its own name for "Custom" on the click that loaded it.
+  function alphabetCells(a) {
+    var down = fix7(a && a.down), up = fix7(a && a.up), out = [];
+    for (var i = 0; i < INTERVALS.length; i++) {
+      out.push(snapIntervalWeight(Math.max((down && +down[i]) || 0, (up && +up[i]) || 0)));
+    }
+    return out;
+  }
+
   function presetMatchesPanel(p) {
     var cur = readPresetConfig();
     var alpha = p.alphabet || ((p.down || p.up) ? { down: p.down, up: p.up } : null);
-    if (alpha && JSON.stringify(alpha) !== JSON.stringify(cur.alphabet)) return false;
+    if (alpha && JSON.stringify(alphabetCells(alpha)) !== JSON.stringify(alphabetCells(cur.alphabet))) return false;
     if (p.range && JSON.stringify(p.range) !== JSON.stringify(cur.range)) return false;
     if (p.beats && JSON.stringify(p.beats) !== JSON.stringify(cur.beats)) return false;
     for (var i = 0; i < PRESET_FIELDS.length; i++) {
@@ -2035,6 +2077,11 @@
     if (!el) return;
     el.classList.toggle("on", !!on);
     if (el.getAttribute("role") === "switch") el.setAttribute("aria-checked", on ? "true" : "false");
+    // And a fig-cell carries aria-pressed, which is its half of the same job.
+    // The tint is the whole of what a lit cell says, and a tint says nothing
+    // to a screen reader — so every meter, figure, interval and slur read as
+    // an unlabelled toggle stuck in one state.
+    else if (el.getAttribute("role") === "button") el.setAttribute("aria-pressed", on ? "true" : "false");
   }
 
   // Two classes, deliberately. A *-face button only shows the state — those are
@@ -2949,6 +2996,7 @@
   var hideUnitEl   = document.getElementById("hide-unit");
   var hideValEl    = document.getElementById("hide-val");
   var chunksBtnEl  = document.getElementById("chunks-toggle");
+  var chordsBtnEl  = document.getElementById("chords-toggle");
   var cursorBtnEl  = document.getElementById("cursor-toggle");
   var tempoUiEl    = document.getElementById("tempo-ui");
   var volumeUiEl   = document.getElementById("volume-ui");
@@ -3041,6 +3089,7 @@
       var cell = document.createElement("label");
       cell.className = "fig-cell";
       cell.setAttribute("aria-label", ts.id);
+      figCellRole(cell);
       var txt = document.createElement("span");
       txt.className = "fig-txt";
       txt.textContent = ts.id;
@@ -3064,7 +3113,7 @@
   function syncTimesigPills() {
     var ids = selectedSigIds();
     Array.prototype.forEach.call(timesigPillsEl.children, function (cell, i) {
-      cell.classList.toggle("on", ids.indexOf(TIME_SIGS[i].id) >= 0);
+      setSwitch(cell, ids.indexOf(TIME_SIGS[i].id) >= 0);
     });
   }
 
@@ -3110,6 +3159,7 @@
   // No textContent any more: these read "On"/"Off" while they were pills, and a
   // switch is its own readout.
   function syncChunks() { setSwitch(chunksBtnEl, showChunksEl.checked); }
+  function syncChordsBtn() { setSwitch(chordsBtnEl, showChordsEl.checked); }
   function syncCursorBtn() { setSwitch(cursorBtnEl, cursorModeEl.value !== "off"); }
   function syncTempoUi() {
     tempoUiEl.value = tempoEl.value;
@@ -4064,7 +4114,9 @@
       // and nothing over them.
       cell.setAttribute("aria-label", n === 1 ? t("val.apart") : t("aria.slurOf") + " " + n);
       cell.dataset.bowing = String(n);
-      cell.setAttribute("aria-pressed", "false");
+      // It already carried aria-pressed, which a bare <label> has nowhere to
+      // report from — the role is what makes the state mean anything.
+      figCellRole(cell);
       cell.insertAdjacentHTML("beforeend", slurGlyph(n));
       cell.addEventListener("click", function (e) {
         e.preventDefault();
@@ -4083,9 +4135,7 @@
     if (!host) return;
     var on = slurLengths();
     Array.prototype.forEach.call(host.children, function (b) {
-      var lit = on.indexOf(parseInt(b.dataset.bowing, 10)) >= 0;
-      b.classList.toggle("on", lit);
-      b.setAttribute("aria-pressed", lit ? "true" : "false");
+      setSwitch(b, on.indexOf(parseInt(b.dataset.bowing, 10)) >= 0);
     });
   }
 
@@ -4229,8 +4279,19 @@
     syncKeyRow();
     syncTimesigPills();
     syncFigureCells();    // a preset/session restore can change the meter set too
+    // The staff readout draws itself in whatever clef is set, and a preset
+    // restores the range BEFORE the clef it belongs to — so without this the
+    // notes moved to C2–B3 while the drawing kept the treble clef they were
+    // never meant to be read in.
+    syncRangeUI();
+    // Rebuilt, not just re-lit: each mode has its own list, so restoring a minor
+    // preset onto a major panel has to replace the three pills as well as move
+    // the tick. Left alone, the row went on offering I–IV–V–I while the hidden
+    // input held i–VII–VI–V, and lit a progression that isn't in the mode.
+    buildProgressionPills();
     syncInstrument();
     syncChunks();
+    syncChordsBtn();      // a session carries the chord-names switch too
     syncCursorBtn();
     syncTempoUi();
     syncMeasuresPills();
@@ -4359,8 +4420,6 @@
     });
 
     // --- chord names ---
-    var chordsBtnEl = document.getElementById("chords-toggle");
-    function syncChordsBtn() { setSwitch(chordsBtnEl, showChordsEl.checked); }
     chordsBtnEl.addEventListener("click", function () {
       showChordsEl.checked = !showChordsEl.checked;
       syncChordsBtn();
