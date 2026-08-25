@@ -109,9 +109,17 @@ const { chromium } = require(PW);
     await p.waitForTimeout(1800);
     await check(rate);
   }
+  // Meter is a set of fig-cells now, not a row of pills, so picking one means
+  // lighting it and clearing the rest — and in that order, since the control
+  // clamps at one and refuses to empty itself. The old selector found nothing
+  // and this loop died on .find(...).click() rather than running.
   for (const ts of ['3/4', '6/8']) {
-    await p.evaluate(x => [...document.querySelectorAll('#timesig-pills .opt')]
-      .find(b => b.textContent.trim() === x).click(), ts);
+    await p.evaluate(x => {
+      const cells = [...document.querySelectorAll('#timesig-pills .fig-cell')];
+      const want = cells.find(c => c.textContent.trim() === x);
+      if (want && !want.classList.contains('on')) want.click();
+      cells.forEach(c => { if (c !== want && c.classList.contains('on')) c.click(); });
+    }, ts);
     await p.waitForTimeout(1800);
     await check(ts + ' lots');
   }

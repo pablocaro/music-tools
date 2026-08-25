@@ -64,16 +64,27 @@ function parse(xml) {
   await p.evaluate(() => [...document.querySelectorAll('#progression-pills .opt')]
     .find(x => x.dataset.prog === 'i-VII-VI-V').click());
   await p.waitForTimeout(1400);
-  notes = parse(await p.evaluate(() => window.__xml));
   const prog = [0, 6, 5, 4];                       // i-VII-VI-V
-  const vBars = new Set(); notes.forEach(n => { if (prog[n.bar % 4] === 4) vBars.add(n.bar); });
-  // In A minor the 7th degree is G; raised = G#(alter+1)
-  const sevenths = notes.filter(n => !n.rest && n.step === 'G' && vBars.has(n.bar));
-  const raised = sevenths.filter(n => n.alter === 1);
-  console.log('minor V bars    : 7th-degree notes', sevenths.length, 'raised', raised.length,
-    sevenths.length === raised.length ? '(all raised)' : '(NOT all raised)');
-  const strayAlters = notes.filter(n => n.alter && !(n.step === 'G' && vBars.has(n.bar)));
-  console.log('stray alters    :', strayAlters.length, '(want 0 at chroma 0)');
+  // Accumulated over several exercises, not read off one. A 16-bar line has
+  // four V bars and the walk may not put a G in any of them, so a single
+  // exercise gave n between 0 and 2 — and at n = 0 "all raised" is true of
+  // nothing and the check passed while testing nothing at all.
+  let sevenths = 0, raised = 0, strayAlters = 0;
+  for (let i = 0; i < 12; i++) {
+    if (i) { await p.evaluate(() => document.getElementById('generate').click());
+             await p.waitForTimeout(700); }
+    notes = parse(await p.evaluate(() => window.__xml));
+    const vBars = new Set(); notes.forEach(n => { if (prog[n.bar % 4] === 4) vBars.add(n.bar); });
+    // In A minor the 7th degree is G; raised = G#(alter+1)
+    const sv = notes.filter(n => !n.rest && n.step === 'G' && vBars.has(n.bar));
+    sevenths += sv.length;
+    raised   += sv.filter(n => n.alter === 1).length;
+    strayAlters += notes.filter(n => n.alter && !(n.step === 'G' && vBars.has(n.bar))).length;
+  }
+  console.log('minor V bars    : 7th-degree notes', sevenths, 'raised', raised,
+    sevenths === 0 ? '(NO SAMPLE — check is vacuous)'
+                   : sevenths === raised ? '(all raised)' : '(NOT all raised)');
+  console.log('stray alters    :', strayAlters, '(want 0 at chroma 0)');
 
   // ---- 3. chroma up: figures appear and resolve by semitone ----
   await p.evaluate(() => {
