@@ -17,8 +17,16 @@ const { chromium } = require(PW);
     const c=document.getElementById('click-on'); if(c && !c.checked){c.checked=true;c.dispatchEvent(new Event('change'));} });
   await p.waitForTimeout(1200);
 
-  const setMeter = m => p.evaluate(x=>[...document.querySelectorAll('#timesig-pills .opt')]
-      .find(e=>e.textContent.trim()===x).click(), m);
+  // Meter is a set of fig-cells now, not a row of pills: light the one asked
+  // for, then clear the rest, in that order — the control clamps at one and
+  // will not let itself be emptied.
+  const setMeter = m => p.evaluate(x=>{
+    const cells=[...document.querySelectorAll('#timesig-pills .fig-cell')];
+    const want=cells.find(c=>c.textContent.trim()===x);
+    if(!want) throw new Error('no meter "'+x+'" — have: '+cells.map(c=>c.textContent.trim()).join(', '));
+    if(!want.classList.contains('on')) want.click();
+    cells.forEach(c=>{ if(c!==want && c.classList.contains('on')) c.click(); });
+  }, m);
 
   // note onsets in quarter-beats, absolute from the start of the line
   const onsets = () => p.evaluate(()=>{

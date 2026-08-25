@@ -1559,6 +1559,15 @@ button:active { opacity: 0.7; }
    control with a low end and a high end rather than two stacked settings. */
 .range-row { align-items: flex-end; gap: 12px; flex-wrap: wrap; }
 .range-end { display: flex; flex-direction: column; gap: 5px; }
+/* These two steppers are the only pair in the panel that has to share a line,
+   and at 375px they missed it by four pixels: 122 + 12 + 122 against 252. The
+   row wrapped, both steppers landed in the same column, and the staff below
+   could no longer put each note under the control that sets it — the one thing
+   that drawing is for. Eight pixels off each left inset buys back more than the
+   four needed, so 375, 390 and 414 all hold. Scoped to this row because every
+   other stepper has its line to itself and no reason to move. Narrower than
+   about 240 still wraps, which is why the staff keeps its fallback. */
+.range-row .stepper { padding-left: 8px; }
 .range-end .fig-h { margin-bottom: 0; }
 
 /* The readout, and also the control: the notes are draggable, with the whole

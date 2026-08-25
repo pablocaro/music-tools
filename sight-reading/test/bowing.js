@@ -42,7 +42,9 @@ const { chromium } = require(PW);
   const setSlurs = async (want) => {
     await p.evaluate(w => {
       const target = new Set(w);
-      [...document.querySelectorAll('#bowing-pills .opt')].forEach(b => {
+      // Slur cells are fig-cells now, not pills; dataset.bowing survived the
+      // change, so only the class here was stale.
+      [...document.querySelectorAll('#bowing-pills .fig-cell')].forEach(b => {
         const n = +b.dataset.bowing;
         if (b.classList.contains('on') !== target.has(n)) b.click();
       });
@@ -95,7 +97,12 @@ const { chromium } = require(PW);
   //    "slur in 2s" used to join two and leave the third bare in every single
   //    bar. Running through the barline, every note lands under a curve
   //    except at most one leftover at the very end of the piece.
-  await p.evaluate(() => [...document.querySelectorAll('#timesig-pills .opt')].find(b => b.textContent.trim() === '3/4').click());
+  await p.evaluate(() => {
+    const cells = [...document.querySelectorAll('#timesig-pills .fig-cell')];
+    const want = cells.find(b => b.textContent.trim() === '3/4');
+    if (want && !want.classList.contains('on')) want.click();
+    cells.forEach(c => { if (c !== want && c.classList.contains('on')) c.click(); });
+  });
   await p.waitForTimeout(1400);
   await p.evaluate(() => {
     document.querySelectorAll('#beats .beat').forEach(cb => {
@@ -141,7 +148,12 @@ const { chromium } = require(PW);
 
   await p.evaluate(() => [...document.querySelectorAll('#ties-pills .opt')].find(b => b.dataset.ties === 'off').click());
   await p.waitForTimeout(1200);
-  await p.evaluate(() => [...document.querySelectorAll('#timesig-pills .opt')].find(b => b.textContent.trim() === '4/4').click());
+  await p.evaluate(() => {
+    const cells = [...document.querySelectorAll('#timesig-pills .fig-cell')];
+    const want = cells.find(b => b.textContent.trim() === '4/4');
+    if (want && !want.classList.contains('on')) want.click();
+    cells.forEach(c => { if (c !== want && c.classList.contains('on')) c.click(); });
+  });
   await p.waitForTimeout(1400);
   await setSlurs([4]);
 
@@ -166,7 +178,7 @@ const { chromium } = require(PW);
   await p.evaluate(() => [...document.querySelectorAll('.presets .pill')].find(e => e.textContent.trim().startsWith('LegacySingle')).click());
   await p.waitForTimeout(1800);
   const legacy = await p.evaluate(() => ({
-    lit: [...document.querySelectorAll('#bowing-pills .opt')].filter(b => b.classList.contains('on')).map(b => b.dataset.bowing),
+    lit: [...document.querySelectorAll('#bowing-pills .fig-cell')].filter(b => b.classList.contains('on')).map(b => b.dataset.bowing),
     // the header names the preset only if presetMatchesPanel agrees
     title: document.getElementById('sh-title').textContent.trim()
   }));

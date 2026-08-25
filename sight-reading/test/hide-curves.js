@@ -13,7 +13,8 @@ const { chromium } = require(process.env.PW || '/opt/node22/lib/node_modules/pla
   for(let i=0;i<4;i++){ if(await p.$('#ob-next')){await p.click('#ob-next').catch(()=>{});await p.waitForTimeout(200);} }
   await p.click('#settings-toggle'); await p.waitForTimeout(500);
   // slurs of 2 + lots of ties -> plenty of both curve kinds
-  await p.evaluate(()=>[...document.querySelectorAll('#bowing-pills .opt')].find(e=>e.textContent.trim()==='2').click());
+  await p.evaluate(()=>[...document.querySelectorAll('#bowing-pills .fig-cell')]
+    .find(e=>e.dataset.bowing==='2').click());   // the cell draws a glyph, so match the data not the text
   await p.waitForTimeout(900);
   await p.evaluate(()=>[...document.querySelectorAll('#ties-pills .opt')].find(e=>e.textContent.trim()==='Lots').click());
   await p.waitForTimeout(1200);

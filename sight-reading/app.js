@@ -757,24 +757,24 @@
 
   // Where each stepper's centre falls, in the staff's own coordinates. Measured
   // rather than assumed: the steppers are sized off --ctl-h and the type scale,
-  // and the tweaks panel moves both.
+  // and the tweaks panel moves both. Null when there is nothing worth aligning
+  // to, which the caller answers by spreading the notes to the staff's ends.
   function stepperCentres(host, W) {
-    var def = [W * 0.30, W * 0.72];
     var lo = document.getElementById("low-val"), hi = document.getElementById("high-val");
-    if (!lo || !hi) return def;
+    if (!lo || !hi) return null;
     lo = lo.closest(".stepper"); hi = hi.closest(".stepper");
-    if (!lo || !hi) return def;
+    if (!lo || !hi) return null;
     var hr = host.getBoundingClientRect(), a = lo.getBoundingClientRect(), b = hi.getBoundingClientRect();
-    if (!a.width || !b.width || !hr.width) return def;
-    // Narrow enough — a phone, where the pair wraps onto separate lines by a
-    // few pixels — and both steppers end up in the same column. The measurement
-    // used to bail out there and fall back to two fixed fractions of the width,
-    // which put each note under nothing at all: the one thing this drawing
-    // promises is that the note you drag is the note the stepper above it sets,
-    // and it quietly stopped keeping that at the commonest phone width. Two
-    // notes sharing an x is not a collision — the range is a third at its
-    // narrowest, so they read as the interval they are — and it is the honest
-    // picture of two controls that have themselves stacked.
+    if (!a.width || !b.width || !hr.width) return null;
+    // Wrapped onto separate lines — on a phone the pair misses fitting side by
+    // side by about four pixels — and both steppers then sit in the same
+    // column, one above the other. There is no horizontal fact left to align
+    // to, and aligning anyway is worse than not: the two noteheads collapse
+    // onto one x, their drag targets land on top of each other, and the
+    // stacking has inverted the relationship in any case — the LOW stepper is
+    // now above the HIGH one while the low note stays below the high one. So
+    // the drawing stops claiming an alignment it cannot have.
+    if (Math.abs(a.top - b.top) > 4) return null;
     return [a.left + a.width / 2 - hr.left, b.left + b.width / 2 - hr.left];
   }
 
@@ -810,8 +810,17 @@
     var NOTE_RX = GAP * 0.56, NOTE_RY = GAP * 0.4, LEDGE = GAP * 0.95;
     // Each note under the stepper that sets it, kept clear of the clef and of
     // the right edge so its ledger lines have somewhere to go.
-    var xs = stepperCentres(host, W);
     var pin = function (x) { return Math.max(CLEF_X + GAP * 3, Math.min(W - LEDGE - 2, x)); };
+    // With no stepper to sit under (see stepperCentres), the width is worth
+    // more as separation than as a pointless offset: low as far left as its
+    // ledger lines clear the clef, high as far right as the staff allows. The
+    // gap that buys is what keeps the two drag targets off each other, which
+    // the pair of fixed fractions this replaces never guaranteed — they were
+    // shares of a width that shrinks, and the hit boxes are a fixed size.
+    // A clef glyph inks roughly two thirds of the em box it is set in, which
+    // is the one number here that says where it stops.
+    var clefEnd = CLEF_X + art.size * GAP * 0.7;
+    var xs = stepperCentres(host, W) || [clefEnd + LEDGE, W];
     var LO_X = pin(xs[0]), HI_X = pin(xs[1]);
     var svg = [];
     svg.push('<svg viewBox="0 0 ' + W + ' ' + H.toFixed(1) + '" width="100%" role="img">');

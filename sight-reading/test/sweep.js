@@ -23,11 +23,14 @@ const { chromium } = require(PW);
     if (!hit) throw new Error(`no preset "${x}" — have: ${all.map(e => e.textContent.trim()).join(', ')}`);
     hit.click();
   }, n);
+  // Meter is a set of fig-cells now: light the one asked for, then clear the
+  // rest, in that order — the control clamps at one.
   const setMeter = m => p.evaluate(x => {
-    const all = [...document.querySelectorAll('#timesig-pills .opt')];
+    const all = [...document.querySelectorAll('#timesig-pills .fig-cell')];
     const hit = all.find(e => e.textContent.trim() === x);
     if (!hit) throw new Error(`no meter "${x}" — have: ${all.map(e => e.textContent.trim()).join(', ')}`);
-    hit.click();
+    if (!hit.classList.contains('on')) hit.click();
+    all.forEach(c => { if (c !== hit && c.classList.contains('on')) c.click(); });
   }, m);
 
   const measure = () => p.evaluate(() => {

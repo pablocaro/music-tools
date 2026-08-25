@@ -139,7 +139,6 @@ window.SR_I18N = {
     "lbl.sound":         "Sound",
     "lbl.voice":         "Voice",
     "lbl.volume":        "Volume",
-    "aria.octave":       "Octave",
     "aria.updatePreset": "Update with current settings",
     "aria.deletePreset": "Delete preset",
 
@@ -392,7 +391,6 @@ window.SR_I18N = {
     "lbl.sound":         "Sonido",
     "lbl.voice":         "Voz",
     "lbl.volume":        "Volumen",
-    "aria.octave":       "Octava",
     "aria.updatePreset": "Actualizar con los ajustes actuales",
     "aria.deletePreset": "Eliminar preset",
 
