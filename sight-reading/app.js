@@ -2663,8 +2663,23 @@
     playVoices = [];
   }
 
-  function showCountdown(n) { if (countdownEl) { countdownEl.textContent = n; countdownEl.hidden = false; } }
-  function hideCountdown() { if (countdownEl) countdownEl.hidden = true; }
+  // Each number takes the beat with its own pop. The class has to come off and
+  // go back on with a reflow between, because re-setting an animation that is
+  // already running does nothing — without the reflow only the first number of
+  // the count would move and the rest would swap silently.
+  function showCountdown(n) {
+    if (!countdownEl) return;
+    countdownEl.textContent = n;
+    countdownEl.hidden = false;
+    countdownEl.classList.remove("tick");
+    void countdownEl.offsetWidth;
+    countdownEl.classList.add("tick");
+  }
+  function hideCountdown() {
+    if (!countdownEl) return;
+    countdownEl.hidden = true;
+    countdownEl.classList.remove("tick");
+  }
 
   function blinkCursor(on, ms) {
     var el = osmd.cursor && osmd.cursor.cursorElement;

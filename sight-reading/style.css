@@ -1559,20 +1559,40 @@ button:active { opacity: 0.7; }
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width:  clamp(104px, 20vw, 172px);
-  height: clamp(104px, 20vw, 172px);
+  width:  clamp(124px, 22vw, 200px);
+  height: clamp(124px, 22vw, 200px);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--paper);
   box-shadow: var(--shadow-pop);
-  font-size: clamp(56px, 11vw, 96px);
+  /* Roughly two-fifths of the disc. The numeral was over half of it before and
+     read as a digit in a tight collar rather than a digit on a disc — a circle
+     needs the ring of space to be a circle at all. */
+  font-size: clamp(50px, 9vw, 84px);
   font-weight: var(--weight-standard);
   line-height: 1;
   color: var(--ink);
   pointer-events: none;
   z-index: 50;
+}
+
+/* Every number lands rather than cutting. The count is the one moment the app
+   keeps time visually, so the disc takes the beat the way a conductor's hand
+   does: down fast, a little past the mark, then settling. It overshoots by 4%,
+   which is enough to read as a pulse and not so much that it wobbles.
+   The translate is repeated in every frame because animating transform
+   replaces it wholesale, and losing it would fling the disc off-centre.
+   Duration rides --motion like the rest of the app's structural motion, and
+   the global prefers-reduced-motion rule flattens it to nothing. */
+@keyframes countTick {
+  0%   { transform: translate(-50%, -50%) scale(0.78); opacity: 0; }
+  55%  { transform: translate(-50%, -50%) scale(1.04); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1);    opacity: 1; }
+}
+#countdown.tick {
+  animation: countTick calc(0.36s * var(--motion)) cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 #countdown[hidden] { display: none; }
