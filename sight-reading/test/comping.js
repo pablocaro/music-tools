@@ -1,22 +1,24 @@
-// Comping: a walking bass and the chord it outlines.
+// Comping: one bass note a bar and the chord above it.
 //
 // The load-bearing check is that every note the accompaniment schedules for a
 // bar belongs to that bar's chord — compared against the app's own harmony
 // (session.harmony), not against a second derivation of the same rules here,
-// which would only prove two copies of the logic agree. The exception is one
-// bass note per bar: the last pulse leans into the next root by a semitone and
-// is meant to sit outside the chord.
+// which would only prove two copies of the logic agree.
 //
-// Faults it caught, all of them silent in the sense that the app kept working
-// and only sounded wrong: a chord voiced from a register anchor rather than a
-// pitch (a G# inside F major, an A# inside G7, correct only by accident in C);
-// a bass that recomputed its root at every barline instead of carrying it,
-// leaving 6/8 leaping four times in sixteen bars; and a "walk" that alternated
-// between two pitches all bar (C3 E3 C3 E3) because it only ever asked for the
-// nearest chord tone that was not the current one.
+// off-chord is correctness. leaps is musicality, and it is the column that
+// matters more, because everything here can be in the right chord and still
+// not be a bass part: an earlier walking version alternated between two
+// pitches all bar (C3 E3 C3 E3) and scored a clean zero on every correctness
+// check while sounding like one note per measure. The bass now moves to
+// whichever chord tone is nearest the last one, so leaps should be near zero
+// and non-chord exactly zero — there are no passing notes left to allow.
 //
-// leaps>5th is the one that catches an unmusical line rather than a wrong one.
-// Everything here can be in the right chord and still not be a bass part.
+// Faults these columns caught while the feature was being built: a chord
+// voiced from a register anchor rather than a pitch (a G# inside F major, an
+// A# inside G7, correct only by accident in C); a bass that recomputed its
+// root every barline instead of carrying it, leaving 6/8 leaping four times in
+// sixteen bars; and a chord that doubled the bass an octave up, which pushed
+// the voicing onto the melody's own floor.
 //
 // Environment: PW points at a playwright install, CHROMIUM at a browser binary.
 const PW = process.env.PW || '/opt/node22/lib/node_modules/playwright';
