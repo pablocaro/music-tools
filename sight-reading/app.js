@@ -439,6 +439,12 @@
     if (p.cursor != null) cursorModeEl.value = p.cursor;
     if (p.metronome != null) clickOnEl.checked = p.metronome;
     if (p.playAlong != null) playAlongEl.checked = p.playAlong;
+    // A session saved before comping existed has no value here; the
+    // select's own default (None) then stands, so an old session sounds
+    // exactly as it did.
+    if (p.comping != null && compingEl.querySelector('option[value="' + p.comping + '"]')) {
+      compingEl.value = p.comping;
+    }
     // Organ and Vibraphone left the menu. A session saved on either would set a
     // value the <select> no longer has, which silently blanks it — so they land
     // on marimba instead. The organ *synth* is untouched: scheduleNote still
@@ -490,6 +496,7 @@
     cfg.metronome = clickOnEl.checked;
     cfg.playAlong = playAlongEl.checked;
     cfg.instrument = instrumentEl.value;
+    cfg.comping = compingEl.value;
     cfg.volume = volumeEl.value;
     cfg.hideBehind = hideBehindEl.checked;
     cfg.hideLead = hideLeadEl.value;
@@ -2328,6 +2335,46 @@
     return LETTERS[li] + acc + q;
   }
 
+  // ---- the harmony, as pitches ------------------------------------------
+  // chordName() turns a scale degree into a symbol; comping needs the same
+  // degree as a sounding note. Both read the key the same way — letter index
+  // from the tonic, accidental from the key signature the exporter computed —
+  // so the chord you hear and the chord written above the staff can never
+  // disagree about what key they are in.
+  var NATURAL_PC = [0, 2, 4, 5, 7, 9, 11];    // C D E F G A B
+
+  function degreePc(degree) {
+    var tonicSym = parseInt(keyTonicEl.value, 10) || 0;
+    var li = (tonicSym + degree) % 7;
+    var pc = NATURAL_PC[li];
+    if (lastFifths > 0 && SHARP_ORDER.indexOf(li) < lastFifths) pc += 1;
+    if (lastFifths < 0 && SHARP_ORDER.slice().reverse().indexOf(li) < -lastFifths) pc -= 1;
+    return ((pc % 12) + 12) % 12;
+  }
+
+  // The notes a bar's chord is built from, as pitch classes: triad, plus the
+  // seventh on the dominant because the engine generates one and the symbol
+  // already says so. In minor the dominant's third is the raised leading tone —
+  // the engine raises it in the melody, so the accompaniment has to raise it
+  // too or the two would sound a minor second apart on the strongest chord of
+  // the progression.
+  function chordPcs(rootDegree) {
+    var deg = [rootDegree, rootDegree + 2, rootDegree + 4];
+    if (rootDegree === DOMINANT) deg.push(rootDegree + 6);
+    var minorV = keyModeEl.value === "minor" && rootDegree === DOMINANT;
+    return deg.map(function (d) {
+      var pc = degreePc(d % 7);
+      if (minorV && (d % 7) === 6) pc = (pc + 1) % 12;   // raised 7th = V's major 3rd
+      return pc;
+    });
+  }
+
+  function pcToMidi(pc, nearMidi) {
+    var m = pc + 12 * Math.round((nearMidi - pc) / 12);
+    return m;
+  }
+  function midiToFreq(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+
   // Whether the names should be on screen at all: the toggle owns intent, and
   // the dial owns relevance — with the harmony off, naming chords the line is
   // ignoring would be labelling something that isn't happening.
@@ -2384,6 +2431,7 @@
   var tempoValEl   = document.getElementById("tempo-val");
   var clickOnEl    = document.getElementById("click-on");
   var playAlongEl  = document.getElementById("play-along");
+  var compingEl    = document.getElementById("comping");
   var instrumentEl = document.getElementById("instrument");
   var voiceBtnEl   = document.getElementById("voice-btn");
   var voiceMenuEl  = document.getElementById("voice-menu");
@@ -2491,7 +2539,7 @@
   // Play-along: one melody note — triangle through a lowpass (warmth) with a
   // smooth attack/release, sent dry + into the reverb. Scheduled on the audio
   // clock for tight timing; tracked in playVoices so Stop can kill it.
-  function scheduleTone(freq, startT, endT) {
+  function scheduleTone(freq, startT, endT, mul) {
     var b = audioBus();
     if (!b) return;
     var osc = audioCtx.createOscillator();
@@ -2502,7 +2550,7 @@
     filt.frequency.value = Math.min(freq * 3.5, 2600);    // roll off harsh harmonics
     filt.Q.value = 0.4;
     var g = audioCtx.createGain();
-    var peak = Math.max(0.06, 0.13 * Math.min(1, 520 / freq));  // quieter as pitch climbs
+    var peak = Math.max(0.06, 0.13 * Math.min(1, 520 / freq)) * (mul || 1);  // quieter as pitch climbs
     var atk = 0.014;
     var noteLen = Math.max(0.06, endT - startT);
     var rel = Math.min(0.16, noteLen * 0.6);
@@ -2520,12 +2568,12 @@
   // Organ: additive sine "drawbars" (sub-octave, fundamental, octave, fifth,
   // two octaves) with a gentle vibrato — warm and sustaining, no samples.
   var ORGAN_BARS = [{ m: 0.5, g: 0.34 }, { m: 1, g: 1 }, { m: 2, g: 0.5 }, { m: 3, g: 0.28 }, { m: 4, g: 0.16 }];
-  function scheduleOrgan(freq, startT, endT) {
+  function scheduleOrgan(freq, startT, endT, mul) {
     var b = audioBus();
     if (!b) return;
     var noteLen = Math.max(0.06, endT - startT);
     var atk = 0.018, rel = Math.min(0.16, noteLen * 0.5), e = startT + noteLen;
-    var peak = 0.085;                                   // partials sum, leave headroom
+    var peak = 0.085 * (mul || 1);                      // partials sum, leave headroom
     var ng = audioCtx.createGain();
     ng.gain.setValueAtTime(0.0001, startT);
     ng.gain.exponentialRampToValueAtTime(peak, startT + atk);
@@ -2616,7 +2664,7 @@
 
   function freqToMidi(freq) { return 69 + 12 * Math.log(freq / 440) / Math.log(2); }
 
-  function scheduleSampled(name, freq, startT, endT) {
+  function scheduleSampled(name, freq, startT, endT, mul) {
     var b = audioBus(), bufs = sampleBuffers[name];
     if (!b || !bufs) return false;
     var midi = freqToMidi(freq), best = null, bestD = 1e9;
@@ -2633,7 +2681,7 @@
     var g = audioCtx.createGain();
     var ring = Math.min((endT - startT) + 0.4, src.buffer.duration / src.playbackRate.value);
     var stopAt = startT + Math.max(0.18, ring);
-    var peak = 0.9 * entry.norm;                                       // normalized to full scale, then played hot
+    var peak = 0.9 * entry.norm * (mul || 1);                          // normalized to full scale, then played hot
     g.gain.setValueAtTime(peak, startT);
     g.gain.setValueAtTime(peak, Math.max(startT + 0.02, stopAt - 0.08));
     g.gain.linearRampToValueAtTime(0.0001, stopAt);                    // release fade, no click
@@ -2646,16 +2694,21 @@
   // Dispatch a play-along note to the selected voice. A sampled instrument falls
   // back to the organ whenever it can't actually sound a sample (still loading,
   // or failed) — so a load problem is audible rather than silent.
-  function scheduleNote(freq, startT, endT) {
-    var inst = instrumentEl.value;
+  // inst and mul default to the melody voice at full level, so every existing
+  // caller keeps its behaviour; comping passes its own voice and a level under
+  // the melody's, because a bass line and a struck chord are supporting parts
+  // and should never sit level with the line being read.
+  function scheduleNote(freq, startT, endT, inst, mul) {
+    if (inst == null) inst = instrumentEl.value;
+    if (inst === "none") return;
     if (isSampled(inst)) {
-      if (scheduleSampled(inst, freq, startT, endT)) return;
+      if (scheduleSampled(inst, freq, startT, endT, mul)) return;
       if (!sampleBuffers[inst]) loadSamples(inst);
-      scheduleOrgan(freq, startT, endT);
+      scheduleOrgan(freq, startT, endT, mul);
       return;
     }
-    if (inst === "organ") scheduleOrgan(freq, startT, endT);
-    else scheduleTone(freq, startT, endT);
+    if (inst === "organ") scheduleOrgan(freq, startT, endT, mul);
+    else scheduleTone(freq, startT, endT, mul);
   }
 
   function stopVoices() {
@@ -2898,6 +2951,8 @@
     var countIn = noCountIn ? 0 : bpb;     // 1-bar count-in, skipped on auto-advance
     session = {
       cur: cur, measureFirst: measureFirst, melody: melody, beatNote: beatNote,
+      comping: buildComping(melody, bpb, totalBeats, pulse),
+      harmony: compHarmony(bpb, totalBeats),
       ink: ink, onsets: onsets, totalBeats: totalBeats, barBeats: bpb, pulse: pulse,
       elapsed: -countIn,       // count-in beats are negative
       nextBeat: -Math.round(countIn / pulse),   // counts pulses, not quarters
@@ -2938,16 +2993,154 @@
   // dropping whatever was already queued. Anything that changes how the melody
   // should sound from here on — tempo, instrument, the accompaniment toggle —
   // just calls this and the change takes effect without interrupting playback.
+  // ---- comping: a walking bass and the chord it outlines ------------------
+  // Built once per exercise, from the same progression the melody was generated
+  // against, so the backing cannot drift out of agreement with the line.
+  //
+  // Why walking quarters are safe in a rhythm-reading app: they carry the beat,
+  // which the metronome already carries, but never the subdivision — and the
+  // subdivision is the thing being read. A comping pattern with its own
+  // syncopation would do the reader's work for them.
+  //
+  // One note per pulse, so 6/8 walks in dotted quarters rather than sounding
+  // four-square against its own compound beat.
+  // The chord each bar sits on, as pitch classes. Split out from buildComping
+  // so a test can ask the app what it meant to play and compare that with what
+  // it scheduled, rather than re-deriving the harmony and checking one copy of
+  // the logic against another.
+  function compHarmony(barBeats, totalBeats) {
+    var roots = progressionDef(progressionEl.value).roots;
+    if (!roots || !roots.length) return [];
+    var out = [], nBars = Math.ceil(totalBeats / barBeats);
+    for (var b = 0; b < nBars; b++) out.push(chordPcs(roots[b % roots.length]));
+    return out;
+  }
+
+  function buildComping(melody, barBeats, totalBeats, pulse) {
+    var roots = progressionDef(progressionEl.value).roots;
+    if (!roots || !roots.length) return [];
+
+    // Sit clear of the line being read. The melody's own floor decides this,
+    // not a fixed octave: a bass-clef exercise already lives where a default
+    // bass would be, and the two would fight for the same notes.
+    var lowMidi = 60;
+    melody.forEach(function (n) {
+      var m = freqToMidi(n.freq);
+      if (m < lowMidi) lowMidi = m;
+    });
+    var bassAnchor = Math.max(28, Math.min(48, Math.round(lowMidi) - 12));
+
+    var out = [], nBars = Math.ceil(totalBeats / barBeats);
+    // The bass band. Roots are carried from bar to bar rather than recomputed
+    // against the anchor each time, so the line stays continuous — and folded
+    // back into this band whenever the next root would otherwise walk out of
+    // it. Recomputing per bar broke continuity between bars: in 6/8 there are
+    // only two pulses to a bar, so a root chosen independently at each barline
+    // had no room to be walked to and simply leapt, four times in sixteen bars.
+    var BAND_LO = bassAnchor - 5, BAND_HI = bassAnchor + 7;
+    var curRoot = pcToMidi(chordPcs(roots[0])[0], bassAnchor);
+
+    for (var b = 0; b < nBars; b++) {
+      var t0 = b * barBeats;
+      if (t0 >= totalBeats) break;
+      var barLen = Math.min(barBeats, totalBeats - t0);
+      var pcs = chordPcs(roots[b % roots.length]);
+      var rootMidi = curRoot;
+
+      // The chord, struck on the downbeat and left to ring. It sits in the gap
+      // between the bass and the line being read — a fifth or so under the
+      // melody's floor. Voiced an octave over the bass it landed exactly on
+      // that floor, which is where the reader's own notes are, and the two
+      // muddied each other.
+      var chordBase = Math.max(rootMidi + 3, Math.round(lowMidi) - 5);
+      pcs.forEach(function (pc, i) {
+        if (i === 0) return;                       // the bass already has the root
+        out.push({ onset: t0, dur: barLen, midi: pcToMidi(pc, chordBase + i * 3), gain: 0.30 });
+      });
+      // The root, as a pitch. chordBase is a register to voice near, not a note
+      // — pushed straight in it sounded whatever pitch that register happened
+      // to land on, which put a G# inside an F major chord and an A# inside a
+      // G7. It agreed with the chord symbol only by accident, in C.
+      out.push({ onset: t0, dur: barLen, midi: pcToMidi(pcs[0], chordBase), gain: 0.26 });
+
+      // The walk. A walking bass connects one root to the next — that is the
+      // whole idea, and it is why this targets the following bar's root rather
+      // than wandering through the current chord. Direction falls out of which
+      // way the next root lies; the last pulse leans into it by a semitone from
+      // whichever side the line arrived on.
+      //
+      // The first version climbed through chord tones in a fixed direction and
+      // only looked at the next root on the final pulse, by which point it had
+      // walked an octave away — bar 2 came out F3 A3 C4 then dropped to G#2 to
+      // catch a G. Anchoring both ends first keeps the whole line inside about
+      // an octave, which is where a bass actually lives.
+      var steps = Math.max(1, Math.round(barLen / pulse));
+      var target = pcToMidi(chordPcs(roots[(b + 1) % roots.length])[0], rootMidi);
+      if (target > BAND_HI) target -= 12;
+      if (target < BAND_LO) target += 12;
+      // A repeated chord has nowhere to aim, so alternate rather than stand still.
+      var dirTo = target > rootMidi ? 1 : (target < rootMidi ? -1 : (b % 2 ? -1 : 1));
+      var approach = target - dirTo;
+      var line = [rootMidi], i;
+      for (i = 1; i < steps - 1; i++) {
+        line.push(midStep(pcs, line[line.length - 1], approach, dirTo, bassAnchor));
+      }
+      if (steps > 1) line.push(approach);
+      for (i = 0; i < line.length; i++) {
+        out.push({ onset: t0 + i * pulse, dur: pulse, midi: line[i], gain: 0.5 });
+      }
+      curRoot = target;
+    }
+    return out;
+  }
+
+  // A chord tone between where the line is and where it is heading, moving the
+  // way the line is already moving. Falls back to the nearest tone either side
+  // when the gap is too small to hold one — a bar whose next root is a step
+  // away has no room for a passing note, and repeating the root there beats
+  // leaping out of the octave to find something new.
+  function midStep(pcs, from, toward, dir, anchor) {
+    var best = null, bestD = 1e9, i, k, m, d;
+    for (i = 0; i < pcs.length; i++) {
+      for (k = -1; k <= 1; k++) {
+        m = pcToMidi(pcs[i], anchor) + 12 * k;
+        if (m === from) continue;
+        d = (m - from) * dir;
+        if (d <= 0) continue;                       // behind us
+        if ((m - toward) * dir > 0) continue;       // past the landing note
+        if (d < bestD) { bestD = d; best = m; }
+      }
+    }
+    if (best != null) return best;
+    for (i = 0; i < pcs.length; i++) {
+      m = pcToMidi(pcs[i], anchor);
+      if (m === from) continue;
+      d = Math.abs(m - from);
+      if (d < bestD) { bestD = d; best = m; }
+    }
+    return best == null ? from : best;
+  }
+
   function scheduleAhead() {
     var s = session;
     stopVoices();
     if (!s || !playAlongEl.checked || !audioCtx) return;
     var secPerBeat = s.bms / 1000;
+    var when = function (beat) {
+      return audioCtx.currentTime + (beat - s.elapsed) * secPerBeat;
+    };
     s.melody.forEach(function (n) {
       if (n.onset + n.dur <= s.elapsed) return;      // already finished
-      var startBeat = Math.max(n.onset, s.elapsed);
-      scheduleNote(n.freq, audioCtx.currentTime + (startBeat - s.elapsed) * secPerBeat,
-                           audioCtx.currentTime + (n.onset + n.dur - s.elapsed) * secPerBeat);
+      scheduleNote(n.freq, when(Math.max(n.onset, s.elapsed)), when(n.onset + n.dur));
+    });
+    var comp = compingEl.value;
+    if (comp === "none" || !s.comping) return;
+    s.comping.forEach(function (n) {
+      if (n.onset + n.dur <= s.elapsed) return;
+      // A chord already struck is not re-struck on a mid-line change: it would
+      // re-attack out of time, on a beat that is not a downbeat.
+      if (n.onset < s.elapsed) return;
+      scheduleNote(midiToFreq(n.midi), when(n.onset), when(n.onset + n.dur), comp, n.gain);
     });
   }
 
@@ -3207,6 +3400,10 @@
   // the face — so the session snapshot reads one thing and the panel draws it.
   function syncInstrument() {
     if (voiceBtnEl) voiceBtnEl.textContent = t("inst." + instrumentEl.value);
+  }
+  function syncComping() {
+    var b = document.getElementById("comping-btn");
+    if (b) b.textContent = t("inst." + compingEl.value);
   }
   // No textContent any more: these read "On"/"Off" while they were pills, and a
   // switch is its own readout.
@@ -4349,6 +4546,7 @@
     // input held i–VII–VI–V, and lit a progression that isn't in the mode.
     buildProgressionPills();
     syncInstrument();
+    syncComping();
     syncChunks();
     syncChordsBtn();      // a session carries the chord-names switch too
     syncCursorBtn();
@@ -4408,49 +4606,77 @@
     document.getElementById("tempo-up").addEventListener("click", function () { bumpTempo(1); });
 
     // --- accompaniment ---
-    // The voice menu is built at open time rather than kept in sync: the list,
-    // which entry is ticked, and the translations all come off the <select>'s
-    // own options, so there is no second copy to drift.
-    function buildVoiceMenu() {
-      voiceMenuEl.innerHTML = "";
-      Array.prototype.forEach.call(instrumentEl.options, function (o) {
+    // Two voices, one builder. The menu is built at open time rather than kept
+    // in sync: the list, which entry is ticked, and the translations all come
+    // off the <select>'s own options, so there is no second copy to drift —
+    // and adding comping meant giving that builder its select rather than
+    // writing the whole thing again against a different id.
+    var voiceMenus = [
+      { sel: instrumentEl, btn: voiceBtnEl,
+        menu: voiceMenuEl,
+        after: syncInstrument },
+      { sel: compingEl,    btn: document.getElementById("comping-btn"),
+        menu: document.getElementById("comping-menu"),
+        // Changing the comping voice mid-line takes effect on the spot, the
+        // same way the melody voice does: scheduleAhead drops what was queued
+        // and re-plans from where the cursor actually is.
+        after: function () { syncComping(); if (session) scheduleAhead(); } }
+    ];
+
+    function buildMenu(v) {
+      v.menu.innerHTML = "";
+      Array.prototype.forEach.call(v.sel.options, function (o) {
         var item = document.createElement("button");
         item.type = "button";
         item.className = "menu-item";
         item.setAttribute("role", "option");
         item.textContent = t("inst." + o.value);
-        var chosen = o.value === instrumentEl.value;
+        var chosen = o.value === v.sel.value;
         item.classList.toggle("on", chosen);
         item.setAttribute("aria-selected", chosen ? "true" : "false");
         item.addEventListener("click", function () {
           ensureAudio();          // a real gesture — a good moment to unlock audio
-          instrumentEl.value = o.value;
-          instrumentEl.dispatchEvent(new Event("change"));
-          syncInstrument();
-          closeVoiceMenu();
+          v.sel.value = o.value;
+          v.sel.dispatchEvent(new Event("change"));
+          v.after();
+          closeMenus();
           persistSession();
         });
-        voiceMenuEl.appendChild(item);
+        v.menu.appendChild(item);
       });
     }
-    function closeVoiceMenu() {
-      voiceMenuEl.hidden = true;
-      voiceBtnEl.setAttribute("aria-expanded", "false");
+    function closeMenus(except) {
+      voiceMenus.forEach(function (v) {
+        if (v === except) return;
+        v.menu.hidden = true;
+        v.btn.setAttribute("aria-expanded", "false");
+      });
     }
-    voiceBtnEl.addEventListener("click", function (e) {
-      e.stopPropagation();
-      if (!voiceMenuEl.hidden) { closeVoiceMenu(); return; }
-      buildVoiceMenu();
-      voiceMenuEl.hidden = false;
-      voiceBtnEl.setAttribute("aria-expanded", "true");
+    voiceMenus.forEach(function (v) {
+      if (!v.btn || !v.menu) return;
+      v.btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        if (!v.menu.hidden) { closeMenus(); return; }
+        closeMenus();                 // only one list open at a time
+        buildMenu(v);
+        v.menu.hidden = false;
+        v.btn.setAttribute("aria-expanded", "true");
+      });
     });
     // A tap anywhere else in the popover dismisses the menu but leaves the
     // popover up; the popover already stops its own clicks reaching document.
     document.getElementById("accomp-pop").addEventListener("click", function (e) {
-      if (!voiceMenuEl.hidden && !voiceMenuEl.contains(e.target)) closeVoiceMenu();
+      var inside = voiceMenus.some(function (v) {
+        return !v.menu.hidden && v.menu.contains(e.target);
+      });
+      if (!inside) closeMenus();
     });
     document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape" && !voiceMenuEl.hidden) { e.stopPropagation(); closeVoiceMenu(); }
+      if (e.key !== "Escape") return;
+      if (voiceMenus.some(function (v) { return !v.menu.hidden; })) {
+        e.stopPropagation();
+        closeMenus();
+      }
     }, true);
     volumeUiEl.addEventListener("input", function () {
       volumeEl.value = volumeUiEl.value;
@@ -4649,7 +4875,7 @@
   });
 
   // Playback controls don't regenerate the sheet, so persist the session directly.
-  [tempoEl, clickOnEl, playAlongEl, instrumentEl, volumeEl, cursorModeEl, hideBehindEl, hideLeadEl, showChunksEl].forEach(function (el) {
+  [tempoEl, clickOnEl, playAlongEl, instrumentEl, compingEl, volumeEl, cursorModeEl, hideBehindEl, hideLeadEl, showChunksEl].forEach(function (el) {
     el.addEventListener("change", persistSession);
   });
 

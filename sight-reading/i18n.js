@@ -69,6 +69,7 @@ window.SR_I18N = {
     "val.bars":     "Bars",
 
     // instruments
+    "inst.none":       "None",
     "inst.piano":      "Piano",
     "inst.marimba":    "Marimba",
     "inst.synth":      "Synth",
@@ -138,6 +139,9 @@ window.SR_I18N = {
     "lbl.cursor":        "Display cursor",
     "lbl.sound":         "Sound",
     "lbl.voice":         "Voice",
+    "lbl.melody":        "Melody",
+    "lbl.comping":       "Comping",
+    "aria.comping":      "Comping voice",
     "lbl.volume":        "Volume",
     "aria.updatePreset": "Update with current settings",
     "aria.deletePreset": "Delete preset",
@@ -336,6 +340,7 @@ window.SR_I18N = {
     "val.custom":   "Personalizado",
     "val.bars":     "Compases",
 
+    "inst.none":       "Ninguno",
     "inst.piano":      "Piano",
     "inst.marimba":    "Marimba",
     "inst.synth":      "Sinte",
@@ -390,6 +395,9 @@ window.SR_I18N = {
     "lbl.cursor":        "Mostrar cursor",
     "lbl.sound":         "Sonido",
     "lbl.voice":         "Voz",
+    "lbl.melody":        "Melodía",
+    "lbl.comping":       "Acompañamiento",
+    "aria.comping":      "Voz del acompañamiento",
     "lbl.volume":        "Volumen",
     "aria.updatePreset": "Actualizar con los ajustes actuales",
     "aria.deletePreset": "Eliminar preset",

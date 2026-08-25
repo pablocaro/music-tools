@@ -156,9 +156,20 @@
         <input type="checkbox" id="show-chords" checked>
         <input type="hidden" id="bowing" value="">
         <input type="hidden" id="ties" value="off">
+        <!-- Two voices, one list. Melody is the line you wrote; comping is the
+             walking bass and struck chord underneath it. "None" is each one's
+             off state, so neither needs a switch of its own — the header's
+             Play Along button stays the master. -->
         <select id="instrument">
+          <option data-i18n="inst.none" value="none">None</option>
           <option data-i18n="inst.piano" value="piano">Piano</option>
           <option data-i18n="inst.marimba" value="marimba" selected>Marimba</option>
+          <option data-i18n="inst.synth" value="synth">Synth</option>
+        </select>
+        <select id="comping">
+          <option data-i18n="inst.none" value="none" selected>None</option>
+          <option data-i18n="inst.piano" value="piano">Piano</option>
+          <option data-i18n="inst.marimba" value="marimba">Marimba</option>
           <option data-i18n="inst.synth" value="synth">Synth</option>
         </select>
         <select id="cursor-mode">
@@ -508,14 +519,22 @@
                     aria-label="Accompaniment on/off" data-i18n-aria="aria.accomp"><span class="sw-knob"></span></button>
           </div>
           <div class="pop-row">
-            <span class="pop-label" data-i18n="lbl.voice">Voice</span>
+            <span class="pop-label" data-i18n="lbl.melody">Melody</span>
             <!-- Five voices are too many to cycle and too wide to lay out as
                  pills in a popover this narrow, so the pill opens a menu of its
                  own instead. Built from the <select>'s options at open time, so
                  the list, the tick and the translations all follow one source
                  rather than a second copy that can drift. -->
-            <button id="voice-btn" class="cycle" type="button" aria-label="Voice" data-i18n-aria="aria.voice" aria-haspopup="listbox" aria-expanded="false">Piano</button>
+            <button id="voice-btn" class="cycle" type="button" aria-label="Melody voice" data-i18n-aria="aria.voice" aria-haspopup="listbox" aria-expanded="false">Piano</button>
             <div id="voice-menu" class="menu" role="listbox" hidden></div>
+          </div>
+          <!-- The backing: one control, because a walking bass and the chord it
+               outlines are one musical object, not two features to switch on
+               separately. -->
+          <div class="pop-row">
+            <span class="pop-label" data-i18n="lbl.comping">Comping</span>
+            <button id="comping-btn" class="cycle" type="button" aria-label="Comping voice" data-i18n-aria="aria.comping" aria-haspopup="listbox" aria-expanded="false">None</button>
+            <div id="comping-menu" class="menu" role="listbox" hidden></div>
           </div>
           <!-- The label replaces the speaker glyph that stood in for one when
                these rows had no room for words. -->

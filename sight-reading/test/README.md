@@ -17,6 +17,7 @@ node sight-reading/test/popovers.js    # header popover geometry + exclusivity
 node sight-reading/test/voicemenu.js   # voice menu: pick, reload, translate
 node sight-reading/test/ties.js        # ties: pitch, bar sums, curves, one attack
 node sight-reading/test/range.js       # intervals too wide for the range: muted, and mute
+node sight-reading/test/comping.js     # walking bass + chords agree with the progression
 ```
 
 Screenshots land in `test/out/` (gitignored). `PW` / `CHROMIUM` env vars
