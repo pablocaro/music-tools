@@ -2306,5 +2306,4 @@ button:active { opacity: 0.7; }
      of an iPhone's home indicator. */
   .controlbar { gap: 10px; padding: 10px; margin: 14px 0 26px; }
   #sheet-stage { min-width: 0; }   /* let it shrink to fit the phone */
-  #countdown { font-size: 96px; }
 }
