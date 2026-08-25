@@ -532,7 +532,6 @@
       </div>
       <div id="cover-top"></div>
       <div id="cover-bot"></div>
-      <div id="countdown" hidden></div>
     </main>
     <!-- Transport pill — one family: start this line over, run it, or fetch a
          different one. It floats free of the settings rail, so it neither moves
@@ -542,9 +541,14 @@
       <button id="from-top" class="cb-icon" aria-label="From the top" data-i18n-aria="aria.fromTop">
         <svg class="ic ic-restart"><use href="#ic-restart"/></svg>
       </button>
+      <!-- The count-in happens in here rather than over the staff: the whole
+           point of a count is the bar you spend reading ahead, and a numeral
+           parked on the music took that bar away. Still #countdown, so the
+           element that shows the number kept its name when it moved. -->
       <button id="play" class="cb-icon" aria-label="Play" data-i18n-aria="aria.play">
         <svg class="ic ic-play state-rest"><use href="#ic-play"/></svg>
         <svg class="ic ic-pause state-alt"><use href="#ic-pause"/></svg>
+        <span id="countdown" class="cb-num" aria-hidden="true" hidden></span>
       </button>
       <button id="generate" class="cb-icon" aria-label="New exercise" data-i18n-aria="aria.newExercise">
         <svg class="ic ic-regenerate"><use href="#ic-regenerate"/></svg>

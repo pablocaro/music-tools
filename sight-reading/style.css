@@ -1539,63 +1539,70 @@ button:active { opacity: 0.7; }
   opacity: var(--chunk-alpha);
 }
 
-/* Count-in countdown number */
-/* The count-in numeral is display type — sized to the page, not the scale.
-   It rides on a disc rather than washing straight over the staff: at 12% ink
-   the bare numeral was competing with beams and ledger lines for the same few
-   greys, and it lost — the one thing on screen with a deadline to be read was
-   the hardest thing to read. The disc is the transport pill's treatment, paper
-   and a soft shadow, so the count arrives as the same kind of floating object
-   the controls are.
+/* Count-in countdown number
+   The count lives in the play button, not over the staff. A numeral parked on
+   the music was legible but it covered four bars for the length of the count —
+   which is exactly the bar a count-in exists to give you for reading ahead.
+   In the button it costs the music nothing.
 
-   Absolute, not fixed: fixed centres on the window, but the music centres on
-   .sheet-area, which is narrower whenever the rail is open — so the count used
-   to drift right of the staff it belongs to, by half the rail's width. This is
-   already inside .sheet-area, and that element is already the covers'
-   containing block, so positioning against it costs nothing and tracks the
-   music column by itself. */
-#countdown {
+   The trade is size: at 48px the numeral is a third of what the disc could
+   carry, and during a count-in you are looking at bar 1, not at the transport.
+   So the button takes the beat itself — filling with the accent and swelling a
+   third larger, then decaying across the beat. That is a movement large enough
+   to catch in peripheral vision while your eyes stay on the staff, which the
+   digit alone was not. */
+.cb-num {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width:  clamp(124px, 22vw, 200px);
-  height: clamp(124px, 22vw, 200px);
-  border-radius: 50%;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--paper);
-  box-shadow: var(--shadow-pop);
-  /* Roughly two-fifths of the disc. The numeral was over half of it before and
-     read as a digit in a tight collar rather than a digit on a disc — a circle
-     needs the ring of space to be a circle at all. */
-  font-size: clamp(50px, 9vw, 84px);
+  font-size: 23px;
   font-weight: var(--weight-standard);
   line-height: 1;
-  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  color: inherit;
   pointer-events: none;
-  z-index: 50;
 }
+.cb-num[hidden] { display: none; }
+/* The glyph and the number share the button, so the one not in use goes. */
+#play.counting .ic { visibility: hidden; }
 
-/* Every number lands rather than cutting. The count is the one moment the app
-   keeps time visually, so the disc takes the beat the way a conductor's hand
-   does: down fast, a little past the mark, then settling. It overshoots by 4%,
-   which is enough to read as a pulse and not so much that it wobbles.
-   The translate is repeated in every frame because animating transform
-   replaces it wholesale, and losing it would fling the disc off-centre.
-   Duration rides --motion like the rest of the app's structural motion, and
-   the global prefers-reduced-motion rule flattens it to nothing. */
-@keyframes countTick {
-  0%   { transform: translate(-50%, -50%) scale(0.78); opacity: 0; }
-  55%  { transform: translate(-50%, -50%) scale(1.04); opacity: 1; }
-  100% { transform: translate(-50%, -50%) scale(1);    opacity: 1; }
+/* Scale, never width or height: the transport is a flex row, so animating the
+   box would shove From-the-top and New-exercise sideways on every beat. Scale
+   only paints, which also keeps it smooth at tempo. 1.33 is the ceiling the
+   8px gap allows — a 48px button grows 7.9px each side, so it fills the gap
+   and stops short of its neighbours. z-index lifts it over them while it is
+   swollen. */
+/* Two animations, because the swell and the fade want opposite timing and one
+   easing curve cannot serve both. The scale wants to snap — most of its travel
+   inside the first sixth of the beat — while the colour wants to bleed evenly
+   across the whole of it. Run together under the snappy curve, the fill raced
+   to nearly washed-out by the time the button had finished growing, so the beat
+   looked spent at the moment it should have looked loudest. */
+@keyframes countSwell {
+  0%   { transform: scale(1); }
+  16%  { transform: scale(1.33); }
+  46%  { transform: scale(1); }
+  100% { transform: scale(1); }
 }
-#countdown.tick {
-  animation: countTick calc(0.36s * var(--motion)) cubic-bezier(0.32, 0.72, 0, 1);
+/* The numeral holds its paper colour through the loud half of the beat and only
+   then follows the fill down. Fading both from the first frame left the number
+   greying against a still-saturated blue, which is the one combination on the
+   way down that is hard to read. Properties interpolate independently across
+   the frames that declare them, so naming only colour at 55% leaves the
+   background running its own even fade the whole way. */
+@keyframes countFade {
+  0%   { background: var(--ctl-on);   color: var(--ctl-on-ink); }
+  55%  {                              color: var(--ctl-on-ink); }
+  100% { background: var(--ctl-fill); color: var(--ink); }
 }
-
-#countdown[hidden] { display: none; }
+#play.counting.beat {
+  animation:
+    countSwell calc(var(--beat-ms, 500ms) * var(--motion)) cubic-bezier(0.22, 0.9, 0.3, 1),
+    countFade  calc(var(--beat-ms, 500ms) * var(--motion)) linear;
+  z-index: 1;
+}
 
 /* Cursor blink during the count-in (overrides the cursor's faint resting alpha) */
 @keyframes srBlink { 0%, 100% { opacity: 0.55; } 50% { opacity: 0.05; } }

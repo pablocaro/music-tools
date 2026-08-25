@@ -2663,22 +2663,31 @@
     playVoices = [];
   }
 
-  // Each number takes the beat with its own pop. The class has to come off and
-  // go back on with a reflow between, because re-setting an animation that is
-  // already running does nothing — without the reflow only the first number of
-  // the count would move and the rest would swap silently.
+  // The count is the play button: it shows the number and takes the beat.
+  //
+  // The class has to come off and go back on with a reflow between, because
+  // re-setting an animation that is already running does nothing — without the
+  // reflow only the first number of the count would move and the rest would
+  // swap in silence.
+  //
+  // The fill decays across one beat, so the animation is told how long a beat
+  // currently is rather than guessing: the dial runs 40–200bpm, and a duration
+  // fixed at one tempo either overruns the next number or finishes long before
+  // it.
   function showCountdown(n) {
-    if (!countdownEl) return;
+    if (!countdownEl || !playBtn) return;
     countdownEl.textContent = n;
     countdownEl.hidden = false;
-    countdownEl.classList.remove("tick");
-    void countdownEl.offsetWidth;
-    countdownEl.classList.add("tick");
+    playBtn.style.setProperty("--beat-ms", Math.round(60000 / (+tempoEl.value || 90)) + "ms");
+    playBtn.classList.add("counting");
+    playBtn.classList.remove("beat");
+    void playBtn.offsetWidth;
+    playBtn.classList.add("beat");
   }
   function hideCountdown() {
     if (!countdownEl) return;
     countdownEl.hidden = true;
-    countdownEl.classList.remove("tick");
+    if (playBtn) playBtn.classList.remove("counting", "beat");
   }
 
   function blinkCursor(on, ms) {
