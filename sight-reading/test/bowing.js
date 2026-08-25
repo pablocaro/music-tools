@@ -69,7 +69,10 @@ const { chromium } = require(PW);
   });
 
   await setSlurs([]);
-  console.log('nothing lit :', JSON.stringify(await stats()), '(want 0 slurs)');
+  // Apart lights here rather than the row going blank, so this state is now
+  // "off" wearing its label. The music is the same either way: a set holding
+  // only 1 draws no curve.
+  console.log('apart / off :', JSON.stringify(await stats()), '(want 0 slurs)');
 
   for (const n of [2, 4]) {
     await setSlurs([n]);

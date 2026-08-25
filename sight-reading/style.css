@@ -1224,14 +1224,20 @@ button:active { opacity: 0.7; }
   background: var(--ctl-fill);
 }
 .fig-cell.muted:hover { background: var(--ctl-fill-hover); }
+/* Muted and on keeps the fill — it is still a lit cell, just one the range
+   cannot honour — and thins it instead. The outline version this replaces read
+   as a different kind of control rather than as the same control turned down,
+   which is the wrong story: nothing about the setting changed, only whether
+   there is room for it. The label takes the accent as ink because white on a
+   third-strength fill is not readable. */
 .fig-cell.muted.on {
   opacity: 1;
-  background: transparent;
-  border-color: var(--ctl-on);
+  background: color-mix(in srgb, var(--ctl-on) 32%, transparent);
+  border-color: transparent;
   color: var(--ctl-on);
 }
-.fig-cell.muted.on:hover { background: color-mix(in srgb, var(--ctl-on) 8%, transparent); }
-.fig-cell.muted.on .wt { opacity: 0.55; }
+.fig-cell.muted.on:hover { background: color-mix(in srgb, var(--ctl-on) 42%, transparent); }
+.fig-cell.muted.on .wt { opacity: 0.75; }
 
 .fig-svg { width: var(--fig-svg-w); height: var(--fig-svg-h); display: block; }
 .fig-cell.wide .fig-svg { width: calc(var(--fig-svg-w) * 2); }

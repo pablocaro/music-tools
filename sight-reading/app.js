@@ -1195,6 +1195,10 @@
     var out = [];
     s.split(",").forEach(function (part) {
       var n = parseInt(part, 10);
+      // 1 stays a member. It looks like "no slur" and alone it is, but mixed
+      // with a real length it is the thing that leaves notes standing on their
+      // own: {1,2} draws pairs through 42 of 128 notes and leaves the rest
+      // bare, which is a different exercise from {2}'s unbroken pairs.
       if (n >= 1 && n <= 4 && out.indexOf(n) < 0) out.push(n);
     });
     return out.sort(function (a, b) { return a - b; });
@@ -4159,7 +4163,14 @@
     if (!host) return;
     var on = slurLengths();
     Array.prototype.forEach.call(host.children, function (b) {
-      setSwitch(b, on.indexOf(parseInt(b.dataset.bowing, 10)) >= 0);
+      var n = parseInt(b.dataset.bowing, 10);
+      // Apart also lights when nothing is picked, because that is what nothing
+      // picked means: every note on its own bow. The row used to show a blank
+      // default — the only grid in the panel that did, with Ties beside it
+      // lighting its Off — and a grid with no cell lit reads as unset rather
+      // than as a setting. Lighting it costs nothing stored: the empty set and
+      // {1} generate the same line, so this is the same state wearing a label.
+      setSwitch(b, n === 1 ? (on.length === 0 || on.indexOf(1) >= 0) : on.indexOf(n) >= 0);
     });
   }
 
