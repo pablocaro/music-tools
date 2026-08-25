@@ -17,11 +17,13 @@ const { chromium } = require(PW);
     obUp: !document.getElementById('ob').hidden,
     title: (document.getElementById('ob-title') || {}).textContent,
     clef: document.getElementById('clef').value,
-    octaves: (() => {
-      const rows = {};
-      document.querySelectorAll('#range-grid input[type=checkbox]').forEach(() => {});
-      return null;
-    })()
+    // The point of this line is that picking an instrument moves the range as
+    // well as the clef. It used to read the old per-octave checkbox grid and
+    // had been left as a stub that iterated nothing and returned null, so the
+    // half of the behaviour it existed to check was going unmeasured. The
+    // range is two readouts now.
+    range: (document.getElementById('low-val') || {}).textContent + '-' +
+           (document.getElementById('high-val') || {}).textContent
   }));
 
   console.log('fresh load        :', JSON.stringify(await state()));
