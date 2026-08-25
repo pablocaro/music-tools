@@ -120,6 +120,38 @@ const nameOf = m => NAMES[((m % 12) + 12) % 12] + Math.floor(m / 12 - 1);
     c.value = 'bass'; c.dispatchEvent(new Event('change'));
   });
 
+  // Every progression must be four bars long, in both modes. roots is one root
+  // per BAR, and the engine hardcodes a four-bar phrase (mi % 4), so a
+  // progression of any other length drifts against the phrase it is supposed to
+  // harmonise: ii-V-I was stored as three bars and only realigned every twelve,
+  // landing phrase endings on ii. Checked through the chord symbols on the
+  // staff, which is the same harmony the reader sees.
+  await p.evaluate(() => document.getElementById('settings-toggle').click());
+  await p.waitForTimeout(600);
+  for (const mode of ['major', 'minor']) {
+    const want = await p.evaluate(m => {
+      const cyc = document.getElementById('mode-cycle');
+      if (document.getElementById('key-mode').value !== m) cyc.click();
+      return document.getElementById('key-mode').value;
+    }, mode);
+    await p.waitForTimeout(1400);
+    const ids = await p.evaluate(() =>
+      [...document.querySelectorAll('#progression-pills .opt')].map(o => o.dataset.prog));
+    for (const id of ids) {
+      await p.evaluate(x => {
+        const b = [...document.querySelectorAll('#progression-pills .opt')]
+          .find(e => e.dataset.prog === x);
+        if (b) b.click();
+      }, id);
+      await p.waitForTimeout(1300);
+      const syms = await p.evaluate(() =>
+        [...document.querySelectorAll('#chord-overlay text')].slice(0, 8).map(t => t.textContent));
+      const period4 = syms.length >= 8 && [0, 1, 2, 3].every(i => syms[i] === syms[i + 4]);
+      console.log('  ' + want.padEnd(6), id.padEnd(12),
+        syms.slice(0, 8).join(' ').padEnd(30), period4 ? 'repeats every 4' : 'DOES NOT repeat every 4');
+    }
+  }
+
   // None means silent: no events scheduled at all, and the melody untouched.
   await p.evaluate(() => {
     const c = document.getElementById('comping');

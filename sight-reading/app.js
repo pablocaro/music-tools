@@ -1779,7 +1779,15 @@
     major: [
       { id: "I-IV-V-I",   roots: [0, 3, 4, 0] },
       { id: "I-V-vi-IV",  roots: [0, 4, 5, 3] },
-      { id: "ii-V-I",     roots: [1, 4, 0] }
+      // Four long, like every other entry — roots is one root per BAR, not a
+      // list of the chords involved. ii-V-I is a three-chord progression and
+      // was stored as three bars, so its cycle ran against the four-bar phrase
+      // the engine works in (engine.js hardcodes mi % 4) and the two only
+      // realigned every twelve bars. Phrase endings landed on ii, V, I, ii —
+      // the cadence logic resolving a phrase onto a ii chord, which is not a
+      // cadence in any style. The tonic takes the extra bar, which is where a
+      // ii-V-I rests anyway.
+      { id: "ii-V-I",     roots: [1, 4, 0, 0] }
     ],
     minor: [
       // First on purpose: an id from the other mode falls back to the mode's
@@ -3028,8 +3036,16 @@
       var m = freqToMidi(n.freq);
       if (m < lowMidi) lowMidi = m;
     });
-    var bassAnchor = Math.max(28, Math.min(48, Math.round(lowMidi) - 12));
-    var loM = bassAnchor - 5, hiM = bassAnchor + 7;
+    // Two octaves under the melody's floor, not one. At one octave the bass
+    // sat at C3 with the chord stacked above it, which left the whole
+    // accompaniment crowding the line being read. Floored at C2 because that
+    // is the lowest piano sample; below it every note is the same buffer
+    // pitched down, which goes dull.
+    var bassAnchor = Math.max(36, Math.min(48, Math.round(lowMidi) - 24));
+    // Never below the anchor, which is the lowest sampled note: the nearest
+    // chord tone to C2 is often the B a semitone under it, and that B is a
+    // buffer pitched down rather than a note.
+    var loM = bassAnchor, hiM = bassAnchor + 9;
 
     var out = [], nBars = Math.ceil(totalBeats / barBeats), prevBass = null;
 
@@ -3049,9 +3065,18 @@
       // as a shift underneath rather than as a part with opinions of its own.
       // The first bar takes the root, because nothing has been established yet
       // for it to move the least distance from.
-      var bass = prevBass == null
-        ? pcToMidi(pcs[0], bassAnchor)
-        : nearestOf(pcs, prevBass, loM, hiM);
+      var bass;
+      if (prevBass == null) {
+        // The first bar takes the root, folded into the band like every note
+        // after it. Left unclamped it could land a whole octave under the
+        // anchor — in A major the nearest A to C2 is A1, below the lowest
+        // sample, and every bar after it then followed from there.
+        bass = pcToMidi(pcs[0], bassAnchor);
+        while (bass < loM) bass += 12;
+        while (bass > hiM) bass -= 12;
+      } else {
+        bass = nearestOf(pcs, prevBass, loM, hiM);
+      }
       out.push({ onset: t0, dur: barLen, midi: bass, gain: 0.5 });
       prevBass = bass;
 
@@ -3063,13 +3088,20 @@
       // The chord fills the gap between the bass and the line being read, and
       // it leaves out whatever the bass is already playing — doubling that note
       // an octave up is what pushed the voicing onto the melody's own floor.
-      // Each remaining tone takes the octave nearest the middle of the gap, so
-      // the voicing stays inside it instead of stacking upward out of it.
-      var centre = Math.round((bass + Math.round(lowMidi)) / 2);
+      //
+      // Every tone is placed inside one octave-wide window, which is what makes
+      // it a voicing rather than a set of pitches. Choosing each tone's octave
+      // independently — nearest to some centre — scattered them: an E3 with its
+      // own chord's G a ninth below it, which at that register is mud rather
+      // than harmony. A window starting an octave above the bass sits the chord
+      // where a left hand would put it, and capping it a further octave under
+      // the melody keeps even a four-note dominant clear of the line.
+      var bottom = Math.min(bass + 12, Math.round(lowMidi) - 12);
       var bassPc = ((bass % 12) + 12) % 12;
       pcs.forEach(function (pc) {
         if (pc === bassPc) return;
-        out.push({ onset: t0, dur: barLen, midi: pcToMidi(pc, centre), gain: 0.30 });
+        var m = pc + 12 * Math.ceil((bottom - pc) / 12);   // lowest of this pc in the window
+        out.push({ onset: t0, dur: barLen, midi: m, gain: 0.30 });
       });
     }
     return out;
