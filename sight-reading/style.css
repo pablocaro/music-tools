@@ -1230,6 +1230,26 @@ button.secondary {
   color: var(--ctl-on-ink);
 }
 
+/* Muted: the range is too narrow to hold this interval. Off and muted just
+   fades back. On and muted keeps the accent as ink and loses the fill — the
+   cell still reads "you asked for this" while visibly not being in the same
+   club as the lit ones, which is the honest picture: the setting is real, the
+   range is what's vetoing it. It stays cursor: pointer because tapping still
+   does something — it explains itself. */
+.fig-cell.muted {
+  opacity: 0.45;
+  background: var(--ctl-fill);
+}
+.fig-cell.muted:hover { background: var(--ctl-fill-hover); }
+.fig-cell.muted.on {
+  opacity: 1;
+  background: transparent;
+  border-color: var(--ctl-on);
+  color: var(--ctl-on);
+}
+.fig-cell.muted.on:hover { background: color-mix(in srgb, var(--ctl-on) 8%, transparent); }
+.fig-cell.muted.on .wt { opacity: 0.55; }
+
 .fig-svg { width: var(--fig-svg-w); height: var(--fig-svg-h); display: block; }
 .fig-cell.wide .fig-svg { width: calc(var(--fig-svg-w) * 2); }
 
@@ -1671,6 +1691,47 @@ button.secondary {
     box-shadow: var(--shadow-sheet);
   }
 }
+
+/* The note card. A sentence and a button, centred on every width — it is too
+   short to earn the drawer treatment help gets on a phone. */
+.note-sheet {
+  position: fixed;
+  z-index: 90;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(360px, calc(100vw - 48px));
+  padding: 22px 22px 18px;
+  background: var(--paper);
+  border-radius: var(--radius-sheet);
+  box-shadow: var(--shadow-sheet);
+  text-align: center;
+}
+.note-sheet[hidden] { display: none; }
+.note-sheet h2 {
+  font-size: var(--type-lead);
+  font-weight: var(--weight-strong);
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+.note-sheet p {
+  font-size: var(--type-label);
+  font-weight: var(--weight-standard);
+  line-height: 1.45;
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+.note-ok {
+  width: 100%;
+  height: var(--ctl-h);
+  border: 0;
+  border-radius: var(--ctl-radius-box);
+  background: var(--ctl-on);
+  color: var(--ctl-on-ink);
+  font-size: var(--type-label);
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+.note-ok:active { transform: scale(0.98); }
 
 .help-top {
   flex-shrink: 0;

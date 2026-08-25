@@ -16,6 +16,7 @@ node sight-reading/test/hide.js        # curtain lands on unit boundaries; count
 node sight-reading/test/popovers.js    # header popover geometry + exclusivity
 node sight-reading/test/voicemenu.js   # voice menu: pick, reload, translate
 node sight-reading/test/ties.js        # ties: pitch, bar sums, curves, one attack
+node sight-reading/test/range.js       # intervals too wide for the range: muted, and mute
 ```
 
 Screenshots land in `test/out/` (gitignored). `PW` / `CHROMIUM` env vars

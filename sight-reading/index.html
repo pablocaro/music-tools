@@ -560,6 +560,17 @@
       <div class="help-body" id="help-body"></div>
     </div>
 
+    <!-- A one-sentence note, for when a control has to explain why it won't do
+         the thing you just asked it to. Same scrim and card as help, sized for
+         a sentence rather than a document. -->
+    <div class="help-scrim" id="note-scrim" hidden></div>
+    <div class="note-sheet" id="note-sheet" role="dialog" aria-modal="true"
+         aria-labelledby="note-title" hidden>
+      <h2 id="note-title"></h2>
+      <p id="note-body"></p>
+      <button id="note-ok" class="note-ok" type="button" data-i18n="note.ok">Got it</button>
+    </div>
+
     <div class="scrim" id="scrim"></div>
 
     <!-- Onboarding — shown once (sr_onboarded), then never again. It doubles as

@@ -219,6 +219,11 @@
       cb.addEventListener("change", function () { cell.classList.toggle("on", cb.checked); syncWt(); generate(); });
       cell.addEventListener("click", function (e) {
         e.preventDefault();      // labels re-dispatch to the checkbox; we own the cycle
+        // A cell the range can't reach doesn't cycle. Letting it turn "on"
+        // would be the panel agreeing to something it is about to ignore, and
+        // a tap that visibly changes nothing reads as a broken control — so
+        // say why instead, and name the fix, which lives in another section.
+        if (!intervalFits(i)) { showRangeNote(i); return; }
         var w = cb.checked ? (+cb.dataset.w || 2) : 0;
         var next = (w === 0) ? 2 : (w === 2) ? 4 : 0;
         cb.checked = next > 0;
@@ -232,6 +237,65 @@
       matrixRows.push(cell);
       matrixEl.appendChild(cell);
     });
+  }
+
+  // Grey out the intervals the current range is too narrow to hold. A cell
+  // keeps its setting while muted — widen the range and it lights straight back
+  // up — for the same reason a figure cell hidden by a meter change keeps its
+  // tick: the range is a separate control, and one control silently editing
+  // another's state is how settings get lost.
+  function syncIntervalCells() {
+    var span = rangeSpan();
+    matrixRows.forEach(function (cell, i) {
+      var muted = i > span;
+      cell.classList.toggle("muted", muted);
+      cell.setAttribute("aria-disabled", muted ? "true" : "false");
+    });
+  }
+
+  // The explanation behind a muted cell. Small enough to say the whole thing in
+  // the title and one sentence: what this interval needs, what the range
+  // currently is, and where to change it.
+  function showRangeNote(i) {
+    var b = rangeBounds();
+    setNote(
+      t("range.note.title", { interval: t("interval." + i) }),
+      t("range.note.body", {
+        needs: i + 1,
+        has: b[1] - b[0] + 1,
+        low: nameOfIdx(b[0]),
+        high: nameOfIdx(b[1]),
+        section: t("sec.notes")
+      })
+    );
+  }
+
+  function setNote(title, body) {
+    var scrim = document.getElementById("note-scrim");
+    var sheet = document.getElementById("note-sheet");
+    if (!scrim || !sheet) return;
+    if (title != null) {
+      sheet.querySelector("#note-title").textContent = title;
+      sheet.querySelector("#note-body").textContent = body;
+    }
+    var open = title != null;
+    scrim.hidden = !open;
+    sheet.hidden = !open;
+    if (open) { var ok = document.getElementById("note-ok"); if (ok) ok.focus(); }
+  }
+
+  function wireNote() {
+    var close = function () { setNote(null); };
+    ["note-ok", "note-scrim"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener("click", close);
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") {
+        var sheet = document.getElementById("note-sheet");
+        if (sheet && !sheet.hidden) { close(); e.stopPropagation(); }
+      }
+    }, true);
   }
 
   // Apply a weight to a cell, snapped to the nearest of the three rungs a
@@ -257,9 +321,20 @@
 
   // Off is just weight 0, which is what the engine's weighted draw already
   // understands — so nothing downstream needed to change.
+  //
+  // An interval wider than the range is zeroed here, and that is not cosmetic.
+  // Left in, the engine draws it, finds the destination out of bounds, reflects
+  // to the other direction, finds that out of bounds too, and clamps — so a 7th
+  // in a five-note range did not quietly fail, it pinned the line to the top or
+  // bottom of the range and held it there. Muting it in the alphabet is what
+  // the greyed-out cell is promising, so the promise is kept here rather than
+  // in the stylesheet. If that empties the alphabet, the engine's own fallback
+  // takes over and walks in steps.
   function readAlphabet() {
-    var w = matrixRows.map(function (cell) {
+    var span = rangeSpan();
+    var w = matrixRows.map(function (cell, i) {
       var cb = cell.querySelector("input");
+      if (i > span) return 0;
       return cb.checked ? (+cb.dataset.w || 2) : 0;
     });
     return { down: w.slice(), up: w.slice() };   // engine still wants both; they're symmetric now
@@ -556,9 +631,21 @@
   // step per line-or-space, which is exactly how staves are spaced.
   function staffStepOfIdx(i) { return octOfIdx(i) * 7 + colOfIdx(i); }
 
-  // Five notes: the first-position pentachord, and the narrowest span the
-  // generator can still make a line out of.
-  var MIN_SPAN = 4;
+  // Three notes — a third. Narrower than that and there is no line left to
+  // read, only an oscillation. It used to be five (the first-position
+  // pentachord), but a three-note range is a real exercise for a first lesson,
+  // and now that an interval too wide for the range mutes rather than
+  // misbehaving, the narrow end is safe to open up.
+  var MIN_SPAN = 2;
+
+  // How many diatonic steps the range spans, which is the only thing that
+  // decides whether an interval is playable: an interval of n steps needs a
+  // range at least n wide. Note index and staff step move 1:1, so this is the
+  // same number in either. Key, mode and clef don't come into it — the ladder
+  // is diatonic degrees, and chromaticism alters a pitch without changing how
+  // many steps were taken to reach it.
+  function rangeSpan() { var b = rangeBounds(); return b[1] - b[0]; }
+  function intervalFits(i) { return i <= rangeSpan(); }
 
   // A clef's home octaves — the starting selection, and what a built-in resets
   // to. defaultRange() keeps its old meaning (treble) for callers that predate
@@ -764,6 +851,7 @@
     dis("high-down", hi <= lo + MIN_SPAN);
     dis("high-up",   hi >= NOTE_MAX);
     renderRangeStaff(lo, hi);
+    syncIntervalCells();   // the range is what decides which intervals are reachable
   }
 
   // Move one end to an absolute note, clamped by the other end and the outer
@@ -4487,6 +4575,7 @@
   buildRangeUI();
   buildBeatsPalette();
   buildMatrix();
+  syncIntervalCells();   // buildRangeUI ran before the cells existed
   buildMeasuresPills();
   buildTimesigPills();
   buildLangPills();
@@ -4497,6 +4586,7 @@
   wirePanel();
   wireBands();
   wireHelp();
+  wireNote();
   setWeights(BUILTIN["thirds drill"]);
   activePreset = "thirds drill";
   restoreSession();            // override defaults with last-used settings, if any

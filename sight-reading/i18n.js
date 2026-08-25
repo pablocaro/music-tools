@@ -165,6 +165,14 @@ window.SR_I18N = {
     "interval.6": "7th",
     "interval.7": "octave",
 
+    // Tapping an interval the range is too narrow to hold. Written around the
+    // definite article on purpose: "a octave" is wrong and "an 8ve" is worse,
+    // and the one interval with a masculine Spanish name (unísono) can never
+    // reach this message, since a unison fits in any range.
+    "note.ok":          "Got it",
+    "range.note.title": "The {interval} needs more room",
+    "range.note.body":  "It needs {needs} notes to move through. Your range holds {has} ({low}–{high}). Widen it under {section} and this cell turns back on.",
+
     // rhythm figures
     "fig.w":    "whole",
     "fig.h":    "half",
@@ -407,6 +415,10 @@ window.SR_I18N = {
     "interval.5": "6ª",
     "interval.6": "7ª",
     "interval.7": "octava",
+
+    "note.ok":          "Entendido",
+    "range.note.title": "La {interval} necesita más espacio",
+    "range.note.body":  "Necesita {needs} notas para recorrerse. Tu registro tiene {has} ({low}–{high}). Amplíalo en {section} y esta casilla se vuelve a activar.",
 
     "fig.w":    "redonda",
     "fig.h":    "blanca",
