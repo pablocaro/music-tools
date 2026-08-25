@@ -320,7 +320,7 @@
    arc, and nothing else about the layout depends on it. */
 @supports (corner-shape: squircle) {
   .band, .pop, .menu, .help-sheet, .ob-card, .controlbar,
-  .fig-cell, .note-cell, .stepper, .tb-btn, .cb-icon,
+  .fig-cell, .stepper, .tb-btn, .cb-icon,
   input[type="checkbox"] {
     corner-shape: superellipse(var(--corner-curve));
   }
@@ -338,7 +338,7 @@
    button is the biggest tap target in the app, and it inherits the platter's
    24px radius on all four corners — so an open platter flashed a grey box whose
    bottom corners were rounded against nothing, sitting over the controls. */
-button, select, input, label, summary, #tempo-pill {
+button, select, input, label {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
@@ -414,13 +414,11 @@ body {
 .ic-restart    { width: 22px; height: 22px; }
 .ic-play       { width: 19px; height: 19px; }
 .ic-pause      { width: 18px; height: 18px; }
-.ic-accomp     { width: 20px; height: 20px; }
 /* The on and off glyphs share a width but not a height — the slash overhangs —
    so a square box scales both by width and the keyboard itself comes out the
    same size in either state. 23 matches the metronome beside it. */
 .ic-piano      { width: 23px; height: 23px; }
 .ic-metro      { width: 23px; height: 23px; }
-.ic-eye        { width: 23px; height: 23px; }
 .ic-regenerate { width: 19px; height: 19px; }
 /* The transport trio runs lighter than the header's buttons — it sits closest
    to the music, so it whispers. */
@@ -745,12 +743,6 @@ button.playing svg.state-alt { display: block; }
   .layout.panel-open .scrim { opacity: 0; pointer-events: none; }
 }
 
-section {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-}
-
 label {
   font-size: var(--type-caption);
   font-weight: var(--weight-standard);
@@ -921,8 +913,6 @@ input[type="checkbox"]:checked::after {
   align-items: center;
   gap: 12px;
 }
-/* No buttons on this one, so the track needs its own margin from the edge. */
-.stepper-plain { padding: 0 18px 0 14px; }
 
 /* A stepper with no slider has nothing to fill extra width with — it hugs its
    value and buttons instead of stretching them apart. */
@@ -952,8 +942,6 @@ input[type="checkbox"]:checked::after {
 
 .stepper-range { flex: 1; min-width: 40px; }
 .bare-range { width: 100%; }
-
-.vol-glyph { width: 20px; height: 20px; flex-shrink: 0; color: var(--ink); }
 
 .step-btn {
   width: 26px; height: 26px;
@@ -1072,12 +1060,6 @@ button {
 button:hover { opacity: 0.85; }
 button:active { opacity: 0.7; }
 
-button.secondary {
-  background: var(--paper);
-  color: var(--ink);
-  border: 1px solid var(--line);
-}
-
 /* Preset pills */
 .presets {
   display: flex;
@@ -1162,9 +1144,10 @@ button.secondary {
 .fig-cell[hidden] { display: none; }
 /* Air between the meter grid and the figure grid. They are the same cell in
    the same section, so without it the two read as one undifferentiated field
-   of blue and grey. */
-#timesig-pills + .fig-h,
-.fig-fam + .fig-h,
+   of blue and grey. Only #beats has a caption for a next sibling: the meter
+   grid is followed by #beats itself, and every .fig-fam carries its caption
+   inside rather than beside it, so the two other selectors this rule used to
+   carry — from before the figures were regrouped by meter — matched nothing. */
 #beats + .fig-h { margin-top: 14px; }
 /* Each meter family's own section, headed by the meters it serves. */
 .fig-fam[hidden] { display: none; }
@@ -1257,11 +1240,17 @@ button.secondary {
    text-transform: none undoes the global label{} caption treatment (all
    caps) — the .fig-cell is a <label> like every other figure, but this is
    the first one showing real text through it rather than an SVG glyph, and
-   "2ND" loses the ordinal a plain "2nd" reads at a glance. */
+   "2ND" loses the ordinal a plain "2nd" reads at a glance.
+   The tracking is the other half of that same treatment and was left behind:
+   --track-caption is what makes a heading read as a label rather than as
+   text, and inherited down here it was spacing out a control's own word.
+   Every other pill saying a word — .opt, .cycle, .menu-item — sits at the
+   face's normal spacing, and these are the same kind of object. */
 .fig-txt {
   font-size: var(--type-label);
   font-weight: var(--weight-standard);
   text-transform: none;
+  letter-spacing: normal;
 }
 
 /* ---------------------------------------------------------------------------
@@ -1631,13 +1620,6 @@ button.secondary {
    The sheet rises from the bottom on a phone and sits as a centred card once
    there's room, so it reads as part of the app rather than a browser dialog.
    --------------------------------------------------------------------------- */
-.sec-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
 .help-btn {
   width: 26px; height: 26px;
   flex-shrink: 0;
@@ -2112,17 +2094,6 @@ button.secondary {
 /* A second caption line reads as a continuation, not a second block, so it sits
    at line spacing rather than at the group's own gap. */
 .ob-body .ob-soon { margin-top: 6px; }
-
-/* The settings glyph sitting inside a sentence. .ic is display:block for
-   buttons, so it has to go inline here, and it takes the surrounding text's
-   colour rather than the control-bar treatment. */
-.ob-ic {
-  display: inline-block;
-  width: 15px;
-  height: 15px;
-  vertical-align: -2px;
-  color: var(--ink);
-}
 
 /* Sub-headings inside a page reuse the panel's section-heading treatment, so
    RHYTHM here and RHYTHM there read as the same label. */

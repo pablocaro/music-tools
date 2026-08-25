@@ -237,8 +237,14 @@
             <!-- Two grids of identical-looking cells, so each says which it
                  is. The figures need no heading — there is only one group of
                  them now — but without a word above the meters the two run
-                 together into one undifferentiated field. -->
-            <h3 class="fig-h" data-i18n="lbl.meter">Meter</h3>
+                 together into one undifferentiated field.
+
+                 h2, like every other caption in the panel, not h3: these are
+                 the first headings in the document, and starting the outline
+                 at a level nothing has opened is a skip. The per-meter family
+                 captions buildBeats writes inside #beats are the h3s, and they
+                 now have an h2 above them to be subordinate to. -->
+            <h2 class="fig-h" data-i18n="lbl.meter">Meter</h2>
             <div class="fig-grid" id="timesig-pills"></div>
             <div class="beats" id="beats"></div>
             <!-- Slurs: group the line in twos, threes or fours. A slur is one
@@ -250,7 +256,7 @@
                  notes, like a figure is, rather than a setting about them —
                  so the caption sits above its grid the way Meter's does,
                  instead of inline beside a row of words. -->
-            <h3 class="fig-h" data-i18n="lbl.slurs">Slurs</h3>
+            <h2 class="fig-h" data-i18n="lbl.slurs">Slurs</h2>
             <div class="fig-grid" id="bowing-pills"></div>
             <!-- Ties: how often a bar holds its last note over the barline. The
                  reader has to carry the sound across instead of re-attacking,
@@ -356,7 +362,11 @@
             <h2 class="sec-h" data-i18n="sec.hideAhead">Hide Ahead</h2>
             <div class="sec-row unit">
               <div class="stepper stepper-fit">
-                <span class="stepper-val" id="hide-val" class="is-word" data-i18n="val.off">Off</span>
+                <!-- .is-word from the start: the readout opens on "Off", and a
+                     second class attribute here was silently dropped by the
+                     parser, so the word rendered at value weight until the
+                     first sync ran. One attribute, both classes. -->
+                <span class="stepper-val is-word" id="hide-val" data-i18n="val.off">Off</span>
                 <span class="step-pair">
                   <button id="hide-down" class="step-btn" type="button" aria-label="Less" data-i18n-aria="aria.less">&#8722;</button>
                   <button id="hide-up" class="step-btn" type="button" aria-label="More" data-i18n-aria="aria.more">+</button>
