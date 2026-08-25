@@ -275,7 +275,16 @@
     matrixRows.forEach(function (cell, i) {
       var muted = i > span;
       cell.classList.toggle("muted", muted);
-      cell.setAttribute("aria-disabled", muted ? "true" : "false");
+      // Not aria-disabled, which it used to carry. A muted cell is the one cell
+      // in the panel guaranteed to do something when it is pressed — it opens
+      // the note saying what this interval needs and where to widen the range —
+      // and aria-disabled is a promise that pressing does nothing, which
+      // assistive tech keeps by refusing to press at all. So the mute rides in
+      // the name instead, which is where the grey tint's meaning belongs: the
+      // reason is exactly what a reader who cannot see the tint is missing.
+      cell.setAttribute("aria-label", muted
+        ? t("range.note.title", { interval: t("interval." + i) })
+        : t("interval." + i));
     });
   }
 
@@ -757,9 +766,15 @@
     if (!lo || !hi) return def;
     var hr = host.getBoundingClientRect(), a = lo.getBoundingClientRect(), b = hi.getBoundingClientRect();
     if (!a.width || !b.width || !hr.width) return def;
-    // Wrapped onto separate lines — they are no longer side by side, so lining
-    // the notes up with them would stack both notes in the same place.
-    if (Math.abs(a.top - b.top) > 4) return def;
+    // Narrow enough — a phone, where the pair wraps onto separate lines by a
+    // few pixels — and both steppers end up in the same column. The measurement
+    // used to bail out there and fall back to two fixed fractions of the width,
+    // which put each note under nothing at all: the one thing this drawing
+    // promises is that the note you drag is the note the stepper above it sets,
+    // and it quietly stopped keeping that at the commonest phone width. Two
+    // notes sharing an x is not a collision — the range is a third at its
+    // narrowest, so they read as the interval they are — and it is the honest
+    // picture of two controls that have themselves stacked.
     return [a.left + a.width / 2 - hr.left, b.left + b.width / 2 - hr.left];
   }
 
