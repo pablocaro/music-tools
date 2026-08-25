@@ -3037,15 +3037,24 @@
     // it. Recomputing per bar broke continuity between bars: in 6/8 there are
     // only two pulses to a bar, so a root chosen independently at each barline
     // had no room to be walked to and simply leapt, four times in sixteen bars.
-    var BAND_LO = bassAnchor - 5, BAND_HI = bassAnchor + 7;
-    var curRoot = pcToMidi(chordPcs(roots[0])[0], bassAnchor);
+    // The walk thinks in scale steps, so pin the tonic it counts from and give
+    // it a band of about an octave and a half to move in. Everything below is
+    // an index into that scale, not a semitone.
+    walkTonic = pcToMidi(degreePc(0), bassAnchor);
+    // The root's band, not the line's: an arpeggio reaches a fifth above the
+    // root it starts on, so allowing roots up to an octave let the bass climb
+    // to G4 — inside the melody, an octave above where a bass belongs. Roots
+    // stay within a fifth of the tonic and the arpeggio tops out around the
+    // octave, which is the register the samples were chosen for.
+    var loIdx = -3, hiIdx = 4;
+    var curIdx = nearestIdx(roots[0], 0, loIdx, hiIdx);
 
     for (var b = 0; b < nBars; b++) {
       var t0 = b * barBeats;
       if (t0 >= totalBeats) break;
       var barLen = Math.min(barBeats, totalBeats - t0);
       var pcs = chordPcs(roots[b % roots.length]);
-      var rootMidi = curRoot;
+      var rootMidi = idxToMidi(curIdx);
 
       // The chord, struck on the downbeat and left to ring. It sits in the gap
       // between the bass and the line being read — a fifth or so under the
@@ -3063,62 +3072,96 @@
       // G7. It agreed with the chord symbol only by accident, in C.
       out.push({ onset: t0, dur: barLen, midi: pcToMidi(pcs[0], chordBase), gain: 0.26 });
 
-      // The walk. A walking bass connects one root to the next — that is the
-      // whole idea, and it is why this targets the following bar's root rather
-      // than wandering through the current chord. Direction falls out of which
-      // way the next root lies; the last pulse leans into it by a semitone from
-      // whichever side the line arrived on.
+      // The walk. A walking bass walks — it moves by step, and the step is what
+      // makes it sound like a line rather than a chord being spelled out.
       //
-      // The first version climbed through chord tones in a fixed direction and
-      // only looked at the next root on the final pulse, by which point it had
-      // walked an octave away — bar 2 came out F3 A3 C4 then dropped to G#2 to
-      // catch a G. Anchoring both ends first keeps the whole line inside about
-      // an octave, which is where a bass actually lives.
+      // The first version picked "the nearest chord tone that isn't the one we
+      // are on", which just alternates: C3 E3 C3 E3, F3 C3 F3 C3. Four notes a
+      // bar, two pitches, and under a chord ringing through the bar it reads as
+      // one bass note per measure. Stepping through the scale instead fixes the
+      // sound, not the count.
+      //
+      // Positions are diatonic step indices, not semitones, so "one step" is a
+      // scale step in whatever key and mode is loaded and the leading tone
+      // leans into the tonic by a semitone for free.
       var steps = Math.max(1, Math.round(barLen / pulse));
-      var target = pcToMidi(chordPcs(roots[(b + 1) % roots.length])[0], rootMidi);
-      if (target > BAND_HI) target -= 12;
-      if (target < BAND_LO) target += 12;
-      // A repeated chord has nowhere to aim, so alternate rather than stand still.
-      var dirTo = target > rootMidi ? 1 : (target < rootMidi ? -1 : (b % 2 ? -1 : 1));
-      var approach = target - dirTo;
-      var line = [rootMidi], i;
-      for (i = 1; i < steps - 1; i++) {
-        line.push(midStep(pcs, line[line.length - 1], approach, dirTo, bassAnchor));
+      var nextDeg = roots[(b + 1) % roots.length];
+      var targetIdx = nearestIdx(nextDeg, curIdx, loIdx, hiIdx);
+      // Land one step short of the next root, on whichever side we are coming
+      // from, so the bar ends leaning into the downbeat.
+      var approachIdx = targetIdx + (targetIdx >= curIdx ? -1 : 1);
+      var moves = steps - 1, line = [curIdx], pos = curIdx, k, i;
+      var dist = approachIdx - curIdx;
+      if (Math.abs(dist) >= moves) {
+        // Ground to cover: walk it, by step, arriving exactly on the lean.
+        for (k = 1; k <= moves; k++) {
+          var left = moves - k + 1;
+          var need = approachIdx - pos;
+          var step = Math.round(need / left);
+          if (step > 2) step = 2;
+          if (step < -2) step = -2;
+          if (step === 0) step = need > 0 ? 1 : -1;
+          pos += step;
+          line.push(pos);
+        }
+        line[line.length - 1] = approachIdx;
+      } else {
+        // The next root is close, so there is nothing to walk to. Arpeggiate the
+        // bar's own chord instead and land on the lean — root, third, fifth,
+        // approach, which is what a bass line does over a chord that isn't
+        // going anywhere yet. Stepping here instead produced C3 D3 E3 E3: it
+        // arrived with a move to spare and repeated the note to fill the bar.
+        for (k = 1; k < moves; k++) {
+          var up = curIdx + 2 * k;
+          if (up > hiIdx + 4) up -= 7;        // keep the shape, drop the octave
+          line.push(up);
+        }
+        // Lean in from whichever side the arpeggio actually finished on, not
+        // from where the bar started. Choosing the side off the bar's own root
+        // sent a line that had climbed to the fifth diving to the note below
+        // the next root — an octave's drop to reach a semitone's lean.
+        if (moves > 0) {
+          var last = line[line.length - 1];
+          var lean = targetIdx + (last > targetIdx ? 1 : -1);
+          // ...unless that is the note we are already on, which would repeat it
+          // rather than lean anywhere. The other side is always a step too.
+          if (lean === last) lean = targetIdx - (last > targetIdx ? 1 : -1);
+          line.push(lean);
+        }
       }
-      if (steps > 1) line.push(approach);
       for (i = 0; i < line.length; i++) {
-        out.push({ onset: t0 + i * pulse, dur: pulse, midi: line[i], gain: 0.5 });
+        out.push({ onset: t0 + i * pulse, dur: pulse, midi: idxToMidi(line[i]), gain: 0.5 });
       }
-      curRoot = target;
+      curIdx = targetIdx;
     }
     return out;
   }
 
-  // A chord tone between where the line is and where it is heading, moving the
-  // way the line is already moving. Falls back to the nearest tone either side
-  // when the gap is too small to hold one — a bar whose next root is a step
-  // away has no room for a passing note, and repeating the root there beats
-  // leaping out of the octave to find something new.
-  function midStep(pcs, from, toward, dir, anchor) {
-    var best = null, bestD = 1e9, i, k, m, d;
-    for (i = 0; i < pcs.length; i++) {
-      for (k = -1; k <= 1; k++) {
-        m = pcToMidi(pcs[i], anchor) + 12 * k;
-        if (m === from) continue;
-        d = (m - from) * dir;
-        if (d <= 0) continue;                       // behind us
-        if ((m - toward) * dir > 0) continue;       // past the landing note
-        if (d < bestD) { bestD = d; best = m; }
-      }
+  // ---- diatonic step indices, for the walk ------------------------------
+  // A bass line moves by scale steps, so it is easier to think in them: index 0
+  // is the tonic, 7 is the octave, and one step is one note of whatever scale
+  // the key and mode describe. degreePc() already reads the key signature, so
+  // minor's flat third and the rest come along without a second table.
+  var walkTonic = 48;                        // set per exercise by buildComping
+
+  function idxToMidi(idx) {
+    var oct = Math.floor(idx / 7), d = ((idx % 7) + 7) % 7;
+    var off = (degreePc(d) - degreePc(0) + 12) % 12;
+    return walkTonic + 12 * oct + off;
+  }
+
+  // The nearest index carrying this scale degree, kept inside the bass's band
+  // so the line cannot climb out of the register over sixteen bars.
+  function nearestIdx(degree, near, loIdx, hiIdx) {
+    var base = Math.floor(near / 7) * 7 + degree, best = null, bestD = 1e9, k, i, d;
+    for (k = -1; k <= 1; k++) {
+      i = base + 7 * k;
+      if (i < loIdx || i > hiIdx) continue;
+      d = Math.abs(i - near);
+      if (d < bestD) { bestD = d; best = i; }
     }
     if (best != null) return best;
-    for (i = 0; i < pcs.length; i++) {
-      m = pcToMidi(pcs[i], anchor);
-      if (m === from) continue;
-      d = Math.abs(m - from);
-      if (d < bestD) { bestD = d; best = m; }
-    }
-    return best == null ? from : best;
+    return Math.max(loIdx, Math.min(hiIdx, base));
   }
 
   function scheduleAhead() {

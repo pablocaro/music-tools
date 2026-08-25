@@ -7,11 +7,16 @@
 // bass note per bar: the last pulse leans into the next root by a semitone and
 // is meant to sit outside the chord.
 //
-// It caught two real faults while it was being written: a chord voiced from a
-// register anchor rather than a pitch (a G# inside F major, an A# inside G7,
-// correct only by accident in C), and a bass that recomputed its root at every
-// barline instead of carrying it, which left 6/8 leaping four times in sixteen
-// bars because two pulses is no room to walk an octave.
+// Faults it caught, all of them silent in the sense that the app kept working
+// and only sounded wrong: a chord voiced from a register anchor rather than a
+// pitch (a G# inside F major, an A# inside G7, correct only by accident in C);
+// a bass that recomputed its root at every barline instead of carrying it,
+// leaving 6/8 leaping four times in sixteen bars; and a "walk" that alternated
+// between two pitches all bar (C3 E3 C3 E3) because it only ever asked for the
+// nearest chord tone that was not the current one.
+//
+// leaps>5th is the one that catches an unmusical line rather than a wrong one.
+// Everything here can be in the right chord and still not be a bass part.
 //
 // Environment: PW points at a playwright install, CHROMIUM at a browser binary.
 const PW = process.env.PW || '/opt/node22/lib/node_modules/playwright';
@@ -85,7 +90,7 @@ const nameOf = m => NAMES[((m % 12) + 12) % 12] + Math.floor(m / 12 - 1);
     console.log(label.padEnd(13),
       'events', String(r.n).padStart(4),
       '│ off-chord', String(offChord).padStart(2),
-      '│ approach', String(approach).padStart(2),
+      '│ non-chord', String(approach).padStart(2),
       '│ leaps>5th', String(leaps).padStart(2),
       '│ bass', (nameOf(bassLo) + '-' + nameOf(bassHi)).padEnd(8),
       '│ chord', (nameOf(chLo) + '-' + nameOf(chHi)).padEnd(8),
