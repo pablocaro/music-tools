@@ -1540,16 +1540,37 @@ button:active { opacity: 0.7; }
 }
 
 /* Count-in countdown number */
-/* The count-in numeral is display type — sized to the page, not the scale. */
+/* The count-in numeral is display type — sized to the page, not the scale.
+   It rides on a disc rather than washing straight over the staff: at 12% ink
+   the bare numeral was competing with beams and ledger lines for the same few
+   greys, and it lost — the one thing on screen with a deadline to be read was
+   the hardest thing to read. The disc is the transport pill's treatment, paper
+   and a soft shadow, so the count arrives as the same kind of floating object
+   the controls are.
+
+   Absolute, not fixed: fixed centres on the window, but the music centres on
+   .sheet-area, which is narrower whenever the rail is open — so the count used
+   to drift right of the staff it belongs to, by half the rail's width. This is
+   already inside .sheet-area, and that element is already the covers'
+   containing block, so positioning against it costs nothing and tracks the
+   music column by itself. */
 #countdown {
-  position: fixed;
+  position: absolute;
   top: 50%;
-  left: 50%;                     /* music is centered in the window now */
+  left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 160px;
+  width:  clamp(104px, 20vw, 172px);
+  height: clamp(104px, 20vw, 172px);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--paper);
+  box-shadow: var(--shadow-pop);
+  font-size: clamp(56px, 11vw, 96px);
   font-weight: var(--weight-standard);
+  line-height: 1;
   color: var(--ink);
-  opacity: 0.12;
   pointer-events: none;
   z-index: 50;
 }
