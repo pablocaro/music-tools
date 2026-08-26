@@ -166,6 +166,58 @@ const nameOf = m => NAMES[((m % 12) + 12) % 12] + Math.floor(m / 12 - 1);
     })), '(built but not scheduled — the value gates playback, not generation)');
   await p.evaluate(() => document.getElementById('play').click());
 
+  // Changing a voice while paused must not start the transport. The reschedule
+  // used to guard on `session`, which outlives a pause, so picking a comping
+  // voice queued the whole accompaniment into a stopped transport and the app
+  // began playing. Counted at the audio layer rather than by listening to the
+  // flag: what went wrong was sound coming out, so that is what is measured.
+  await p.evaluate(() => {
+    // The master has to be on or nothing sounds and the check proves nothing.
+    const pa = document.getElementById('play-along');
+    if (!pa.checked) { pa.checked = true; pa.dispatchEvent(new Event('change')); }
+    window.__starts = 0;
+    const B = AudioBufferSourceNode.prototype, ob = B.start;
+    B.start = function () { window.__starts++; return ob.apply(this, arguments); };
+    const O = OscillatorNode.prototype, oo = O.start;
+    O.start = function () { window.__starts++; return oo.apply(this, arguments); };
+    const c = document.getElementById('comping');
+    c.value = 'marimba'; c.dispatchEvent(new Event('change'));
+  });
+  await p.evaluate(() => document.getElementById('play').click());   // play
+  await p.waitForTimeout(900);
+  await p.evaluate(() => document.getElementById('play').click());   // pause
+  await p.waitForTimeout(400);
+  // Log the control number too. Without it this check cannot tell "the change
+  // started nothing" from "nothing sounds here at all", and the first version
+  // of it reported a clean pass against the unfixed code for exactly that
+  // reason — a test that agrees with you no matter what is worse than none.
+  const before = await p.evaluate(() => { const n = window.__starts; window.__starts = 0; return n; });
+  // Through the real control, not by setting the <select>. The reschedule lives
+  // in the voice menu's click handler, so dispatching a change event on the
+  // hidden select skips the code being tested — the first version of this check
+  // did exactly that and passed against the unfixed app.
+  await p.evaluate(() => {
+    if (document.getElementById('accomp-pop').hidden) document.getElementById('accomp-toggle').click();
+  });
+  await p.waitForTimeout(400);
+  await p.evaluate(() => document.getElementById('comping-btn').click());
+  await p.waitForTimeout(300);
+  await p.evaluate(() => {
+    const items = [...document.querySelectorAll('#comping-menu .menu-item')];
+    const none = items.find(i => !i.classList.contains('on')) && items[0];
+    if (none) none.click();                      // first entry is None
+  });
+  await p.waitForTimeout(700);
+  const after = await p.evaluate(() => ({ starts: window.__starts, playing: !document.querySelector('.g-pause, .ic-pause.state-alt') ? null : undefined }));
+  const paused = await p.evaluate(() => document.getElementById('play').getAttribute('aria-label'));
+  console.log('while playing: notes started', before, '(control — must be > 0)');
+  // One start is expected and silent: ensureAudio() plays a 1-sample buffer to
+  // unlock the context on a real gesture. Anything beyond that is the
+  // accompaniment sounding into a stopped transport — 211 with the bug present.
+  console.log('paused + voice change: notes started', after.starts,
+    '(want <= 1, the silent unlock) | transport says', JSON.stringify(paused),
+    after.starts <= 1 ? '' : '  <-- STARTED PLAYING WHILE PAUSED');
+
   console.log('errors:', errs);
   await b.close();
 })();

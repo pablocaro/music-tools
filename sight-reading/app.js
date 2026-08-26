@@ -4622,7 +4622,11 @@
         // Changing the comping voice mid-line takes effect on the spot, the
         // same way the melody voice does: scheduleAhead drops what was queued
         // and re-plans from where the cursor actually is.
-        after: function () { syncComping(); if (session) scheduleAhead(); } }
+        // `playing`, not `session`: a session outlives a pause, so testing for
+        // one queued the whole accompaniment into a stopped transport and the
+        // app started playing the moment the voice was changed. Every other
+        // reschedule in here guards on `playing` for exactly this reason.
+        after: function () { syncComping(); if (playing) scheduleAhead(); } }
     ];
 
     function buildMenu(v) {
