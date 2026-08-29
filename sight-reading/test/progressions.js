@@ -2,6 +2,7 @@
 const PW = process.env.PW || '/opt/node22/lib/node_modules/playwright';
 const CHROMIUM = process.env.CHROMIUM || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const { chromium } = require(PW);
+const { pickDrill, newDrill } = require('./drills.js');
 const LET = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
 
 // Chord-tone rate of the score against an arbitrary progression, in C major.
@@ -34,13 +35,12 @@ function adherence(xml, roots) {
   await p.click('#settings-toggle'); await p.waitForTimeout(500);
 
   // arpeggio alphabet + full dial, so the harmony actually pulls
-  await p.evaluate(() => [...document.querySelectorAll('.presets .pill')].find(x => x.textContent.trim().startsWith('Arpeggios')).click());
-  await p.waitForTimeout(1300);
+  await pickDrill(p, 'Arpeggios', 1300);
 
   console.log('major pills :', await p.evaluate(() => [...document.querySelectorAll('#progression-pills .opt')].map(x => x.textContent + (x.classList.contains('on') ? '*' : ''))));
 
   // pick I-V-vi-IV and confirm the *notes* follow it (not the old I-IV-V-I)
-  const PROGS = { 'I–V–vi–IV': [0, 4, 5, 3], 'ii–V–I': [1, 4, 0] };
+  const PROGS = { 'I–V–vi–IV': [0, 4, 5, 3], 'ii–V–I': [1, 4, 0, 0] };
   for (const [label, roots] of Object.entries(PROGS)) {
     await p.evaluate(l => [...document.querySelectorAll('#progression-pills .opt')].find(x => x.textContent === l).click(), label);
     await p.waitForTimeout(1400);
@@ -49,9 +49,9 @@ function adherence(xml, roots) {
       '  to I-IV-V-I:', adherence(xml, [0, 3, 4, 0]) + '%');
   }
 
-  // chord names: on by default, correct spelling, first bar of ii-V-I in C = Dm
+  // chord names: on by default, correct spelling, and ii-V-I fills four bars
   const names = await p.evaluate(() => [...document.querySelectorAll('#chord-overlay text')].map(t => t.textContent));
-  console.log('chord names :', names.slice(0, 6), '(want Dm G C Dm G C…)');
+  console.log('chord names :', names.slice(0, 6), '(want Dm G7 C C Dm G7…)');
 
   // toggle off removes them
   await p.evaluate(() => document.getElementById('chords-toggle').click());

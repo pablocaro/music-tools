@@ -12,6 +12,7 @@
 const PW = process.env.PW || '/opt/node22/lib/node_modules/playwright';
 const CHROMIUM = process.env.CHROMIUM || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const { chromium } = require(PW);
+const { pickDrill, newDrill } = require('./drills.js');
 const OUT = process.env.OUT || '/tmp/';
 (async () => {
   const b = await chromium.launch({ executablePath: CHROMIUM });
@@ -33,7 +34,7 @@ const OUT = process.env.OUT || '/tmp/';
     const g = n => cs.getPropertyValue(n).trim();
     const title = getComputedStyle(document.getElementById('sh-title'));
     const secH = document.querySelector('.sec-h');
-    const pill = document.querySelector('.presets .pill');
+    const pill = document.querySelector('.drills .drill');
     const cell = document.querySelector('.fig-cell');
     return {
       // raw dials

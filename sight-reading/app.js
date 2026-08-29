@@ -512,70 +512,415 @@
 
   function restoreSession() {
     var s; try { s = JSON.parse(localStorage.getItem(SESSION_KEY)); } catch (e) {}
-    if (s) { applyPreset(s); activePreset = null; }   // a session isn't a named preset
+    if (!s) return;
+    applyPreset(s);
+    // The session stores the panel, not the name — so the name is recovered by
+    // asking which drill this panel *is*. Without this, closing the app on Long
+    // Notes and coming back put you on a panel identical to Long Notes with the
+    // header saying "Custom" and no row lit: the band stopped saying where you
+    // were, over a fact it could work out. Yours are checked first, so a drill
+    // you saved wins over the built-in it was based on.
+    activePreset = panelDrillName();
+  }
+
+  function panelDrillName() {
+    var names = allDrillNames();
+    for (var i = 0; i < names.length; i++) {
+      var cfg = drillConfig(names[i]);
+      if (cfg && presetMatchesPanel(cfg)) return names[i];
+    }
+    return null;
+  }
+
+
+  // ---- drills -------------------------------------------------------------
+  // A one-line summary of what a drill actually sets, which is the thing a name
+  // can never carry: "Jig" says nothing about 6/8, and "Mixed Rhythms" and
+  // "Mixed Intervals" are near-identical strings pointing at different axes.
+  // Three facts, most-distinguishing first, from the eleven fields a drill has.
+  function drillSummary(cfg) {
+    if (!cfg) return "";
+    var bits = [];
+
+    // The intervals, named by the one carrying the most weight rather than by
+    // the full list. Every drill lights several — Thirds runs uni through 5th —
+    // so listing them produced "uni-5th" for one thing and "2nd-8ve" for
+    // another, which distinguishes nothing. The heaviest is the drill's
+    // identity; a much wider tail is worth a second word.
+    var a = cfg.alphabet && (cfg.alphabet.up || cfg.alphabet.down);
+    if (a) {
+      var top = -1, topW = 0, widest = -1;
+      for (var i = 0; i < a.length && i < INTERVALS.length; i++) {
+        var w = +a[i] || 0;
+        if (w > topW) { topW = w; top = i; }
+        if (w > 0) widest = i;
+      }
+      if (top >= 0) {
+        var name = plural(top);
+        if (widest - top > 2) name += " " + t("sum.to") + " " + plural(widest);
+        bits.push(name);
+      }
+    }
+
+    // Only what differs from the default. Saying "4/4 · C major" on every row
+    // fills the line without telling you anything: a summary earns its place by
+    // being the part that is not the same as everything else.
+    if (cfg.timesig && String(cfg.timesig) !== "4/4") {
+      bits.push(String(cfg.timesig).split(",").join(" \u00b7 "));
+    }
+    if (cfg.key && String(cfg.key) !== "major_0-0") {
+      var kp = String(cfg.key).split("_");
+      var tp = (kp[1] || "0-0").split("-");
+      var LET = ["C", "D", "E", "F", "G", "A", "B"];
+      var acc = tp[1] === "1" ? "\u266f" : tp[1] === "2" ? "\u266d" : "";
+      bits.push(LET[+tp[0] || 0] + acc + " " + t("mode." + (kp[0] || "major")).toLowerCase());
+    }
+    // The two dials that change what the notes ARE rather than which they are.
+    // Without these, Chromatic Steps summarised as "steps" — true, and the one
+    // word that makes it a different drill was missing.
+    if (+cfg.chroma > 0) bits.push(t("sum.chromatic"));
+    var fig = figureFlavour(cfg.beats);
+    if (fig) bits.push(fig);
+    if (cfg.measures && String(cfg.measures) !== "16") {
+      bits.push(cfg.measures + " " + t("val.bars").toLowerCase());
+    }
+    return bits.slice(0, 3).join(" \u00b7 ");
+  }
+
+  // What the rhythm feels like, from the figure ids in play. Named by the
+  // shortest thing present, because that is what a reader notices first: a bar
+  // with sixteenths in it is a sixteenth-note bar whatever else it holds.
+  function figureFlavour(ids) {
+    if (!ids || !ids.length) return "";
+    var has = function (re) { return ids.some(function (k) { return re.test(k); }); };
+    if (has(/s/)) return t("sum.sixteenths");
+    if (has(/trip/)) return t("sum.triplets");
+    if (has(/^d|d[qh]/)) return t("sum.dotted");
+    if (has(/e/)) return t("sum.eighths");
+    return "";
+  }
+
+  // "2nds" is technically right for a step and reads wrong, so the one interval
+  // everybody has a better word for gets it. The rest take the catalogue's
+  // ordinal; English pluralises, Spanish already reads as a count.
+  function plural(i) {
+    if (i === 1) return t("sum.steps");
+    var w = t("step." + i);
+    return /[a-z]$/.test(w) ? w + "s" : w;
+  }
+
+  // Which three are on show. Frozen for the session on purpose: a list that
+  // reorders under a finger is worse than one that is slightly stale, because
+  // you reach for where a thing was, not where a score says it should be. Use
+  // is counted all session and only decides the order at the next open.
+  var DRILL_USE = "sr_drill_use";
+  var drillSlots = [];
+  var parkedSetup = null;                    // one deep, session only
+
+  function loadUse() {
+    try { return JSON.parse(localStorage.getItem(DRILL_USE)) || {}; }
+    catch (e) { return {}; }
+  }
+  function noteUse(name) {
+    var u = loadUse();
+    u[name] = (u[name] || 0) + 1;
+    try { localStorage.setItem(DRILL_USE, JSON.stringify(u)); } catch (e) {}
+  }
+  function allDrillNames() {
+    var saved = loadSaved(), out = [];
+    Object.keys(saved).forEach(function (k) { out.push(k); });
+    Object.keys(BUILTIN).forEach(function (k) { if (out.indexOf(k) < 0) out.push(k); });
+    return out;
+  }
+  function drillConfig(name) {
+    var saved = loadSaved();
+    return saved.hasOwnProperty(name) ? saved[name] : builtinPreset(name);
+  }
+  // Called once per open. Anything the panel is already on stays visible even
+  // if it has never been used, so the band never opens without saying where
+  // you are.
+  function seedDrillSlots() {
+    var u = loadUse(), names = allDrillNames();
+    var ranked = names.slice().sort(function (a, b) { return (u[b] || 0) - (u[a] || 0); });
+    drillSlots = ranked.slice(0, 3);
+    var live = loadedPresetName() || activePreset;
+    if (live && drillSlots.indexOf(live) < 0 && names.indexOf(live) >= 0) {
+      drillSlots[drillSlots.length - 1] = live;
+    }
+  }
+
+  // Closes every open drill menu. One at a time, and any tap outside shuts it —
+  // the same rule the voice menus follow.
+  function closeDrillMenus() {
+    document.querySelectorAll(".drill-menu").forEach(function (m) {
+      if (m.hidden) return;
+      m.hidden = true;
+      var btn = m.parentNode.querySelector(".drill-more");
+      if (btn) btn.setAttribute("aria-expanded", "false");
+    });
+  }
+  document.addEventListener("click", function () { closeDrillMenus(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") closeDrillMenus();
+  });
+
+  // One row per drill: name, what it sets, and — on your own — a menu for
+  // renaming, updating and deleting. It is a sibling of the row rather than a
+  // child of it, so the control that destroys a saved drill is genuinely not
+  // inside the control that runs it (and so the menu's buttons are not nested
+  // in a button).
+  function drillRow(name) {
+    var saved = loadSaved(), mine = saved.hasOwnProperty(name);
+    var live = loadedPresetName();
+    var on = (live && live === name) || (!live && activePreset === name);
+
+    var wrap = document.createElement("div");
+    wrap.className = "drill-row" + (mine ? " mine" : "");
+
+    var row = document.createElement("button");
+    row.type = "button";
+    row.className = "drill" + (on ? " on" : "");
+    row.dataset.preset = name;
+    row.setAttribute("aria-pressed", on ? "true" : "false");
+
+    var txt = document.createElement("div");
+    txt.className = "drill-txt";
+    var nm = document.createElement("div");
+    nm.className = "drill-name";
+    nm.appendChild(document.createTextNode(presetLabel(name)));
+    // Provenance kept rather than thrown away: the app knows you started from
+    // this drill, so it says so instead of collapsing to an unnamed "Custom".
+    if (on && !live) {
+      var ed = document.createElement("span");
+      ed.className = "drill-edited";
+      ed.textContent = " \u00b7 " + t("val.edited");
+      nm.appendChild(ed);
+    }
+    txt.appendChild(nm);
+    var sub = document.createElement("div");
+    sub.className = "drill-sub";
+    sub.textContent = drillSummary(drillConfig(name));
+    txt.appendChild(sub);
+    row.appendChild(txt);
+
+    row.addEventListener("click", function () { applyDrill(name); });
+    wrap.appendChild(row);
+
+    if (mine) {
+      var more = document.createElement("button");
+      more.type = "button";
+      more.className = "drill-more";
+      more.setAttribute("aria-haspopup", "menu");
+      more.setAttribute("aria-expanded", "false");
+      more.setAttribute("aria-label", t("aria.drillMore", { name: presetLabel(name) }));
+      more.textContent = "\u22ef";
+
+      var menu = document.createElement("div");
+      menu.className = "menu drill-menu";
+      menu.setAttribute("role", "menu");
+      menu.hidden = true;
+      // Picking from a menu is itself the deliberate act, so only the one that
+      // cannot be undone asks again. Chaining a confirm onto each was worse
+      // than no menu: dismissing "Update?" offered "Delete?" next, so one
+      // misread tap on the wrong dialog destroyed the drill.
+      [[t("lbl.rename"), function () { renameDrill(name); }],
+       [t("lbl.update"), function () { updatePreset(name); }],
+       [t("lbl.delete"), function () { deletePreset(name); }, "danger"]
+      ].forEach(function (it) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "menu-item" + (it[2] ? " " + it[2] : "");
+        b.setAttribute("role", "menuitem");
+        b.textContent = it[0];
+        b.addEventListener("click", function (e) { e.stopPropagation(); closeDrillMenus(); it[1](); });
+        menu.appendChild(b);
+      });
+
+      more.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var opening = menu.hidden;
+        closeDrillMenus();
+        menu.hidden = !opening;
+        more.setAttribute("aria-expanded", opening ? "true" : "false");
+      });
+      wrap.appendChild(more);
+      wrap.appendChild(menu);
+    }
+    return wrap;
+  }
+
+  // The drill you are on has to be one of the three, or the band stops saying
+  // where you are — which is the whole job of showing three. It takes the
+  // least-used slot, so the two you have been reaching for stay put. Both ways
+  // in need this: picking from the full list, and naming a drill you just made.
+  function showInBand(name) {
+    if (drillSlots.indexOf(name) >= 0) return;
+    var u = loadUse(), worst = 0;
+    for (var i = 1; i < drillSlots.length; i++) {
+      if ((u[drillSlots[i]] || 0) < (u[drillSlots[worst]] || 0)) worst = i;
+    }
+    if (drillSlots.length < 3) drillSlots.push(name); else drillSlots[worst] = name;
+  }
+
+  // Applying never warns. It parks what you had first — but only when that was
+  // actually edited, so loading a pristine drill cannot displace real work. A
+  // confirmation here would fire on almost every tap, because almost every use
+  // involves a tweak, and a dialog that always fires is one people learn to
+  // dismiss unread.
+  function applyDrill(name) {
+    var live = loadedPresetName();
+    if (live === name) return;                       // already exactly this
+    if (!live && activePreset) {
+      parkedSetup = { basedOn: activePreset, cfg: readPresetConfig() };
+    }
+    applyPreset(drillConfig(name));
+    syncPanel();
+    activePreset = name;
+    noteUse(name);
+    showInBand(name);
+    generate();
+    renderPresets();
+  }
+
+  function restoreParked() {
+    if (!parkedSetup) return;
+    applyPreset(parkedSetup.cfg);
+    syncPanel();
+    activePreset = parkedSetup.basedOn;
+    showInBand(activePreset);
+    parkedSetup = null;
+    generate();
+    renderPresets();
+  }
+
+  function actRow(cls, glyph, text, fn, extra) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "drill-act" + (cls ? " " + cls : "");
+    var g = document.createElement("span");
+    g.className = "da-ic"; g.textContent = glyph;
+    b.appendChild(g);
+    b.appendChild(document.createTextNode(text));
+    if (extra) b.appendChild(extra);
+    b.addEventListener("click", fn);
+    return b;
   }
 
   function renderPresets() {
+    if (!drillSlots.length) seedDrillSlots();
+    var names = allDrillNames();
     presetsEl.innerHTML = "";
-    var saved = loadSaved();
-    var all = {};
-    Object.keys(BUILTIN).forEach(function (k) { all[k] = builtinPreset(k); });
-    Object.keys(saved).forEach(function (k) { all[k] = saved[k]; });
-
-    Object.keys(all).forEach(function (name) {
-      var pill = document.createElement("button");
-      pill.className = "pill";
-      var label = document.createElement("span");
-      label.textContent = presetLabel(name);
-      pill.appendChild(label);
-      pill.addEventListener("click", function () {
-        // Built-ins are materialised at click time, not at render time: they
-        // derive their clef from the instrument preference, which the player
-        // may have changed since the pills were built.
-        applyPreset(saved.hasOwnProperty(name) ? saved[name] : builtinPreset(name));
-        syncPanel();              // a preset can move any control — re-read them all
-        activePreset = name;
-        generate();               // renderLoaded -> updateHeader -> syncActivePill
-      });
-      if (saved.hasOwnProperty(name)) {                // user preset/override: updatable + deletable
-        var upd = document.createElement("span");
-        upd.className = "upd";
-        upd.innerHTML = '<svg class="pill-ic" aria-hidden="true"><use href="#ic-update"/></svg>';
-        upd.setAttribute("aria-label", t("aria.updatePreset"));
-        upd.addEventListener("click", function (e) {
-          e.stopPropagation();
-          updatePreset(name);
-        });
-        pill.appendChild(upd);
-        var del = document.createElement("span");
-        del.className = "del";
-        del.innerHTML = '<svg class="pill-ic" aria-hidden="true"><use href="#ic-close"/></svg>';
-        del.setAttribute("aria-label", t("aria.deletePreset"));
-        del.addEventListener("click", function (e) {
-          e.stopPropagation();
-          deletePreset(name);
-        });
-        pill.appendChild(del);
-      }
-      pill.dataset.preset = name;
-      presetsEl.appendChild(pill);
+    // A slot can name a drill that has since been deleted, so it is filtered
+    // rather than trusted.
+    drillSlots.forEach(function (name) {
+      if (names.indexOf(name) >= 0) presetsEl.appendChild(drillRow(name));
     });
 
-    var save = document.createElement("button");
-    save.className = "pill save"; save.textContent = t("val.save");
-    save.addEventListener("click", saveCurrent);
-    presetsEl.appendChild(save);
+    var acts = document.getElementById("drill-acts");
+    if (acts) {
+      acts.innerHTML = "";
+      var live = loadedPresetName();
+      // Saving is offered exactly when it means something: you are on a drill
+      // you have changed.
+      if (!live && activePreset) {
+        acts.appendChild(actRow("accent", "\uff0b",
+          t("lbl.saveEdited", { name: presetLabel(activePreset) }), saveCurrent));
+      }
+      if (parkedSetup) {
+        acts.appendChild(actRow("accent", "\u21a9",
+          t("lbl.restore", { name: presetLabel(parkedSetup.basedOn) }), restoreParked));
+      }
+      if (live || !activePreset) {
+        acts.appendChild(actRow("", "\uff0b", t("lbl.newDrill"), saveCurrent));
+      }
+      var n = document.createElement("span");
+      n.className = "da-n";
+      n.textContent = String(names.length);
+      acts.appendChild(actRow("", "\u2630", t("sec.allDrills"), pushDrills, n));
+    }
+    renderAllDrills();
     updateHeader();
   }
 
-  // The lit pill follows the same rule as the title: it marks the preset the
-  // panel currently *is*, not merely the last one clicked, so the two can't
-  // disagree once a control has been touched.
+  // Yours first. The built-ins are starting points; what you saved is what you
+  // came back for.
+  function renderAllDrills() {
+    var host = document.getElementById("all-drills-list");
+    if (!host) return;
+    host.innerHTML = "";
+    var saved = loadSaved();
+    var mine = Object.keys(saved);
+    var std = Object.keys(BUILTIN).filter(function (k) { return !saved.hasOwnProperty(k); });
+    function group(key, names) {
+      if (!names.length) return;
+      var h = document.createElement("div");
+      h.className = "page-group";
+      h.textContent = t(key);
+      host.appendChild(h);
+      names.forEach(function (nm) { host.appendChild(drillRow(nm)); });
+    }
+    group("lbl.yours", mine);
+    group("lbl.builtIn", std);
+  }
+
+  function pushDrills() {
+    var rail = document.querySelector(".rail");
+    var page = document.getElementById("all-drills");
+    if (!rail || !page) return;
+    rail.classList.add("pushed");
+    page.setAttribute("aria-hidden", "false");
+    var back = document.getElementById("drills-back");
+    if (back) back.focus();
+  }
+  function wireDrills() {
+    var back = document.getElementById("drills-back");
+    if (back) back.addEventListener("click", popDrills);
+    // Escape pops the page before the rail closes, so it unwinds one level at a
+    // time the way a push should.
+    document.addEventListener("keydown", function (e) {
+      var rail = document.querySelector(".rail");
+      if (e.key === "Escape" && rail && rail.classList.contains("pushed")) {
+        e.stopPropagation();
+        closeDrillMenus();      // this handler stops the key, so it has to
+        popDrills();
+      }
+    }, true);
+    // Choosing from the full list takes you back to the rail, the way a push
+    // does — you came here to pick one, not to browse.
+    var host = document.getElementById("all-drills-list");
+    if (host) host.addEventListener("click", function (e) {
+      if (e.target.closest(".drill") && !e.target.closest(".drill-more")) {
+        setTimeout(popDrills, 90);
+      }
+    });
+  }
+
+  function popDrills() {
+    var rail = document.querySelector(".rail");
+    var page = document.getElementById("all-drills");
+    if (!rail || !page) return;
+    rail.classList.remove("pushed");
+    page.setAttribute("aria-hidden", "true");
+  }
+
+  // The lit row follows the same rule as the title: it marks the drill the
+  // panel currently *is*, not merely the last one tapped, so the two cannot
+  // disagree once a control has been touched. A row that is on but no longer
+  // matching is the edited state, which re-renders to pick up its "· edited".
   function syncActivePill() {
     var live = loadedPresetName();
-    presetsEl.querySelectorAll(".pill").forEach(function (p) {
-      p.classList.toggle("active", !!live && p.dataset.preset === live);
+    var wanted = live || activePreset;
+    var shown = null;
+    document.querySelectorAll(".drill").forEach(function (p) {
+      var on = p.dataset.preset === wanted;
+      p.classList.toggle("on", on);
+      p.setAttribute("aria-pressed", on ? "true" : "false");
+      if (on) shown = p;
     });
+    // "· edited" appears and disappears with the match, so the band has to be
+    // rebuilt when that flips rather than only re-tinted.
+    var hasTag = shown && shown.querySelector(".drill-edited");
+    if ((!live && activePreset && !hasTag) || (live && hasTag)) renderPresets();
   }
 
   function deletePreset(name) {
@@ -584,6 +929,42 @@
     delete saved[name];
     localStorage.setItem(STORE_KEY, JSON.stringify(saved));
     if (activePreset === name) activePreset = null;
+    if (parkedSetup && parkedSetup.basedOn === name) parkedSetup = null;
+    // The slot has to be refilled, not just emptied — renderPresets skips a
+    // name that no longer exists, so a delete otherwise left the band showing
+    // two rows and a gap where the third had been.
+    var at = drillSlots.indexOf(name);
+    if (at >= 0) {
+      drillSlots.splice(at, 1);
+      var u = loadUse();
+      var next = allDrillNames()
+        .filter(function (k) { return drillSlots.indexOf(k) < 0; })
+        .sort(function (a, b) { return (u[b] || 0) - (u[a] || 0); })[0];
+      if (next) drillSlots.push(next);
+    }
+    renderPresets();
+  }
+
+  // The name is the key, so renaming is a move: the use count and the slot go
+  // with it, or the drill you just renamed drops out of the band and out of
+  // the ranking that put it there.
+  function renameDrill(name) {
+    var saved = loadSaved();
+    if (!saved.hasOwnProperty(name)) return;
+    var next = prompt(t("msg.renameDrill", { name: presetLabel(name) }), name);
+    if (next == null) return;
+    next = next.trim();
+    if (!next || next === name) return;
+    saved[next] = saved[name];
+    delete saved[name];
+    localStorage.setItem(STORE_KEY, JSON.stringify(saved));
+    var u = loadUse();
+    if (u.hasOwnProperty(name)) { u[next] = u[name]; delete u[name]; }
+    try { localStorage.setItem(DRILL_USE, JSON.stringify(u)); } catch (e) {}
+    var at = drillSlots.indexOf(name);
+    if (at >= 0) drillSlots[at] = next;
+    if (activePreset === name) activePreset = next;
+    if (parkedSetup && parkedSetup.basedOn === name) parkedSetup.basedOn = next;
     renderPresets();
   }
 
@@ -591,16 +972,19 @@
   // (see readPresetConfig) — not the whole panel, so it doesn't freeze in
   // whatever tempo or metronome state happened to be set at save time.
   function updatePreset(name) {
-    if (!confirm(t("msg.updatePreset", { name: presetLabel(name) }))) return;
     var saved = loadSaved();
     saved[name] = readPresetConfig();
     localStorage.setItem(STORE_KEY, JSON.stringify(saved));
     activePreset = name;
+    showInBand(name);
     renderPresets();
   }
 
-  // Create a new preset from the current panel (updating an existing one is the
-  // ↻ button's job). Typing an existing name still overwrites it.
+  // Create a new drill from the current panel (overwriting one is the ⋯ menu's
+  // job). Typing an existing name still overwrites it. Naming something is the
+  // strongest signal you are on it, so it takes a slot and counts as a use —
+  // without that the band came back showing three other drills and nothing lit,
+  // seconds after you named the one you were looking at.
   function saveCurrent() {
     var name = prompt(t("msg.newPresetName"), "");
     if (name == null) return;
@@ -610,6 +994,8 @@
     saved[name] = readPresetConfig();
     localStorage.setItem(STORE_KEY, JSON.stringify(saved));
     activePreset = name;
+    noteUse(name);
+    showInBand(name);
     renderPresets();
   }
 
@@ -4937,6 +5323,7 @@
   wireBands();
   wireHelp();
   wireNote();
+  wireDrills();
   setWeights(BUILTIN["thirds drill"]);
   activePreset = "thirds drill";
   restoreSession();            // override defaults with last-used settings, if any

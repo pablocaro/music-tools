@@ -65,22 +65,6 @@
       <path d="M20.3796 14.541C20.6238 14.9707 20.7605 15.4492 20.7605 15.9082C20.7605 17.4023 19.7546 18.5547 18.0945 18.5547L2.948 18.5547C1.29761 18.5547 0.291753 17.4023 0.291753 15.9082C0.291753 15.4492 0.408941 14.9805 0.672613 14.541L1.05937 13.8672L19.9929 13.8672ZM7.03003 12.5879L1.79364 12.5879L3.70315 9.26101ZM12.8015 1.33789L19.2586 12.5879L13.025 12.5879L11.2878 10.8524L11.2878 4.4043C11.2878 3.91602 10.9949 3.60352 10.5164 3.60352C10.0281 3.60352 9.73511 3.91602 9.73511 4.4043L9.73511 9.30106L5.88689 5.45635L8.25074 1.33789C8.74878 0.449219 9.62769 0 10.5261 0C11.4148 0 12.2937 0.449219 12.8015 1.33789Z"/>
       <path d="M9.11011 12.7734L11.2976 12.7539L2.68433 4.14062C2.36207 3.81836 1.93238 3.80859 1.58082 4.14062C1.23902 4.48242 1.25855 4.93164 1.58082 5.26367Z"/>
     </symbol>
-    <!-- The two on a saved preset pill. Stroked in a 12-unit box like the
-         chevron, and for the same reason: they were "\u21bb" and "\u00d7" set as text,
-         which is two glyphs from different Unicode blocks at one font-size —
-         the arrow advancing 1.5x the width of the times sign and sitting at
-         cap height while the times sign sits at x height. Nothing about that
-         is fixable with font-size; they were never the same kind of object. -->
-    <symbol id="ic-update" viewBox="0 0 12 12">
-      <path d="M10.5 6 A4.5 4.5 0 1 1 6 1.5 C7.26 1.5 8.465 2 9.37 2.87 L10.5 4" fill="none"
-            stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M10.5 1.5 L10.5 4 L8 4" fill="none"
-            stroke-linecap="round" stroke-linejoin="round"/>
-    </symbol>
-    <symbol id="ic-close" viewBox="0 0 12 12">
-      <path d="M2.8 2.8 L9.2 9.2 M9.2 2.8 L2.8 9.2" fill="none"
-            stroke-linecap="round" stroke-linejoin="round"/>
-    </symbol>
     <symbol id="ic-chevron" viewBox="0 0 12 12">
       <path d="M2.5 4.75 L6 8.25 L9.5 4.75" fill="none"
             stroke-linecap="round" stroke-linejoin="round"/>
@@ -224,15 +208,21 @@
                 aria-label="How this works">Learn more</button>
       </div>
 
-      <!-- PRESETS — snapshots of the whole panel -->
+      <!-- DRILLS — the three you reach for, then a door to the rest.
+           "Preset" named the mechanism (stored settings); a drill is what the
+           thing actually is: a station you tune to, which generates a different
+           exercise every time rather than replaying one. The band holds three
+           and pushes to the full list, because a flat field of every drill you
+           own is the tallest thing in the rail and grows forever. -->
       <div class="band" data-band="presets">
         <button class="band-h" type="button" aria-expanded="true" aria-controls="bb-presets">
-          <span class="band-t" data-i18n="sec.presets">Presets</span>
+          <span class="band-t" data-i18n="sec.presets">Drills</span>
           <svg class="band-caret" aria-hidden="true"><use href="#ic-chevron"/></svg>
         </button>
         <div class="band-body" id="bb-presets">
           <section class="sec">
-            <div class="presets" id="presets"></div>
+            <div class="drills" id="presets"></div>
+            <div class="drill-acts" id="drill-acts"></div>
           </section>
         </div>
       </div>
@@ -457,6 +447,20 @@
 
       <p id="error-msg" class="error" hidden></p>
       </div><!-- /rail-body -->
+
+      <!-- All drills — a push, not a popover: the rail slides left and this
+           takes its place, with a back control. A sheet over the rail would put
+           a second floating surface on top of one that is already a drawer. -->
+      <div class="rail-page" id="all-drills" aria-hidden="true">
+        <div class="page-nav">
+          <button class="page-back" id="drills-back" type="button">
+            <svg class="page-caret" aria-hidden="true"><use href="#ic-chevron"/></svg>
+            <span data-i18n="lbl.back">Back</span>
+          </button>
+          <h2 class="page-t" data-i18n="sec.allDrills">All drills</h2>
+        </div>
+        <div class="page-body" id="all-drills-list"></div>
+      </div>
     </aside>
 
     <!-- The music and the control tray share one region, so the tray tracks the

@@ -2,6 +2,7 @@
 const PW = process.env.PW || '/opt/node22/lib/node_modules/playwright';
 const CHROMIUM = process.env.CHROMIUM || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const { chromium } = require(PW);
+const { pickDrill, newDrill } = require('./drills.js');
 
 // Count bars that are four quarters vs bars containing eighths.
 function census(xml) {
@@ -71,15 +72,11 @@ function census(xml) {
   await clickCell('q'); await p.waitForTimeout(900);
   console.log('after 3 taps    :', JSON.stringify(await state('q')), '(want on, no badge)');
 
-  // round-trips through a preset, and old-style bare ids still apply
+  // round-trips through a drill, and old-style bare ids still apply
   await clickCell('q'); await p.waitForTimeout(900);   // on → ×2
-  await p.evaluate(() => { window.prompt = () => 'WeightTest';
-    [...document.querySelectorAll('.presets .pill')].find(e => e.textContent.trim().startsWith('+')).click(); });
-  await p.waitForTimeout(500);
-  await p.evaluate(() => [...document.querySelectorAll('.presets .pill')].find(e => e.textContent.trim().startsWith('Steps Only')).click());
-  await p.waitForTimeout(900);
-  await p.evaluate(() => [...document.querySelectorAll('.presets .pill')].find(e => e.textContent.trim().startsWith('WeightTest')).click());
-  await p.waitForTimeout(900);
+  await newDrill(p, 'WeightTest');
+  await pickDrill(p, 'Steps Only');
+  await pickDrill(p, 'WeightTest');
   console.log('preset round-trip:', JSON.stringify(await state('q')), '(want ×2)');
   console.log('errors:', errs);
   await b.close();

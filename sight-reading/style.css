@@ -44,6 +44,10 @@
   --ink-l: 16%;
   --ink: hsl(0 0% var(--ink-l));
   --muted: #8e8e93;
+  /* The only colour in the palette that is not the accent, and it earns that
+     by appearing exactly once: on the menu item that deletes a drill you
+     saved. Nothing else in the app is irreversible. */
+  --danger: #d1362f;
 
   /* The accent, likewise in parts. The default is exactly the iOS blue it
      shipped with (#0a84ff); everything tinted — pills, toggles, the cursor —
@@ -174,7 +178,7 @@
      Borders are kept at a transparent 2px rather than removed, so they hold the
      metrics and a future selected state can colour them in without reflowing. */
   --ctl-border: 2px;
-  --ctl-radius: 999px;                                             /* pill controls (presets) */
+  --ctl-radius: 999px;                                             /* pill controls (opt, cycle) */
   --ctl-radius-box: 18px;                                           /* boxy controls (selects, tiles) */
   --ctl-on: var(--accent);                                         /* selected = iOS-blue accent */
   --ctl-on-ink: var(--paper);                                      /* text/glyph on a filled selected control */
@@ -196,8 +200,6 @@
      on a 19px box there is almost none, and raising the curve only reads as
      "squarer". The two are dialled together or neither says anything. */
   --check-radius: 6px;
-  --pill-ic: 14;         /* unitless, so the stroke can divide by it */
-  --pill-ic-weight: 1.4;
   /* The switch, as a fraction of the control height. Sized 1:1 off iOS at
      first (0.78 → 51×31, exactly Apple's) which was the right number in the
      wrong place: iOS sets that beside 17pt body text and these rows run at
@@ -1060,59 +1062,184 @@ button {
 button:hover { opacity: 0.85; }
 button:active { opacity: 0.7; }
 
-/* Preset pills */
-.presets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: calc(6px * var(--density));
-}
+/* ---------------------------------------------------------------------------
+   PATTERN: drills
+   Three full-width rows and a door to the rest. A drill is a whole exercise,
+   not a value inside one, so it gets a row it can carry a second line on —
+   the name alone was never going to say what "Jig" or "Mixed Rhythms" sets,
+   and the old pill field had nowhere to put it. Selected wears the same solid
+   accent every chosen control in the panel wears; no extra marker is needed
+   once the fill is doing that job.
+   --------------------------------------------------------------------------- */
+.drills { display: flex; flex-direction: column; gap: calc(6px * var(--density)); }
 
-.pill {
-  display: inline-flex;
+/* The wrapper anchors both the ⋯ and the menu it opens, so neither is a child
+   of the button that applies the drill. */
+.drill-row { position: relative; display: flex; }
+.drill-row.mine .drill { padding-right: 42px; }
+
+.drill {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 15px;
-  font-size: var(--type-label);
-  font-weight: var(--weight-standard);
-  border-radius: var(--ctl-radius);
-  border: var(--ctl-border) solid transparent;   /* transparent, not absent: keeps the metrics a selected state can fill in */
+  gap: 10px;
+  width: 100%;
+  padding: calc(9px * var(--density)) 12px;
+  border: var(--ctl-border) solid transparent;
+  border-radius: var(--ctl-radius-box);
   background: var(--ctl-fill);
   color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
 }
+.drill:hover { background: var(--ctl-fill-hover); }
+.drill.on { background: var(--ctl-on); color: var(--ctl-on-ink); }
 
-.pill:hover { background: var(--ctl-fill-hover); }
-
-/* One box, one stroke, so the pair reads as a pair. Sized off the label they
-   sit beside rather than a number of their own, and stroked on the chevron's
-   arithmetic — weight x 12/size in user units — so the drawn weight stays in
-   real px whatever the box becomes. */
-.pill .upd,
-.pill .del {
-  display: inline-flex;
-  align-items: center;
+.drill-txt { min-width: 0; flex: 1; }
+.drill-name {
+  font-size: var(--type-label);
+  font-weight: var(--weight-strong);
+  line-height: 1.25;
+}
+/* The second line is what the name could never carry: which intervals, which
+   meter, which key. Clipped rather than wrapped so a row stays one height and
+   the three keep a rhythm down the band. */
+.drill-sub {
+  font-size: var(--type-micro);
+  font-weight: var(--weight-standard);
   color: var(--muted);
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.drill.on .drill-sub { color: color-mix(in srgb, var(--ctl-on-ink) 82%, transparent); }
+.drill-edited { font-weight: var(--weight-standard); opacity: 0.85; }
+
+/* Rename / update / delete live behind this, off the row that applies the
+   drill. They used to sit inside the pill you tap to load it, so the control
+   that destroys a saved drill was a few pixels inside the control that runs
+   it. */
+.drill-more {
+  position: absolute;
+  right: 6px; top: 50%;
+  transform: translateY(-50%);
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  border: 0; border-radius: 50%;
+  background: none;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+.drill-row:has(.drill.on) .drill-more { color: color-mix(in srgb, var(--ctl-on-ink) 88%, transparent); }
+.drill-more:hover { background: color-mix(in srgb, var(--ink) 12%, transparent); }
+
+/* Same menu the voice pills open — one surface family, so a list of actions
+   looks the same wherever it is opened from. */
+.drill-menu { top: calc(100% - 4px); right: 4px; min-width: 168px; }
+.menu-item.danger { color: var(--danger); }
+.menu-item.danger:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); }
+
+.drill-acts {
+  display: flex;
+  flex-direction: column;
+  margin-top: calc(8px * var(--density));
+  padding-top: calc(6px * var(--density));
+  border-top: 1px solid var(--line);
+}
+.drill-act {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: calc(8px * var(--density)) 8px;
+  border: 0; border-radius: var(--ctl-radius-box);
+  background: none;
+  color: var(--ink);
+  font-size: var(--type-label);
+  font-weight: var(--weight-standard);
+  text-align: left;
   cursor: pointer;
 }
-.pill-ic {
-  display: block;
-  width: calc(var(--pill-ic) * 1px);
-  height: calc(var(--pill-ic) * 1px);
-  fill: none;
-  stroke: currentColor;
-  stroke-width: calc(var(--pill-ic-weight) * 12 / var(--pill-ic));
+.drill-act:hover { background: var(--ctl-fill); }
+.drill-act .da-ic { width: 16px; text-align: center; color: var(--muted); flex: 0 0 16px; }
+.drill-act .da-n  { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* Save and Restore are the two that act on your own work, so they take the
+   accent rather than sitting in the same grey as "All drills". */
+.drill-act.accent, .drill-act.accent .da-ic { color: var(--ctl-on); }
+
+/* ---- the pushed page ---------------------------------------------------- */
+/* Absolute over the rail rather than a sheet above it: the rail is already a
+   drawer, and stacking a second floating surface on it reads as two modals. */
+.rail-page {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  background: var(--rail-bg);
+  transform: translateX(100%);
+  transition: transform calc(0.3s * var(--motion)) cubic-bezier(0.32, 0.72, 0, 1);
 }
+.rail.pushed .rail-page { transform: translateX(0); }
+/* The rail underneath moves a fraction of the distance, which is what makes a
+   push read as one surface sliding over another rather than two swapping. */
+.rail-body { transition: transform calc(0.3s * var(--motion)) cubic-bezier(0.32, 0.72, 0, 1); }
+.rail.pushed .rail-body { transform: translateX(-24%); }
 
-.pill .upd:hover,
-.pill .del:hover { color: var(--ink); }
-
-.pill.active {
-  background: var(--ctl-on-tint);
+.page-nav {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: var(--rail-inset) var(--rail-inset) 10px;
+  border-bottom: 1px solid var(--line);
+}
+.page-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 8px 6px 4px;
+  border: 0; border-radius: var(--ctl-radius-box);
+  background: none;
   color: var(--ctl-on);
+  font-size: var(--type-label);
+  font-weight: var(--weight-standard);
+  cursor: pointer;
 }
-
-/* "+ save" is an action rather than a saved setup, so it sits back: same filled
-   shape, muted label. */
-.pill.save { color: var(--muted); }
+.page-back:hover { background: var(--ctl-fill); }
+.page-caret { width: 15px; height: 15px; transform: rotate(90deg); }
+.page-t {
+  font-size: var(--type-label);
+  font-weight: var(--weight-strong);
+  color: var(--ink);
+  margin: 0 auto;
+  padding-right: 56px;            /* balances the back control, so the title centres */
+}
+.page-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px var(--rail-inset)
+           calc(var(--rail-inset) + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: calc(6px * var(--density));
+}
+/* Yours first: they are what you came for, and the built-ins are starting
+   points you have already moved past. */
+.page-group {
+  font-size: var(--type-caption);
+  font-weight: var(--weight-standard);
+  letter-spacing: var(--track-caption);
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: calc(10px * var(--density)) 2px 0;
+}
 
 /* Names the axis a bare slider runs along — used by How Musical?, whose ends
    are self-explanatory but whose middle needs no word. */
@@ -1273,16 +1400,14 @@ button:active { opacity: 0.7; }
    whole sheet slide sideways on a phone.
    --------------------------------------------------------------------------- */
 @media (hover: hover) and (pointer: fine) {
-  .cb-icon, .tb-btn, .cycle, .step-btn, .fig-cell,
-  .pill .upd, .pill .del { position: relative; }
+  .cb-icon, .tb-btn, .cycle, .step-btn, .fig-cell { position: relative; }
 
   .cb-icon::after,
   .tb-btn::after,
   .cycle::after,
   .step-btn::after,
   .fig-cell::after,
-  .pill .upd::after,
-  .pill .del::after {
+  .drill-more::after {
     content: attr(aria-label);
     position: absolute;
     bottom: calc(100% + 6px);
@@ -1311,8 +1436,7 @@ button:active { opacity: 0.7; }
   .cycle:hover:not(.tip-off)::after,
   .step-btn:hover:not(.tip-off)::after,
   .fig-cell:hover:not(.tip-off)::after,
-  .pill .upd:hover:not(.tip-off)::after,
-  .pill .del:hover:not(.tip-off)::after { opacity: 1; transition-delay: var(--tip-delay); }
+  .drill-more:hover:not(.tip-off)::after { opacity: 1; transition-delay: var(--tip-delay); }
 
   /* The set-up cluster sits at the window's top edge, so its tooltips hang
      below rather than off the top of the screen. The transport pill at the

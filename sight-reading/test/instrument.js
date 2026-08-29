@@ -2,6 +2,7 @@
 const PW = process.env.PW || '/opt/node22/lib/node_modules/playwright';
 const CHROMIUM = process.env.CHROMIUM || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const { chromium } = require(PW);
+const { pickDrill, newDrill } = require('./drills.js');
 
 (async () => {
   const b = await chromium.launch({ executablePath: CHROMIUM });
@@ -42,8 +43,7 @@ const { chromium } = require(PW);
 
   // the stomping fix: a built-in preset keeps the reader's clef
   await p.click('#settings-toggle'); await p.waitForTimeout(500);
-  await p.evaluate(() => [...document.querySelectorAll('.presets .pill')].find(x => x.textContent.trim().startsWith('Thirds')).click());
-  await p.waitForTimeout(1200);
+  await pickDrill(p, 'Thirds', 1200);
   console.log('after Thirds Drill:', await p.evaluate(() => document.getElementById('clef').value), '(want bass)');
 
   // panel pills reflect and change the pref

@@ -2,6 +2,7 @@
 const PW = process.env.PW || '/opt/node22/lib/node_modules/playwright';
 const CHROMIUM = process.env.CHROMIUM || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const { chromium } = require(PW);
+const { pickDrill, newDrill } = require('./drills.js');
 
 // Parse notes with absolute semitone height + alter + bar index.
 const BASE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
@@ -93,30 +94,36 @@ function parse(xml) {
     t.value = '0-0'; t.dispatchEvent(new Event('change'));       // back to C
   });
   await p.waitForTimeout(1200);
+  // On Chromatic Steps, not on whatever the panel drifted to. A passing tone
+  // needs a weak position to live in, so measuring the dial against a line of
+  // quarters reports "altered 0" and blames the engine for the rhythm. The
+  // note count is the control: it proves there were positions to fill.
+  await pickDrill(p, 'Chromatic Steps', 1400);
   await setDial('chroma', 80); await p.waitForTimeout(1500);
-  notes = parse(await p.evaluate(() => window.__xml));
-  const sounding = notes.filter(n => !n.rest);
-  let altered = 0, resolved = 0;
-  sounding.forEach((n, i) => {
-    if (!n.alter) return;
-    altered++;
-    const next = sounding[i + 1];
-    if (next && Math.abs(next.semi - n.semi) === 1) resolved++;
-  });
-  console.log('major, chroma 80: altered', altered, 'resolving by semitone', resolved,
-    altered > 0 ? Math.round(100 * resolved / altered) + '%' : '');
+  let altered = 0, resolved = 0, sound = 0;
+  for (let i = 0; i < 6; i++) {
+    if (i) { await p.evaluate(() => document.getElementById('generate').click());
+             await p.waitForTimeout(800); }
+    const sounding = parse(await p.evaluate(() => window.__xml)).filter(n => !n.rest);
+    sound += sounding.length;
+    sounding.forEach((n, j) => {
+      if (!n.alter) return;
+      altered++;
+      const next = sounding[j + 1];
+      if (next && Math.abs(next.semi - n.semi) === 1) resolved++;
+    });
+  }
+  console.log('major, chroma 80: altered', altered, 'of', sound, 'notes, resolving by semitone', resolved,
+    altered > 0 ? Math.round(100 * resolved / altered) + '%' : '(NO SAMPLE — the dial did nothing)');
 
   // accidental glyphs actually render
   const glyphs = await p.evaluate(() => document.querySelectorAll('#sheet .vf-accidental, #sheet .vf-modifiers path').length);
   console.log('accidental ink  :', glyphs > 0 ? 'present' : 'MISSING');
 
   // ---- 4. round-trips as preset state ----
-  await p.evaluate(() => { window.prompt = () => 'ChromaTest';
-    [...document.querySelectorAll('.presets .pill')].find(e => e.textContent.trim().startsWith('+')).click(); });
-  await p.waitForTimeout(500);
+  await newDrill(p, 'ChromaTest');
   await setDial('chroma', 0); await p.waitForTimeout(1000);
-  await p.evaluate(() => [...document.querySelectorAll('.presets .pill')].find(e => e.textContent.trim().startsWith('ChromaTest')).click());
-  await p.waitForTimeout(1200);
+  await pickDrill(p, 'ChromaTest', 1200);
   console.log('preset round-trip chroma =', await p.evaluate(() => document.getElementById('chroma').value), '(want 80)');
   console.log('errors:', errs);
   await b.close();

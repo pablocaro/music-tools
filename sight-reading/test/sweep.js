@@ -2,6 +2,7 @@
 const PW = process.env.PW || '/opt/node22/lib/node_modules/playwright';
 const CHROMIUM = process.env.CHROMIUM || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const { chromium } = require(PW);
+const { pickDrill, newDrill } = require('./drills.js');
 (async () => {
   const b = await chromium.launch({ executablePath: CHROMIUM });
   const p = await (await b.newContext({ viewport: { width: 1280, height: 900 } })).newPage();
@@ -14,15 +15,10 @@ const { chromium } = require(PW);
   await p.click('#settings-toggle'); await p.waitForTimeout(400);
   await p.evaluate(() => { const c = document.getElementById('show-chunks'); if (!c.checked) { c.checked = true; c.dispatchEvent(new Event('change')); } });
 
-  // Say what is actually on screen when a name misses. Renaming the presets
-  // dated this file once and the only symptom was "cannot read 'click' of
-  // undefined", which reads like the app broke rather than the test.
-  const clickPill = n => p.evaluate(x => {
-    const all = [...document.querySelectorAll('.presets .pill')];
-    const hit = all.find(e => e.textContent.trim().startsWith(x));
-    if (!hit) throw new Error(`no preset "${x}" — have: ${all.map(e => e.textContent.trim()).join(', ')}`);
-    hit.click();
-  }, n);
+  // pickDrill says what is actually on screen when a name misses. Renaming the
+  // presets dated this file once and the only symptom was "cannot read 'click'
+  // of undefined", which reads like the app broke rather than the test.
+  const clickPill = n => pickDrill(p, n, 0);
   // Meter is a set of fig-cells now: light the one asked for, then clear the
   // rest, in that order — the control clamps at one.
   const setMeter = m => p.evaluate(x => {

@@ -47,6 +47,7 @@
 const PW = process.env.PW || '/opt/node22/lib/node_modules/playwright';
 const CHROMIUM = process.env.CHROMIUM || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const { chromium } = require(PW);
+const { pickDrill, newDrill } = require('./drills.js');
 const BASE = 'http://localhost:8091/index.html';
 const GENS = +process.env.GENS || 18;
 
@@ -58,7 +59,7 @@ const DOMINANT = 4;
 const ROOTS = {
   'I-IV-V-I':   [0, 3, 4, 0],
   'I-V-vi-IV':  [0, 4, 5, 3],
-  'ii-V-I':     [1, 4, 0],
+  'ii-V-I':     [1, 4, 0, 0],
   'i-iv-V-i':   [0, 3, 4, 0],
   'i-VI-VII-i': [0, 5, 6, 0],
   'i-VII-VI-V': [0, 6, 5, 4]
@@ -288,11 +289,7 @@ function collect(xml, tonic, roots, a) {
   // arpeggio drill alone measures a rhythm with nowhere to put one.
   for (const [label, rx] of [['Arpeggios', 'arpegg'], ['Mixed Intervals', 'mixed int'],
                              ['Minor Cadences', 'caden'], ['Chromatic Steps', 'chromatic']]) {
-    await p.evaluate((r) => {
-      const el = [...document.querySelectorAll('#presets .pill')].find((e) => new RegExp(r, 'i').test(e.textContent));
-      if (el) el.click();
-    }, rx);
-    await p.waitForTimeout(1100);
+    await pickDrill(p, label, 1100);
     const tonic = await p.evaluate(() => parseInt(document.getElementById('key-tonic').value, 10));
     const progId = await p.evaluate(() => document.getElementById('progression').value);
     const roots = ROOTS[progId];

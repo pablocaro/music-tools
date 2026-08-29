@@ -2,6 +2,7 @@
 const PW = process.env.PW || '/opt/node22/lib/node_modules/playwright';
 const CHROMIUM = process.env.CHROMIUM || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const { chromium } = require(PW);
+const { pickDrill, newDrill } = require('./drills.js');
 
 (async () => {
   const b = await chromium.launch({ executablePath: CHROMIUM });
@@ -161,12 +162,9 @@ const { chromium } = require(PW);
   await setSlurs([4]);
 
   // round-trips as preset state
-  await p.evaluate(() => { window.prompt = () => 'BowTest';
-    [...document.querySelectorAll('.presets .pill')].find(e => e.textContent.trim().startsWith('+')).click(); });
-  await p.waitForTimeout(500);
+  await newDrill(p, 'BowTest');
   await setSlurs([]);
-  await p.evaluate(() => [...document.querySelectorAll('.presets .pill')].find(e => e.textContent.trim().startsWith('BowTest')).click());
-  await p.waitForTimeout(1200);
+  await pickDrill(p, 'BowTest', 1200);
   console.log('preset round-trip bowing =', await p.evaluate(() => document.getElementById('bowing').value), '(want 4)');
   // and a preset saved before slurs became a set must still load
   await p.evaluate(() => {
@@ -178,8 +176,7 @@ const { chromium } = require(PW);
   await p.waitForTimeout(3000);
   for (let i = 0; i < 6; i++) { if (await p.$('#ob-next')) { await p.click('#ob-next').catch(() => {}); await p.waitForTimeout(200); } }
   await p.click('#settings-toggle'); await p.waitForTimeout(600);
-  await p.evaluate(() => [...document.querySelectorAll('.presets .pill')].find(e => e.textContent.trim().startsWith('LegacySingle')).click());
-  await p.waitForTimeout(1800);
+  await pickDrill(p, 'LegacySingle', 1800);
   const legacy = await p.evaluate(() => ({
     lit: [...document.querySelectorAll('#bowing-pills .fig-cell')].filter(b => b.classList.contains('on')).map(b => b.dataset.bowing),
     // the header names the preset only if presetMatchesPanel agrees
