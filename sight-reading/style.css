@@ -1167,6 +1167,19 @@ button:active { opacity: 0.7; }
 .drill-act:hover { background: var(--ctl-fill); }
 .drill-act .da-ic { width: 16px; text-align: center; color: var(--muted); flex: 0 0 16px; }
 .drill-act .da-n  { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* Points the way the page arrives from. Sits after the count, so the row reads
+   "All drills — eleven of them — through here". */
+.drill-act .da-caret {
+  flex-shrink: 0;
+  display: block;
+  width: calc(var(--caret-size) * 1px);
+  height: calc(var(--caret-size) * 1px);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: calc(var(--caret-weight) * 12 / var(--caret-size));
+  color: var(--muted);
+  transform: rotate(-90deg);
+}
 /* Save and Restore are the two that act on your own work, so they take the
    accent rather than sitting in the same grey as "All drills". */
 .drill-act.accent, .drill-act.accent .da-ic { color: var(--ctl-on); }
@@ -1189,10 +1202,10 @@ button:active { opacity: 0.7; }
   transition: transform calc(0.3s * var(--motion)) cubic-bezier(0.32, 0.72, 0, 1);
 }
 .rail.pushed .rail-page { transform: translateX(0); }
-/* The rail underneath moves a fraction of the distance, which is what makes a
-   push read as one surface sliding over another rather than two swapping. */
-.rail-body { transition: transform calc(0.3s * var(--motion)) cubic-bezier(0.32, 0.72, 0, 1); }
-.rail.pushed .rail-body { transform: translateX(-24%); }
+/* Nothing moves underneath. The rail counter-slid a fraction of the distance
+   for a while, which is the usual way to fake depth on a push — but there is
+   no depth here to fake: this is one flat sheet the size of the rail, sliding
+   in over another. The parallax only made a simple swap look like a stack. */
 
 .page-nav {
   flex-shrink: 0;
@@ -1215,7 +1228,21 @@ button:active { opacity: 0.7; }
   cursor: pointer;
 }
 .page-back:hover { background: var(--ctl-fill); }
-.page-caret { width: 15px; height: 15px; transform: rotate(90deg); }
+/* Stroked like every other chevron in the app. #ic-chevron is a bare path
+   with fill:none and no stroke of its own, so a class that sets only a size
+   renders nothing at all — which is what this did, at every width. The
+   weight x 12/size arithmetic is the platter caret's, and for the same
+   reason: it keeps the drawn stroke in real px whatever the box becomes. */
+.page-caret {
+  flex-shrink: 0;
+  display: block;
+  width: calc(var(--caret-size) * 1.25px);
+  height: calc(var(--caret-size) * 1.25px);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: calc(var(--caret-weight) * 12 / (var(--caret-size) * 1.25));
+  transform: rotate(90deg);
+}
 .page-t {
   font-size: var(--type-label);
   font-weight: var(--weight-strong);
@@ -1234,6 +1261,12 @@ button:active { opacity: 0.7; }
   flex-direction: column;
   gap: calc(6px * var(--density));
 }
+/* The page's own add row. Full width and labelled like the band's actions,
+   pinned above the groups rather than after them: with eleven drills the
+   bottom of the list is a scroll away, and wanting to make one is exactly
+   why you would be here with nothing to pick. */
+.page-add { margin-bottom: calc(4px * var(--density)); }
+
 /* Yours first: they are what you came for, and the built-ins are starting
    points you have already moved past. */
 .page-group {

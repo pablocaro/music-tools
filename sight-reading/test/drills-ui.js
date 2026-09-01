@@ -141,21 +141,64 @@ const { pickDrill, newDrill } = require('./drills.js');
   console.log('  kept its slot :', s.rows.some((r) => r.name.startsWith('RenamedDrill')),
     '| still lit:', lit(s) === 'RenamedDrill');
 
-  // ---- 6. the All drills page: push, groups, pick, pop ----
+  // ---- 6. the All drills page: flat sheet, chevrons, add, groups, pick, pop ----
   const pushed = await p.evaluate(() => {
     [...document.querySelectorAll('#drill-acts .drill-act')].find((a) => a.querySelector('.da-n')).click();
     return true;
   });
   await p.waitForTimeout(500);
-  const page = await p.evaluate(() => ({
-    on: document.querySelector('.rail').classList.contains('pushed'),
-    hidden: document.getElementById('all-drills').getAttribute('aria-hidden'),
-    groups: [...document.querySelectorAll('#all-drills-list .page-group')].map((g) => g.textContent.trim()),
-    n: document.querySelectorAll('#all-drills-list .drill').length,
-    railVisible: getComputedStyle(document.getElementById('all-drills')).transform
-  }));
-  console.log('pushed          :', JSON.stringify({ ...page, railVisible: undefined }), pushed ? '' : '');
+  const page = await p.evaluate(() => {
+    const el = document.getElementById('all-drills');
+    const body = document.querySelector('.rail-body');
+    const rail = document.querySelector('.rail');
+    const r = el.getBoundingClientRect(), rr = rail.getBoundingClientRect();
+    return {
+      on: rail.classList.contains('pushed'),
+      hidden: el.getAttribute('aria-hidden'),
+      groups: [...document.querySelectorAll('#all-drills-list .page-group')].map((g) => g.textContent.trim()),
+      n: document.querySelectorAll('#all-drills-list .drill').length,
+      // A flat sheet the size of the rail: same box, and nothing moving
+      // underneath it. The rail used to counter-slide 24% to fake depth.
+      sameBox: Math.abs(r.width - rr.width) < 1 && Math.abs(r.height - rr.height) < 1,
+      bodyMoved: getComputedStyle(body).transform,
+      firstRow: (document.querySelector('#all-drills-list > *') || {}).className
+    };
+  });
+  console.log('pushed          :', JSON.stringify(page));
   console.log('  groups          :', page.groups.join(' / '), '(Yours first)');
+  console.log('  flat sheet      : same box as the rail', page.sameBox,
+    '| nothing moved under it', page.bodyMoved === 'none' || page.bodyMoved === '');
+  console.log('  add row first   :', /page-add/.test(page.firstRow || ''), `("${page.firstRow}")`);
+
+  // Both chevrons draw. #ic-chevron carries no stroke of its own, so a class
+  // that sets only a size renders an invisible path — which is what the back
+  // control did, at every width, until this checked it.
+  const carets = await p.evaluate(() => {
+    const one = (sel) => {
+      const el = document.querySelector(sel);
+      if (!el) return null;
+      const cs = getComputedStyle(el);
+      const r = el.getBoundingClientRect();
+      // strokeWidth comes back as "calc(2px)" when it was authored as one, and
+      // parseFloat reads that as NaN — which made this check fail on a chevron
+      // that draws perfectly well.
+      const w = parseFloat(String(cs.strokeWidth).replace(/^calc\(|\)$/g, ''));
+      return { stroke: cs.stroke, width: cs.strokeWidth, box: Math.round(r.width),
+               inked: cs.stroke !== 'none' && w > 0 && r.width > 0 };
+    };
+    return { back: one('.page-caret'), act: one('.drill-act .da-caret') };
+  });
+  console.log('  back chevron    :', JSON.stringify(carets.back));
+  console.log('  All drills caret:', JSON.stringify(carets.act));
+
+  // Cancelling the name prompt must not pop the page.
+  await p.evaluate(() => {
+    window.prompt = () => null;
+    document.querySelector('#all-drills-list .page-add').click();
+  });
+  await p.waitForTimeout(400);
+  console.log('  cancel stays    :', await p.evaluate(() =>
+    document.querySelector('.rail').classList.contains('pushed')), '(want true)');
   await p.evaluate(() => document.getElementById('drills-back').click());
   await p.waitForTimeout(500);
   console.log('popped          :', await p.evaluate(() => !document.querySelector('.rail').classList.contains('pushed')));

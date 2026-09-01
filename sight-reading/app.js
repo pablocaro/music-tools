@@ -801,9 +801,20 @@
     g.className = "da-ic"; g.textContent = glyph;
     b.appendChild(g);
     b.appendChild(document.createTextNode(text));
-    if (extra) b.appendChild(extra);
+    (extra || []).forEach(function (el) { b.appendChild(el); });
     b.addEventListener("click", fn);
     return b;
+  }
+
+  // The app's chevron, stroked by the class it is given.
+  function caret(cls) {
+    var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", cls);
+    svg.setAttribute("aria-hidden", "true");
+    var use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+    use.setAttribute("href", "#ic-chevron");
+    svg.appendChild(use);
+    return svg;
   }
 
   function renderPresets() {
@@ -836,7 +847,8 @@
       var n = document.createElement("span");
       n.className = "da-n";
       n.textContent = String(names.length);
-      acts.appendChild(actRow("", "\u2630", t("sec.allDrills"), pushDrills, n));
+      acts.appendChild(actRow("", "\u2630", t("sec.allDrills"), pushDrills,
+        [n, caret("da-caret")]));
     }
     renderAllDrills();
     updateHeader();
@@ -851,6 +863,15 @@
     var saved = loadSaved();
     var mine = Object.keys(saved);
     var std = Object.keys(BUILTIN).filter(function (k) { return !saved.hasOwnProperty(k); });
+
+    // Making one is a reason to be on this page, so it does not send you back
+    // to the band to do it. Naming a drill pops the page the same way picking
+    // one does — either way you leave with the panel on something.
+    var add = actRow("page-add", "\uff0b", t("lbl.newDrill"), function () {
+      if (saveCurrent()) popDrills();
+    });
+    host.appendChild(add);
+
     function group(key, names) {
       if (!names.length) return;
       var h = document.createElement("div");
@@ -985,11 +1006,14 @@
   // strongest signal you are on it, so it takes a slot and counts as a use —
   // without that the band came back showing three other drills and nothing lit,
   // seconds after you named the one you were looking at.
+  // Returns the name it saved, or null — the All drills page needs to know,
+  // because cancelling the prompt should leave you on the page rather than
+  // popping you back as though you had done something.
   function saveCurrent() {
     var name = prompt(t("msg.newPresetName"), "");
-    if (name == null) return;
+    if (name == null) return null;
     name = name.trim();
-    if (!name) return;
+    if (!name) return null;
     var saved = loadSaved();
     saved[name] = readPresetConfig();
     localStorage.setItem(STORE_KEY, JSON.stringify(saved));
@@ -997,6 +1021,7 @@
     noteUse(name);
     showInBand(name);
     renderPresets();
+    return name;
   }
 
   // ===========================================================================
