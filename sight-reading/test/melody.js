@@ -47,7 +47,7 @@
 const PW = process.env.PW || '/opt/node22/lib/node_modules/playwright';
 const CHROMIUM = process.env.CHROMIUM || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const { chromium } = require(PW);
-const { pickDrill, newDrill } = require('./drills.js');
+const { pickDrill, newDrill, setMusicality } = require('./drills.js');
 const BASE = 'http://localhost:8091/index.html';
 const GENS = +process.env.GENS || 18;
 
@@ -273,8 +273,7 @@ function collect(xml, tonic, roots, a) {
   }
   await p.click('#settings-toggle'); await p.waitForTimeout(400);
 
-  const setDial = (v) => p.evaluate((x) => { const M = document.getElementById('musicality');
-    M.value = x; M.dispatchEvent(new Event('input')); M.dispatchEvent(new Event('change')); }, v);
+  const setDial = (v) => setMusicality(p, v > 0, 900);
   // CHROMA=n forces the chromaticism dial for every row, which is how you ask
   // whether the two dials still fight each other at the top.
   const setChroma = (v) => p.evaluate((x) => { const C = document.getElementById('chroma');

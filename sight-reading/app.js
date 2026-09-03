@@ -1601,10 +1601,14 @@
   // people's browsers. Snapping on the way in — and again when a preset is
   // compared against the panel — is what stops a saved 65 from reading as
   // "not the current panel" forever after.
+  // Two states, so old values have to land on one of them. Anything above a
+  // random walk rounds up rather than down — the middle stop used to mean
+  // "some structure", and reading that as "none" throws away the setting
+  // rather than approximating it.
   function snapMusicality(v) {
     var n = +v;
     if (!isFinite(n)) return "100";
-    return String(Math.round(Math.max(0, Math.min(100, n)) / 50) * 50);
+    return (n > 0) ? "100" : "0";
   }
 
   function canonSlurs(v) {
@@ -3655,6 +3659,7 @@
   var hideValEl    = document.getElementById("hide-val");
   var chunksBtnEl  = document.getElementById("chunks-toggle");
   var chordsBtnEl  = document.getElementById("chords-toggle");
+  var musicalityBtnEl = document.getElementById("musicality-toggle");
   var cursorBtnEl  = document.getElementById("cursor-toggle");
   var tempoUiEl    = document.getElementById("tempo-ui");
   var volumeUiEl   = document.getElementById("volume-ui");
@@ -3822,6 +3827,16 @@
   // switch is its own readout.
   function syncChunks() { setSwitch(chunksBtnEl, showChunksEl.checked); }
   function syncChordsBtn() { setSwitch(chordsBtnEl, showChordsEl.checked); }
+
+  // The progression and the chord names are only meaningful once the harmony
+  // is on, so they are not on screen when it is off. Hidden rather than muted
+  // because the switch that causes it is the row directly above.
+  function syncMusicality() {
+    var on = (+musicalityEl.value) > 0;
+    setSwitch(musicalityBtnEl, on);
+    var deps = document.getElementById("musicality-deps");
+    if (deps) deps.hidden = !on;
+  }
   function syncCursorBtn() { setSwitch(cursorBtnEl, cursorModeEl.value !== "off"); }
   function syncTempoUi() {
     tempoUiEl.value = tempoEl.value;
@@ -4962,6 +4977,7 @@
     syncComping();
     syncChunks();
     syncChordsBtn();      // a session carries the chord-names switch too
+    syncMusicality();     // …and a drill carries the harmony switch
     syncCursorBtn();
     syncTempoUi();
     syncMeasuresPills();
@@ -5121,6 +5137,18 @@
       persistSession();
     });
 
+    // --- musicality ---
+    musicalityBtnEl.addEventListener("click", function () {
+      musicalityEl.value = (+musicalityEl.value) > 0 ? "0" : "100";
+      syncMusicality();
+      // The hidden input is what everything else reads, so the change event it
+      // would have fired as a slider still has to fire: generate hangs off it,
+      // and so does the header's "is this still the drill you loaded" check.
+      musicalityEl.dispatchEvent(new Event("change"));
+      drawChordOverlay();
+      persistSession();
+    });
+
     // --- chord names ---
     chordsBtnEl.addEventListener("click", function () {
       showChordsEl.checked = !showChordsEl.checked;
@@ -5130,6 +5158,7 @@
       persistSession();
     });
     syncChordsBtn();
+    syncMusicality();
 
     // --- chunks + cursor ---
     chunksBtnEl.addEventListener("click", function () {

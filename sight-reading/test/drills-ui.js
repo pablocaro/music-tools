@@ -265,6 +265,34 @@ const { pickDrill, newDrill } = require('./drills.js');
   show('deleted ' + gone, s);
   console.log('  still three   :', s.rows.length === 3, '| gone:', !s.rows.some((r) => r.name === gone));
 
+  // ---- 11. a drill saved before the switch still loads ----
+  // Musicality was a three-stop slider, so saved drills can hold "50". Two
+  // states now: it has to land on one, and upward — reading "some structure"
+  // as "none" throws the setting away rather than approximating it. The title
+  // is the other half: presetMatchesPanel compares through snapMusicality, so
+  // a drill storing 50 still has to be recognised as itself on a panel at 100.
+  await p.evaluate(() => {
+    const saved = JSON.parse(localStorage.getItem('sr_presets') || '{}');
+    saved.LegacyMid = { musicality: '50', measures: '16' };
+    saved.LegacyOff = { musicality: '0', measures: '16' };
+    localStorage.setItem('sr_presets', JSON.stringify(saved));
+  });
+  await p.reload({ waitUntil: 'domcontentloaded' });
+  await p.waitForTimeout(3000);
+  for (let i = 0; i < 6; i++) { if (await p.$('#ob-next')) { await p.click('#ob-next').catch(() => {}); await p.waitForTimeout(200); } }
+  await p.click('#settings-toggle'); await p.waitForTimeout(700);
+  for (const [name, want] of [['LegacyMid', '100'], ['LegacyOff', '0']]) {
+    await pickDrill(p, name, 1300);
+    const r = await p.evaluate(() => ({
+      value: document.getElementById('musicality').value,
+      sw: document.getElementById('musicality-toggle').getAttribute('aria-checked'),
+      deps: !document.getElementById('musicality-deps').hidden,
+      title: document.getElementById('sh-title').textContent.trim()
+    }));
+    console.log(`legacy ${name.padEnd(10)}:`, JSON.stringify(r),
+      `(want ${want}, switch ${want === '100'}, still named)`);
+  }
+
   console.log('errors:', JSON.stringify(errs));
   await b.close();
 })();

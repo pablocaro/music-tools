@@ -2,6 +2,7 @@
 const PW = process.env.PW || '/opt/node22/lib/node_modules/playwright';
 const CHROMIUM = process.env.CHROMIUM || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const { chromium } = require(PW);
+const { setMusicality } = require('./drills.js');
 const LET = { C:0, D:1, E:2, F:3, G:4, A:5, B:6 };
 
 function stats(xml) {
@@ -74,8 +75,7 @@ function stats(xml) {
       cb.dispatchEvent(new Event('change'));   // the real path: syncs cell + badge
     });
   },[on,w]);
-  const setM = v => p.evaluate(x=>{const M=document.getElementById('musicality');
-    M.value=x; M.dispatchEvent(new Event('input')); M.dispatchEvent(new Event('change'));},v);
+  const setM = v => setMusicality(p, v > 0, 1300);
 
   const ALPHAS = {
     '2nds only':     [[0,1,0,0,0,0,0,0],[1,4,1,1,1,1,1,1]],
@@ -91,7 +91,7 @@ function stats(xml) {
   // separates from the first once eighths are in play.
   console.log('alphabet         dial │ chord tones   on the beat   repeats   distinct');
   for (const [name,[on,w]] of Object.entries(ALPHAS)) {
-    for (const v of [0, 50, 100]) {
+    for (const v of [0, 100]) {
       await setAlpha(on,w); await p.waitForTimeout(250);
       await setM(v); await p.waitForTimeout(1300);
       const s = stats(await p.evaluate(()=>window.__xml));

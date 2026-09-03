@@ -60,4 +60,21 @@ async function newDrill(p, name) {
   await p.waitForTimeout(500);
 }
 
-module.exports = { pickDrill, newDrill, names };
+// Musicality is a switch, not a dial: 0 or 100 and nothing between. Drives the
+// visible control, so the panel's dependents (the progression pills, the chord
+// names row) follow the same way they do under a finger — poking the hidden
+// input directly leaves the switch and its section disagreeing with the engine.
+async function setMusicality(p, on, wait) {
+  const changed = await p.evaluate((want) => {
+    const el = document.getElementById('musicality');
+    const btn = document.getElementById('musicality-toggle');
+    if (!btn) throw new Error('no musicality switch');
+    const now = (+el.value) > 0;
+    if (now !== want) { btn.click(); return true; }
+    return false;
+  }, !!on);
+  await p.waitForTimeout(changed ? (wait || 1400) : 100);
+  return changed;
+}
+
+module.exports = { pickDrill, newDrill, names, setMusicality };

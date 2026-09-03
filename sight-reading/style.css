@@ -699,16 +699,16 @@ button.playing svg.state-alt { display: block; }
 }
 .sec-row.unit { flex-wrap: nowrap; }
 
-/* A full-width section whose control is a bare slider stops at one column's
-   width — stretched across the whole panel it reads as a scrollbar, and the
-   travel becomes far finer than the setting warrants. */
+/* A bare slider stops at one column's width — stretched across the whole panel
+   it reads as a scrollbar, and the travel becomes far finer than the setting
+   warrants. Musicality is a switch now and needs no such protection, but its
+   rows keep the same measure so the two sections still line up. */
 .sec-musicality .sec-row,
 .sec-chroma .sec-row { max-width: var(--col-max); }
 
 /* Band pairing. Sections declare the width they want to keep; below it they
    wrap to their own line on their own. */
 .sec-hide       { flex: 1 1 240px; }
-.sec-chordnames { flex: 1 1 180px; }
 .sec-step       { flex: 1 1 380px; }
 .sec-chunks     { flex: 1 1 260px; }
 
@@ -1143,6 +1143,22 @@ button:active { opacity: 0.7; }
 .menu-item.danger { color: var(--danger); }
 .menu-item.danger:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); }
 
+/* A group of rows that appear and go together. It is one flex child of the
+   section, so without this the rows inside it lose the section's gap and sit
+   flush against each other. The [hidden] rule is not redundant: display:flex
+   here would otherwise out-rank the attribute and the group would never hide. */
+.sec-deps {
+  display: flex;
+  flex-direction: column;
+  gap: calc(10px * var(--density));
+}
+.sec-deps[hidden] { display: none; }
+
+/* Caption then control on one line, the way the Ties row reads. .fig-h carries
+   a bottom margin for the case where it sits above its grid, which here would
+   push the label off the switch's centre line. */
+.chordnames-row .fig-h { margin-bottom: 0; }
+
 .drill-acts {
   display: flex;
   flex-direction: column;
@@ -1277,24 +1293,6 @@ button:active { opacity: 0.7; }
   color: var(--muted);
   margin: calc(10px * var(--density)) 2px 0;
 }
-
-/* Names the axis a bare slider runs along — used by How Musical?, whose ends
-   are self-explanatory but whose middle needs no word. */
-.axis {
-  display: flex;
-  /* Fills whatever row it is in, so the two words really do sit at the ends of
-     the track. In a .sec-row it is a flex item, where content width would
-     have bunched both labels against the left of a slider three times wider.
-     Ignored in a grid, decisive in the flex row. */
-  flex: 1;
-  justify-content: space-between;
-  font-size: var(--type-micro);
-  font-weight: var(--weight-standard);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--muted);
-}
-.axis em { font-style: normal; }
 
 /* Rhythm figures: a flat grid of notation cells toggled on/off, name on hover.
    The alphabet matrix (#matrix) is the same .fig-grid of .fig-cell, one per

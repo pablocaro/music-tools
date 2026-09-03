@@ -68,7 +68,7 @@ derives its clef from, so clicking a built-in preset stops stomping a
 cellist back into treble. Changeable later from the panel.
 
 ### 1 · Harmony you can see — DONE (blues waits on the flat 7)
-- Selectable progressions (data + a picker near How Musical?): I–IV–V–I,
+- Selectable progressions (data + a picker under the Musicality switch): I–IV–V–I,
   I–V–vi–IV, ii–V–I; i–VI–VII–i, i–VII–VI–V.
 - Chord symbols drawn above the staff, so Follow Chords stops being a
   mystery dial and reading symbols becomes a skill of its own.
@@ -134,7 +134,7 @@ emit `<alter>` and OSMD draws the sharp from the key signature.
 - Natural next step: let a phrase pick a slur pattern and repeat it, the way
   rhythm motifs already work, instead of drawing each group independently.
 - Rhythmic motifs: state an idea, repeat it varied, answer it — rhythm's
-  counterpart to the musicality dial, and the thing that stops generated
+  counterpart to musicality, and the thing that stops generated
   lines sounding generated.
 
 ### 4.5 · Onboarding asks both axes — DONE
@@ -170,7 +170,7 @@ meter — everything is derived from membership tests the engine can run on
 any chord it is handed; everything is a weighted preference, never a pick
 (a looping progression fed a deterministic rule prints the same four bars
 forever); everything scales by what the alphabet can reach; everything
-rides the musicality dial, so zero stays a pure random walk.
+rides musicality, so off stays a pure random walk.
 
 1. **Tendency tones — DONE.** A note that belonged to the last bar's chord
    but not this one owes its resolution to the nearest tone of the chord

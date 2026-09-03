@@ -137,6 +137,13 @@
         <input type="hidden" id="hide-lead" value="0">
         <input type="checkbox" id="show-chunks">
         <input type="hidden" id="progression" value="I-IV-V-I">
+        <!-- 0 or 100, nothing between. It was a three-stop slider, and the
+             middle stop turned out to be the worst of the three: measured, it
+             brings the phrasing in (question/answer 22% -> 64%) but leaves the
+             leading tone resolving no better than at zero (13% against 20%).
+             That is the shape of music without the one cue that says it is in
+             a key going somewhere — neither thing, and not worth a stop. -->
+        <input type="hidden" id="musicality" value="100">
         <input type="checkbox" id="show-chords" checked>
         <input type="hidden" id="bowing" value="">
         <input type="hidden" id="ties" value="off">
@@ -320,28 +327,33 @@
               <div id="range-staff" aria-hidden="true"></div>
             </section>
 
+            <!-- One switch and the two things downstream of it. Chord names
+                 used to live in Reading, among the training wheels — but it is
+                 the one aid that is also a function of the harmony, so with
+                 the harmony off there is nothing for it to name. Both
+                 dependents are hidden rather than muted: the cause is the
+                 switch directly above them, so the collapse happens under the
+                 finger that caused it and reads as consequence. -->
             <section class="sec sec-musicality">
-              <h2 class="sec-h" data-i18n="sec.musicality">How Musical?</h2>
-              <!-- Three stops, not twenty-one. The dial is genuinely
-                   continuous under the hood, but nobody can hear 65 against
-                   70, and the two ends plus the middle are the three settings
-                   that name themselves: a random walk, real music, and the
-                   place between them. The ends are labelled the way the
-                   interval matrix labels its own axis — the middle needs no
-                   word, since halfway between two labels is self-explanatory. -->
+              <h2 class="sec-h" data-i18n="sec.musicality">Musicality</h2>
               <div class="sec-row">
-                <span class="axis"><em data-i18n="col.less">less</em><em data-i18n="col.more">more</em></span>
+                <button id="musicality-toggle" class="sw" type="button" role="switch" aria-checked="true"
+                        aria-label="Musicality" data-i18n-aria="aria.musicality"><span class="sw-knob"></span></button>
               </div>
-              <div class="sec-row">
-                <input type="range" class="stepper-range bare-range" id="musicality" min="0" max="100" step="50" value="100" aria-label="Musicality" data-i18n-aria="aria.musicality">
+              <div class="sec-deps" id="musicality-deps">
+                <!-- Which chords the bars sit on. Roman numerals are
+                     language-neutral, so no i18n keys. -->
+                <div class="sec-row" id="progression-pills"></div>
+                <div class="sec-row chordnames-row">
+                  <span class="fig-h" data-i18n="sec.chordNames">Chord Names</span>
+                  <button id="chords-toggle" class="sw" type="button" role="switch" aria-checked="false"
+                          aria-label="Show chord names" data-i18n-aria="aria.chordNames"><span class="sw-knob"></span></button>
+                </div>
               </div>
-              <!-- Which chords the bars sit on, once the dial brings the harmony
-                   in. Roman numerals are language-neutral, so no i18n keys. -->
-              <div class="sec-row" id="progression-pills"></div>
             </section>
 
             <section class="sec sec-chroma">
-              <h2 class="sec-h" data-i18n="sec.chroma">How Chromatic?</h2>
+              <h2 class="sec-h" data-i18n="sec.chroma">Chromaticism</h2>
               <div class="sec-row">
                 <input type="range" class="stepper-range bare-range" id="chroma" min="0" max="100" step="5" value="0" aria-label="Chromaticism" data-i18n-aria="aria.chroma">
               </div>
@@ -377,14 +389,6 @@
             </div>
           </section>
 
-
-          <section class="sec sec-chordnames">
-            <h2 class="sec-h" data-i18n="sec.chordNames">Chord Names</h2>
-            <div class="sec-row">
-              <button id="chords-toggle" class="sw" type="button" role="switch" aria-checked="false"
-                      aria-label="Show chord names" data-i18n-aria="aria.chordNames"><span class="sw-knob"></span></button>
-            </div>
-          </section>
 
           <section class="sec sec-chunks">
             <h2 class="sec-h" data-i18n="sec.chunks">Highlight Patterns</h2>

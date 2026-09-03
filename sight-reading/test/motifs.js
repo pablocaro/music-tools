@@ -2,6 +2,7 @@
 const PW = process.env.PW || '/opt/node22/lib/node_modules/playwright';
 const CHROMIUM = process.env.CHROMIUM || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const { chromium } = require(PW);
+const { setMusicality } = require('./drills.js');
 
 // Each bar's rhythm as a duration signature; how many non-phrase-start bars
 // echo their phrase-start bar exactly.
@@ -42,12 +43,8 @@ function echoRate(xml) {
   });
   await p.waitForTimeout(1400);
 
-  for (const m of [0, 80]) {
-    await p.evaluate(v => {
-      const M = document.getElementById('musicality');
-      M.value = v; M.dispatchEvent(new Event('input')); M.dispatchEvent(new Event('change'));
-    }, m);
-    await p.waitForTimeout(1500);
+  for (const m of [0, 100]) {
+    await setMusicality(p, m > 0, 1500);
     // average over three lines to steady the number
     let agg = { echo: 0, total: 0 };
     for (let r = 0; r < 3; r++) {

@@ -2,7 +2,7 @@
 const PW = process.env.PW || '/opt/node22/lib/node_modules/playwright';
 const CHROMIUM = process.env.CHROMIUM || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const { chromium } = require(PW);
-const { pickDrill, newDrill } = require('./drills.js');
+const { pickDrill, newDrill, setMusicality } = require('./drills.js');
 const LET = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
 
 // Chord-tone rate of the score against an arbitrary progression, in C major.
@@ -66,12 +66,15 @@ function adherence(xml, roots) {
   console.log('stored id   :', await p.evaluate(() => document.getElementById('progression').value));
 
   // dial at zero hides the names (relevance gate)
-  await p.evaluate(() => {
-    const M = document.getElementById('musicality');
-    M.value = 0; M.dispatchEvent(new Event('input')); M.dispatchEvent(new Event('change'));
-  });
-  await p.waitForTimeout(1400);
-  console.log('dial 0 names:', await p.evaluate(() => !!document.getElementById('chord-overlay')), '(want false)');
+  await setMusicality(p, false, 1400);
+  console.log('musicality off, names:', await p.evaluate(() => !!document.getElementById('chord-overlay')), '(want false)');
+  // …and the two controls that only mean something with the harmony on are off
+  // the panel entirely, rather than sitting there doing nothing.
+  console.log('  dependents shown:', await p.evaluate(() =>
+    !document.getElementById('musicality-deps').hidden), '(want false)');
+  await setMusicality(p, true, 1400);
+  console.log('  back on         :', await p.evaluate(() =>
+    !document.getElementById('musicality-deps').hidden), '(want true)');
   console.log('errors:', errs);
   await b.close();
 })();

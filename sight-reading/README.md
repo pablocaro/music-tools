@@ -82,9 +82,13 @@ controls ──► OSME generates a sheet ──► export MusicXML ──► OS
   fill whole steps and neighbour notes dip a semitone and return. Minor keys
   raise their 7th in dominant bars regardless — that one is what makes a
   cadence lean, not an option.
-- **Follow the chords:** pick the progression (roman-numeral pills under the
-  musicality dial), and the bar-by-bar chord names draw above the staff while
-  the harmony is in play.
+- **Follow the chords:** Musicality is a switch — on, the line follows a
+  progression, phrases, and resolves its tendency tones; off, it is a plain
+  random walk. It used to be a three-stop slider, but the middle stop brought
+  the phrasing in while leaving the leading tone resolving no better than at
+  zero: the shape of music without the one cue that says it is in a key. The
+  progression pills and the chord-name switch sit under it, and are on screen
+  only when it is on.
 - **Hide Ahead:** clears the page behind you to force reading forward. The unit
   sets two things at once — how far ahead the curtain sits, *and* how big a
   block goes at a time. Beats clears a beat at a time, Measures clears a bar.
