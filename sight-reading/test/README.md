@@ -19,6 +19,7 @@ node sight-reading/test/ties.js        # ties: pitch, bar sums, curves, one atta
 node sight-reading/test/range.js       # intervals too wide for the range: muted, and mute
 node sight-reading/test/comping.js     # walking bass + chords agree with the progression
 node sight-reading/test/drills-ui.js   # the drills band: edited state, park/restore, push
+                                       # the slow one — needs ~900s, three reloads
 ```
 
 Screenshots land in `test/out/` (gitignored). `PW` / `CHROMIUM` env vars

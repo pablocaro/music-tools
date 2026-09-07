@@ -1375,6 +1375,56 @@ button:active { opacity: 0.7; }
   color: var(--ctl-on-ink);
 }
 
+/* ---------------------------------------------------------------------------
+   Selected state — three treatments, live-switchable from the tweaks panel
+   (?tweaks -> Colour -> Selected state) while we decide which one ships.
+   Filled is the shipped default and needs no block; the other two override it.
+
+   The transparent 2px --ctl-border every control already carries is what makes
+   this free: the stroke colours in a border whose space is already reserved,
+   so nothing reflows when the treatment changes.
+
+   When one wins, its rules fold into the base ones above and the other two
+   blocks — and the tweak — come out. This is scaffolding, not a feature.
+   --------------------------------------------------------------------------- */
+:root[data-sel="stroke"] .fig-cell.on,
+:root[data-sel="heavy"]  .fig-cell.on {
+  background: var(--ctl-on-tint);
+  color: var(--ctl-on);
+  border-color: var(--ctl-on);
+}
+:root[data-sel="stroke"] .opt.on,
+:root[data-sel="heavy"]  .opt.on { border-color: var(--ctl-on); }
+
+:root[data-sel="stroke"] .drill.on,
+:root[data-sel="heavy"]  .drill.on {
+  background: var(--ctl-on-tint);
+  color: var(--ctl-on);
+  border-color: var(--ctl-on);
+}
+:root[data-sel="stroke"] .drill.on .drill-sub,
+:root[data-sel="heavy"]  .drill.on .drill-sub { color: color-mix(in srgb, var(--ctl-on) 78%, transparent); }
+:root[data-sel="stroke"] .drill-row:has(.drill.on) .drill-more,
+:root[data-sel="heavy"]  .drill-row:has(.drill.on) .drill-more { color: var(--ctl-on); }
+
+/* Heavy: a thicker edge and a stronger wash, bought to see whether the
+   scanning the fill was doing can be recovered without going back to it. */
+:root[data-sel="heavy"] { --ctl-border: 3px; }
+:root[data-sel="heavy"] .fig-cell.on,
+:root[data-sel="heavy"] .drill.on,
+:root[data-sel="heavy"] .opt.on {
+  background: color-mix(in srgb, var(--accent) 18%, var(--paper));
+}
+
+/* A lit cell the range cannot honour has to stay distinct from a lit cell that
+   is simply outlined, so under the stroked treatments it keeps a fill and
+   drops the edge — the opposite of its neighbours, which is the point. */
+:root[data-sel="stroke"] .fig-cell.muted.on,
+:root[data-sel="heavy"]  .fig-cell.muted.on {
+  background: color-mix(in srgb, var(--ctl-on) 32%, transparent);
+  border-color: transparent;
+}
+
 /* Muted: the range is too narrow to hold this interval. Off and muted just
    fades back. On and muted keeps the accent as ink and loses the fill — the
    cell still reads "you asked for this" while visibly not being in the same

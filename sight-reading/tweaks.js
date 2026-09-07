@@ -26,7 +26,7 @@
 
   if (!/[?&]tweaks(?:[=&]|$)/.test(location.search)) return;
 
-  var KEY = "sr_tweaks:v16";      // bumped when the defaults move, so a stored
+  var KEY = "sr_tweaks:v17";      // bumped when the defaults move, so a stored
                                  // set of slider values cannot mask the new baseline
                                  // (v16: stores only what moved — see save())
   var FOLD = "sr_tweaks_fold";
@@ -50,6 +50,7 @@
     swScale: 0.63, thumbW: 22, thumbGap: 2, checkRadius: 6,
     // colour
     accentH: 208, accentS: 100, paperWarmth: 18, inkL: 16, chunkAlpha: 0.5,
+    selStyle: 0,
     // music
     perLine: 6, staffSize: 1, musicFade: 60,
     // onboarding
@@ -148,6 +149,8 @@
         note: "everything selected takes this" },
       { key: "accentS",     label: "Accent punch", min: 0, max: 100, step: 1, unit: "%",
         note: "saturation — 0 is a grey UI" },
+      { key: "selStyle",    label: "Selected state", min: 0, max: 2, step: 1, unit: "",
+        note: "0 filled · 1 stroked · 2 stroked heavy — scaffolding, one of these ships" },
       { key: "paperWarmth", label: "Paper warmth", min: 0, max: 30,  step: 1, unit: "",
         note: "0 is white; a little gives manuscript cream" },
       { key: "inkL",        label: "Ink lightness", min: 0, max: 40, step: 1, unit: "%",
@@ -229,6 +232,7 @@
     caretSize: "--caret-size", caretWeight: "--caret-weight",
     bandFold: "--band-fold-ms",
     accentH: "--accent-h", accentS: "--accent-s", paperWarmth: "--paper-warmth",
+    selStyle: "style.css [data-sel]",
     inkL: "--ink-l", chunkAlpha: "--chunk-alpha",
     perLine: "app.js LAYOUT.perLine", staffSize: "app.js LAYOUT.zoomCap",
     musicFade: "--music-fade",
@@ -351,6 +355,11 @@
     r.setProperty("--paper-warmth", String(state.paperWarmth));
     r.setProperty("--ink-l",        state.inkL + "%");
     r.setProperty("--chunk-alpha",  String(state.chunkAlpha));
+    // Three treatments, not a scale, so it lands as an attribute rather than a
+    // token — the same escape hatch reduce-motion takes below.
+    var SEL = ["", "stroke", "heavy"];
+    if (SEL[state.selStyle]) el.setAttribute("data-sel", SEL[state.selStyle]);
+    else el.removeAttribute("data-sel");
 
     r.setProperty("--music-fade", state.musicFade + "px");
 
