@@ -1376,51 +1376,44 @@ button:active { opacity: 0.7; }
 }
 
 /* ---------------------------------------------------------------------------
-   Selected state — three treatments, live-switchable from the tweaks panel
-   (?tweaks -> Colour -> Selected state) while we decide which one ships.
-   Filled is the shipped default and needs no block; the other two override it.
+   Selected state — filled (what ships) or stroked, with the stroke's weight and
+   wash on their own dials: ?tweaks -> Colour. They were fused into a "heavy"
+   preset at first, which made a 10% -> 18% change in the wash read as though the
+   1px change in the border were doing it. They are independent, so they dial
+   independently.
 
-   The transparent 2px --ctl-border every control already carries is what makes
-   this free: the stroke colours in a border whose space is already reserved,
-   so nothing reflows when the treatment changes.
+   The transparent --ctl-border every control already carries is what makes the
+   stroke free: it colours in a border whose space is already reserved, so
+   nothing reflows when the treatment changes.
 
-   When one wins, its rules fold into the base ones above and the other two
-   blocks — and the tweak — come out. This is scaffolding, not a feature.
+   When this is settled the winner folds into the base rules and this block —
+   and the tweaks — come out. Scaffolding, not a feature.
    --------------------------------------------------------------------------- */
+:root {
+  --sel-edge: 2px;                                       /* the stroke's weight */
+  --sel-wash: 10%;                                       /* accent mixed into paper */
+  --sel-tint: color-mix(in srgb, var(--accent) var(--sel-wash), var(--paper));
+}
+:root[data-sel="stroke"] { --ctl-border: var(--sel-edge); }
+
 :root[data-sel="stroke"] .fig-cell.on,
-:root[data-sel="heavy"]  .fig-cell.on {
-  background: var(--ctl-on-tint);
+:root[data-sel="stroke"] .drill.on {
+  background: var(--sel-tint);
   color: var(--ctl-on);
   border-color: var(--ctl-on);
 }
-:root[data-sel="stroke"] .opt.on,
-:root[data-sel="heavy"]  .opt.on { border-color: var(--ctl-on); }
-
-:root[data-sel="stroke"] .drill.on,
-:root[data-sel="heavy"]  .drill.on {
-  background: var(--ctl-on-tint);
-  color: var(--ctl-on);
+:root[data-sel="stroke"] .opt.on {
+  background: var(--sel-tint);
   border-color: var(--ctl-on);
 }
-:root[data-sel="stroke"] .drill.on .drill-sub,
-:root[data-sel="heavy"]  .drill.on .drill-sub { color: color-mix(in srgb, var(--ctl-on) 78%, transparent); }
-:root[data-sel="stroke"] .drill-row:has(.drill.on) .drill-more,
-:root[data-sel="heavy"]  .drill-row:has(.drill.on) .drill-more { color: var(--ctl-on); }
-
-/* Heavy: a thicker edge and a stronger wash, bought to see whether the
-   scanning the fill was doing can be recovered without going back to it. */
-:root[data-sel="heavy"] { --ctl-border: 3px; }
-:root[data-sel="heavy"] .fig-cell.on,
-:root[data-sel="heavy"] .drill.on,
-:root[data-sel="heavy"] .opt.on {
-  background: color-mix(in srgb, var(--accent) 18%, var(--paper));
-}
+:root[data-sel="stroke"] .drill.on .drill-sub { color: color-mix(in srgb, var(--ctl-on) 78%, transparent); }
+:root[data-sel="stroke"] .drill-row:has(.drill.on) .drill-more { color: var(--ctl-on); }
 
 /* A lit cell the range cannot honour has to stay distinct from a lit cell that
-   is simply outlined, so under the stroked treatments it keeps a fill and
-   drops the edge — the opposite of its neighbours, which is the point. */
-:root[data-sel="stroke"] .fig-cell.muted.on,
-:root[data-sel="heavy"]  .fig-cell.muted.on {
+   is merely outlined, so here it inverts: it keeps a fill and drops its edge,
+   the opposite of its neighbours. Held clear of --sel-wash on purpose — it is
+   not the same idea, and following the dial would let the two collide. */
+:root[data-sel="stroke"] .fig-cell.muted.on {
   background: color-mix(in srgb, var(--ctl-on) 32%, transparent);
   border-color: transparent;
 }
