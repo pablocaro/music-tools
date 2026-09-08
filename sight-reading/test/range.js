@@ -77,6 +77,35 @@ const STEP = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
   await p.waitForTimeout(700);
   const span = await spanOf();
   console.log('narrowed      ', await range(), '|', await cells());
+
+  // A lit cell the range cannot honour has to LOOK different from a lit cell it
+  // can, and the selected state is a stroke over a wash now — so the muted one
+  // inverts, keeping a fill and dropping its edge. Nothing about that survives
+  // a class-name check: the two differ only in what they paint.
+  const look = await p.evaluate(() => {
+    const grab = (el) => {
+      if (!el) return null;
+      const s = getComputedStyle(el);
+      return { bg: s.backgroundColor, edge: s.borderTopColor, ink: s.color,
+               op: s.opacity, w: s.borderTopWidth };
+    };
+    return {
+      litOk:    grab(document.querySelector('#matrix .fig-cell.on:not(.muted)')),
+      litMuted: grab(document.querySelector('#matrix .fig-cell.muted.on')),
+      off:      grab(document.querySelector('#matrix .fig-cell:not(.on):not(.muted)'))
+    };
+  });
+  console.log('lit, honoured :', JSON.stringify(look.litOk));
+  console.log('lit, muted    :', JSON.stringify(look.litMuted));
+  if (!look.litOk || !look.litMuted) {
+    console.log('  distinct    : NO SAMPLE — need one lit cell of each kind, had',
+      (look.litOk ? 'honoured' : '') + (look.litMuted ? ' muted' : '') || 'neither');
+  } else {
+    console.log('  distinct    :',
+      look.litOk.bg !== look.litMuted.bg || look.litOk.edge !== look.litMuted.edge);
+  }
+  console.log('  same box    :', look.litOk && look.off && look.litOk.w === look.off.w,
+    '(the stroke colours a reserved border — selecting must not reflow)');
   console.log('span          ', span, '(the floor is a third: 2)');
 
   // A muted cell does not cycle. It explains itself instead.

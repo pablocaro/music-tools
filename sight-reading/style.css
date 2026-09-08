@@ -888,11 +888,6 @@ input[type="checkbox"]:checked::after {
 }
 .cycle:hover { background: var(--ctl-fill-hover); opacity: 1; }
 .cycle:active { transform: scale(0.96); opacity: 1; }
-/* A cycle whose value is itself an "on" state (chunks on) takes the accent. */
-.cycle.on {
-  background: var(--ctl-on-tint);
-  color: var(--ctl-on);
-}
 /* Music characters (clefs, accidentals) sit small and light beside text at the
    same nominal size, so they get their own optical size. */
 .cycle-glyph { font-size: var(--glyph-md); line-height: 1; }
@@ -1041,10 +1036,6 @@ input[type="checkbox"]:checked::after {
 }
 .opt:hover { background: var(--ctl-fill-hover); opacity: 1; }
 .opt:active { transform: scale(0.96); opacity: 1; }
-.opt.on {
-  background: var(--ctl-on-tint);
-  color: var(--ctl-on);
-}
 
 button {
   padding: 11px 14px;
@@ -1093,7 +1084,6 @@ button:active { opacity: 0.7; }
   transition: background 0.12s, color 0.12s;
 }
 .drill:hover { background: var(--ctl-fill-hover); }
-.drill.on { background: var(--ctl-on); color: var(--ctl-on-ink); }
 
 .drill-txt { min-width: 0; flex: 1; }
 .drill-name {
@@ -1113,7 +1103,6 @@ button:active { opacity: 0.7; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.drill.on .drill-sub { color: color-mix(in srgb, var(--ctl-on-ink) 82%, transparent); }
 .drill-edited { font-weight: var(--weight-standard); opacity: 0.85; }
 
 /* Rename / update / delete live behind this, off the row that applies the
@@ -1134,7 +1123,6 @@ button:active { opacity: 0.7; }
   cursor: pointer;
   padding: 0;
 }
-.drill-row:has(.drill.on) .drill-more { color: color-mix(in srgb, var(--ctl-on-ink) 88%, transparent); }
 .drill-more:hover { background: color-mix(in srgb, var(--ink) 12%, transparent); }
 
 /* Same menu the voice pills open — one surface family, so a list of actions
@@ -1370,59 +1358,45 @@ button:active { opacity: 0.7; }
 
 .fig-cell:hover { background: var(--ctl-fill-hover); }
 
-.fig-cell.on {
-  background: var(--ctl-on);
-  color: var(--ctl-on-ink);
-}
-
 /* ---------------------------------------------------------------------------
-   Selected state — filled (what ships) or stroked, with the stroke's weight and
-   wash on their own dials: ?tweaks -> Colour. They were fused into a "heavy"
-   preset at first, which made a 10% -> 18% change in the wash read as though the
-   1px change in the border were doing it. They are independent, so they dial
-   independently.
+   PATTERN: selected
+   A chosen control in the panel is a stroke over a wash, not a block of accent.
+   Three numbers, each settled on its own after they were briefly fused into one
+   "heavy" preset that made a change in the wash read as a change in the edge:
 
-   The transparent --ctl-border every control already carries is what makes the
-   stroke free: it colours in a border whose space is already reserved, so
-   nothing reflows when the treatment changes.
+     edge   2px, which is exactly the --ctl-border every control already
+            reserves — so the stroke costs no layout at all, and the transparent
+            border that has been sitting there waiting for "a future selected
+            state" is finally the thing it was reserved for.
+     fade   40%, toward transparent rather than toward paper. Toward paper the
+            stroke stops being one line over what is behind it and becomes a
+            second, paler colour that only matches while the wash holds still.
+     wash   8%, enough to group the lit controls without filling them.
 
-   When this is settled the winner folds into the base rules and this block —
-   and the tweaks — come out. Scaffolding, not a feature.
+   What this spends: a solid block is findable in peripheral vision and an
+   outline is not, and the interval grid is the control most often read that
+   way. The wash is what buys that back — the stroke alone would not.
    --------------------------------------------------------------------------- */
 :root {
-  --sel-edge: 2px;                                       /* the stroke's weight */
-  --sel-edge-op: 100%;                                   /* …and how present it is */
-  --sel-wash: 10%;                                       /* accent mixed into paper */
+  --sel-wash: 8%;                                   /* accent mixed into paper */
+  --sel-edge-op: 40%;                               /* how present the stroke is */
   --sel-tint: color-mix(in srgb, var(--accent) var(--sel-wash), var(--paper));
-  /* Faded toward transparent rather than toward paper, so the stroke keeps
-     reading as one line laid over whatever is behind it — including its own
-     wash — instead of turning into a second, paler colour that only matches
-     while the wash sits where it is. */
   --sel-stroke: color-mix(in srgb, var(--ctl-on) var(--sel-edge-op), transparent);
 }
-:root[data-sel="stroke"] { --ctl-border: var(--sel-edge); }
 
-:root[data-sel="stroke"] .fig-cell.on,
-:root[data-sel="stroke"] .drill.on {
+/* .cycle.on is the accidental cycle carrying a sharp or a flat — a cycle is
+   normally a value display rather than an on/off, and that one is the
+   exception. */
+.fig-cell.on,
+.opt.on,
+.cycle.on,
+.drill.on {
   background: var(--sel-tint);
   color: var(--ctl-on);
   border-color: var(--sel-stroke);
 }
-:root[data-sel="stroke"] .opt.on {
-  background: var(--sel-tint);
-  border-color: var(--sel-stroke);
-}
-:root[data-sel="stroke"] .drill.on .drill-sub { color: color-mix(in srgb, var(--ctl-on) 78%, transparent); }
-:root[data-sel="stroke"] .drill-row:has(.drill.on) .drill-more { color: var(--ctl-on); }
-
-/* A lit cell the range cannot honour has to stay distinct from a lit cell that
-   is merely outlined, so here it inverts: it keeps a fill and drops its edge,
-   the opposite of its neighbours. Held clear of --sel-wash on purpose — it is
-   not the same idea, and following the dial would let the two collide. */
-:root[data-sel="stroke"] .fig-cell.muted.on {
-  background: color-mix(in srgb, var(--ctl-on) 32%, transparent);
-  border-color: transparent;
-}
+.drill.on .drill-sub { color: color-mix(in srgb, var(--ctl-on) 78%, transparent); }
+.drill-row:has(.drill.on) .drill-more { color: var(--ctl-on); }
 
 /* Muted: the range is too narrow to hold this interval. Off and muted just
    fades back. On and muted keeps the accent as ink and loses the fill — the
