@@ -1391,8 +1391,14 @@ button:active { opacity: 0.7; }
    --------------------------------------------------------------------------- */
 :root {
   --sel-edge: 2px;                                       /* the stroke's weight */
+  --sel-edge-op: 100%;                                   /* …and how present it is */
   --sel-wash: 10%;                                       /* accent mixed into paper */
   --sel-tint: color-mix(in srgb, var(--accent) var(--sel-wash), var(--paper));
+  /* Faded toward transparent rather than toward paper, so the stroke keeps
+     reading as one line laid over whatever is behind it — including its own
+     wash — instead of turning into a second, paler colour that only matches
+     while the wash sits where it is. */
+  --sel-stroke: color-mix(in srgb, var(--ctl-on) var(--sel-edge-op), transparent);
 }
 :root[data-sel="stroke"] { --ctl-border: var(--sel-edge); }
 
@@ -1400,11 +1406,11 @@ button:active { opacity: 0.7; }
 :root[data-sel="stroke"] .drill.on {
   background: var(--sel-tint);
   color: var(--ctl-on);
-  border-color: var(--ctl-on);
+  border-color: var(--sel-stroke);
 }
 :root[data-sel="stroke"] .opt.on {
   background: var(--sel-tint);
-  border-color: var(--ctl-on);
+  border-color: var(--sel-stroke);
 }
 :root[data-sel="stroke"] .drill.on .drill-sub { color: color-mix(in srgb, var(--ctl-on) 78%, transparent); }
 :root[data-sel="stroke"] .drill-row:has(.drill.on) .drill-more { color: var(--ctl-on); }

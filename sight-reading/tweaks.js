@@ -26,7 +26,7 @@
 
   if (!/[?&]tweaks(?:[=&]|$)/.test(location.search)) return;
 
-  var KEY = "sr_tweaks:v18";      // bumped when the defaults move, so a stored
+  var KEY = "sr_tweaks:v19";      // bumped when the defaults move, so a stored
                                  // set of slider values cannot mask the new baseline
                                  // (v16: stores only what moved — see save())
   var FOLD = "sr_tweaks_fold";
@@ -50,7 +50,7 @@
     swScale: 0.63, thumbW: 22, thumbGap: 2, checkRadius: 6,
     // colour
     accentH: 208, accentS: 100, paperWarmth: 18, inkL: 16, chunkAlpha: 0.5,
-    selStyle: 0, selEdge: 2, selWash: 10,
+    selStyle: 0, selEdge: 2, selEdgeOp: 100, selWash: 10,
     // music
     perLine: 6, staffSize: 1, musicFade: 60,
     // onboarding
@@ -153,6 +153,8 @@
         note: "0 filled · 1 stroked — scaffolding, one of these ships" },
       { key: "selEdge",     label: "Selected edge",  min: 1, max: 4, step: 0.5, unit: "px",
         note: "the stroke's weight, when stroked" },
+      { key: "selEdgeOp",   label: "Selected edge fade", min: 10, max: 100, step: 5, unit: "%",
+        note: "how present the stroke is — 100 is the full accent" },
       { key: "selWash",     label: "Selected wash",  min: 0, max: 30, step: 1, unit: "%",
         note: "accent mixed into the paper behind it — the other half of how loud it reads" },
       { key: "paperWarmth", label: "Paper warmth", min: 0, max: 30,  step: 1, unit: "",
@@ -236,7 +238,7 @@
     caretSize: "--caret-size", caretWeight: "--caret-weight",
     bandFold: "--band-fold-ms",
     accentH: "--accent-h", accentS: "--accent-s", paperWarmth: "--paper-warmth",
-    selStyle: "style.css [data-sel]", selEdge: "--sel-edge", selWash: "--sel-wash",
+    selStyle: "style.css [data-sel]", selEdge: "--sel-edge", selEdgeOp: "--sel-edge-op", selWash: "--sel-wash",
     inkL: "--ink-l", chunkAlpha: "--chunk-alpha",
     perLine: "app.js LAYOUT.perLine", staffSize: "app.js LAYOUT.zoomCap",
     musicFade: "--music-fade",
@@ -362,6 +364,7 @@
     // Three treatments, not a scale, so it lands as an attribute rather than a
     // token — the same escape hatch reduce-motion takes below.
     r.setProperty("--sel-edge", state.selEdge + "px");
+    r.setProperty("--sel-edge-op", state.selEdgeOp + "%");
     r.setProperty("--sel-wash", state.selWash + "%");
     if (state.selStyle) el.setAttribute("data-sel", "stroke");
     else el.removeAttribute("data-sel");
