@@ -26,7 +26,7 @@
 
   if (!/[?&]tweaks(?:[=&]|$)/.test(location.search)) return;
 
-  var KEY = "sr_tweaks:v20";      // bumped when the defaults move, so a stored
+  var KEY = "sr_tweaks:v21";      // bumped when the defaults move, so a stored
                                  // set of slider values cannot mask the new baseline
                                  // (v16: stores only what moved — see save())
   var FOLD = "sr_tweaks_fold";
@@ -50,6 +50,7 @@
     swScale: 0.63, thumbW: 22, thumbGap: 2, checkRadius: 6,
     // colour
     accentH: 208, accentS: 100, paperWarmth: 18, inkL: 16, chunkAlpha: 0.5,
+    selEdge: 2, selEdgeOp: 40, selHue: 0, selWash: 8,
     // music
     perLine: 6, staffSize: 1, musicFade: 60,
     // onboarding
@@ -148,6 +149,14 @@
         note: "everything selected takes this" },
       { key: "accentS",     label: "Accent punch", min: 0, max: 100, step: 1, unit: "%",
         note: "saturation — 0 is a grey UI" },
+      { key: "selEdge",     label: "Selected edge",  min: 1, max: 4, step: 0.5, unit: "px",
+        note: "drives --ctl-border, so lit and unlit keep the same box and nothing reflows" },
+      { key: "selEdgeOp",   label: "Selected edge fade", min: 10, max: 100, step: 5, unit: "%",
+        note: "how present the stroke is — 100 is the full accent" },
+      { key: "selHue",      label: "Selected edge hue", min: -180, max: 180, step: 5, unit: "°",
+        note: "offset from the accent, so 0 keeps the two locked together" },
+      { key: "selWash",     label: "Selected wash",  min: 0, max: 30, step: 1, unit: "%",
+        note: "accent mixed into the paper behind it — the other half of how loud it reads" },
       { key: "paperWarmth", label: "Paper warmth", min: 0, max: 30,  step: 1, unit: "",
         note: "0 is white; a little gives manuscript cream" },
       { key: "inkL",        label: "Ink lightness", min: 0, max: 40, step: 1, unit: "%",
@@ -229,6 +238,8 @@
     caretSize: "--caret-size", caretWeight: "--caret-weight",
     bandFold: "--band-fold-ms",
     accentH: "--accent-h", accentS: "--accent-s", paperWarmth: "--paper-warmth",
+    selEdge: "--ctl-border", selEdgeOp: "--sel-edge-op", selHue: "--sel-hue",
+    selWash: "--sel-wash",
     inkL: "--ink-l", chunkAlpha: "--chunk-alpha",
     perLine: "app.js LAYOUT.perLine", staffSize: "app.js LAYOUT.zoomCap",
     musicFade: "--music-fade",
@@ -351,6 +362,12 @@
     r.setProperty("--paper-warmth", String(state.paperWarmth));
     r.setProperty("--ink-l",        state.inkL + "%");
     r.setProperty("--chunk-alpha",  String(state.chunkAlpha));
+    // The width is the reserved border on EVERY control, not a property of the
+    // lit one: widening only the lit one would resize a cell as you tapped it.
+    r.setProperty("--ctl-border",   state.selEdge + "px");
+    r.setProperty("--sel-edge-op",  state.selEdgeOp + "%");
+    r.setProperty("--sel-hue",      String(state.selHue));
+    r.setProperty("--sel-wash",     state.selWash + "%");
 
     r.setProperty("--music-fade", state.musicFade + "px");
 

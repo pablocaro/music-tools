@@ -678,6 +678,26 @@ button.playing svg.state-alt { display: block; }
   gap: calc(10px * var(--density));
 }
 
+/* A switch always sits at the right end of its own row, with what it turns on
+   named at the left — the arrangement every settings app has taught people to
+   read, and the one exception to "a label sits above what it labels". The label
+   is the section's own heading when the switch IS the section's subject
+   (Musicality, Highlight Patterns) and a caption of its own when the switch is
+   one control among several (Chord Names). Either way the caption styling is
+   identical, so the two cases read as one pattern.
+
+   Everything that is not a switch stacks: caption above, control below. That
+   was already true of nine sections and false of two, and the two were invisible
+   in the CSS because .fig-h was one class doing both jobs — an <h2> above a grid
+   and a <span> beside a row — with nothing but the tag name telling them apart. */
+.sw-row {
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+.sw-row .sec-h,
+.sw-row .fig-h { margin-bottom: 0; }
+
 /* Section heading — the caption style shared with the old group summaries. */
 .sec-h {
   font-size: var(--type-caption);
@@ -1145,7 +1165,6 @@ button:active { opacity: 0.7; }
 /* Caption then control on one line, the way the Ties row reads. .fig-h carries
    a bottom margin for the case where it sits above its grid, which here would
    push the label off the switch's centre line. */
-.chordnames-row .fig-h { margin-bottom: 0; }
 
 .drill-acts {
   display: flex;
@@ -1317,9 +1336,6 @@ button:active { opacity: 0.7; }
    as do the preset field and the hidden input: presets already saved in
    localStorage carry that key, and renaming it would silently drop the
    setting on every one of them. Only the word the player reads changed. */
-.bowing-row { align-items: center; gap: 12px; margin-top: 2px; }
-.bowing-row .fig-h { margin-bottom: 0; }
-.bowing-row > div { display: flex; flex-wrap: wrap; gap: 8px; }
 
 .fig-grid {
   display: grid;
@@ -1380,8 +1396,13 @@ button:active { opacity: 0.7; }
 :root {
   --sel-wash: 8%;                                   /* accent mixed into paper */
   --sel-edge-op: 40%;                               /* how present the stroke is */
+  /* A hue OFFSET, not a colour: at 0 the stroke is the accent, and moving the
+     accent carries it along. Naming an absolute colour here would let the two
+     drift apart the moment the accent hue is touched. */
+  --sel-hue: 0;
+  --sel-edge-hue: hsl(calc(var(--accent-h) + var(--sel-hue)) var(--accent-s) var(--accent-l));
   --sel-tint: color-mix(in srgb, var(--accent) var(--sel-wash), var(--paper));
-  --sel-stroke: color-mix(in srgb, var(--ctl-on) var(--sel-edge-op), transparent);
+  --sel-stroke: color-mix(in srgb, var(--sel-edge-hue) var(--sel-edge-op), transparent);
 }
 
 /* .cycle.on is the accidental cycle carrying a sharp or a flat — a cycle is

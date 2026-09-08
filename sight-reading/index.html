@@ -270,10 +270,8 @@
                  reader has to carry the sound across instead of re-attacking,
                  which is a skill of its own — and it's exercise content, so
                  presets carry it. -->
-            <div class="sec-row bowing-row">
-              <span class="fig-h" data-i18n="lbl.ties">Ties</span>
-              <div id="ties-pills"></div>
-            </div>
+            <h2 class="fig-h" data-i18n="lbl.ties">Ties</h2>
+            <div class="sec-row" id="ties-pills"></div>
           </section>
         </div>
       </div>
@@ -335,8 +333,8 @@
                  switch directly above them, so the collapse happens under the
                  finger that caused it and reads as consequence. -->
             <section class="sec sec-musicality">
-              <h2 class="sec-h" data-i18n="sec.musicality">Musicality</h2>
-              <div class="sec-row">
+              <div class="sec-row sw-row">
+                <h2 class="sec-h" data-i18n="sec.musicality">Musicality</h2>
                 <button id="musicality-toggle" class="sw" type="button" role="switch" aria-checked="true"
                         aria-label="Musicality" data-i18n-aria="aria.musicality"><span class="sw-knob"></span></button>
               </div>
@@ -344,7 +342,7 @@
                 <!-- Which chords the bars sit on. Roman numerals are
                      language-neutral, so no i18n keys. -->
                 <div class="sec-row" id="progression-pills"></div>
-                <div class="sec-row chordnames-row">
+                <div class="sec-row sw-row">
                   <span class="fig-h" data-i18n="sec.chordNames">Chord Names</span>
                   <button id="chords-toggle" class="sw" type="button" role="switch" aria-checked="false"
                           aria-label="Show chord names" data-i18n-aria="aria.chordNames"><span class="sw-knob"></span></button>
@@ -391,10 +389,12 @@
 
 
           <section class="sec sec-chunks">
-            <h2 class="sec-h" data-i18n="sec.chunks">Highlight Patterns</h2>
-            <div class="sec-row">
+            <div class="sec-row sw-row">
+              <h2 class="sec-h" data-i18n="sec.chunks">Highlight Patterns</h2>
               <button id="chunks-toggle" class="sw" type="button" role="switch" aria-checked="false"
                       aria-label="Show chunk highlights" data-i18n-aria="aria.chunks"><span class="sw-knob"></span></button>
+            </div>
+            <div class="sec-row">
               <span class="legend">
                 <span class="legend-item"><span class="swatch swatch-step"></span> <span data-i18n="legend.steps">steps</span></span>
                 <span class="legend-item"><span class="swatch swatch-leap"></span> <span data-i18n="legend.leaps">leaps</span></span>
