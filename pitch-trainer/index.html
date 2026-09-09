@@ -1130,11 +1130,16 @@ function applyHeader() {
 // Audio
 // ─────────────────────────────────────────────────────────────
 let audioCtx = null;
+let pluckWave = null;      // custom harmonic content, built once and reused across notes
+// A few soft overtones on top of the fundamental — index = harmonic number, [0] is the
+// required-empty DC slot. Keeps the tone from reading as a bare, thin sine.
+const PLUCK_HARMONICS = [0, 1, 0.28, 0.14, 0.07, 0.04];
 const stringFreqs = [440, 440];
 const activeNotes = [null, null]; // currently-ringing {osc,gain} per string, for re-pluck damping
 
 function initAudio() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (!pluckWave) pluckWave = audioCtx.createPeriodicWave(new Float32Array(PLUCK_HARMONICS.length), new Float32Array(PLUCK_HARMONICS));
   if (audioCtx.state === 'suspended') audioCtx.resume(); // fire-and-forget pre-warm
 }
 async function playTone(freq, idx) {
@@ -1155,10 +1160,13 @@ async function playTone(freq, idx) {
       prev.osc.stop(now + 0.08);
     } catch(e) {}
   }
-  const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
-  osc.connect(gain); gain.connect(audioCtx.destination);
-  osc.type = 'sine';                                          // clean tone (matches the piano prototype)
+  const osc = audioCtx.createOscillator(), filter = audioCtx.createBiquadFilter(), gain = audioCtx.createGain();
+  osc.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+  osc.setPeriodicWave(pluckWave);                             // soft overtones instead of a bare sine
   osc.frequency.setValueAtTime(freq, now);                    // no pitch glide
+  filter.type = 'lowpass'; filter.Q.value = 0.7;
+  filter.frequency.setValueAtTime(freq * 6, now);                          // bright at the pluck
+  filter.frequency.exponentialRampToValueAtTime(freq * 2, now + soundTail); // darkens as it rings out
   gain.gain.value = 0; // ensure 0 before any scheduled ramps
   gain.gain.setValueAtTime(0, now);
   gain.gain.linearRampToValueAtTime(0.34, now + 0.028);                        // soft attack
