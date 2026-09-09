@@ -370,20 +370,24 @@
         </button>
         <div class="band-body" id="bb-reading">
           <section class="sec sec-hide">
-            <h2 class="sec-h" data-i18n="sec.hideAhead">Hide Ahead</h2>
+            <div class="sec-row sw-row">
+              <h2 class="sec-h" data-i18n="sec.hideAhead">Hide Ahead</h2>
+              <button id="hide-toggle" class="sw" type="button" role="switch" aria-checked="false"
+                      aria-label="Hide ahead" data-i18n-aria="aria.hideAhead"><span class="sw-knob"></span></button>
+            </div>
+            <div class="sec-deps" id="hide-deps" hidden>
             <div class="sec-row unit">
               <div class="stepper stepper-fit">
-                <!-- .is-word from the start: the readout opens on "Off", and a
-                     second class attribute here was silently dropped by the
-                     parser, so the word rendered at value weight until the
-                     first sync ran. One attribute, both classes. -->
-                <span class="stepper-val is-word" id="hide-val" data-i18n="val.off">Off</span>
+                <!-- The switch owns off now, so this only ever shows a number
+                     and never a word. -->
+                <span class="stepper-val" id="hide-val">1</span>
                 <span class="step-pair">
                   <button id="hide-down" class="step-btn" type="button" aria-label="Less" data-i18n-aria="aria.less">&#8722;</button>
                   <button id="hide-up" class="step-btn" type="button" aria-label="More" data-i18n-aria="aria.more">+</button>
                 </span>
               </div>
               <button id="hide-unit" class="cycle" type="button" aria-label="Hide ahead unit" data-i18n-aria="aria.hideUnit" data-i18n="val.beats">Beats</button>
+            </div>
             </div>
           </section>
 
@@ -394,7 +398,7 @@
               <button id="chunks-toggle" class="sw" type="button" role="switch" aria-checked="false"
                       aria-label="Show chunk highlights" data-i18n-aria="aria.chunks"><span class="sw-knob"></span></button>
             </div>
-            <div class="sec-row">
+            <div class="sec-row" id="chunks-deps" hidden>
               <span class="legend">
                 <span class="legend-item"><span class="swatch swatch-step"></span> <span data-i18n="legend.steps">steps</span></span>
                 <span class="legend-item"><span class="swatch swatch-leap"></span> <span data-i18n="legend.leaps">leaps</span></span>
@@ -526,6 +530,7 @@
             <button class="sw js-accomp" type="button" role="switch" aria-checked="false"
                     aria-label="Accompaniment on/off" data-i18n-aria="aria.accomp"><span class="sw-knob"></span></button>
           </div>
+          <div class="pop-deps" id="accomp-deps">
           <div class="pop-row">
             <span class="pop-label" data-i18n="lbl.melody">Melody</span>
             <!-- Five voices are too many to cycle and too wide to lay out as
@@ -549,6 +554,7 @@
           <div class="pop-row">
             <span class="pop-label" data-i18n="lbl.volume">Volume</span>
             <input type="range" class="stepper-range" id="volume-ui" min="0" max="100" step="5" value="80" aria-label="Volume" data-i18n-aria="aria.volume">
+          </div>
           </div>
         </div>
       </div>

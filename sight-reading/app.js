@@ -2555,6 +2555,10 @@
     document.querySelectorAll(".js-accomp, .js-accomp-face").forEach(function (b) {
       setSwitch(b, playAlongEl.checked);
     });
+    // Melody, comping and volume are what Sound turns on, so they follow the
+    // same rule the panel's switches follow: off means not present.
+    var deps = document.getElementById("accomp-deps");
+    if (deps) deps.hidden = !playAlongEl.checked;
   }
   function syncTransport() { syncMetroPill(); syncAccompBtn(); }
 
@@ -3656,6 +3660,8 @@
   var clefCycleEl  = document.getElementById("clef-cycle");
   var timesigPillsEl = document.getElementById("timesig-pills");
   var hideUnitEl   = document.getElementById("hide-unit");
+  var hideBtnEl    = document.getElementById("hide-toggle");
+  var hideDepsEl   = document.getElementById("hide-deps");
   var hideValEl    = document.getElementById("hide-val");
   var chunksBtnEl  = document.getElementById("chunks-toggle");
   var chordsBtnEl  = document.getElementById("chords-toggle");
@@ -3784,14 +3790,15 @@
   // checkbox, so any value above 0 means hiding is on with that much lead.
   function hideUnitIsMeasures() { return hideUnitEl.dataset.unit === "measures"; }
   function syncHide() {
-    var n = parseInt(hideValEl.dataset.n, 10) || 0;
-    hideValEl.textContent = n === 0 ? t("val.off") : String(n);
-    // Weight marks a number; a word is a label whatever element it sits in.
-    // Without this, this "Off" sat bold beside three cycle "Off"s at base
-    // weight and read as a different control.
-    hideValEl.classList.toggle("is-word", n === 0);
+    var n = parseInt(hideValEl.dataset.n, 10) || 1;
+    // Only ever a number now: "off" moved to the switch, so the stepper counts
+    // from 1 and there is one place saying whether the curtain is down.
+    hideValEl.textContent = String(n);
     hideUnitEl.textContent = hideUnitIsMeasures() ? t("val.measures") : t("val.beats");
-    hideBehindEl.checked = n > 0;
+    // The switch is the state, not a readout of the stepper — this used to run
+    // the other way (checked = n > 0), which is why "off" had two homes.
+    setSwitch(hideBtnEl, hideBehindEl.checked);
+    if (hideDepsEl) hideDepsEl.hidden = !hideBehindEl.checked;
     // The stepper's number is in whatever unit is showing; the lead is always
     // in the clock's quarter-note units. Clamping the product by the stepper's
     // own limit made every setting above two measures behave like two, and
@@ -3801,16 +3808,20 @@
     // without a second clamp.
     hideLeadEl.value = n * unitBeats();
   }
+  // Floors at 1: the stepper cannot say "off" any more, so a decrement past the
+  // bottom simply stops rather than silently turning the feature off from a
+  // control that no longer owns that.
   function setHide(n, unit) {
-    hideValEl.dataset.n = Math.max(0, Math.min(hideMaxN(), n));
+    hideValEl.dataset.n = Math.max(1, Math.min(hideMaxN(), n));
     if (unit) hideUnitEl.dataset.unit = unit;
     syncHide();
   }
-  // Restore the stepper from the stored beats-lead + on/off flag.
+  // Restore the stepper from the stored beats-lead. The lead keeps its last
+  // value while the switch is off, so turning it back on comes back where you
+  // left it rather than at 1.
   function hideFromState() {
     var lead = parseFloat(hideLeadEl.value) || 0;
-    if (!hideBehindEl.checked) { setHide(0); return; }
-    setHide(Math.max(1, Math.round(lead / unitBeats())));
+    setHide(lead > 0 ? Math.round(lead / unitBeats()) : 1);
   }
 
   // The pill shows the chosen voice; the hidden <select> holds it. Same split
@@ -3825,7 +3836,13 @@
   }
   // No textContent any more: these read "On"/"Off" while they were pills, and a
   // switch is its own readout.
-  function syncChunks() { setSwitch(chunksBtnEl, showChunksEl.checked); }
+  function syncChunks() {
+    setSwitch(chunksBtnEl, showChunksEl.checked);
+    // The legend names two colours that are not on the staff when the switch is
+    // off, so it goes with them.
+    var deps = document.getElementById("chunks-deps");
+    if (deps) deps.hidden = !showChunksEl.checked;
+  }
   function syncChordsBtn() { setSwitch(chordsBtnEl, showChordsEl.checked); }
 
   // The progression and the chord names are only meaningful once the harmony
@@ -5118,11 +5135,22 @@
     volumeUiEl.addEventListener("change", persistSession);
 
     // --- hide ahead ---
+    hideBtnEl.addEventListener("click", function () {
+      hideBehindEl.checked = !hideBehindEl.checked;
+      // Coming back on lands where you left it, which hideFromState reads off
+      // the lead — the lead is left alone while off precisely so it can.
+      if (hideBehindEl.checked) hideFromState();
+      else syncHide();
+      // The curtain is drawn from the live session, so a running line has to be
+      // redrawn rather than waiting for the next note.
+      if (session) syncHighlights(Math.max(0, session.hideState));
+      persistSession();
+    });
     document.getElementById("hide-down").addEventListener("click", function () {
-      setHide((parseInt(hideValEl.dataset.n, 10) || 0) - 1); persistSession();
+      setHide((parseInt(hideValEl.dataset.n, 10) || 1) - 1); persistSession();
     });
     document.getElementById("hide-up").addEventListener("click", function () {
-      setHide((parseInt(hideValEl.dataset.n, 10) || 0) + 1); persistSession();
+      setHide((parseInt(hideValEl.dataset.n, 10) || 1) + 1); persistSession();
     });
     hideUnitEl.addEventListener("click", function () {
       // Convert, don't reinterpret. The number on the stepper means something
@@ -5132,7 +5160,7 @@
       var lead = parseFloat(hideLeadEl.value) || 0;        // clock units (quarters)
       var toMeasures = !hideUnitIsMeasures();
       hideUnitEl.dataset.unit = toMeasures ? "measures" : "beats";
-      if (lead > 0) setHide(Math.max(1, Math.round(lead / unitBeats())));
+      if (lead > 0) setHide(Math.round(lead / unitBeats()));
       else syncHide();
       persistSession();
     });

@@ -698,6 +698,13 @@ button.playing svg.state-alt { display: block; }
 .sw-row .sec-h,
 .sw-row .fig-h { margin-bottom: 0; }
 
+/* A switch's children are not on the panel while it is off. The switch is the
+   row directly above them, so the collapse happens under the finger that caused
+   it and reads as consequence rather than as something disappearing. Used by
+   Musicality, Hide Ahead, Highlight Patterns' legend, and Play Along's rows. */
+.pop-deps[hidden],
+.sec-row[hidden] { display: none; }
+
 /* Section heading — the caption style shared with the old group summaries. */
 .sec-h {
   font-size: var(--type-caption);

@@ -46,12 +46,24 @@ const { chromium } = require(PW);
   for (const [meter,unit,n,q] of [['4/4','beats',1,1], ['4/4','measures',1,4],
                                   ['6/8','beats',1,1.5], ['6/8','measures',1,3]]) {
     await setMeter(meter); await p.waitForTimeout(1300);
+    // The switch owns on/off now, and the stepper is not even in the DOM flow
+    // while it is off — so turning the curtain on by clicking + no longer
+    // works. It did not fail, either: the run stayed green and every row
+    // reported "distinct hidden counts 1", a curtain that never moved.
     await p.evaluate(([uu,nn])=>{
+      const sw = document.getElementById('hide-toggle');
+      if (document.getElementById('hide-behind').checked !== true) sw.click();
       document.getElementById('hide-unit').dataset.unit=uu;
-      const v=document.getElementById('hide-val'); v.dataset.n='0';
-      for(let i=0;i<nn;i++) document.getElementById('hide-up').click();
+      const v=document.getElementById('hide-val');
+      const cur = parseInt(v.dataset.n,10)||1;
+      for(let i=cur;i<nn;i++) document.getElementById('hide-up').click();
+      for(let i=cur;i>nn;i--) document.getElementById('hide-down').click();
     },[unit,n]);
     await p.waitForTimeout(700);
+    const armed = await p.evaluate(()=>({on:document.getElementById('hide-behind').checked,
+      n:document.getElementById('hide-val').textContent.trim(),
+      lead:document.getElementById('hide-lead').value}));
+    if (!armed.on || +armed.lead <= 0) throw new Error('curtain not armed: '+JSON.stringify(armed));
     const ons = await onsets();
     // every hideCount reachable by a quantised edge
     const valid = new Set();
