@@ -25,6 +25,12 @@ node sight-reading/test/drills-ui.js   # the drills band: edited state, park/res
 Screenshots land in `test/out/` (gitignored). `PW` / `CHROMIUM` env vars
 override the playwright and browser paths.
 
+`?tweaks` opens the design panel; right-clicking any element there opens an
+inspector holding only the tweaks that shape it. If you drive that from a
+harness, dispatch a real `contextmenu` MouseEvent rather than
+`click({button:'right'})` — the panel floats over the page, so Playwright's
+actionability check times out on anything underneath it.
+
 `drills.js` is not a test — it is the shared way to reach a drill, and every
 harness that needs one goes through it. The band shows three rows, so anything
 else lives behind the All drills page; `pickDrill` finds it either way and

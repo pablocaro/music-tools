@@ -20,6 +20,10 @@
 
    The panel is styled in literal px on purpose. It reads none of the tokens it
    drives — otherwise dragging density would deform the slider under the cursor.
+
+   Right-click (or long-press) anything on the page for an inspector holding
+   just the tweaks that shape it — see wireInspector below. The list is computed
+   from the stylesheets rather than written down, so it never needs updating.
    --------------------------------------------------------------------------- */
 (function () {
   "use strict";
@@ -512,7 +516,330 @@
     "#tw-foot button:hover,#tw-foot button:active{opacity:1}" +
     "#tw-copy{background:#0a84ff;color:#fff}" +
     "#tw-reset{background:#f0f0f3;color:#1a1a1a;flex:0 0 auto;padding:9px 12px}" +
-    "#tw-reset:hover{background:#e4e4e9}";
+    "#tw-reset:hover{background:#e4e4e9}" +
+    "#tw-insp{position:fixed;z-index:100000;width:260px;max-height:70vh;overflow:auto;" +
+      "padding:10px 12px 12px;border-radius:12px;background:#fff;color:#1a1a1a;" +
+      "box-shadow:0 8px 30px rgba(0,0,0,.22);font-family:inherit}" +
+    ".tw-insp-h{display:flex;align-items:center;justify-content:space-between;gap:8px;" +
+      "margin-bottom:8px;font-size:11px}" +
+    ".tw-insp-h b{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;" +
+      "overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
+    ".tw-insp-h button{border:none;background:none;font-size:15px;line-height:1;cursor:pointer;color:#8e8e93}" +
+    "#tw-insp .tw-c{margin-bottom:10px}" +
+    /* Inherited from an ancestor rather than named on the element itself: still
+       shapes it, still worth reaching, but not what you right-clicked for. */
+    "#tw-insp .tw-inherited{opacity:.62}";
+
+  // One control, drawn from its spec. Extracted so the right-click inspector
+  // can render the same row the panel does — a control that behaved slightly
+  // differently depending on where you found it would be worse than no
+  // inspector at all.
+  var syncers = [];   // pull each control back to state — used by Reset
+  function controlRow(c) {
+      var row = document.createElement("div");
+      row.className = "tw-c";
+
+      var lab = document.createElement("div");
+      lab.className = "tw-l";
+      var lname = document.createElement("span");
+      lname.textContent = c.label;
+      var lval = document.createElement("span");
+      lval.textContent = shown(c.key, state[c.key]);
+      lab.appendChild(lname);
+      lab.appendChild(lval);
+      row.appendChild(lab);
+
+      var commit = function (v) {
+        state[c.key] = v;
+        apply();
+        save();
+        if (c.re) nudge();
+        // Every control on this key, this one included. Setting a slider to
+        // the value it already holds is a no-op, so there is no need to
+        // exclude self and risk missing a second copy of the same dial.
+        syncers.forEach(function (sy) { if (sy.key === c.key) sy.fn(); });
+      };
+
+      var input;
+      if (c.kind === "switch") {
+        input = document.createElement("button");
+        input.type = "button";
+        input.className = "tw-sw";
+        input.setAttribute("aria-label", c.label);
+        var paint = function () {
+          input.classList.toggle("on", !!state[c.key]);
+          input.setAttribute("aria-pressed", state[c.key] ? "true" : "false");
+        };
+        input.addEventListener("click", function () { commit(state[c.key] ? 0 : 1); });
+        paint();
+        lval.textContent = "";           // the switch *is* the readout
+        lab.appendChild(input);          // and it sits on its label's row
+        syncers.push({ key: c.key, fn: paint });
+      } else {
+        input = document.createElement("input");
+        input.type = "range";
+        input.min = c.min; input.max = c.max; input.step = c.step;
+        input.value = state[c.key];
+        input.setAttribute("aria-label", c.label);
+        input.addEventListener("input", function () { commit(parseFloat(input.value)); });
+        row.appendChild(input);
+        syncers.push({ key: c.key, fn: function () {
+          input.value = state[c.key];
+          lval.textContent = shown(c.key, state[c.key]);
+        } });
+      }
+
+      if (c.note) {
+        var n = document.createElement("small");
+        n.className = "tw-n";
+        n.textContent = c.note;
+        row.appendChild(n);
+      }
+    return row;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Inspector — right-click anything and get the tweaks that actually shape it.
+  //
+  // The map from element to controls is COMPUTED, not written down. A hand
+  // list would be right the day it was written and quietly wrong after the
+  // next token: the failure mode is a missing slider that looks like the
+  // element simply has no tweaks. So instead: walk the stylesheets, keep the
+  // rules this element matches, read the var(--x) references straight out of
+  // their declarations, and map those back through TOKEN. Add a token to a
+  // rule and the inspector finds it with nothing to remember.
+  //
+  // getComputedStyle cannot do this — it hands back resolved values with every
+  // var() already substituted, so the thing being asked for is exactly what it
+  // throws away. The CSSOM keeps the raw text.
+  // ---------------------------------------------------------------------------
+  var BY_TOKEN = null;
+  function tokenIndex() {
+    if (BY_TOKEN) return BY_TOKEN;
+    BY_TOKEN = {};
+    for (var k in TOKEN) if (TOKEN[k].slice(0, 2) === "--") BY_TOKEN[TOKEN[k]] = k;
+    return BY_TOKEN;
+  }
+
+  // Which custom property is built out of which. The panel drives BASE tokens
+  // (--fs-0-base, --accent-h) while the rules that style things name DERIVED
+  // ones (--type-micro, --sel-tint), often several hops up:
+  //     .fig-cell .wt { font-size: var(--type-micro) }
+  //     --type-micro: var(--fs-0)
+  //     --fs-0: calc(var(--fs-0-base) * var(--type-scale))
+  // Matching a rule's tokens straight against TOKEN therefore finds almost
+  // nothing — the first version of this reported zero controls for every
+  // element on the page and looked like a broken selector match. So the graph
+  // gets built once and walked to the leaves the panel actually owns.
+  var DERIVES = null;
+  function derivations() {
+    if (DERIVES) return DERIVES;
+    DERIVES = {};
+    eachRule(function (rule) {
+      var st = rule.style;
+      for (var i = 0; i < st.length; i++) {
+        var prop = st[i];
+        if (prop.slice(0, 2) !== "--") continue;
+        var refs = st.getPropertyValue(prop).match(/var\(\s*--[\w-]+/g) || [];
+        var list = DERIVES[prop] || (DERIVES[prop] = []);
+        refs.forEach(function (r) {
+          var tok = r.replace(/var\(\s*/, "");
+          if (list.indexOf(tok) < 0) list.push(tok);
+        });
+      }
+    });
+    return DERIVES;
+  }
+
+  // Every panel key a token bottoms out at. Depth-capped and cycle-guarded:
+  // custom properties are allowed to reference each other in ways that make a
+  // naive walk spin.
+  function resolve(tok, seen, depth) {
+    seen = seen || {};
+    if (seen[tok] || (depth || 0) > 6) return [];
+    seen[tok] = 1;
+    var byToken = tokenIndex();
+    if (byToken[tok]) return [byToken[tok]];
+    var out = [], next = derivations()[tok] || [];
+    for (var i = 0; i < next.length; i++) {
+      var got = resolve(next[i], seen, (depth || 0) + 1);
+      for (var j = 0; j < got.length; j++) if (out.indexOf(got[j]) < 0) out.push(got[j]);
+    }
+    return out;
+  }
+
+  // One walk over every rule in every reachable sheet, including nested ones.
+  //
+  // Note the shape of the test. "If it has cssRules it is a group rule, so
+  // recurse instead of reading it" is the classic walk and it is now wrong:
+  // since CSS Nesting shipped, an ordinary CSSStyleRule carries a cssRules
+  // list too — usually empty. Written that way this skipped 387 of the 400
+  // rules on the page and reported that nothing on screen had any tweaks,
+  // which reads as a broken selector match rather than a broken walk. A rule
+  // can both carry declarations and hold children, so both are checked.
+  function eachRule(fn) {
+    var sheets = document.styleSheets;
+    for (var i = 0; i < sheets.length; i++) {
+      var rules;
+      try { rules = sheets[i].cssRules; } catch (e) { continue; }   // cross-origin
+      if (!rules) continue;
+      (function walk(list) {
+        for (var r = 0; r < list.length; r++) {
+          var rule = list[r];
+          if (rule.style) fn(rule);
+          if (rule.cssRules && rule.cssRules.length) walk(rule.cssRules);
+        }
+      })(rules);
+    }
+  }
+  function specFor(key) {
+    for (var i = 0; i < SETS.length; i++) {
+      for (var j = 0; j < SETS[i].controls.length; j++) {
+        if (SETS[i].controls[j].key === key) return SETS[i].controls[j];
+      }
+    }
+    return null;
+  }
+
+  // Roughly CSS specificity — enough to rank "this element's own rule" above
+  // "something that styles half the app". Exact weights do not matter; the
+  // order does.
+  function weigh(sel) {
+    return (sel.match(/#[\w-]+/g) || []).length * 100 +
+           (sel.match(/\.[\w-]+|\[[^\]]+\]|:[\w-]+/g) || []).length * 10 +
+           (sel.match(/(^|[\s>+~])[a-z]+/gi) || []).length;
+  }
+
+  function rulesFor(el) {
+    var hits = [];
+    eachRule(function (rule) {
+      if (!rule.selectorText) return;
+      // A selector list can hold one part that matches and several that do
+      // not; only the matching part should lend its weight.
+      var parts = rule.selectorText.split(","), best = -1;
+      for (var q = 0; q < parts.length; q++) {
+        var sel = parts[q].trim();
+        var ok = false;
+        try { ok = el.matches(sel); } catch (e) { ok = false; }
+        if (ok) best = Math.max(best, weigh(sel));
+      }
+      if (best >= 0) hits.push({ rule: rule, w: best });
+    });
+    return hits;
+  }
+
+  // Which tweaks shape this element, best first. `own` marks a token named by a
+  // rule that targets the element itself rather than one it inherits from —
+  // --density feeds nearly every calc in the app, so without this every element
+  // would answer with the same handful of panel-wide dials at the top.
+  function tweaksFor(el, cap) {
+    var found = {};
+    for (var node = el, depth = 0; node && node.nodeType === 1 && depth < 6; node = node.parentElement, depth++) {
+      var hits = rulesFor(node);
+      for (var h = 0; h < hits.length; h++) {
+        // cssText, not the property list: a shorthand carrying a var() —
+        // "border: var(--ctl-border) solid transparent" — serialises its
+        // longhands as empty strings, so iterating properties loses exactly
+        // the declarations this is looking for.
+        var refs = hits[h].rule.style.cssText.match(/var\(\s*--[\w-]+/g);
+        if (!refs) continue;
+        for (var v = 0; v < refs.length; v++) {
+          var tok = refs[v].replace(/var\(\s*/, "");
+          var keys = resolve(tok);
+          for (var kk = 0; kk < keys.length; kk++) {
+            var key = keys[kk];
+            if (!specFor(key)) continue;
+            var score = hits[h].w - depth * 40;
+            if (!found[key] || found[key].score < score) {
+              found[key] = { key: key, score: score, own: depth === 0 };
+            }
+          }
+        }
+      }
+    }
+    var out = [];
+    for (var k in found) out.push(found[k]);
+    out.sort(function (a, b) { return b.score - a.score; });
+    return out.slice(0, cap || 8);
+  }
+
+  function describe(el) {
+    var s = el.tagName.toLowerCase();
+    if (el.id) s += "#" + el.id;
+    var cls = (el.getAttribute("class") || "").trim().split(/\s+/).filter(Boolean).slice(0, 2);
+    if (cls.length) s += "." + cls.join(".");
+    return s;
+  }
+
+  function openInspector(el, x, y) {
+    closeInspector();
+    var found = tweaksFor(el);
+    var box = document.createElement("div");
+    box.id = "tw-insp";
+
+    var head = document.createElement("div");
+    head.className = "tw-insp-h";
+    var what = document.createElement("b");
+    what.textContent = describe(el);
+    var shut = document.createElement("button");
+    shut.type = "button"; shut.textContent = "×"; shut.title = "Close";
+    shut.addEventListener("click", closeInspector);
+    head.appendChild(what);
+    head.appendChild(shut);
+    box.appendChild(head);
+
+    if (!found.length) {
+      var none = document.createElement("small");
+      none.className = "tw-n";
+      none.textContent = "No tweaked tokens reach this element. Try its parent.";
+      box.appendChild(none);
+    } else {
+      found.forEach(function (f) {
+        var row = controlRow(specFor(f.key));
+        if (!f.own) row.classList.add("tw-inherited");
+        box.appendChild(row);
+      });
+    }
+    document.body.appendChild(box);
+
+    // Placed after insertion, when it has a size to place.
+    var r = box.getBoundingClientRect();
+    var left = Math.min(x + 8, window.innerWidth - r.width - 8);
+    var top = Math.min(y + 8, window.innerHeight - r.height - 8);
+    box.style.left = Math.max(8, left) + "px";
+    box.style.top = Math.max(8, top) + "px";
+  }
+  function closeInspector() {
+    var old = document.getElementById("tw-insp");
+    if (old) old.remove();
+  }
+
+  function wireInspector() {
+    document.addEventListener("contextmenu", function (e) {
+      if (e.target.closest("#tw, #tw-insp")) return;   // the panel is not the subject
+      e.preventDefault();
+      openInspector(e.target, e.clientX, e.clientY);
+    });
+    // Trackpads and phones have no right-click, so a long press does the same.
+    var timer = null, moved = false;
+    document.addEventListener("pointerdown", function (e) {
+      if (e.pointerType === "mouse" || e.target.closest("#tw, #tw-insp")) return;
+      moved = false;
+      timer = setTimeout(function () {
+        if (!moved) openInspector(e.target, e.clientX, e.clientY);
+      }, 550);
+    });
+    document.addEventListener("pointermove", function () { moved = true; });
+    ["pointerup", "pointercancel"].forEach(function (ev) {
+      document.addEventListener(ev, function () { clearTimeout(timer); });
+    });
+    document.addEventListener("click", function (e) {
+      if (!e.target.closest("#tw-insp")) closeInspector();
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") closeInspector();
+    });
+  }
 
   function build() {
     var style = document.createElement("style");
@@ -535,8 +862,6 @@
 
     var body = document.createElement("div");
     body.id = "tw-body";
-
-    var syncers = [];   // pull each control back to state — used by Reset
 
     // Rendered from SETS — this loop never names an individual control. Sets
     // fold independently, which is what keeps twenty controls navigable: the
@@ -575,65 +900,7 @@
       });
       draw();
 
-      set.controls.forEach(function (c) {
-        var row = document.createElement("div");
-        row.className = "tw-c";
-
-        var lab = document.createElement("div");
-        lab.className = "tw-l";
-        var lname = document.createElement("span");
-        lname.textContent = c.label;
-        var lval = document.createElement("span");
-        lval.textContent = shown(c.key, state[c.key]);
-        lab.appendChild(lname);
-        lab.appendChild(lval);
-        row.appendChild(lab);
-
-        var commit = function (v) {
-          state[c.key] = v;
-          lval.textContent = shown(c.key, state[c.key]);
-          apply();
-          save();
-          if (c.re) nudge();
-        };
-
-        var input;
-        if (c.kind === "switch") {
-          input = document.createElement("button");
-          input.type = "button";
-          input.className = "tw-sw";
-          input.setAttribute("aria-label", c.label);
-          var paint = function () {
-            input.classList.toggle("on", !!state[c.key]);
-            input.setAttribute("aria-pressed", state[c.key] ? "true" : "false");
-          };
-          input.addEventListener("click", function () { commit(state[c.key] ? 0 : 1); paint(); });
-          paint();
-          lval.textContent = "";           // the switch *is* the readout
-          lab.appendChild(input);          // and it sits on its label's row
-          syncers.push(paint);
-        } else {
-          input = document.createElement("input");
-          input.type = "range";
-          input.min = c.min; input.max = c.max; input.step = c.step;
-          input.value = state[c.key];
-          input.setAttribute("aria-label", c.label);
-          input.addEventListener("input", function () { commit(parseFloat(input.value)); });
-          row.appendChild(input);
-          syncers.push(function () {
-            input.value = state[c.key];
-            lval.textContent = shown(c.key, state[c.key]);
-          });
-        }
-
-        if (c.note) {
-          var n = document.createElement("small");
-          n.className = "tw-n";
-          n.textContent = c.note;
-          row.appendChild(n);
-        }
-        inner.appendChild(row);
-      });
+      set.controls.forEach(function (c) { inner.appendChild(controlRow(c)); });
 
       wrap.appendChild(h);
       wrap.appendChild(inner);
@@ -677,9 +944,11 @@
     reset.addEventListener("click", function () {
       for (var k in DEFAULTS) state[k] = SHIPPED[k];   // back to what this screen ships
       apply(); save(); nudge();
-      syncers.forEach(function (f) { f(); });
+      syncers.forEach(function (sy) { sy.fn(); });
     });
   }
+
+  wireInspector();
 
   apply();   // stored values land before first paint where possible
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", build);
