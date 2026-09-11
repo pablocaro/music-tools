@@ -30,7 +30,7 @@
 
   if (!/[?&]tweaks(?:[=&]|$)/.test(location.search)) return;
 
-  var KEY = "sr_tweaks:v21";      // bumped when the defaults move, so a stored
+  var KEY = "sr_tweaks:v22";      // bumped when the defaults move, so a stored
                                  // set of slider values cannot mask the new baseline
                                  // (v16: stores only what moved — see save())
   var FOLD = "sr_tweaks_fold";
@@ -40,7 +40,7 @@
   var DEFAULTS = {
     // type
     typeScale: 1, sizeMicro: 10, sizeCaption: 12, sizeLabel: 15, sizeLead: 18,
-    titleSize: 29, baseWeight: 425, weightStep: 175,
+    titleSize: 29, baseWeight: 300, weightStep: 175,
     tracking: 0.9, leading: 1.5,
     // spacing
     density: 1.15, controlH: 40, headerGap: 8, railW: 400, gutter: 28, pagePad: 48,
@@ -153,11 +153,11 @@
         note: "everything selected takes this" },
       { key: "accentS",     label: "Accent punch", min: 0, max: 100, step: 1, unit: "%",
         note: "saturation — 0 is a grey UI" },
-      { key: "selEdge",     label: "Selected edge",  min: 1, max: 4, step: 0.5, unit: "px",
+      { key: "selEdge",     label: "Stroke width",   min: 1, max: 4, step: 0.5, unit: "px",
         note: "drives --ctl-border, so lit and unlit keep the same box and nothing reflows" },
-      { key: "selEdgeOp",   label: "Selected edge fade", min: 10, max: 100, step: 5, unit: "%",
-        note: "how present the stroke is — 100 is the full accent" },
-      { key: "selHue",      label: "Selected edge hue", min: -180, max: 180, step: 5, unit: "°",
+      { key: "selEdgeOp",   label: "Stroke opacity", min: 10, max: 100, step: 5, unit: "%",
+        note: "100 is the full accent" },
+      { key: "selHue",      label: "Stroke colour",  min: -180, max: 180, step: 5, unit: "°",
         note: "offset from the accent, so 0 keeps the two locked together" },
       { key: "selWash",     label: "Selected wash",  min: 0, max: 30, step: 1, unit: "%",
         note: "accent mixed into the paper behind it — the other half of how loud it reads" },
@@ -771,7 +771,19 @@
     return s;
   }
 
+  // People aim at what they see, and what they see is usually text inside a
+  // control: right-clicking a drill's title gave you the title's typography
+  // and pushed the stroke dials off the bottom of the list. So the subject is
+  // the nearest thing that behaves like a control, and only the bare target
+  // when there is none — a heading, the staff, the page itself.
+  var CONTROLS = "button, label, input, select, textarea, a[href], [role=switch], [role=button], [role=option], [role=menuitem]";
+  function subjectOf(el) {
+    var ctl = el.closest ? el.closest(CONTROLS) : null;
+    return ctl || el;
+  }
+
   function openInspector(el, x, y) {
+    el = subjectOf(el);
     closeInspector();
     var found = tweaksFor(el);
     var box = document.createElement("div");

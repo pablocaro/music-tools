@@ -49,6 +49,28 @@ function adherence(xml, roots) {
       '  to I-IV-V-I:', adherence(xml, [0, 3, 4, 0]) + '%');
   }
 
+  // Every label sits at its bar's first event, rest or note. A bar opening on a
+  // rest used to push its chord in by the rest's width — 19 to 32px, different
+  // per bar, so a line of upbeat rests showed four labels stepped against the
+  // ones above them. Nothing in the names themselves would show that.
+  const anchored = await p.evaluate(() => {
+    const sheet = document.getElementById('sheet').getBoundingClientRect();
+    const labels = [...document.querySelectorAll('#chord-overlay text')]
+      .map((l) => Math.round(+l.getAttribute('x')));
+    let bars = 0, hit = 0, indent = [];
+    document.querySelectorAll('#sheet .vf-measure').forEach((m) => {
+      const g = [...m.querySelectorAll('.vf-notehead')]
+        .map((e) => Math.round(e.getBoundingClientRect().left - sheet.left)).sort((a, b) => a - b);
+      if (g.length < 2) return;
+      bars++;
+      if (labels.some((x) => Math.abs(x - g[0]) <= 2)) hit++;
+      indent.push(g[1] - g[0]);          // what the old rule would have cost
+    });
+    return { bars, hit, worstIndent: Math.max.apply(null, indent) };
+  });
+  console.log('chord anchors :', JSON.stringify(anchored),
+    anchored.bars && anchored.hit === anchored.bars ? '(all flush to the bar)' : '(SOME INDENTED)');
+
   // chord names: on by default, correct spelling, and ii-V-I fills four bars
   const names = await p.evaluate(() => [...document.querySelectorAll('#chord-overlay text')].map(t => t.textContent));
   console.log('chord names :', names.slice(0, 6), '(want Dm G7 C C Dm G7…)');

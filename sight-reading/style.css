@@ -244,7 +244,7 @@
   --type-label:   var(--fs-2);
   --type-lead:    var(--fs-3);
   --type-title:   var(--fs-4);
-  --weight-standard:  425;   /* the app's one running weight — labels and body copy */
+  --weight-standard:  300;   /* the app's one running weight — labels and body copy */
   --weight-prominent: 600;   /* reserved: a genuine emphasis rung, unused today */
   --weight-step:      175;   /* how much heavier a value is than a label */
   --weight-strong: calc(var(--weight-standard) + var(--weight-step));

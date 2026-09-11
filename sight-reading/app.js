@@ -2827,7 +2827,18 @@
 
     var seen = {};
     notes.forEach(function (n) {
-      if (n.isRest || !n.head || seen[n.measure]) return;   // first sounding note of the bar
+      // The bar's first EVENT, rest or note — not its first sounding note. A
+      // bar opening on a rest had its chord pushed in by the width of that
+      // rest, so a line whose bars all began with an upbeat rest showed four
+      // labels indented against the ones above them. The label belongs to the
+      // bar, and the bar starts where it starts.
+      //
+      // Not the measure's own left edge, which would be the truest barline:
+      // .vf-measure contains the clef and key signature on the first bar of
+      // every system, so anchoring there would drop that system's label on top
+      // of the clef. The first event sits at a consistent offset from the
+      // barline in every bar, which is the alignment being asked for.
+      if (!n.head || seen[n.measure]) return;
       seen[n.measure] = true;
       var box = n.head.getBoundingClientRect();
       var sysBox = n.sys ? n.sys.getBoundingClientRect() : box;
