@@ -30,7 +30,7 @@
 
   if (!/[?&]tweaks(?:[=&]|$)/.test(location.search)) return;
 
-  var KEY = "sr_tweaks:v22";      // bumped when the defaults move, so a stored
+  var KEY = "sr_tweaks:v23";      // bumped when the defaults move, so a stored
                                  // set of slider values cannot mask the new baseline
                                  // (v16: stores only what moved — see save())
   var FOLD = "sr_tweaks_fold";
@@ -54,7 +54,7 @@
     swScale: 0.63, thumbW: 22, thumbGap: 2, checkRadius: 6,
     // colour
     accentH: 208, accentS: 100, paperWarmth: 18, inkL: 16, chunkAlpha: 0.5,
-    selEdge: 2, selEdgeOp: 40, selHue: 0, selWash: 8,
+    selEdge: 2, selEdgeOp: 40, selHue: 0, selWash: 8, selWeight: 0,
     // music
     perLine: 6, staffSize: 1, musicFade: 60,
     // onboarding
@@ -159,6 +159,8 @@
         note: "100 is the full accent" },
       { key: "selHue",      label: "Stroke colour",  min: -180, max: 180, step: 5, unit: "°",
         note: "offset from the accent, so 0 keeps the two locked together" },
+      { key: "selWeight",   label: "Selected weight", min: -200, max: 300, step: 25, unit: "",
+        note: "added to the running weight inside a selected control — its label and its text" },
       { key: "selWash",     label: "Selected wash",  min: 0, max: 30, step: 1, unit: "%",
         note: "accent mixed into the paper behind it — the other half of how loud it reads" },
       { key: "paperWarmth", label: "Paper warmth", min: 0, max: 30,  step: 1, unit: "",
@@ -226,7 +228,7 @@
     typeScale: "--type-scale", titleSize: "--fs-4-base",
     sizeMicro: "--fs-0-base", sizeCaption: "--fs-1-base",
     sizeLabel: "--fs-2-base", sizeLead: "--fs-3-base",
-    baseWeight: "--weight-standard", weightStep: "--weight-step",
+    baseWeight: "--weight-base", weightStep: "--weight-step",
     tracking: "--track-caption",
     leading: "--leading",
     density: "--density", controlH: "--ctl-h", headerGap: "--tb-gap",
@@ -243,6 +245,7 @@
     bandFold: "--band-fold-ms",
     accentH: "--accent-h", accentS: "--accent-s", paperWarmth: "--paper-warmth",
     selEdge: "--ctl-border", selEdgeOp: "--sel-edge-op", selHue: "--sel-hue",
+    selWeight: "--sel-weight",
     selWash: "--sel-wash",
     inkL: "--ink-l", chunkAlpha: "--chunk-alpha",
     perLine: "app.js LAYOUT.perLine", staffSize: "app.js LAYOUT.zoomCap",
@@ -325,7 +328,7 @@
     r.setProperty("--fs-1-base",        state.sizeCaption + "px");
     r.setProperty("--fs-2-base",        state.sizeLabel + "px");
     r.setProperty("--fs-3-base",        state.sizeLead + "px");
-    r.setProperty("--weight-standard", String(state.baseWeight));
+    r.setProperty("--weight-base",    String(state.baseWeight));
     r.setProperty("--weight-step",     String(state.weightStep));
     r.setProperty("--track-caption",    state.tracking + "px");
     r.setProperty("--leading",          String(state.leading));
@@ -372,6 +375,7 @@
     r.setProperty("--sel-edge-op",  state.selEdgeOp + "%");
     r.setProperty("--sel-hue",      String(state.selHue));
     r.setProperty("--sel-wash",     state.selWash + "%");
+    r.setProperty("--sel-weight",   String(state.selWeight));
 
     r.setProperty("--music-fade", state.musicFade + "px");
 
@@ -734,7 +738,8 @@
   // would answer with the same handful of panel-wide dials at the top.
   function tweaksFor(el, cap) {
     var found = {};
-    for (var node = el, depth = 0; node && node.nodeType === 1 && depth < 6; node = node.parentElement, depth++) {
+
+    function harvest(node, penalty, own) {
       var hits = rulesFor(node);
       for (var h = 0; h < hits.length; h++) {
         // cssText, not the property list: a shorthand carrying a var() —
@@ -749,18 +754,45 @@
           for (var kk = 0; kk < keys.length; kk++) {
             var key = keys[kk];
             if (!specFor(key)) continue;
-            var score = hits[h].w - depth * 40;
+            var score = hits[h].w - penalty;
             if (!found[key] || found[key].score < score) {
-              found[key] = { key: key, score: score, own: depth === 0 };
+              found[key] = { key: key, score: score, own: own };
             }
           }
         }
       }
     }
+
+    harvest(el, 0, true);
+
+    // Down, then up. A control's face is mostly made of its children's rules —
+    // .drill declares no type at all, and the weight and size of the name you
+    // are looking at live on .drill-name inside it. Walking only ancestors
+    // meant right-clicking a drill row answered with colour and spacing and
+    // nothing about its own text, which is the first thing anyone would want
+    // to change. Descendants take a light penalty: they belong to this control,
+    // unlike an ancestor that merely contains it — 2 a level, not 10: a class
+    // selector is only worth 10 to begin with, so a heavier penalty drove
+    // .drill-name's rule below zero and the drill row went on reporting no
+    // type at all, which was the whole point of looking down.
+    var kids = el.querySelectorAll ? el.querySelectorAll("*") : [];
+    for (var i = 0; i < kids.length && i < 24; i++) {
+      var down = 0;
+      for (var up = kids[i]; up && up !== el; up = up.parentElement) down++;
+      if (down > 2) continue;
+      harvest(kids[i], 2 * down, true);
+    }
+
+    for (var node = el.parentElement, depth = 1; node && node.nodeType === 1 && depth < 6; node = node.parentElement, depth++) {
+      harvest(node, depth * 40, false);
+    }
+
     var out = [];
     for (var k in found) out.push(found[k]);
     out.sort(function (a, b) { return b.score - a.score; });
-    return out.slice(0, cap || 8);
+    // Fourteen, not eight: a control plus the text inside it genuinely has
+    // more to say, and the popover scrolls.
+    return out.slice(0, cap || 14);
   }
 
   function describe(el) {

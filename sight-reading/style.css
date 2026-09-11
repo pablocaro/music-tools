@@ -244,7 +244,13 @@
   --type-label:   var(--fs-2);
   --type-lead:    var(--fs-3);
   --type-title:   var(--fs-4);
-  --weight-standard:  300;   /* the app's one running weight — labels and body copy */
+  /* The running weight in two parts. --weight-base is the number the panel
+     drives; --weight-standard is what everything reads, and a selected control
+     redefines it on itself (see --sel-weight) so the text inside it — which
+     computes --weight-strong from whatever --weight-standard is in scope —
+     follows without a single per-element rule. */
+  --weight-base:      300;
+  --weight-standard:  var(--weight-base);   /* labels and body copy */
   --weight-prominent: 600;   /* reserved: a genuine emphasis rung, unused today */
   --weight-step:      175;   /* how much heavier a value is than a label */
   --weight-strong: calc(var(--weight-standard) + var(--weight-step));
@@ -1401,6 +1407,7 @@ button:active { opacity: 0.7; }
    way. The wash is what buys that back — the stroke alone would not.
    --------------------------------------------------------------------------- */
 :root {
+  --sel-weight: 0;                                  /* added to a selected control's weight */
   --sel-wash: 8%;                                   /* accent mixed into paper */
   --sel-edge-op: 40%;                               /* how present the stroke is */
   /* A hue OFFSET, not a colour: at 0 the stroke is the accent, and moving the
@@ -1422,6 +1429,19 @@ button:active { opacity: 0.7; }
   background: var(--sel-tint);
   color: var(--ctl-on);
   border-color: var(--sel-stroke);
+  /* Scoped, not per-element: redefining the running weight here reaches the
+     control's own label and anything inside it that reads --weight-standard,
+     so a drill's name moves without .drill-name being mentioned at all.
+
+     Both rungs have to be restated, and the reason is easy to get wrong: a
+     var() inside a custom property is substituted where that property is
+     DECLARED, not where it is used. --weight-strong is computed once on :root
+     against :root's --weight-standard, and an element inheriting it inherits
+     that already-resolved number — so overriding --weight-standard here does
+     nothing for anything reading --weight-strong. .drill-name sat at 475
+     through the whole range until this second line existed. */
+  --weight-standard: calc(var(--weight-base) + var(--sel-weight));
+  --weight-strong: calc(var(--weight-base) + var(--weight-step) + var(--sel-weight));
 }
 .drill.on .drill-sub { color: color-mix(in srgb, var(--ctl-on) 78%, transparent); }
 .drill-row:has(.drill.on) .drill-more { color: var(--ctl-on); }
