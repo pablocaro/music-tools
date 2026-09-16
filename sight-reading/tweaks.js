@@ -30,7 +30,7 @@
 
   if (!/[?&]tweaks(?:[=&]|$)/.test(location.search)) return;
 
-  var KEY = "sr_tweaks:v24";      // bumped when the defaults move, so a stored
+  var KEY = "sr_tweaks:v25";      // bumped when the defaults move, so a stored
                                  // set of slider values cannot mask the new baseline
                                  // (v16: stores only what moved — see save())
   var FOLD = "sr_tweaks_fold";
@@ -40,8 +40,8 @@
   var DEFAULTS = {
     // type
     typeScale: 1, sizeMicro: 10, sizeCaption: 12, sizeLabel: 15, sizeLead: 18,
-    titleSize: 29, baseWeight: 300, weightStep: 175,
-    tracking: 0.9, leading: 1.5,
+    titleSize: 29, baseWeight: 375, weightStep: 100,
+    tracking: 1, leading: 1.5,
     // spacing
     density: 1.15, controlH: 40, headerGap: 8, railW: 400, gutter: 28, pagePad: 48,
     // shape
@@ -756,7 +756,7 @@
   // rule that targets the element itself rather than one it inherits from —
   // --density feeds nearly every calc in the app, so without this every element
   // would answer with the same handful of panel-wide dials at the top.
-  function tweaksFor(el, cap) {
+  function tweaksFor(el, cap, origin) {
     var found = {};
 
     function harvest(node, penalty, own) {
@@ -784,6 +784,15 @@
     }
 
     harvest(el, 0, true);
+
+    // The thing actually under the cursor, when that is not the control itself.
+    // Climbing to the control is right — it is what people are aiming at — but
+    // it threw away the rung of the text they clicked: a drill's subtitle is
+    // --type-micro and the drill knows nothing about that, so right-clicking
+    // the small grey line offered the name's Label and never Micro. Boosted
+    // above the control's own rules, because it is the most specific answer to
+    // "what sets this".
+    if (origin && origin !== el) harvest(origin, -20, true);
 
     // Down, then up. A control's face is mostly made of its children's rules —
     // .drill declares no type at all, and the weight and size of the name you
@@ -835,16 +844,21 @@
   }
 
   function openInspector(el, x, y) {
+    var origin = el;
     el = subjectOf(el);
     closeInspector();
-    var found = tweaksFor(el);
+    var found = tweaksFor(el, 0, origin);
     var box = document.createElement("div");
     box.id = "tw-insp";
 
     var head = document.createElement("div");
     head.className = "tw-insp-h";
     var what = document.createElement("b");
-    what.textContent = describe(el);
+    // Both, when they differ, so it is never a mystery why the dials belong to
+    // something other than what the cursor was on.
+    what.textContent = (origin && origin !== el)
+      ? describe(origin) + " \u2192 " + describe(el)
+      : describe(el);
     var shut = document.createElement("button");
     shut.type = "button"; shut.textContent = "×"; shut.title = "Close";
     shut.addEventListener("click", closeInspector);

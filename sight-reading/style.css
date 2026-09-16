@@ -249,12 +249,12 @@
      redefines it on itself (see --sel-weight) so the text inside it — which
      computes --weight-strong from whatever --weight-standard is in scope —
      follows without a single per-element rule. */
-  --weight-base:      300;
+  --weight-base:      375;
   --weight-standard:  var(--weight-base);   /* labels and body copy */
   --weight-prominent: 600;   /* reserved: a genuine emphasis rung, unused today */
-  --weight-step:      175;   /* how much heavier a value is than a label */
+  --weight-step:      100;   /* how much heavier a value is than a label */
   --weight-strong: calc(var(--weight-standard) + var(--weight-step));
-  --track-caption: 0.9px;   /* the uppercase headings' letter-spacing — what
+  --track-caption: 1px;   /* the uppercase headings' letter-spacing — what
                                 makes a caption read as a label, not as text */
   --leading: 1.5;           /* body copy only; controls set their own */
 
