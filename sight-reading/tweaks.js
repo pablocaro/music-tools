@@ -30,7 +30,7 @@
 
   if (!/[?&]tweaks(?:[=&]|$)/.test(location.search)) return;
 
-  var KEY = "sr_tweaks:v23";      // bumped when the defaults move, so a stored
+  var KEY = "sr_tweaks:v24";      // bumped when the defaults move, so a stored
                                  // set of slider values cannot mask the new baseline
                                  // (v16: stores only what moved — see save())
   var FOLD = "sr_tweaks_fold";
@@ -85,8 +85,12 @@
         note: "display type, riding over the scale" },
       { key: "baseWeight",  label: "Base weight",  min: 300, max: 800, step: 25, unit: "",
         note: "labels and body copy — the one running weight" },
-      { key: "weightStep",  label: "Value step",   min: 0, max: 300, step: 25, unit: "",
+      { key: "weightStep",  label: "Value step",   min: 0, max: 600, step: 25, unit: "",
         note: "how much heavier a value is than a label" },
+      { key: "weightStep",  label: "Strong weight", min: 100, max: 900, step: 25, unit: "",
+        from: function (st) { return st.baseWeight + st.weightStep; },
+        to:   function (v, st) { return Math.max(0, v - st.baseWeight); },
+        note: "the same rung as a number — drill names, stepper values. Stored as the step, so moving the base carries it along" },
       { key: "tracking",    label: "Caption track", min: 0, max: 2, step: 0.05, unit: "px",
         note: "letter-spacing on the uppercase headings" },
       { key: "leading",     label: "Line height",  min: 1.1, max: 2, step: 0.05, unit: "×",
@@ -440,8 +444,8 @@
         if (SETS[i].controls[j].key === key) return SETS[i].controls[j];
     return null;
   }
-  function shown(key, val) {
-    var c = ctl(key);
+  function shown(spec, val) {
+    var c = (typeof spec === "string") ? ctl(spec) : spec;
     if (c.kind === "switch") return val ? "on" : "off";
     if (c.maxLabel && val >= c.max) return c.maxLabel;
     // Round only where the step is whole — tracking moves in 0.05px, and
@@ -547,21 +551,31 @@
       lab.className = "tw-l";
       var lname = document.createElement("span");
       lname.textContent = c.label;
+      // A control usually shows the state it drives, but not always: a derived
+      // rung is dialled as the number you want to see (a weight) while the
+      // state behind it stays the relationship (a step). from/to convert, and
+      // everything below goes through them so the two views of one key cannot
+      // drift.
+      var from = c.from || function () { return state[c.key]; };
+      var to   = c.to   || function (v) { return v; };
       var lval = document.createElement("span");
-      lval.textContent = shown(c.key, state[c.key]);
+      lval.textContent = shown(c, from(state));
       lab.appendChild(lname);
       lab.appendChild(lval);
       row.appendChild(lab);
 
       var commit = function (v) {
-        state[c.key] = v;
+        state[c.key] = to(v, state);
         apply();
         save();
         if (c.re) nudge();
-        // Every control on this key, this one included. Setting a slider to
-        // the value it already holds is a no-op, so there is no need to
-        // exclude self and risk missing a second copy of the same dial.
-        syncers.forEach(function (sy) { if (sy.key === c.key) sy.fn(); });
+        // All of them, not just this key. A derived control reads several
+        // pieces of state — Strong weight is base plus step — so filtering by
+        // the key that changed left it showing 700 while the page rendered
+        // 900. Setting a slider to the value it already holds is a no-op, so
+        // the cost of syncing everything is nothing and the correctness is
+        // free.
+        syncers.forEach(function (sy) { sy.fn(); });
       };
 
       var input;
@@ -583,13 +597,13 @@
         input = document.createElement("input");
         input.type = "range";
         input.min = c.min; input.max = c.max; input.step = c.step;
-        input.value = state[c.key];
+        input.value = from(state);
         input.setAttribute("aria-label", c.label);
         input.addEventListener("input", function () { commit(parseFloat(input.value)); });
         row.appendChild(input);
         syncers.push({ key: c.key, fn: function () {
-          input.value = state[c.key];
-          lval.textContent = shown(c.key, state[c.key]);
+          input.value = from(state);
+          lval.textContent = shown(c, from(state));
         } });
       }
 
@@ -696,13 +710,19 @@
       })(rules);
     }
   }
-  function specFor(key) {
+  // All of them, because a key can be dialled more than one way: the strong
+  // rung is both "Value step" (the relationship) and "Strong weight" (the
+  // number). Returning only the first meant right-clicking a drill's name
+  // offered the step and never the weight, which is the one you actually came
+  // for. Two views of one setting sitting together is worth the row.
+  function specsFor(key) {
+    var out = [];
     for (var i = 0; i < SETS.length; i++) {
       for (var j = 0; j < SETS[i].controls.length; j++) {
-        if (SETS[i].controls[j].key === key) return SETS[i].controls[j];
+        if (SETS[i].controls[j].key === key) out.push(SETS[i].controls[j]);
       }
     }
-    return null;
+    return out;
   }
 
   // Roughly CSS specificity — enough to rank "this element's own rule" above
@@ -753,7 +773,7 @@
           var keys = resolve(tok);
           for (var kk = 0; kk < keys.length; kk++) {
             var key = keys[kk];
-            if (!specFor(key)) continue;
+            if (!specsFor(key).length) continue;
             var score = hits[h].w - penalty;
             if (!found[key] || found[key].score < score) {
               found[key] = { key: key, score: score, own: own };
@@ -839,9 +859,11 @@
       box.appendChild(none);
     } else {
       found.forEach(function (f) {
-        var row = controlRow(specFor(f.key));
-        if (!f.own) row.classList.add("tw-inherited");
-        box.appendChild(row);
+        specsFor(f.key).forEach(function (spec) {
+          var row = controlRow(spec);
+          if (!f.own) row.classList.add("tw-inherited");
+          box.appendChild(row);
+        });
       });
     }
     document.body.appendChild(box);
