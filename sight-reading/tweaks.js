@@ -30,7 +30,7 @@
 
   if (!/[?&]tweaks(?:[=&]|$)/.test(location.search)) return;
 
-  var KEY = "sr_tweaks:v25";      // bumped when the defaults move, so a stored
+  var KEY = "sr_tweaks:v26";      // bumped when the defaults move, so a stored
                                  // set of slider values cannot mask the new baseline
                                  // (v16: stores only what moved — see save())
   var FOLD = "sr_tweaks_fold";
@@ -39,11 +39,11 @@
   //     the neutral one, so "all defaults" is byte-identical to no panel.
   var DEFAULTS = {
     // type
-    typeScale: 1, sizeMicro: 10, sizeCaption: 12, sizeLabel: 15, sizeLead: 18,
-    titleSize: 29, baseWeight: 375, weightStep: 100,
+    typeScale: 1, sizeMicro: 13, sizeCaption: 12, sizeLabel: 15, sizeLead: 18,
+    titleSize: 29, baseWeight: 400, weightStep: 100,
     tracking: 1, leading: 1.5,
     // spacing
-    density: 1.15, controlH: 40, headerGap: 8, railW: 400, gutter: 28, pagePad: 48,
+    density: 1.2, controlH: 40, headerGap: 8, railW: 400, gutter: 28, pagePad: 48,
     // shape
     pillRadius: 999, boxRadius: 18, surfaceRadius: 26, shadowDepth: 0.65,
     cornerCurve: 1,

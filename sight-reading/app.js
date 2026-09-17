@@ -890,8 +890,13 @@
     if (!rail || !page) return;
     rail.classList.add("pushed");
     page.setAttribute("aria-hidden", "false");
+    // preventScroll, because the page it lives on is still translated fully
+    // off-screen at this instant: a plain focus() makes the browser scroll to
+    // reveal it, which shoves the music column ~400px left and then unwinds as
+    // the transform lands. The sheet appeared to slide in from the left every
+    // time the drills page opened, and nothing in the drills code was moving it.
     var back = document.getElementById("drills-back");
-    if (back) back.focus();
+    if (back) back.focus({ preventScroll: true });
   }
   function wireDrills() {
     var back = document.getElementById("drills-back");

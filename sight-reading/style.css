@@ -31,7 +31,7 @@
      written as parts (accent, paper) or as a calc off a base (the radii, the
      shadows), that is why — the parts are what a slider can reach. */
   --type-scale: 1;       /* every step of the type scale at once */
-  --density: 1.15;          /* the settings panel's gaps and padding */
+  --density: 1.2;          /* the settings panel's gaps and padding */
   --shadow-depth: 0.65;     /* how far the floating surfaces lift off the page */
   --motion: 1;           /* multiplier on the structural transitions */
 
@@ -226,7 +226,7 @@
      to standard's own value and the two rungs collapsed; now the collapse is
      spelled out. Prominent stays in the vocabulary as a real emphasis rung —
      600, nothing uses it today — rather than a second name for the default. */
-  --fs-0-base: 10px;
+  --fs-0-base: 13px;
   --fs-1-base: 12px;
   --fs-2-base: 15px;
   --fs-3-base: 18px;
@@ -249,7 +249,7 @@
      redefines it on itself (see --sel-weight) so the text inside it — which
      computes --weight-strong from whatever --weight-standard is in scope —
      follows without a single per-element rule. */
-  --weight-base:      375;
+  --weight-base:      400;
   --weight-standard:  var(--weight-base);   /* labels and body copy */
   --weight-prominent: 600;   /* reserved: a genuine emphasis rung, unused today */
   --weight-step:      100;   /* how much heavier a value is than a label */
@@ -708,6 +708,17 @@ button.playing svg.state-alt { display: block; }
    row directly above them, so the collapse happens under the finger that caused
    it and reads as consequence rather than as something disappearing. Used by
    Musicality, Hide Ahead, Highlight Patterns' legend, and Play Along's rows. */
+/* A group of popover rows that appear and go together. Like .sec-deps it is one
+   flex child of a flex column, so without a gap of its own the rows inside it
+   sit flush — Melody, Comping and Volume were touching while Sound kept the
+   popover's full gap above them. Second time this caught me: wrapping rows to
+   make them hideable silently drops whatever gap their parent was giving them.
+   The [hidden] rules outrank these on specificity, so the group still hides. */
+.pop-deps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pop-gap);
+}
 .pop-deps[hidden],
 .sec-row[hidden] { display: none; }
 
