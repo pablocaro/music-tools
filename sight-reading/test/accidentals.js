@@ -2,7 +2,7 @@
 const PW = process.env.PW || '/opt/node22/lib/node_modules/playwright';
 const CHROMIUM = process.env.CHROMIUM || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const { chromium } = require(PW);
-const { pickDrill, newDrill } = require('./drills.js');
+const { pickDrill, newDrill, setKeys } = require('./drills.js');
 
 // Parse notes with absolute semitone height + alter + bar index.
 const BASE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
@@ -52,13 +52,7 @@ function parse(xml) {
   // and the raised 7th is unambiguously G with alter +1. (Flipping mode from C
   // major gives C minor, whose Eb/Ab/Bb all carry alters natively — a first
   // version of this test read those as strays.)
-  await p.evaluate(() => {
-    const t = document.getElementById('key-tonic');
-    t.value = '5-0'; t.dispatchEvent(new Event('change'));
-  });
-  await p.waitForTimeout(900);
-  await p.evaluate(() => document.getElementById('mode-cycle').click());
-  await p.waitForTimeout(1200);
+  await setKeys(p, ['Am']);
   // By id, not by text: "contains V but not VII-i" also described i-iv-V-i
   // the day that progression was added, and the test silently clicked it
   // while still scoring bars against the Andalusian's layout.
@@ -88,12 +82,7 @@ function parse(xml) {
   console.log('stray alters    :', strayAlters, '(want 0 at chroma 0)');
 
   // ---- 3. chroma up: figures appear and resolve by semitone ----
-  await p.evaluate(() => {
-    document.getElementById('mode-cycle').click();               // back to major
-    const t = document.getElementById('key-tonic');
-    t.value = '0-0'; t.dispatchEvent(new Event('change'));       // back to C
-  });
-  await p.waitForTimeout(1200);
+  await setKeys(p, ['C']);                                       // back to C major
   // On Chromatic Steps, not on whatever the panel drifted to. A passing tone
   // needs a weak position to live in, so measuring the dial against a line of
   // quarters reports "altered 0" and blames the engine for the rhythm. The

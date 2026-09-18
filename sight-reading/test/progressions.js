@@ -2,7 +2,7 @@
 const PW = process.env.PW || '/opt/node22/lib/node_modules/playwright';
 const CHROMIUM = process.env.CHROMIUM || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const { chromium } = require(PW);
-const { pickDrill, newDrill, setMusicality } = require('./drills.js');
+const { pickDrill, newDrill, setMusicality, setKeys } = require('./drills.js');
 const LET = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
 
 // Chord-tone rate of the score against an arbitrary progression, in C major.
@@ -82,8 +82,7 @@ function adherence(xml, roots) {
   await p.evaluate(() => document.getElementById('chords-toggle').click());
 
   // mode flip: minor list appears, invalid id remaps
-  await p.evaluate(() => document.getElementById('mode-cycle').click());
-  await p.waitForTimeout(1400);
+  await setKeys(p, ['Am'], 1400);
   console.log('minor pills :', await p.evaluate(() => [...document.querySelectorAll('#progression-pills .opt')].map(x => x.textContent + (x.classList.contains('on') ? '*' : ''))));
   console.log('stored id   :', await p.evaluate(() => document.getElementById('progression').value));
 

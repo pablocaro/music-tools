@@ -2,7 +2,7 @@
 const PW = process.env.PW || '/opt/node22/lib/node_modules/playwright';
 const CHROMIUM = process.env.CHROMIUM || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const { chromium } = require(PW);
-const { pickDrill, newDrill } = require('./drills.js');
+const { pickDrill, newDrill, setInstrument } = require('./drills.js');
 
 (async () => {
   const b = await chromium.launch({ executablePath: CHROMIUM });
@@ -46,17 +46,16 @@ const { pickDrill, newDrill } = require('./drills.js');
   await pickDrill(p, 'Thirds', 1200);
   console.log('after Thirds Drill:', await p.evaluate(() => document.getElementById('clef').value), '(want bass)');
 
-  // panel pills reflect and change the pref
-  console.log('panel pills       :', await p.evaluate(() => [...document.querySelectorAll('#instrument-pills .opt')].filter(x => x.classList.contains('on')).map(x => x.textContent)));
-  await p.evaluate(() => [...document.querySelectorAll('#instrument-pills .opt')].find(x => x.textContent === 'Viola').click());
-  await p.waitForTimeout(1200);
+  // the kicker names the instrument, and its picker changes the pref
+  console.log('kicker            :', await p.evaluate(() => document.getElementById('pick-instr').textContent), '(want Cello)');
+  await setInstrument(p, 'Viola');
   console.log('picked Viola      :', await p.evaluate(() => document.getElementById('clef').value), '(want alto)');
 
   // survives reload; onboarding does NOT reappear
   await p.reload({ waitUntil: 'domcontentloaded' }); await p.waitForTimeout(2500);
   console.log('after reload      :', JSON.stringify(await p.evaluate(() => ({
     obUp: !document.getElementById('ob').hidden,
-    lit: [...document.querySelectorAll('#instrument-pills .opt')].filter(x => x.classList.contains('on')).map(x => x.textContent)
+    kicker: document.getElementById('pick-instr').textContent
   }))));
   console.log('errors:', errs);
   await b.close();

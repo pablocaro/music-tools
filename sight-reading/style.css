@@ -769,7 +769,6 @@ button.playing svg.state-alt { display: block; }
 .sec-col > .sec { flex: 0 0 auto; }
 .sec-key        { flex: 1 1 300px; }
 .sec-measures   { flex: 1 1 260px; }
-.sec-instrument { flex: 3 1 420px; }
 .sec-language   { flex: 1 1 160px; }
 
 /* Scrim: dims the music behind the overlaid rail; tap it to close. */
@@ -1658,6 +1657,54 @@ button:active { opacity: 0.7; }
 .tb-titles { min-width: 0; }
 #sh-title { font-size: var(--type-title); font-weight: var(--weight-strong); color: var(--ink); letter-spacing: 0.2px; line-height: 1.15; }
 #sh-sub   { font-size: var(--type-lead); font-weight: var(--weight-standard); color: var(--muted); margin-top: 5px; }
+
+/* ---------------------------------------------------------------------------
+   PATTERN: pick
+   A fact in the header that is also the control for it — the keys, the
+   meters, the length, the instrument. Reads as part of the sentence at rest
+   (accent ink, no box), takes the same grey fill Back takes on hover, and
+   opens a menu. A set shows in the compact spelling the chord names use, this
+   sheet's entry in the accent and the rest muted.
+   --------------------------------------------------------------------------- */
+.pick {
+  display: inline;
+  padding: 2px 6px;
+  margin: -2px -6px;               /* the fill grows outward; the text does not move */
+  border: 0;
+  border-radius: var(--ctl-radius-box);
+  background: none;
+  color: var(--ctl-on);
+  font: inherit;
+  line-height: inherit;
+  white-space: nowrap;             /* "C, G, Am" is one thing; a line breaks between picks */
+  cursor: pointer;
+}
+.pick:hover, .pick[aria-expanded="true"] { background: var(--ctl-fill); }
+.sub-part { color: color-mix(in srgb, var(--ctl-on) 55%, transparent); }
+.sub-part.now { color: var(--ctl-on); font-weight: var(--weight-strong); }
+.sub-sep { color: var(--muted); }
+/* In the kicker the pick keeps the kicker's colour but not its face: the
+   wordmark is a mark, the instrument is a word. */
+.kicker .pick { font-family: "Rubik", sans-serif; font-weight: var(--weight-standard); text-transform: none; }
+.kicker-instr, .sub-item { white-space: nowrap; }
+.kicker-sep { font-family: "Rubik", sans-serif; font-weight: var(--weight-standard); color: var(--muted); margin: 0 2px; }
+
+/* The menu the picks open. Fixed to the viewport (see placePick), so any
+   anchor works; otherwise the popover menu's own look. */
+.menu.pick-menu { position: fixed; top: auto; right: auto; max-height: 70vh; overflow: auto; }
+.pick-cols { display: flex; gap: 6px; }
+.pick-col { display: flex; flex-direction: column; min-width: 92px; }
+.pick-h {
+  font-size: var(--type-caption);
+  font-weight: var(--weight-standard);
+  text-transform: uppercase;
+  letter-spacing: var(--track-caption);
+  color: var(--muted);
+  padding: 6px 12px 4px;
+}
+/* Ticked is the tint every chosen control wears; this sheet's own entry adds
+   a mark, because in a rotation "chosen" and "current" are different facts. */
+.menu-item.now::after { content: " \25cf"; color: var(--ctl-on); font-size: 0.6em; vertical-align: middle; }
 
 /* The header's action cluster and the popovers that hang from it. Anchored to
    the cluster, not the page, so the same rule places them on a phone and a wide

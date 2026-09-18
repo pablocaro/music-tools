@@ -144,6 +144,13 @@
              That is the shape of music without the one cue that says it is in
              a key going somewhere — neither thing, and not worth a stop. -->
         <input type="hidden" id="musicality" value="100">
+        <!-- The keys a drill rotates through, as a comma list of the same
+             "<mode>_<symbol>-<acc>" codes key-tonic and key-mode have always
+             held between them. Those two now hold THIS sheet's key, derived
+             from the set, so the engine and the chord names read what they
+             always read. C major is "major_0-0"; A minor is "minor_5-0" — the
+             same notes, a different key, and kept apart on purpose. -->
+        <input type="hidden" id="keys" value="major_0-0">
         <input type="checkbox" id="show-chords" checked>
         <input type="hidden" id="bowing" value="">
         <input type="hidden" id="ties" value="off">
@@ -419,9 +426,11 @@
             <h2 class="sec-h" data-i18n="sec.staff">Clef &amp; Key</h2>
             <div class="sec-row unit">
               <button id="clef-cycle" class="cycle cycle-clef cycle-glyph" type="button" aria-label="Clef" data-i18n-aria="aria.clef"></button>
-              <button id="tonic-cycle" class="cycle" type="button" aria-label="Key" data-i18n-aria="aria.key">C</button>
-              <button id="mode-cycle" class="cycle" type="button" aria-label="Mode" data-i18n-aria="aria.mode" data-i18n="mode.major">Major</button>
-              <button id="acc-cycle" class="cycle cycle-glyph" type="button" aria-label="Accidental" data-i18n-aria="aria.accidental">&#9838;</button>
+              <!-- The set, not one key: tapping opens the same picker the
+                   subtitle opens, so there is one picker reachable from two
+                   places rather than two ways to say the same thing. -->
+              <button id="keys-cycle" class="cycle" type="button" aria-haspopup="menu" aria-expanded="false"
+                      aria-label="Keys" data-i18n-aria="aria.pickKeys">C</button>
             </div>
           </section>
 
@@ -441,11 +450,6 @@
           <svg class="band-caret" aria-hidden="true"><use href="#ic-chevron"/></svg>
         </button>
         <div class="band-body" id="bb-setup">
-          <section class="sec sec-instrument">
-            <h2 class="sec-h" data-i18n="sec.instrument">Instrument</h2>
-            <div class="sec-row" id="instrument-pills"></div>
-          </section>
-
           <section class="sec sec-language">
             <h2 class="sec-h" data-i18n="sec.language">Language</h2>
             <div class="sec-row" id="lang-pills"></div>
@@ -479,8 +483,19 @@
       <div class="tb-titles">
         <!-- The app's name, not the mode's — stays the same in every language,
              like the note letters do. Mirrors the help sheet's kicker. -->
-        <p class="kicker">Prima Vista</p>
+        <!-- …followed by the instrument, and the one place to change it: its
+             clef is what the sheet is written in, which is header information.
+             A phone wraps this line; the dot and the instrument are one nowrap
+             unit, so the second line reads "· Cello" instead of leaving it dangling. -->
+        <p class="kicker">Prima Vista <span class="kicker-instr"><span class="kicker-sep">·</span>
+          <button class="pick" id="pick-instr" type="button"
+            aria-haspopup="menu" aria-expanded="false" aria-label="Instrument"
+            data-i18n-aria="aria.pickInstrument"></button></span></p>
         <h1 id="sh-title"></h1>
+        <!-- What THIS sheet is: its keys, its meters, its length — each one a
+             control that opens a menu, so the facts that change sheet to sheet
+             are changed where they are read. The drill is the recipe; this is
+             the instance. -->
         <div id="sh-sub"></div>
       </div>
       <!-- Set-up, gathered in one cluster: pace, accompaniment, and the rail

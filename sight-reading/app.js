@@ -415,7 +415,7 @@
     if (p.alphabet) applyAlphabet(p.alphabet);
     else if (p.down || p.up) applyAlphabet(p);              // legacy {down, up}
     if (p.range) applyRange(p.range);
-    if (p.key != null) setKeyFromCode(p.key);
+    if (p.key != null) setKeys(canonKeys(p.key));
     if (p.clef != null) clefEl.value = p.clef;
     if (p.timesig != null) timesigEl.value = canonSigs(p.timesig).join(",");
     if (p.measures != null) measuresEl.value = String(Math.max(8, parseInt(p.measures, 10) || 16));
@@ -480,7 +480,7 @@
       chroma: chromaEl.value,
       bowing: bowingEl.value,
       ties: tiesEl.value,
-      key: currentKeyCode(),
+      key: selectedKeyCodes().join(","),
       clef: clefEl.value,
       timesig: timesigEl.value,
       measures: measuresEl.value
@@ -566,14 +566,12 @@
     // fills the line without telling you anything: a summary earns its place by
     // being the part that is not the same as everything else.
     if (cfg.timesig && String(cfg.timesig) !== "4/4") {
-      bits.push(String(cfg.timesig).split(",").join(" \u00b7 "));
+      bits.push(canonSigs(cfg.timesig).join(", "));
     }
-    if (cfg.key && String(cfg.key) !== "major_0-0") {
-      var kp = String(cfg.key).split("_");
-      var tp = (kp[1] || "0-0").split("-");
-      var LET = ["C", "D", "E", "F", "G", "A", "B"];
-      var acc = tp[1] === "1" ? "\u266f" : tp[1] === "2" ? "\u266d" : "";
-      bits.push(LET[+tp[0] || 0] + acc + " " + t("mode." + (kp[0] || "major")).toLowerCase());
+    if (cfg.key) {
+      var ks = canonKeys(cfg.key);
+      if (ks.length > 1) bits.push(ks.map(keyShort).join(", "));
+      else if (ks[0] !== "major_0-0") bits.push(keyLong(ks[0]).toLowerCase());
     }
     // The two dials that change what the notes ARE rather than which they are.
     // Without these, Chromatic Steps summarised as "steps" — true, and the one
@@ -1043,6 +1041,63 @@
 
   // The scale key as a "<mode>_<symbol>-<acc>" code (the form makeScaleKey reads).
   function currentKeyCode() { return keyModeEl.value + "_" + keyTonicEl.value; }
+
+  // The keys the sheet rotates through. #keys holds the set; key-tonic and
+  // key-mode hold THIS sheet's key, written from the set, so the engine and the
+  // chord names go on reading the two selects they have always read.
+  var keysEl = document.getElementById("keys");
+  var keyIdx = 0, keyFresh = true;     // where in the rotation, and whether the
+                                       // next sheet should advance or use it
+  function keyCodeValid(code) {
+    var parts = String(code).split("_");
+    if (parts.length !== 2 || MODES.indexOf(parts[0]) < 0) return false;
+    // Before probeKeys has run the select is empty; accept the form and let the
+    // probe settle it. After, only a key the engine can build survives.
+    return !keyTonicEl.options.length ||
+           !!keyTonicEl.querySelector('option[value="' + parts[1] + '"]');
+  }
+  // A comma list of codes -> the valid ones, in order, never empty. A drill
+  // saved when a key was one value carries "major_0-0" and reads as a set of
+  // one, the way a single slur length did once slurs became a set.
+  function canonKeys(v) {
+    var out = [];
+    String(v == null ? "" : v).split(",").forEach(function (c) {
+      c = c.trim();
+      if (c && keyCodeValid(c) && out.indexOf(c) < 0) out.push(c);
+    });
+    return out.length ? out : ["major_0-0"];
+  }
+  function selectedKeyCodes() { return canonKeys(keysEl.value); }
+  function applyCurrentKey() {
+    var codes = selectedKeyCodes();
+    keyIdx = keyIdx % codes.length;
+    var before = keyModeEl.value;
+    setKeyFromCode(codes[keyIdx]);
+    if (keyModeEl.value !== before && typeof progressionDef === "function") {
+      progressionEl.value = progressionDef(progressionEl.value).id;   // remap across modes
+      buildProgressionPills();
+    }
+  }
+  // Replacing the set starts the rotation over: the first sheet after a change
+  // is in the first key you picked, not the second.
+  function setKeys(codes) {
+    keysEl.value = canonKeys(codes.join ? codes.join(",") : codes).join(",");
+    keyIdx = 0; keyFresh = true;
+    applyCurrentKey();
+  }
+  // "C", "Am", "F♯", "B♭m" — the spelling the chord names above the staff
+  // already use. C and Am are the same notes and different keys; the m is what
+  // keeps them apart here, as it does there.
+  function keyShort(code) {
+    var parts = String(code).split("_"), tp = (parts[1] || "0-0").split("-");
+    var acc = tp[1] === "#" ? "\u266f" : tp[1] === "b" ? "\u266d" : "";
+    return LETTERS[parseInt(tp[0], 10) || 0] + acc + (parts[0] === "minor" ? "m" : "");
+  }
+  function keyLong(code) {
+    var parts = String(code).split("_"), tp = (parts[1] || "0-0").split("-");
+    var acc = tp[1] === "#" ? "\u266f" : tp[1] === "b" ? "\u266d" : "";
+    return LETTERS[parseInt(tp[0], 10) || 0] + acc + " " + t("mode." + (parts[0] || "major"));
+  }
   // Restore a "<mode>_<symbol>-<acc>" code, ignoring anything the current build
   // doesn't offer (a preset saved before a key list changed shouldn't wedge the app).
   function setKeyFromCode(code) {
@@ -1522,9 +1577,17 @@
   function currentSig() { return timeSigDef(drawnSig || selectedSigIds()[0]); }
   // Which meter this exercise gets. Called once per generation; everything
   // downstream then agrees on the answer.
+  // Rotates, in the order the cells show, rather than drawing at random: a
+  // practice run should visit each meter in turn, and the header should be
+  // able to say which comes next. Like the keys, the first sheet after the
+  // set changes takes the first meter; every "next sheet" after that advances.
+  var sigIdx = 0, sigFresh = true;
   function drawSig() {
     var ids = selectedSigIds();
-    drawnSig = ids[Math.floor(Math.random() * ids.length)];
+    if (nextSheet && !sigFresh) sigIdx = (sigIdx + 1) % ids.length;
+    sigFresh = false;
+    sigIdx = sigIdx % ids.length;
+    drawnSig = ids[sigIdx];
     return timeSigDef(drawnSig);
   }
 
@@ -2271,8 +2334,16 @@
   var lastFifths = 0;      // <fifths> from the last exported score
   var lastTieBars = [];    // bars whose last note holds over, from the last generation
 
+  // Rotation advances on a NEXT sheet — the Generate button, and later the
+  // auto-continue — not on every regeneration. Nudging a slider regenerates
+  // the line in place, and having the key change under a chroma tweak would be
+  // a setting changing itself behind you.
+  var nextSheet = false;
   function generate(after) {
     clearError();
+    if (nextSheet && !keyFresh) keyIdx = (keyIdx + 1) % selectedKeyCodes().length;
+    keyFresh = false;
+    applyCurrentKey();
     if ((playing || paused) && !advancing) resetTop();   // manual regen stops playback; auto-advance keeps it
     try {
       var plugin = new ExampleSourceGenerator(buildOptions());
@@ -2287,6 +2358,7 @@
       if (currentSig().compound) xml = applyBeamsToXml(xml);
       var fm = /<fifths>(-?\d+)<\/fifths>/.exec(xml);
       lastFifths = fm ? +fm[1] : 0;   // the chord names spell themselves from this
+      nextSheet = false;
       osmd.load(xml).then(function () {
         renderLoaded();
         persistSession();
@@ -2347,9 +2419,11 @@
       // spellings a saved preset might carry. Compare what they mean, or every
       // preset saved before the change would read as "not the current panel".
       var a = (f === "bowing") ? canonSlurs(p[f]).join(",")
+            : (f === "key")    ? canonKeys(p[f]).join(",")
             : (f === "timesig") ? canonSigs(p[f]).join(",")
             : (f === "musicality") ? snapMusicality(p[f]) : String(p[f]);
       var b = (f === "bowing") ? canonSlurs(cur[f]).join(",")
+            : (f === "key")    ? canonKeys(cur[f]).join(",")
             : (f === "timesig") ? canonSigs(cur[f]).join(",")
             : (f === "musicality") ? snapMusicality(cur[f]) : String(cur[f]);
       if (a !== b) return false;
@@ -2365,14 +2439,211 @@
     return (p && presetMatchesPanel(p)) ? activePreset : null;
   }
 
+  // ---- the subtitle: what THIS sheet is, and where to change it ------------
+  // Keys, meters, length — the facts that vary sheet to sheet. Each is a
+  // control that opens a menu, so they are changed where they are read. The
+  // drill named in the title is the recipe; this line is the instance.
+  //
+  // A set shows in the compact spelling the chord names use — "C, G, Am" — with
+  // this sheet's entry in the accent and the rest muted, so one glance says
+  // where you are and what is coming. Past six it folds to "+N".
+  var SUB_SHOW = 6;
+  function setText(codes, current, short) {
+    var span = document.createElement("span");
+    var shown = codes.slice(0, SUB_SHOW);
+    shown.forEach(function (c, i) {
+      var part = document.createElement("span");
+      part.className = "sub-part" + (c === current ? " now" : "");
+      part.textContent = short(c);
+      span.appendChild(part);
+      if (i < shown.length - 1) span.appendChild(document.createTextNode(", "));
+    });
+    if (codes.length > SUB_SHOW) {
+      var more = document.createElement("span");
+      more.className = "sub-part";
+      more.textContent = " +" + (codes.length - SUB_SHOW);
+      span.appendChild(more);
+    }
+    return span;
+  }
+  function pickButton(kind, aria) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "pick";
+    b.dataset.pick = kind;
+    b.setAttribute("aria-haspopup", "menu");
+    b.setAttribute("aria-expanded", "false");
+    b.setAttribute("aria-label", t(aria));
+    b.addEventListener("click", function (e) { e.stopPropagation(); openPick(kind, b); });
+    return b;
+  }
+  function renderSub() {
+    shSubEl.innerHTML = "";
+    if (obBlanking) return;
+    var keys = pickButton("keys", "aria.pickKeys");
+    keys.appendChild(setText(selectedKeyCodes(), currentKeyCode(), keyShort));
+    var sigs = pickButton("sigs", "aria.pickMeters");
+    sigs.appendChild(setText(selectedSigIds(), drawnSig || selectedSigIds()[0], function (x) { return x; }));
+    var bars = pickButton("bars", "aria.pickBars");
+    bars.textContent = measuresEl.value + " " + t("val.bars").toLowerCase();
+    // Each "· part" is one unbreakable unit, so a phone wraps BEFORE a dot and
+    // never leaves one dangling at the end of a line.
+    [keys, sigs, bars].forEach(function (b, i) {
+      var unit = document.createElement("span");
+      unit.className = "sub-item";
+      if (i) {
+        var dot = document.createElement("span");
+        dot.className = "sub-sep";
+        dot.textContent = "\u00b7 ";
+        unit.appendChild(dot);
+        shSubEl.appendChild(document.createTextNode(" "));
+      }
+      unit.appendChild(b);
+      shSubEl.appendChild(unit);
+    });
+  }
+
+  // One menu, positioned under whatever opened it — fixed to the viewport so a
+  // button in the header, the subtitle and the panel can all anchor it without
+  // any of them having to be a positioned container. Multi-select menus stay
+  // open until you click away; pick-one menus close on the pick.
+  var FIFTHS_MAJOR = ["0-0","4-0","1-0","5-0","2-0","6-0","3-#","0-#","3-0","6-b","2-b","5-b","1-b","4-b","0-b"];
+  var FIFTHS_MINOR = ["5-0","2-0","6-0","3-#","0-#","4-#","1-#","5-#","1-0","4-0","0-0","3-0","6-b","2-b","5-b"];
+  var pickOpenFor = null;
+  function closePick() {
+    var m = document.getElementById("pick-menu");
+    if (m) m.remove();
+    if (pickOpenFor) pickOpenFor.setAttribute("aria-expanded", "false");
+    pickOpenFor = null;
+  }
+  function menuItem(text, on, now, fn) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "menu-item" + (on ? " on" : "") + (now ? " now" : "");
+    b.setAttribute("role", "menuitemcheckbox");
+    b.setAttribute("aria-checked", on ? "true" : "false");
+    b.textContent = text;
+    b.addEventListener("click", function (e) { e.stopPropagation(); fn(); });
+    return b;
+  }
+  function buildPick(kind) {
+    var box = document.createElement("div");
+    box.id = "pick-menu";
+    box.className = "menu pick-menu pick-" + kind;
+    box.setAttribute("role", "menu");
+
+    if (kind === "keys") {
+      // Two columns in fifths order, the relative minor beside its major —
+      // which is how people hold keys in their head. Only keys the engine can
+      // build appear; probeKeys decided that once.
+      var have = selectedKeyCodes(), now = currentKeyCode();
+      var cols = document.createElement("div");
+      cols.className = "pick-cols";
+      [["major", FIFTHS_MAJOR], ["minor", FIFTHS_MINOR]].forEach(function (col) {
+        var c = document.createElement("div");
+        c.className = "pick-col";
+        var h = document.createElement("div");
+        h.className = "pick-h";
+        h.textContent = t("mode." + col[0]);
+        c.appendChild(h);
+        col[1].forEach(function (tonic) {
+          var code = col[0] + "_" + tonic;
+          if (!keyCodeValid(code)) return;
+          var on = have.indexOf(code) >= 0;
+          c.appendChild(menuItem(keyShort(code), on, code === now, function () {
+            var next = have.slice();
+            if (on) { if (next.length === 1) return; next.splice(next.indexOf(code), 1); }
+            else next.push(code);
+            // Kept in fifths order whatever order they were ticked, so the
+            // rotation and the subtitle read the same and stay stable.
+            var order = FIFTHS_MAJOR.map(function (x) { return "major_" + x; })
+                        .concat(FIFTHS_MINOR.map(function (x) { return "minor_" + x; }));
+            next.sort(function (a, b) { return order.indexOf(a) - order.indexOf(b); });
+            keysEl.value = next.join(",");
+            keysEl.dispatchEvent(new Event("change"));
+            refreshPick();
+          }));
+        });
+        cols.appendChild(c);
+      });
+      box.appendChild(cols);
+    } else if (kind === "sigs") {
+      var ids = selectedSigIds();
+      TIME_SIGS.forEach(function (ts) {
+        var on = ids.indexOf(ts.id) >= 0;
+        box.appendChild(menuItem(ts.id, on, ts.id === drawnSig, function () {
+          var next = ids.slice();
+          if (on) { if (next.length === 1) return; next.splice(next.indexOf(ts.id), 1); }
+          else next.push(ts.id);
+          timesigEl.value = canonSigs(next.join(",")).join(",");
+          sigIdx = 0; sigFresh = true;
+          syncTimesigPills();
+          syncFigureCells();
+          generate();
+          refreshPick();
+        }));
+      });
+    } else if (kind === "bars") {
+      Array.prototype.forEach.call(measuresEl.options, function (opt) {
+        box.appendChild(menuItem(opt.textContent, opt.value === measuresEl.value, false, function () {
+          measuresEl.value = opt.value;
+          syncMeasuresPills();
+          closePick();
+          generate();
+        }));
+      });
+    } else if (kind === "instr") {
+      var cur = instrumentPref();
+      INSTRUMENTS.forEach(function (ins) {
+        box.appendChild(menuItem(t("instr." + ins.id), ins.id === cur, false, function () {
+          setInstrument(ins.id);
+          closePick();
+          generate();
+        }));
+      });
+    }
+    return box;
+  }
+  function placePick(box, anchor) {
+    var r = anchor.getBoundingClientRect(), b = box.getBoundingClientRect();
+    var left = Math.min(r.left, window.innerWidth - b.width - 8);
+    var top = r.bottom + 6;
+    if (top + b.height > window.innerHeight - 8) top = Math.max(8, r.top - b.height - 6);
+    box.style.left = Math.max(8, left) + "px";
+    box.style.top = top + "px";
+  }
+  function openPick(kind, anchor) {
+    if (pickOpenFor === anchor) { closePick(); return; }
+    closePick();
+    var box = buildPick(kind);
+    document.body.appendChild(box);
+    placePick(box, anchor);
+    anchor.setAttribute("aria-expanded", "true");
+    pickOpenFor = anchor;
+  }
+  // A multi-select menu stays up while its set changes underneath it, so it is
+  // rebuilt in place rather than reopened — reopening would scroll and flash.
+  function refreshPick() {
+    if (!pickOpenFor) return;
+    var anchor = pickOpenFor, kind = anchor.dataset.pick || "keys";
+    var old = document.getElementById("pick-menu");
+    if (!old) return;
+    var box = buildPick(kind);
+    old.replaceWith(box);
+    placePick(box, anchor);
+  }
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest("#pick-menu")) closePick();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && pickOpenFor) { e.stopPropagation(); closePick(); }
+  }, true);
+
   function updateHeader() {
-    var sel = keyTonicEl.options[keyTonicEl.selectedIndex];
-    var tonic = sel ? sel.textContent : "C";
-    var mode = t("mode." + keyModeEl.value);
     // Onboarding blanks the staff; the title would leak the same thing in words.
     shTitleEl.textContent = obBlanking ? "" : (presetLabel(loadedPresetName()) || t("val.custom"));
-    shSubEl.textContent = obBlanking ? ""
-      : tonic + " " + mode + " – " + measuresEl.value + " " + t("val.bars");
+    renderSub();
+    syncKeyRow();
     syncActivePill();
     syncTransport();
   }
@@ -3670,9 +3941,7 @@
   // The visible pills / steppers / grids drive the hidden form elements, which
   // remain the single source of truth the preset + session snapshot reads.
   // ===========================================================================
-  var tonicCycleEl = document.getElementById("tonic-cycle");
-  var accCycleEl   = document.getElementById("acc-cycle");
-  var modeCycleEl  = document.getElementById("mode-cycle");
+  var keysCycleEl  = document.getElementById("keys-cycle");
   var clefCycleEl  = document.getElementById("clef-cycle");
   var timesigPillsEl = document.getElementById("timesig-pills");
   var hideUnitEl   = document.getElementById("hide-unit");
@@ -3743,22 +4012,8 @@
     keyTonicEl.value = keyTonicEl.querySelector('option[value="' + current + '"]') ? current : "0-0";
   }
 
-  function keyParts() {
-    var tp = String(keyTonicEl.value).split("-");
-    return { sym: parseInt(tp[0], 10) || 0, acc: tp[1] || "0" };
-  }
-  function setKeyParts(sym, acc) {
-    if (validAcc[sym] && validAcc[sym].indexOf(acc) < 0) acc = validAcc[sym][0];
-    keyTonicEl.value = sym + "-" + acc;   // probeKeys() guarantees the option exists
-  }
-
   function syncKeyRow() {
-    var k = keyParts();
-    tonicCycleEl.textContent = LETTERS[k.sym];
-    var a = ACCS.filter(function (x) { return x.v === k.acc; })[0] || ACCS[0];
-    accCycleEl.textContent = a.label;
-    accCycleEl.classList.toggle("on", k.acc !== "0");
-    modeCycleEl.textContent = t("mode." + keyModeEl.value);
+    if (keysCycleEl) keysCycleEl.textContent = selectedKeyCodes().map(keyShort).join(", ");
     clefCycleEl.textContent = clefDef(clefEl.value).label;
   }
 
@@ -3787,6 +4042,7 @@
         if (at >= 0) { if (ids.length === 1) return; ids.splice(at, 1); }
         else ids.push(ts.id);
         timesigEl.value = canonSigs(ids.join(",")).join(",");
+        sigIdx = 0; sigFresh = true;
         syncTimesigPills();
         syncFigureCells();
         generate();
@@ -3900,10 +4156,7 @@
     var optionText = function (sel) {
       return Array.prototype.map.call(sel.options, function (o) { return o.textContent; });
     };
-    lockCycleWidth(modeCycleEl, MODES.map(function (m) { return t("mode." + m); }));
     lockCycleWidth(hideUnitEl, [t("val.beats"), t("val.measures")]);
-    lockCycleWidth(tonicCycleEl, LETTERS);
-    lockCycleWidth(accCycleEl, ACCS.map(function (a) { return a.label; }));
     lockCycleWidth(clefCycleEl, CLEFS.map(function (c) { return c.label; }));
     // Highlight Patterns is not in this list any more. It was a cycle pill
     // reading Off/On, and the widest-label measurement writes each label into
@@ -4776,28 +5029,13 @@
   // The panel's face for the instrument preference — so a wrong pick during
   // onboarding is a tap to fix, not a mystery. Rebuilt on language change,
   // since the labels are words rather than glyphs.
-  function buildInstrumentPills() {
-    var host = document.getElementById("instrument-pills");
-    if (!host) return;
-    host.innerHTML = "";
-    INSTRUMENTS.forEach(function (ins) {
-      var b = document.createElement("button");
-      b.type = "button";
-      b.className = "opt";
-      b.textContent = t("instr." + ins.id);
-      b.dataset.instr = ins.id;
-      b.addEventListener("click", function () { setInstrument(ins.id); });
-      host.appendChild(b);
-    });
-    syncInstrumentPills();
-  }
+  // The instrument sits in the header beside the app's name, and that is the
+  // one place to change it: its clef is what the sheet is written in, which is
+  // header information rather than a setting.
+  function buildInstrumentPills() { syncInstrumentPills(); }
   function syncInstrumentPills() {
-    var host = document.getElementById("instrument-pills");
-    if (!host) return;
-    var cur = instrumentPref();
-    Array.prototype.forEach.call(host.children, function (b) {
-      b.classList.toggle("on", b.dataset.instr === cur);
-    });
+    var b = document.getElementById("pick-instr");
+    if (b) b.textContent = t("instr." + instrumentPref());
   }
 
   // Slur groups: how many notes ride under one curve. Several can be on at
@@ -5022,23 +5260,22 @@
 
   function wirePanel() {
     // --- key row: each pill advances through its own list ---
-    tonicCycleEl.addEventListener("click", function () {
-      var k = keyParts();
-      setKeyParts((k.sym + 1) % 7, k.acc);
-      syncKeyRow(); generate();
+    var pickInstrEl = document.getElementById("pick-instr");
+    if (pickInstrEl) pickInstrEl.addEventListener("click", function (e) {
+      e.stopPropagation();
+      openPick("instr", pickInstrEl);
     });
-    accCycleEl.addEventListener("click", function () {
-      var k = keyParts(), allowed = validAcc[k.sym] || ["0"];
-      var i = allowed.indexOf(k.acc);
-      setKeyParts(k.sym, allowed[(i + 1) % allowed.length]);
-      syncKeyRow(); generate();
+    // The panel's key row opens the same picker the subtitle opens.
+    if (keysCycleEl) keysCycleEl.addEventListener("click", function (e) {
+      e.stopPropagation();
+      openPick("keys", keysCycleEl);
     });
-    modeCycleEl.addEventListener("click", function () {
-      var i = MODES.indexOf(keyModeEl.value);
-      keyModeEl.value = MODES[(i + 1) % MODES.length];
-      progressionEl.value = progressionDef(progressionEl.value).id;   // remap across modes
-      buildProgressionPills();
-      syncKeyRow(); generate();
+    // Changing the set is one path whichever surface did it: the picker writes
+    // #keys and fires change, and so can a harness.
+    keysEl.addEventListener("change", function () {
+      setKeys(canonKeys(keysEl.value));
+      syncKeyRow();
+      generate();
     });
     clefCycleEl.addEventListener("click", function () {
       var ids = CLEFS.map(function (c) { return c.id; });
@@ -5246,7 +5483,7 @@
 
   [keyTonicEl, keyModeEl, measuresEl, musicalityEl, chromaEl].forEach(function (el) { el.addEventListener("change", generate); });
   showChunksEl.addEventListener("change", drawOverlay);
-  generateBtn.addEventListener("click", function () { generate(); });
+  generateBtn.addEventListener("click", function () { nextSheet = true; generate(); });
   playBtn.addEventListener("click", function () {
     if (playing) { pausePlay(); return; }
     if (paused) resumePlay(); else startPlay();

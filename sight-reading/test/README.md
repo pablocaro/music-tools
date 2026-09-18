@@ -20,6 +20,7 @@ node sight-reading/test/range.js       # intervals too wide for the range: muted
 node sight-reading/test/comping.js     # walking bass + chords agree with the progression
 node sight-reading/test/drills-ui.js   # the drills band: edited state, park/restore, push
                                        # the slow one — needs ~900s, three reloads
+node sight-reading/test/subtitle.js    # key + meter sets rotate on Generate; +N fold; drill round-trip
 ```
 
 Screenshots land in `test/out/` (gitignored). `PW` / `CHROMIUM` env vars
@@ -32,7 +33,10 @@ harness, dispatch a real `contextmenu` MouseEvent rather than
 actionability check times out on anything underneath it.
 
 `drills.js` is not a test — it is the shared way to reach a drill, and every
-harness that needs one goes through it. The band shows three rows, so anything
+harness that needs one goes through it. It also holds `setKeys` and
+`setInstrument`, which drive the subtitle and kicker pickers: the key is a set
+now, and the old `#key-tonic` / mode-cycle pokes left the rotation index and
+the progression list behind. The band shows three rows, so anything
 else lives behind the All drills page; `pickDrill` finds it either way and
 returns which surface it used.
 

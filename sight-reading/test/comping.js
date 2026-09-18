@@ -24,6 +24,7 @@
 const PW = process.env.PW || '/opt/node22/lib/node_modules/playwright';
 const CHROMIUM = process.env.CHROMIUM || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const { chromium } = require(PW);
+const { setKeys } = require('./drills.js');
 
 const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const nameOf = m => NAMES[((m % 12) + 12) % 12] + Math.floor(m / 12 - 1);
@@ -35,7 +36,12 @@ const nameOf = m => NAMES[((m % 12) + 12) % 12] + Math.floor(m / 12 - 1);
   p.on('pageerror', e => errs.push(e.message));
   await p.goto('http://localhost:8091/', { waitUntil: 'domcontentloaded' });
   await p.waitForTimeout(3500);
-  await p.evaluate(() => { const o = document.getElementById('ob'); if (o) o.hidden = true; });
+  // Through onboarding, not past it: forcing #ob hidden leaves the header
+  // blanked (it hides the same thing the staff hides), and setKeys needs it.
+  for (let i = 0; i < 4; i++) {
+    if (await p.$('#ob-next')) { await p.click('#ob-next').catch(() => {}); await p.waitForTimeout(200); }
+  }
+  await p.waitForTimeout(800);
 
   // Comping ships off, so turn it on before anything is expected to sound.
   await p.evaluate(() => {
@@ -110,11 +116,8 @@ const nameOf = m => NAMES[((m % 12) + 12) % 12] + Math.floor(m / 12 - 1);
   await sample('3/4', setMeter, '3/4');
   await sample('6/8', setMeter, '6/8');
   await sample('2/4', setMeter, '2/4');
-  await sample('minor', () => { document.getElementById('mode-cycle').click(); });
-  await sample('key A', () => {
-    const t = document.getElementById('key-tonic');
-    t.value = '5-0'; t.dispatchEvent(new Event('change'));
-  });
+  await setKeys(p, ['Cm']);  await sample('minor');
+  await setKeys(p, ['Am']);  await sample('key A');
   await sample('bass clef', () => {
     const c = document.getElementById('clef');
     c.value = 'bass'; c.dispatchEvent(new Event('change'));
@@ -129,12 +132,8 @@ const nameOf = m => NAMES[((m % 12) + 12) % 12] + Math.floor(m / 12 - 1);
   await p.evaluate(() => document.getElementById('settings-toggle').click());
   await p.waitForTimeout(600);
   for (const mode of ['major', 'minor']) {
-    const want = await p.evaluate(m => {
-      const cyc = document.getElementById('mode-cycle');
-      if (document.getElementById('key-mode').value !== m) cyc.click();
-      return document.getElementById('key-mode').value;
-    }, mode);
-    await p.waitForTimeout(1400);
+    await setKeys(p, [mode === 'major' ? 'C' : 'Am'], 1400);
+    const want = await p.evaluate(() => document.getElementById('key-mode').value);
     const ids = await p.evaluate(() =>
       [...document.querySelectorAll('#progression-pills .opt')].map(o => o.dataset.prog));
     for (const id of ids) {

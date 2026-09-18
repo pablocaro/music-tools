@@ -19,8 +19,12 @@ const { chromium } = require(process.env.PW || '/opt/node22/lib/node_modules/pla
   await p.evaluate(()=>[...document.querySelectorAll('#ties-pills .opt')].find(e=>e.textContent.trim()==='Lots').click());
   await p.waitForTimeout(1200);
   await p.evaluate(()=>{ const t=document.getElementById('tempo'); t.value=180; t.dispatchEvent(new Event('change')); });
-  // hide ahead on, 1 beat lead
-  await p.click('#hide-up'); await p.waitForTimeout(200);
+  // hide ahead on, 1 beat lead. It is a switch now, and its stepper is not in
+  // the DOM until the switch is on — clicking + first used to time out here.
+  await p.evaluate(()=>{ if(!document.getElementById('hide-behind').checked) document.getElementById('hide-toggle').click(); });
+  await p.waitForTimeout(300);
+  await p.evaluate(()=>{ const v=document.getElementById('hide-val'); if((parseInt(v.dataset.n,10)||1)<1) document.getElementById('hide-up').click(); });
+  await p.waitForTimeout(200);
   await p.keyboard.press('Escape'); await p.waitForTimeout(400);   // close rail so play is visible
   const curveCount = await p.evaluate(()=>document.querySelectorAll('#sheet .vf-curve, #sheet .vf-stavetie').length);
   await p.click('#play'); await p.waitForTimeout(9000);            // count-in + a few bars

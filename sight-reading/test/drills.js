@@ -77,4 +77,50 @@ async function setMusicality(p, on, wait) {
   return changed;
 }
 
-module.exports = { pickDrill, newDrill, names, setMusicality };
+// The key set, driven through the subtitle's picker — the same menu a finger
+// reaches, so the rotation index and the panel's derived #key-tonic / #key-mode
+// follow the way they do for a user. Labels are the menu's own: 'C', 'Am',
+// 'F♯', 'B♭m'. Wanted keys are ticked before unwanted ones are unticked, so
+// the floor of one never blocks a swap. Each click regenerates, so this waits
+// per toggle; returns how many it made.
+async function setKeys(p, labels, wait) {
+  await p.click('#sh-sub .pick[data-pick="keys"]');
+  await p.waitForTimeout(250);
+  const plan = await p.evaluate((want) => {
+    const items = [...document.querySelectorAll('#pick-menu .menu-item')]
+      .map((e) => ({ label: e.textContent.replace(/[●\s]/g, ''), on: e.classList.contains('on') }));
+    const known = items.map((i) => i.label);
+    want.forEach((w) => { if (known.indexOf(w) < 0) throw new Error('no key "' + w + '" in the picker — have: ' + known.join(' ')); });
+    const tick = items.filter((i) => !i.on && want.indexOf(i.label) >= 0).map((i) => i.label);
+    const untick = items.filter((i) => i.on && want.indexOf(i.label) < 0).map((i) => i.label);
+    return tick.concat(untick);
+  }, labels);
+  for (const label of plan) {
+    await p.evaluate((l) => {
+      const it = [...document.querySelectorAll('#pick-menu .menu-item')]
+        .find((e) => e.textContent.replace(/[●\s]/g, '') === l);
+      if (!it) throw new Error('picker lost item ' + l + ' mid-way');
+      it.click();
+    }, label);
+    await p.waitForTimeout(wait || 1200);
+  }
+  await p.keyboard.press('Escape');
+  await p.waitForTimeout(150);
+  return plan.length;
+}
+
+// The instrument, through the picker in the kicker (the panel section it
+// replaced is gone). Name as the menu shows it: 'Cello', 'Viola'.
+async function setInstrument(p, name, wait) {
+  await p.click('#pick-instr');
+  await p.waitForTimeout(250);
+  await p.evaluate((n) => {
+    const it = [...document.querySelectorAll('#pick-menu .menu-item')]
+      .find((e) => e.textContent.replace(/[●\s]/g, '') === n);
+    if (!it) throw new Error('no instrument "' + n + '" in the picker');
+    it.click();
+  }, name);
+  await p.waitForTimeout(wait || 1200);
+}
+
+module.exports = { pickDrill, newDrill, names, setMusicality, setKeys, setInstrument };
