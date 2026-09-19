@@ -1666,16 +1666,17 @@ button:active { opacity: 0.7; }
 .topbar #sh-sub   { grid-column: 1 / -1; grid-row: 3; }
 .tb-actions       { grid-column: 2; grid-row: 1 / span 2; }
 #sh-title { font-size: var(--type-title); font-weight: var(--weight-strong); color: var(--ink); letter-spacing: 0.2px; line-height: 1.15; }
-#sh-sub   { font-size: var(--type-lead); font-weight: var(--weight-standard); color: var(--muted); margin-top: 5px;
+#sh-sub   { font-size: var(--type-label); font-weight: var(--weight-standard); color: var(--muted); margin-top: 7px;
             display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 
 /* ---------------------------------------------------------------------------
    PATTERN: pick
    A fact in the header that is also the control for it — the keys, the
-   meters, the length, the instrument. Reads as part of the sentence at rest
-   (accent ink, no box), takes the same grey fill Back takes on hover, and
-   opens a menu. A set shows in the compact spelling the chord names use, this
-   sheet's entry in the accent and the rest muted.
+   meters, the length, the instrument. In the kicker it reads as part of the
+   sentence and takes the grey fill Back takes on hover; in the subtitle it
+   wears a chip. A set shows in the compact spelling the chord names use, all
+   of it in one ink: the chip says what is in play, and the staff says which
+   one is playing.
    --------------------------------------------------------------------------- */
 .pick {
   display: inline;
@@ -1701,7 +1702,7 @@ button:active { opacity: 0.7; }
 #sh-sub .pick {
   display: inline-flex;
   align-items: center;
-  padding: 3px 10px;
+  padding: 7px 14px;
   margin: 0;
   border-radius: var(--ctl-radius);
   background: var(--ctl-on-tint);
@@ -1709,8 +1710,6 @@ button:active { opacity: 0.7; }
 #sh-sub .pick:hover, #sh-sub .pick[aria-expanded="true"] {
   background: color-mix(in srgb, var(--accent) 18%, var(--paper));
 }
-.sub-part { color: color-mix(in srgb, var(--ctl-on) 55%, transparent); }
-.sub-part.now { color: var(--ctl-on); font-weight: var(--weight-strong); }
 
 /* In the kicker the pick keeps the kicker's colour but not its face: the
    wordmark is a mark, the instrument is a word. */
@@ -1738,10 +1737,6 @@ button:active { opacity: 0.7; }
   color: var(--muted);
   padding: 6px 12px 4px;
 }
-/* Ticked is the tint every chosen control wears; this sheet's own entry adds
-   a mark, because in a rotation "chosen" and "current" are different facts. */
-.menu-item.now::after { content: " \25cf"; color: var(--ctl-on); font-size: 0.6em; vertical-align: middle; }
-
 /* The header's action cluster and the popovers that hang from it. Anchored to
    the cluster, not the page, so the same rule places them on a phone and a wide
    window; right-aligned because their owners sit at the right edge. */

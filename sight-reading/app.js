@@ -2448,23 +2448,13 @@
   // this sheet's entry in the accent and the rest muted, so one glance says
   // where you are and what is coming. Past six it folds to "+N".
   var SUB_SHOW = 6;
-  function setText(codes, current, short) {
-    var span = document.createElement("span");
-    var shown = codes.slice(0, SUB_SHOW);
-    shown.forEach(function (c, i) {
-      var part = document.createElement("span");
-      part.className = "sub-part" + (c === current ? " now" : "");
-      part.textContent = short(c);
-      span.appendChild(part);
-      if (i < shown.length - 1) span.appendChild(document.createTextNode(", "));
-    });
-    if (codes.length > SUB_SHOW) {
-      var more = document.createElement("span");
-      more.className = "sub-part";
-      more.textContent = " +" + (codes.length - SUB_SHOW);
-      span.appendChild(more);
-    }
-    return span;
+  // The set, in one ink. There used to be a brighter rung for the key this
+  // sheet happens to be in, but the staff already says that in its signature,
+  // and two weights inside one chip made a line of type look like two things.
+  // The chip answers what is in play; the music answers what is playing.
+  function setText(codes, short) {
+    var shown = codes.slice(0, SUB_SHOW).map(short).join(", ");
+    return shown + (codes.length > SUB_SHOW ? " +" + (codes.length - SUB_SHOW) : "");
   }
   function pickButton(kind, aria) {
     var b = document.createElement("button");
@@ -2481,9 +2471,9 @@
     shSubEl.innerHTML = "";
     if (obBlanking) return;
     var keys = pickButton("keys", "aria.pickKeys");
-    keys.appendChild(setText(selectedKeyCodes(), currentKeyCode(), keyShort));
+    keys.textContent = setText(selectedKeyCodes(), keyShort);
     var sigs = pickButton("sigs", "aria.pickMeters");
-    sigs.appendChild(setText(selectedSigIds(), drawnSig || selectedSigIds()[0], function (x) { return x; }));
+    sigs.textContent = setText(selectedSigIds(), function (x) { return x; });
     var bars = pickButton("bars", "aria.pickBars");
     bars.textContent = measuresEl.value + " " + t("val.bars").toLowerCase();
     // No separators: each fact is a chip, and the row's gap divides them. The
@@ -2507,10 +2497,10 @@
     if (pickOpenFor) pickOpenFor.setAttribute("aria-expanded", "false");
     pickOpenFor = null;
   }
-  function menuItem(text, on, now, fn) {
+  function menuItem(text, on, fn) {
     var b = document.createElement("button");
     b.type = "button";
-    b.className = "menu-item" + (on ? " on" : "") + (now ? " now" : "");
+    b.className = "menu-item" + (on ? " on" : "");
     b.setAttribute("role", "menuitemcheckbox");
     b.setAttribute("aria-checked", on ? "true" : "false");
     b.textContent = text;
@@ -2527,7 +2517,7 @@
       // Two columns in fifths order, the relative minor beside its major —
       // which is how people hold keys in their head. Only keys the engine can
       // build appear; probeKeys decided that once.
-      var have = selectedKeyCodes(), now = currentKeyCode();
+      var have = selectedKeyCodes();
       var cols = document.createElement("div");
       cols.className = "pick-cols";
       [["major", FIFTHS_MAJOR], ["minor", FIFTHS_MINOR]].forEach(function (col) {
@@ -2541,7 +2531,7 @@
           var code = col[0] + "_" + tonic;
           if (!keyCodeValid(code)) return;
           var on = have.indexOf(code) >= 0;
-          c.appendChild(menuItem(keyShort(code), on, code === now, function () {
+          c.appendChild(menuItem(keyShort(code), on, function () {
             var next = have.slice();
             if (on) { if (next.length === 1) return; next.splice(next.indexOf(code), 1); }
             else next.push(code);
@@ -2562,7 +2552,7 @@
       var ids = selectedSigIds();
       TIME_SIGS.forEach(function (ts) {
         var on = ids.indexOf(ts.id) >= 0;
-        box.appendChild(menuItem(ts.id, on, ts.id === drawnSig, function () {
+        box.appendChild(menuItem(ts.id, on, function () {
           var next = ids.slice();
           if (on) { if (next.length === 1) return; next.splice(next.indexOf(ts.id), 1); }
           else next.push(ts.id);
@@ -2576,7 +2566,7 @@
       });
     } else if (kind === "bars") {
       Array.prototype.forEach.call(measuresEl.options, function (opt) {
-        box.appendChild(menuItem(opt.textContent, opt.value === measuresEl.value, false, function () {
+        box.appendChild(menuItem(opt.textContent, opt.value === measuresEl.value, function () {
           measuresEl.value = opt.value;
           syncMeasuresPills();
           closePick();
@@ -2586,7 +2576,7 @@
     } else if (kind === "instr") {
       var cur = instrumentPref();
       INSTRUMENTS.forEach(function (ins) {
-        box.appendChild(menuItem(t("instr." + ins.id), ins.id === cur, false, function () {
+        box.appendChild(menuItem(t("instr." + ins.id), ins.id === cur, function () {
           setInstrument(ins.id);
           closePick();
           generate();
@@ -2633,6 +2623,12 @@
   function updateHeader() {
     // Onboarding blanks the staff; the title would leak the same thing in words.
     shTitleEl.textContent = obBlanking ? "" : (presetLabel(loadedPresetName()) || t("val.custom"));
+    // What this sheet actually came out as, on the sheet itself. The subtitle
+    // names the whole set and stops there, so once a set rotates, the drawn key
+    // and meter live only in the engraving — where VexFlow writes them as glyph
+    // paths that nothing can read back. Same reason __srSession exists.
+    sheetEl.dataset.key = currentKeyCode();
+    sheetEl.dataset.sig = drawnSig || selectedSigIds()[0];
     renderSub();
     syncKeyRow();
     syncActivePill();

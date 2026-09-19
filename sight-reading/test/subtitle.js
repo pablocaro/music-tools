@@ -35,7 +35,8 @@ const check = (label, ok, got) => {
     sub: document.getElementById('sh-sub').textContent.trim(),
     chips: [...document.querySelectorAll('#sh-sub .pick')].map((e) => e.textContent.trim()),
     chipRows: (() => { const ys = [...document.querySelectorAll('#sh-sub .pick')].map((e) => Math.round(e.getBoundingClientRect().y)); return [...new Set(ys)].length; })(),
-    now: [...document.querySelectorAll('#sh-sub .sub-part.now')].map((e) => e.textContent.trim()),
+    drawnKey: document.getElementById('sheet').dataset.key,
+    drawnSig: document.getElementById('sheet').dataset.sig,
     keys: document.getElementById('keys').value,
     tonic: document.getElementById('key-tonic').value,
     mode: document.getElementById('key-mode').value,
@@ -52,6 +53,10 @@ const check = (label, ok, got) => {
   check('subtitle is three chips: key, meter, bars',
     s.chips.length === 3 && s.chips[0] === 'C' && s.chips[1] === '4/4' && /^\d+ bars$/.test(s.chips[2]), s.chips.join(' | '));
   check('the chips sit on one row', s.chipRows === 1, s.chipRows + ' row(s)');
+  check('a chip is one ink, no brighter rung inside', await p.evaluate(() => {
+    const k = document.querySelector('#sh-sub .pick[data-pick="keys"]');
+    return !k.querySelector('.sub-part') && k.children.length === 0;
+  }), 'keys chip children');
   check('no middot separators survive', await p.evaluate(() =>
     !document.querySelector('#sh-sub .sub-sep') && !/\u00b7/.test(document.getElementById('sh-sub').textContent)), s.sub);
   check('old key cycles are gone', await p.evaluate(() =>
@@ -75,7 +80,7 @@ const check = (label, ok, got) => {
   check('two columns, Major and Minor', menu.heads.join('/') === 'Major/Minor', menu.heads.join('/'));
   check('24 keys, C and Am both present', menu.items.length === 24 && menu.items.indexOf('C') >= 0 && menu.items.indexOf('Am') >= 0, menu.items.length + ' items');
   check('menu sized to its content, not the viewport', menu.w > 150 && menu.w < 400, menu.w + 'px');
-  check('this sheet\'s key carries the ● marker', menu.marked.join() === 'C' && !menu.literal, menu.marked.join());
+  check('no current-key marker survives', menu.marked.length === 0 && !menu.literal, menu.marked.join() || 'none');
 
   // ---- 3. rotation: C, G, Am → advances on Generate, and only then ----
   const clicks = await setKeys(p, ['C', 'G', 'Am']);
@@ -84,8 +89,9 @@ const check = (label, ok, got) => {
   check('first sheet after a set change is the first key', s.tonic === '0-0' && s.mode === 'major', s.tonic + '/' + s.mode);
   check('panel key row shows the set', s.cycle === 'C, G, Am', s.cycle);
   const seq = [];
-  for (let i = 0; i < 4; i++) { s = await gen(); seq.push(s.now[0] + ':' + s.tonic + '/' + s.mode); }
-  check('Generate rotates C → G → Am → C', seq.join(' ') === 'G:4-0/major Am:5-0/minor C:0-0/major G:4-0/major', seq.join(' '));
+  for (let i = 0; i < 4; i++) { s = await gen(); seq.push(s.drawnKey); }
+  check('Generate rotates C \u2192 G \u2192 Am \u2192 C',
+    seq.join(' ') === 'major_4-0 minor_5-0 major_0-0 major_4-0', seq.join(' '));
   await p.evaluate(() => {
     const m = document.getElementById('measures');
     m.value = 8; m.dispatchEvent(new Event('input', { bubbles: true })); m.dispatchEvent(new Event('change', { bubbles: true }));
@@ -106,7 +112,7 @@ const check = (label, ok, got) => {
   s = await state();
   check('meter set is 3/4, 4/4', s.sigs === '3/4,4/4', s.sigs);
   const mseq = [];
-  for (let i = 0; i < 4; i++) { s = await gen(); mseq.push(s.now[1]); }
+  for (let i = 0; i < 4; i++) { s = await gen(); mseq.push(s.drawnSig); }
   check('meters alternate sheet to sheet', mseq.join(' ') === '4/4 3/4 4/4 3/4' || mseq.join(' ') === '3/4 4/4 3/4 4/4', mseq.join(' '));
 
   // ---- 5. past six keys the subtitle folds ----
