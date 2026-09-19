@@ -1648,15 +1648,26 @@ button:active { opacity: 0.7; }
   align-self: center;
   width: 100%;
   max-width: var(--music-max);
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: 16px;
   padding: calc(var(--page-pad) * 0.55) var(--page-pad) 6px;
 }
-.tb-titles { min-width: 0; }
+/* The subtitle wants the whole width, and on a phone it needs it: the action
+   cluster is 140px wide but only 40px tall, and as a flex sibling it charged
+   the titles column that 140px all the way down — including the third line,
+   where the cluster has long since ended. As a grid the cluster holds column
+   two beside the kicker and the title only, and the subtitle spans both. That
+   is the difference between two lines and one at 390px, with nothing dropped. */
+.tb-titles { display: contents; }
+.topbar > .tb-titles > .kicker { grid-column: 1; grid-row: 1; }
+.topbar #sh-title { grid-column: 1; grid-row: 2; }
+.topbar #sh-sub   { grid-column: 1 / -1; grid-row: 3; }
+.tb-actions       { grid-column: 2; grid-row: 1 / span 2; }
 #sh-title { font-size: var(--type-title); font-weight: var(--weight-strong); color: var(--ink); letter-spacing: 0.2px; line-height: 1.15; }
-#sh-sub   { font-size: var(--type-lead); font-weight: var(--weight-standard); color: var(--muted); margin-top: 5px; }
+#sh-sub   { font-size: var(--type-lead); font-weight: var(--weight-standard); color: var(--muted); margin-top: 5px;
+            display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 
 /* ---------------------------------------------------------------------------
    PATTERN: pick
@@ -1680,13 +1691,31 @@ button:active { opacity: 0.7; }
   cursor: pointer;
 }
 .pick:hover, .pick[aria-expanded="true"] { background: var(--ctl-fill); }
+/* In the subtitle each fact wears a chip. The wash is the tint every chosen
+   control in the app already uses, but without the stroke, because a stroke
+   means SELECTED here and these are not selected — nothing sits unselected
+   beside them. The chip is sized to the text, not to the panel's 40px control
+   height: this is a line of type that happens to be operable, and a row of
+   full-height controls under the title would out-shout it. With chips the
+   middots go: the gaps do that work now. */
+#sh-sub .pick {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  margin: 0;
+  border-radius: var(--ctl-radius);
+  background: var(--ctl-on-tint);
+}
+#sh-sub .pick:hover, #sh-sub .pick[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--accent) 18%, var(--paper));
+}
 .sub-part { color: color-mix(in srgb, var(--ctl-on) 55%, transparent); }
 .sub-part.now { color: var(--ctl-on); font-weight: var(--weight-strong); }
-.sub-sep { color: var(--muted); }
+
 /* In the kicker the pick keeps the kicker's colour but not its face: the
    wordmark is a mark, the instrument is a word. */
 .kicker .pick { font-family: "Rubik", sans-serif; font-weight: var(--weight-standard); text-transform: none; }
-.kicker-instr, .sub-item { white-space: nowrap; }
+.kicker-instr { white-space: nowrap; }
 .kicker-sep { font-family: "Rubik", sans-serif; font-weight: var(--weight-standard); color: var(--muted); margin: 0 2px; }
 
 /* The menu the picks open. Fixed to the viewport (see placePick), so any
@@ -1694,6 +1723,13 @@ button:active { opacity: 0.7; }
 .menu.pick-menu { position: fixed; top: auto; right: auto; max-height: 70vh; overflow: auto; }
 .pick-cols { display: flex; gap: 6px; }
 .pick-col { display: flex; flex-direction: column; min-width: 92px; }
+/* Ticked rows need air between them. Stacked flush, two adjacent selections
+   share an edge and their corners meet, so a run reads as one lozenge with a
+   pinched waist rather than as three chosen keys — which is exactly what
+   C, G and Am look like, being adjacent in fifths order. The rows lose the
+   height the gap takes, so the menu itself does not grow. */
+.pick-menu, .pick-col { gap: 4px; }
+.pick-menu .menu-item { padding-top: 7px; padding-bottom: 7px; }
 .pick-h {
   font-size: var(--type-caption);
   font-weight: var(--weight-standard);

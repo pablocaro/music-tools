@@ -33,6 +33,8 @@ const check = (label, ok, got) => {
 
   const state = () => p.evaluate(() => ({
     sub: document.getElementById('sh-sub').textContent.trim(),
+    chips: [...document.querySelectorAll('#sh-sub .pick')].map((e) => e.textContent.trim()),
+    chipRows: (() => { const ys = [...document.querySelectorAll('#sh-sub .pick')].map((e) => Math.round(e.getBoundingClientRect().y)); return [...new Set(ys)].length; })(),
     now: [...document.querySelectorAll('#sh-sub .sub-part.now')].map((e) => e.textContent.trim()),
     keys: document.getElementById('keys').value,
     tonic: document.getElementById('key-tonic').value,
@@ -47,7 +49,11 @@ const check = (label, ok, got) => {
   // ---- 1. what the header holds ----
   let s = await state();
   check('kicker names the instrument', s.kicker.length > 0, s.kicker);
-  check('subtitle is key · meter · bars', /^C · 4\/4 · \d+ bars$/.test(s.sub), s.sub);
+  check('subtitle is three chips: key, meter, bars',
+    s.chips.length === 3 && s.chips[0] === 'C' && s.chips[1] === '4/4' && /^\d+ bars$/.test(s.chips[2]), s.chips.join(' | '));
+  check('the chips sit on one row', s.chipRows === 1, s.chipRows + ' row(s)');
+  check('no middot separators survive', await p.evaluate(() =>
+    !document.querySelector('#sh-sub .sub-sep') && !/\u00b7/.test(document.getElementById('sh-sub').textContent)), s.sub);
   check('old key cycles are gone', await p.evaluate(() =>
     !document.getElementById('tonic-cycle') && !document.getElementById('mode-cycle') && !document.querySelector('.sec-instrument')));
 
@@ -106,7 +112,7 @@ const check = (label, ok, got) => {
   // ---- 5. past six keys the subtitle folds ----
   await setKeys(p, ['C', 'G', 'D', 'A', 'E', 'B', 'Am', 'Em']);
   s = await state();
-  check('eight keys read as six +2', /^C, G, D, A, E, B \+2 · /.test(s.sub), s.sub);
+  check('eight keys read as six +2', s.chips[0] === 'C, G, D, A, E, B +2', s.chips[0]);
   check('panel row still lists every key', s.cycle.split(', ').length === 8, s.cycle);
 
   // ---- 6. a drill saves both sets and they survive a reload ----

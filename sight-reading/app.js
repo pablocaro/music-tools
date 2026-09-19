@@ -2486,21 +2486,12 @@
     sigs.appendChild(setText(selectedSigIds(), drawnSig || selectedSigIds()[0], function (x) { return x; }));
     var bars = pickButton("bars", "aria.pickBars");
     bars.textContent = measuresEl.value + " " + t("val.bars").toLowerCase();
-    // Each "· part" is one unbreakable unit, so a phone wraps BEFORE a dot and
-    // never leaves one dangling at the end of a line.
-    [keys, sigs, bars].forEach(function (b, i) {
-      var unit = document.createElement("span");
-      unit.className = "sub-item";
-      if (i) {
-        var dot = document.createElement("span");
-        dot.className = "sub-sep";
-        dot.textContent = "\u00b7 ";
-        unit.appendChild(dot);
-        shSubEl.appendChild(document.createTextNode(" "));
-      }
-      unit.appendChild(b);
-      shSubEl.appendChild(unit);
-    });
+    // No separators: each fact is a chip, and the row's gap divides them. The
+    // dots parted three runs of plain text; a chip beside a chip needs no
+    // punctuation between them.
+    shSubEl.appendChild(keys);
+    shSubEl.appendChild(sigs);
+    shSubEl.appendChild(bars);
   }
 
   // One menu, positioned under whatever opened it — fixed to the viewport so a
