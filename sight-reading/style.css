@@ -187,6 +187,16 @@
   --ctl-h-lg: calc(var(--ctl-h) + 8px);                            /* round icon buttons — transport, regenerate.
                                                                       Derived, so the two sizes keep their step
                                                                       when either is tuned */
+  --ctl-h-sm: calc(var(--ctl-h) - 6px);                            /* the subtitle's chips. A rung below the panel's
+                                                                      controls, because a chip is a line of type that
+                                                                      happens to be operable, not a control in a row
+                                                                      of them. Derived for the same reason -lg is.
+                                                                      The step down is 6 where the step up is 8: -8
+                                                                      read lighter than wanted against the title. */
+  --row-h: 38px;                                                   /* a list row you tap — the picker menus. Not a
+                                                                      control rung: sized by the finger, and held off
+                                                                      --ctl-h because 24 keys at that height start
+                                                                      scrolling on a phone. */
   --col-max: 540px;                                                /* cap for a bare slider's travel */
   --ctl-fill: var(--paper-dim);                                    /* recessed track / plain-container fill */
   --ctl-fill-hover: #e9e9ee;                                       /* resting fill, hovered */
@@ -1703,7 +1713,11 @@ button:active { opacity: 0.7; }
 #sh-sub .pick {
   display: inline-flex;
   align-items: center;
-  padding: 10px 14px;
+  box-sizing: border-box;
+  min-height: var(--ctl-h-sm);
+  /* Padding as a fraction of the height, so the chip scales as a shape: drop a
+     rung and it keeps its proportions instead of losing its sides. */
+  padding: 0 calc(var(--ctl-h-sm) * 0.368);
   margin: 0;
   border-radius: var(--ctl-radius);
   background: var(--ctl-on-tint);
@@ -1724,9 +1738,16 @@ button:active { opacity: 0.7; }
    C, G and Am look like, being adjacent in fifths order. The rows lose the
    height the gap takes, so the menu itself does not grow. */
 .pick-menu, .pick-col { gap: 4px; }
-/* Tap targets, so they are sized by the finger rather than by the text: the
-   vertical padding runs 1.2x what the type alone would ask for. */
-.pick-menu .menu-item { padding-top: 10px; padding-bottom: 10px; }
+/* Tap targets, so they are sized by the finger rather than by the text. The
+   row height is the token; the base rule's 12px sides stay. */
+.pick-menu .menu-item {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: var(--row-h);
+  padding-top: 0;
+  padding-bottom: 0;
+}
 .pick-h {
   font-size: var(--type-caption);
   font-weight: var(--weight-standard);
