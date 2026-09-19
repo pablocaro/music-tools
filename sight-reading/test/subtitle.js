@@ -133,7 +133,7 @@ const check = (label, ok, got) => {
   s = await state();
   check('after reload', s.keys.split(',').length === 8 && s.sigs === '3/4,4/4' && s.title === 'Rotator', s.sub);
 
-  await p.screenshot({ path: 'sight-reading/test/out/subtitle.png' }).catch(() => p.screenshot({ path: 'test/out/subtitle.png' }));
+  await p.screenshot({ path: __dirname + '/out/subtitle.png' });   // $PWD-proof: harnesses run from either the repo root or here
   check('no page errors', errs.length === 0, JSON.stringify(errs));
   await b.close();
   console.log(fails ? fails + ' FAILED' : 'all passed');
