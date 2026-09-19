@@ -47,7 +47,7 @@ const { pickDrill, newDrill, setInstrument } = require('./drills.js');
   console.log('after Thirds Drill:', await p.evaluate(() => document.getElementById('clef').value), '(want bass)');
 
   // the kicker names the instrument, and its picker changes the pref
-  console.log('kicker            :', await p.evaluate(() => document.getElementById('pick-instr').textContent), '(want Cello)');
+  console.log('panel row         :', await p.evaluate(() => document.getElementById('instr-cycle').textContent), '(want Cello)');
   await setInstrument(p, 'Viola');
   console.log('picked Viola      :', await p.evaluate(() => document.getElementById('clef').value), '(want alto)');
 
@@ -55,7 +55,7 @@ const { pickDrill, newDrill, setInstrument } = require('./drills.js');
   await p.reload({ waitUntil: 'domcontentloaded' }); await p.waitForTimeout(2500);
   console.log('after reload      :', JSON.stringify(await p.evaluate(() => ({
     obUp: !document.getElementById('ob').hidden,
-    kicker: document.getElementById('pick-instr').textContent
+    instr: document.getElementById('instr-cycle').textContent
   }))));
   console.log('errors:', errs);
   await b.close();

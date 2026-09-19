@@ -109,10 +109,20 @@ async function setKeys(p, labels, wait) {
   return plan.length;
 }
 
-// The instrument, through the picker in the kicker (the panel section it
-// replaced is gone). Name as the menu shows it: 'Cello', 'Viola'.
+// The instrument, through the picker in the panel's Instrument section. Opens
+// the panel if it is shut, because that is where the control lives now — it
+// spent one release in the wordmark and moved back. Name as the menu shows
+// it: 'Cello', 'Viola'.
 async function setInstrument(p, name, wait) {
-  await p.click('#pick-instr');
+  const opened = await p.evaluate(() => {
+    if (document.querySelector('.layout.panel-open')) return false;
+    document.getElementById('settings-toggle').click();
+    return true;
+  });
+  if (opened) await p.waitForTimeout(600);
+  await p.evaluate(() => document.getElementById('instr-cycle').scrollIntoView({ block: 'center' }));
+  await p.waitForTimeout(200);
+  await p.click('#instr-cycle');
   await p.waitForTimeout(250);
   await p.evaluate((n) => {
     const it = [...document.querySelectorAll('#pick-menu .menu-item')]

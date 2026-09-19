@@ -43,13 +43,13 @@ const check = (label, ok, got) => {
     sigs: document.getElementById('timesig').value,
     cycle: document.getElementById('keys-cycle').textContent.trim(),
     title: document.getElementById('sh-title').textContent.trim(),
-    kicker: document.getElementById('pick-instr').textContent.trim(),
+    kickerPick: !!document.querySelector('.kicker .pick'),
   }));
   const gen = async () => { await p.click('#generate'); await p.waitForTimeout(1300); return state(); };
 
   // ---- 1. what the header holds ----
   let s = await state();
-  check('kicker names the instrument', s.kicker.length > 0, s.kicker);
+  check('the wordmark is just the wordmark again', s.kickerPick === false, 'no pick in the kicker');
   check('subtitle is three chips: key, meter, bars',
     s.chips.length === 3 && s.chips[0] === 'C' && s.chips[1] === '4/4' && /^\d+ bars$/.test(s.chips[2]), s.chips.join(' | '));
   check('the chips sit on one row', s.chipRows === 1, s.chipRows + ' row(s)');
@@ -60,7 +60,9 @@ const check = (label, ok, got) => {
   check('no middot separators survive', await p.evaluate(() =>
     !document.querySelector('#sh-sub .sub-sep') && !/\u00b7/.test(document.getElementById('sh-sub').textContent)), s.sub);
   check('old key cycles are gone', await p.evaluate(() =>
-    !document.getElementById('tonic-cycle') && !document.getElementById('mode-cycle') && !document.querySelector('.sec-instrument')));
+    !document.getElementById('tonic-cycle') && !document.getElementById('mode-cycle')));
+  check('the instrument is a panel control, not a wordmark ornament', await p.evaluate(() =>
+    !!document.querySelector('.sec-instrument #instr-cycle') && !document.querySelector('.kicker .pick')));
 
   // ---- 2. the key picker: two columns, fifths order, C and Am both listed ----
   await p.click('#sh-sub .pick[data-pick="keys"]');
@@ -88,6 +90,7 @@ const check = (label, ok, got) => {
   check('set is C, G, Am in fifths order (' + clicks + ' picks)', s.keys === 'major_0-0,major_4-0,minor_5-0', s.keys);
   check('first sheet after a set change is the first key', s.tonic === '0-0' && s.mode === 'major', s.tonic + '/' + s.mode);
   check('panel key row shows the set', s.cycle === 'C, G, Am', s.cycle);
+  check('three keys need no fold in the chip', s.chips[0] === 'C, G, Am', s.chips[0]);
   const seq = [];
   for (let i = 0; i < 4; i++) { s = await gen(); seq.push(s.drawnKey); }
   check('Generate rotates C \u2192 G \u2192 Am \u2192 C',
@@ -118,8 +121,8 @@ const check = (label, ok, got) => {
   // ---- 5. past six keys the subtitle folds ----
   await setKeys(p, ['C', 'G', 'D', 'A', 'E', 'B', 'Am', 'Em']);
   s = await state();
-  check('eight keys read as six +2', s.chips[0] === 'C, G, D, A, E, B +2', s.chips[0]);
-  check('panel row still lists every key', s.cycle.split(', ').length === 8, s.cycle);
+  check('eight keys fold to three +5 in the chip', s.chips[0] === 'C, G, D +5', s.chips[0]);
+  check('the panel row folds one rung later, at five', s.cycle === 'C, G, D, A, E +3', s.cycle);
 
   // ---- 6. a drill saves both sets and they survive a reload ----
   await newDrill(p, 'Rotator');

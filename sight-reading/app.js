@@ -2447,14 +2447,15 @@
   // A set shows in the compact spelling the chord names use — "C, G, Am" — with
   // this sheet's entry in the accent and the rest muted, so one glance says
   // where you are and what is coming. Past six it folds to "+N".
-  var SUB_SHOW = 6;
+  var SUB_SHOW = 3;          // the chip under the title, where width is scarcest
+  var ROW_SHOW = 5;          // the panel's key row, which has a section to itself
   // The set, in one ink. There used to be a brighter rung for the key this
   // sheet happens to be in, but the staff already says that in its signature,
   // and two weights inside one chip made a line of type look like two things.
   // The chip answers what is in play; the music answers what is playing.
-  function setText(codes, short) {
-    var shown = codes.slice(0, SUB_SHOW).map(short).join(", ");
-    return shown + (codes.length > SUB_SHOW ? " +" + (codes.length - SUB_SHOW) : "");
+  function setText(codes, short, max) {
+    var shown = codes.slice(0, max).map(short).join(", ");
+    return shown + (codes.length > max ? " +" + (codes.length - max) : "");
   }
   function pickButton(kind, aria) {
     var b = document.createElement("button");
@@ -2471,9 +2472,9 @@
     shSubEl.innerHTML = "";
     if (obBlanking) return;
     var keys = pickButton("keys", "aria.pickKeys");
-    keys.textContent = setText(selectedKeyCodes(), keyShort);
+    keys.textContent = setText(selectedKeyCodes(), keyShort, SUB_SHOW);
     var sigs = pickButton("sigs", "aria.pickMeters");
-    sigs.textContent = setText(selectedSigIds(), function (x) { return x; });
+    sigs.textContent = setText(selectedSigIds(), function (x) { return x; }, SUB_SHOW);
     var bars = pickButton("bars", "aria.pickBars");
     bars.textContent = measuresEl.value + " " + t("val.bars").toLowerCase();
     // No separators: each fact is a chip, and the row's gap divides them. The
@@ -3947,6 +3948,7 @@
   // ===========================================================================
   var keysCycleEl  = document.getElementById("keys-cycle");
   var clefCycleEl  = document.getElementById("clef-cycle");
+  var instrCycleEl = document.getElementById("instr-cycle");
   var timesigPillsEl = document.getElementById("timesig-pills");
   var hideUnitEl   = document.getElementById("hide-unit");
   var hideBtnEl    = document.getElementById("hide-toggle");
@@ -4017,8 +4019,9 @@
   }
 
   function syncKeyRow() {
-    if (keysCycleEl) keysCycleEl.textContent = selectedKeyCodes().map(keyShort).join(", ");
+    if (keysCycleEl) keysCycleEl.textContent = setText(selectedKeyCodes(), keyShort, ROW_SHOW);
     clefCycleEl.textContent = clefDef(clefEl.value).label;
+    if (instrCycleEl) instrCycleEl.textContent = t("instr." + instrumentPref());
   }
 
   // The meters an exercise may be written in. A set, not a value: tick 4/4 and
@@ -5038,8 +5041,7 @@
   // header information rather than a setting.
   function buildInstrumentPills() { syncInstrumentPills(); }
   function syncInstrumentPills() {
-    var b = document.getElementById("pick-instr");
-    if (b) b.textContent = t("instr." + instrumentPref());
+    if (instrCycleEl) instrCycleEl.textContent = t("instr." + instrumentPref());
   }
 
   // Slur groups: how many notes ride under one curve. Several can be on at
@@ -5264,10 +5266,9 @@
 
   function wirePanel() {
     // --- key row: each pill advances through its own list ---
-    var pickInstrEl = document.getElementById("pick-instr");
-    if (pickInstrEl) pickInstrEl.addEventListener("click", function (e) {
+    if (instrCycleEl) instrCycleEl.addEventListener("click", function (e) {
       e.stopPropagation();
-      openPick("instr", pickInstrEl);
+      openPick("instr", instrCycleEl);
     });
     // The panel's key row opens the same picker the subtitle opens.
     if (keysCycleEl) keysCycleEl.addEventListener("click", function (e) {

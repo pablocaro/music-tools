@@ -422,6 +422,17 @@
           <svg class="band-caret" aria-hidden="true"><use href="#ic-chevron"/></svg>
         </button>
         <div class="band-body" id="bb-staff">
+          <!-- The instrument sets the clef and the range, so it sits beside
+               them rather than in the wordmark, where it was decoration on the
+               one line of the page that never changes. -->
+          <section class="sec sec-instrument">
+            <h2 class="sec-h" data-i18n="sec.instrument">Instrument</h2>
+            <div class="sec-row">
+              <button id="instr-cycle" class="cycle" type="button" aria-haspopup="menu" aria-expanded="false"
+                      aria-label="Instrument" data-i18n-aria="aria.pickInstrument"></button>
+            </div>
+          </section>
+
           <section class="sec sec-key">
             <h2 class="sec-h" data-i18n="sec.staff">Clef &amp; Key</h2>
             <div class="sec-row unit">
@@ -483,14 +494,7 @@
       <div class="tb-titles">
         <!-- The app's name, not the mode's — stays the same in every language,
              like the note letters do. Mirrors the help sheet's kicker. -->
-        <!-- …followed by the instrument, and the one place to change it: its
-             clef is what the sheet is written in, which is header information.
-             A phone wraps this line; the dot and the instrument are one nowrap
-             unit, so the second line reads "· Cello" instead of leaving it dangling. -->
-        <p class="kicker">Prima Vista <span class="kicker-instr"><span class="kicker-sep">·</span>
-          <button class="pick" id="pick-instr" type="button" data-pick="instr"
-            aria-haspopup="menu" aria-expanded="false" aria-label="Instrument"
-            data-i18n-aria="aria.pickInstrument"></button></span></p>
+        <p class="kicker">Prima Vista</p>
         <h1 id="sh-title"></h1>
         <!-- What THIS sheet is: its keys, its meters, its length — each one a
              control that opens a menu, so the facts that change sheet to sheet

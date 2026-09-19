@@ -38,7 +38,7 @@
   /* Paper and ink in parts, so warmth and contrast are tunable. Warmth 0 is
      exactly the white and #f5f5f5 this shipped with; a little of it gives the
      cream of real manuscript paper, which is easier to read against. */
-  --paper-warmth: 18;
+  --paper-warmth: 6;
   --paper: hsl(38 calc(var(--paper-warmth) * 1%) calc(100% - var(--paper-warmth) * 0.05%));
   --paper-dim: hsl(38 calc(var(--paper-warmth) * 1%) 96%);
   --ink-l: 16%;
@@ -52,7 +52,7 @@
   /* The accent, likewise in parts. The default is exactly the iOS blue it
      shipped with (#0a84ff); everything tinted — pills, toggles, the cursor —
      follows from these three. */
-  --accent-h: 208;
+  --accent-h: 199;
   --accent-s: 100%;
   --accent-l: 52%;
   --accent: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
@@ -228,7 +228,7 @@
      600, nothing uses it today — rather than a second name for the default. */
   --fs-0-base: 13px;
   --fs-1-base: 12px;
-  --fs-2-base: 15px;
+  --fs-2-base: 14.5px;
   --fs-3-base: 18px;
   --fs-0: calc(var(--fs-0-base) * var(--type-scale));
   --fs-1: calc(var(--fs-1-base) * var(--type-scale));
@@ -767,6 +767,7 @@ button.playing svg.state-alt { display: block; }
   gap: calc(20px * var(--density));
 }
 .sec-col > .sec { flex: 0 0 auto; }
+.sec-instrument { flex: 1 1 200px; }
 .sec-key        { flex: 1 1 300px; }
 .sec-measures   { flex: 1 1 260px; }
 .sec-language   { flex: 1 1 160px; }
@@ -1671,12 +1672,12 @@ button:active { opacity: 0.7; }
 
 /* ---------------------------------------------------------------------------
    PATTERN: pick
-   A fact in the header that is also the control for it — the keys, the
-   meters, the length, the instrument. In the kicker it reads as part of the
-   sentence and takes the grey fill Back takes on hover; in the subtitle it
-   wears a chip. A set shows in the compact spelling the chord names use, all
-   of it in one ink: the chip says what is in play, and the staff says which
-   one is playing.
+   A fact under the title that is also the control for it — the keys, the
+   meters, the length. Each wears a chip sized by the finger rather than by
+   the type. A set shows in the compact spelling the chord names use, all of
+   it in one ink: the chip says what is in play, and the staff says which one
+   is playing. Past three keys it folds to "+N", because this is the narrowest
+   place any of these appear; the panel's own row folds at five.
    --------------------------------------------------------------------------- */
 .pick {
   display: inline;
@@ -1702,7 +1703,7 @@ button:active { opacity: 0.7; }
 #sh-sub .pick {
   display: inline-flex;
   align-items: center;
-  padding: 7px 14px;
+  padding: 10px 14px;
   margin: 0;
   border-radius: var(--ctl-radius);
   background: var(--ctl-on-tint);
@@ -1711,11 +1712,6 @@ button:active { opacity: 0.7; }
   background: color-mix(in srgb, var(--accent) 18%, var(--paper));
 }
 
-/* In the kicker the pick keeps the kicker's colour but not its face: the
-   wordmark is a mark, the instrument is a word. */
-.kicker .pick { font-family: "Rubik", sans-serif; font-weight: var(--weight-standard); text-transform: none; }
-.kicker-instr { white-space: nowrap; }
-.kicker-sep { font-family: "Rubik", sans-serif; font-weight: var(--weight-standard); color: var(--muted); margin: 0 2px; }
 
 /* The menu the picks open. Fixed to the viewport (see placePick), so any
    anchor works; otherwise the popover menu's own look. */
@@ -1728,7 +1724,9 @@ button:active { opacity: 0.7; }
    C, G and Am look like, being adjacent in fifths order. The rows lose the
    height the gap takes, so the menu itself does not grow. */
 .pick-menu, .pick-col { gap: 4px; }
-.pick-menu .menu-item { padding-top: 7px; padding-bottom: 7px; }
+/* Tap targets, so they are sized by the finger rather than by the text: the
+   vertical padding runs 1.2x what the type alone would ask for. */
+.pick-menu .menu-item { padding-top: 10px; padding-bottom: 10px; }
 .pick-h {
   font-size: var(--type-caption);
   font-weight: var(--weight-standard);

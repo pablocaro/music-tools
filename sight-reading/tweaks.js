@@ -39,7 +39,7 @@
   //     the neutral one, so "all defaults" is byte-identical to no panel.
   var DEFAULTS = {
     // type
-    typeScale: 1, sizeMicro: 13, sizeCaption: 12, sizeLabel: 15, sizeLead: 18,
+    typeScale: 1, sizeMicro: 13, sizeCaption: 12, sizeLabel: 14.5, sizeLead: 18,
     titleSize: 29, baseWeight: 400, weightStep: 100,
     tracking: 1, leading: 1.5,
     // spacing
@@ -53,7 +53,7 @@
     caretSize: 12, caretWeight: 2, bandFold: 260,
     swScale: 0.63, thumbW: 22, thumbGap: 2, checkRadius: 6,
     // colour
-    accentH: 208, accentS: 100, paperWarmth: 18, inkL: 16, chunkAlpha: 0.5,
+    accentH: 199, accentS: 100, paperWarmth: 6, inkL: 16, chunkAlpha: 0.5,
     selEdge: 2, selEdgeOp: 40, selHue: 0, selWash: 8, selWeight: 0,
     // music
     perLine: 6, staffSize: 1, musicFade: 60,
