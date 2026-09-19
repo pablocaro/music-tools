@@ -2482,6 +2482,23 @@
     shSubEl.appendChild(keys);
     shSubEl.appendChild(sigs);
     shSubEl.appendChild(bars);
+
+    // A menu can be open while this runs. Ticking a key regenerates, the
+    // regenerate lands here, and this rebuilds the very button the open menu
+    // is anchored to. The old button is then detached, and a detached element
+    // measures as a rect of zeros, so the next placement put the menu at the
+    // top-left corner of the window. Hand the menu the button that replaced
+    // its anchor, and place it again: a neighbour that grew wider can have
+    // shifted it along the row even when the anchor itself did not move.
+    if (pickOpenFor && pickOpenFor.dataset.pick && !document.body.contains(pickOpenFor)) {
+      var live = shSubEl.querySelector('.pick[data-pick="' + pickOpenFor.dataset.pick + '"]');
+      if (live) {
+        live.setAttribute("aria-expanded", "true");
+        pickOpenFor = live;
+        var openMenu = document.getElementById("pick-menu");
+        if (openMenu) placePick(openMenu, live);
+      }
+    }
   }
 
   // One menu, positioned under whatever opened it — fixed to the viewport so a

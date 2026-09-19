@@ -139,6 +139,36 @@ const check = (label, ok, got) => {
   s = await state();
   check('after reload', s.keys.split(',').length === 8 && s.sigs === '3/4,4/4' && s.title === 'Rotator', s.sub);
 
+  // ---- 7. the open menu follows its anchor through a rebuild ----
+  // Ticking a key regenerates, and the regenerate rebuilds the chips. The menu
+  // used to hold the button it opened from, which by then was detached, and a
+  // detached element measures as a rect of zeros: the second tick parked the
+  // menu in the top-left corner of the window.
+  await p.click('#sh-sub .pick[data-pick="keys"]');
+  await p.waitForTimeout(350);
+  const spots = [];
+  for (const label of ['F', 'B\u266d', 'E\u266d']) {
+    await p.evaluate((l) => {
+      const it = [...document.querySelectorAll('#pick-menu .menu-item')]
+        .find((e) => e.textContent.replace(/[\u25cf\s]/g, '') === l);
+      if (!it) throw new Error('no key ' + l + ' in the open menu');
+      it.click();
+    }, label);
+    await p.waitForTimeout(1400);
+    spots.push(await p.evaluate(() => {
+      const m = document.getElementById('pick-menu');
+      const a = document.querySelector('#sh-sub .pick[data-pick="keys"]');
+      if (!m || !a) return 'menu or anchor gone';
+      const mr = m.getBoundingClientRect(), ar = a.getBoundingClientRect();
+      return Math.abs(mr.x - ar.x) <= 1 && Math.abs(mr.y - (ar.bottom + 6)) <= 1
+        ? 'under' : Math.round(mr.x) + ',' + Math.round(mr.y);
+    }));
+  }
+  check('the open menu stays under its anchor across rebuilds',
+    spots.every((x) => x === 'under'), spots.join(' | '));
+  await p.keyboard.press('Escape');
+  await p.waitForTimeout(200);
+
   await p.screenshot({ path: __dirname + '/out/subtitle.png' });   // $PWD-proof: harnesses run from either the repo root or here
   check('no page errors', errs.length === 0, JSON.stringify(errs));
   await b.close();
