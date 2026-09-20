@@ -21,6 +21,7 @@ node sight-reading/test/comping.js     # walking bass + chords agree with the pr
 node sight-reading/test/drills-ui.js   # the drills band: edited state, park/restore, push
                                        # the slow one — needs ~900s, three reloads
 node sight-reading/test/subtitle.js    # key + meter sets rotate on Generate; +N fold; drill round-trip
+node sight-reading/test/inspector.js   # ?tweaks right-click: the dials that reach an element
 ```
 
 Screenshots land in `test/out/` (gitignored). `PW` / `CHROMIUM` env vars
@@ -30,7 +31,11 @@ override the playwright and browser paths.
 inspector holding only the tweaks that shape it. If you drive that from a
 harness, dispatch a real `contextmenu` MouseEvent rather than
 `click({button:'right'})` — the panel floats over the page, so Playwright's
-actionability check times out on anything underneath it.
+actionability check times out on anything underneath it. Read whether it
+found anything from `.tw-empty`, and its dials from `.tw-c .tw-l span`.
+Counting rows or grepping the text does not work: `.tw-n` is both the empty
+message and every dial's note, so "is it empty" answered yes for a full
+panel — which reads exactly like a dead feature and cost an afternoon.
 
 `drills.js` is not a test — it is the shared way to reach a drill, and every
 harness that needs one goes through it. It also holds `setKeys` and

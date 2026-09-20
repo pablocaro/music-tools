@@ -43,7 +43,8 @@
   --paper-dim: hsl(38 calc(var(--paper-warmth) * 1%) 96%);
   --ink-l: 16%;
   --ink: hsl(0 0% var(--ink-l));
-  --muted: #8e8e93;
+  --muted-l: 57%;        /* secondary ink's lightness — the dial --ink-l always had */
+  --muted: hsl(240 2% var(--muted-l));   /* was the literal #8e8e93, which is this */
   /* The only colour in the palette that is not the accent, and it earns that
      by appearing exactly once: on the menu item that deletes a drill you
      saved. Nothing else in the app is irreversible. */
