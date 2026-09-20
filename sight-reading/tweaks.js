@@ -53,7 +53,7 @@
     caretSize: 12, caretWeight: 2, bandFold: 260,
     swScale: 0.63, thumbW: 22, thumbGap: 2, checkRadius: 6,
     // colour
-    accentH: 199, accentS: 100, paperWarmth: 6, inkL: 16, mutedL: 57, chunkAlpha: 0.5,
+    accentH: 199, accentS: 100, paperWarmth: 6, inkL: 12, mutedL: 57, faintL: 68, chunkAlpha: 0.5,
     selEdge: 2, selEdgeOp: 40, selHue: 0, selWash: 8, selWeight: 0,
     // music
     perLine: 6, staffSize: 1, musicFade: 60,
@@ -171,8 +171,10 @@
         note: "0 is white; a little gives manuscript cream" },
       { key: "inkL",        label: "Ink lightness", min: 0, max: 40, step: 1, unit: "%",
         note: "lower is blacker — the notation's contrast" },
+      { key: "faintL",      label: "Faint lightness", min: 40, max: 88, step: 1, unit: "%",
+        note: "the chevrons, and anything else that should recede rather than be read" },
       { key: "mutedL",      label: "Muted lightness", min: 30, max: 80, step: 1, unit: "%",
-        note: "captions, secondary text, and every chevron — they stroke with currentColor, so each one takes the colour of the row it sits in" },
+        note: "captions and secondary text. The chevrons left for Faint; the back-button one still takes its row's colour" },
       { key: "chunkAlpha",  label: "Highlighter",  min: 0.1, max: 1, step: 0.05, unit: "×",
         note: "strength of the pattern blocks" }
     ] },
@@ -253,7 +255,7 @@
     selEdge: "--ctl-border", selEdgeOp: "--sel-edge-op", selHue: "--sel-hue",
     selWeight: "--sel-weight",
     selWash: "--sel-wash",
-    inkL: "--ink-l", mutedL: "--muted-l", chunkAlpha: "--chunk-alpha",
+    inkL: "--ink-l", mutedL: "--muted-l", faintL: "--faint-l", chunkAlpha: "--chunk-alpha",
     perLine: "app.js LAYOUT.perLine", staffSize: "app.js LAYOUT.zoomCap",
     musicFade: "--music-fade",
     obLogoSize: "--ob-logo-size", obLogoAlpha: "--ob-logo-alpha",
@@ -375,6 +377,7 @@
     r.setProperty("--paper-warmth", String(state.paperWarmth));
     r.setProperty("--ink-l",        state.inkL + "%");
     r.setProperty("--muted-l",      state.mutedL + "%");
+    r.setProperty("--faint-l",      state.faintL + "%");
     r.setProperty("--chunk-alpha",  String(state.chunkAlpha));
     // The width is the reserved border on EVERY control, not a property of the
     // lit one: widening only the lit one would resize a cell as you tapped it.

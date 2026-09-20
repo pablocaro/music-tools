@@ -66,25 +66,33 @@ const check = (label, ok, got) => {
   check('chevron offers size and weight',
     caret.dials.includes('Chevron size') && caret.dials.includes('Chevron weight'), caret.dials.slice(0, 3).join(' | '));
   check('chevron offers the colour it actually strokes with',
-    caret.dials.includes('Muted lightness'), caret.dials.join(' | ').slice(0, 90));
+    caret.dials.includes('Faint lightness'), caret.dials.join(' | ').slice(0, 90));
+  // Muted still reaches it, and should: the header this chevron sits in sets
+  // color:var(--muted) for its own label, and the inspector lists what reaches
+  // an element, inherited rules included. What matters is the order — the ink
+  // the chevron actually strokes with has to outrank its container's text.
+  const iFaint = caret.dials.indexOf('Faint lightness');
+  const iMuted = caret.dials.indexOf('Muted lightness');
+  check('its own ink outranks the header text colour it sits beside',
+    iFaint >= 0 && (iMuted < 0 || iFaint < iMuted), 'faint at ' + iFaint + ', muted at ' + iMuted);
 
   const da = await inspect('#drill-acts .da-caret');
-  check('the drills-row chevron says the same', da.dials.includes('Muted lightness')
+  check('the drills-row chevron says the same', da.dials.includes('Faint lightness')
     && da.dials.includes('Chevron size'), da.dials.slice(0, 3).join(' | '));
 
   // ---- 3. the dial reaches the ink, and the ink reaches the chevron ----
   const before = await p.evaluate(() => getComputedStyle(document.querySelector('.band-caret')).stroke);
   await p.evaluate(() => {
     const el = [...document.querySelectorAll('#tw input[type=range]')]
-      .find((r) => (r.closest('label') || r.parentElement).textContent.includes('Muted lightness'));
-    if (!el) throw new Error('no Muted lightness dial in the panel');
+      .find((r) => (r.closest('label') || r.parentElement).textContent.includes('Faint lightness'));
+    if (!el) throw new Error('no Faint lightness dial in the panel');
     el.value = 75;
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
   });
   await p.waitForTimeout(400);
   const after = await p.evaluate(() => getComputedStyle(document.querySelector('.band-caret')).stroke);
-  check('dragging it lightens every chevron', before !== after, before + ' -> ' + after);
+  check('dragging it lightens the fold chevrons', before !== after, before + ' -> ' + after);
 
   // ---- 4. the back-button chevron keeps its own colour ----
   // All three stroke with currentColor on purpose, so each takes the colour of
@@ -101,8 +109,8 @@ const check = (label, ok, got) => {
     const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
     return { stroke: getComputedStyle(el).stroke, accent };
   });
-  check('the back chevron still follows its row, not the muted ink',
-    page && page.stroke !== after, page ? page.stroke + ' vs muted ' + after : 'no .page-caret');
+  check('the back chevron still follows its label, not the faint ink',
+    page && page.stroke !== after, page ? page.stroke + ' vs faint ' + after : 'no .page-caret');
 
   check('no page errors', errs.length === 0, JSON.stringify(errs));
   await b.close();

@@ -41,10 +41,16 @@
   --paper-warmth: 6;
   --paper: hsl(38 calc(var(--paper-warmth) * 1%) calc(100% - var(--paper-warmth) * 0.05%));
   --paper-dim: hsl(38 calc(var(--paper-warmth) * 1%) 96%);
-  --ink-l: 16%;
+  --ink-l: 12%;
   --ink: hsl(0 0% var(--ink-l));
   --muted-l: 57%;        /* secondary ink's lightness — the dial --ink-l always had */
   --muted: hsl(240 2% var(--muted-l));   /* was the literal #8e8e93, which is this */
+  --faint-l: 68%;        /* the third rung of the ink ladder: ink, then muted, then faint.
+                            Ornament that should recede rather than be read — the fold and
+                            row chevrons are its only users today. Kept off --muted because
+                            lightening every caption to match them was the thing that made
+                            this a separate token. */
+  --faint: hsl(240 2% var(--faint-l));
   /* The only colour in the palette that is not the accent, and it earns that
      by appearing exactly once: on the menu item that deletes a drill you
      saved. Nothing else in the app is irreversible. */
@@ -625,7 +631,7 @@ button.playing svg.state-alt { display: block; }
   width: calc(var(--caret-size) * 1px);
   height: calc(var(--caret-size) * 1px);
   fill: none;
-  stroke: currentColor;
+  stroke: var(--faint);
   stroke-width: calc(var(--caret-weight) * 12 / var(--caret-size));
   transition: transform calc(var(--band-fold-ms) * var(--motion) * 1ms);
 }
@@ -1233,9 +1239,8 @@ button:active { opacity: 0.7; }
   width: calc(var(--caret-size) * 1px);
   height: calc(var(--caret-size) * 1px);
   fill: none;
-  stroke: currentColor;
+  stroke: var(--faint);
   stroke-width: calc(var(--caret-weight) * 12 / var(--caret-size));
-  color: var(--muted);
   transform: rotate(-90deg);
 }
 /* Save and Restore are the two that act on your own work, so they take the
@@ -1290,7 +1295,10 @@ button:active { opacity: 0.7; }
    with fill:none and no stroke of its own, so a class that sets only a size
    renders nothing at all — which is what this did, at every width. The
    weight x 12/size arithmetic is the platter caret's, and for the same
-   reason: it keeps the drawn stroke in real px whatever the box becomes. */
+   reason: it keeps the drawn stroke in real px whatever the box becomes.
+   Strokes with currentColor, not --faint like the fold and row chevrons: this
+   one is half of a Back link, so it has to take the label's colour and follow
+   it on hover. A chevron that recedes is ornament; this one is the control. */
 .page-caret {
   flex-shrink: 0;
   display: block;
