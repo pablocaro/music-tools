@@ -65,6 +65,14 @@ returns which surface it used.
   measured one exercise of quarter notes — there was nowhere for a passing
   tone to go. Measured on Chromatic Steps over six exercises: 51 of 512.
 
+Ten `EncodingError: Unable to decode audio data` lines on every run are the
+sandbox, not the app. The instrument samples are AAC in an MP4 container, and
+this Chromium build reports `canPlayType('audio/mp4; codecs="mp4a.40.2"')` as
+the empty string — it has no AAC decoder, so every sample of every instrument
+fails identically here and sounds fine in Chrome, Safari and Firefox. Do not
+read those lines as a broken voice, and do not let them hide a real one:
+anything other than the sample decodes is worth reading.
+
 `window.__srSession` exposes the live play state (melody, onsets, ink) for
 the things only observable there — that a tied pair is one sounding event
 rather than two cannot be seen in the rendered page at all.

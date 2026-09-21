@@ -237,6 +237,29 @@ rides musicality, so off stays a pure random walk.
    chance), with the strict metric underselling what the page shows —
    bars visibly rhyme, and descending two-note sequences appear.
 
+### 4.7 · The header became the controls — DONE
+What sat under the title as a caption — "C major, 16 bars" — was the sheet's
+own facts, so each fact became the control for it. Three chips: the keys, the
+meters, the length. Keys and meters are **sets that rotate**, one step per new
+sheet, so a practice run moves through C, G and Am rather than staying put.
+Rotation advances on a new sheet only; nudging a slider regenerates in the
+same key, or the bars slider would change your key.
+
+Decisions worth keeping:
+
+- **A chip says what is in play; the staff says what is playing.** An earlier
+  pass marked the current key with a dot in the menu and a brighter rung
+  inside the chip. Both were answering a question the key signature already
+  answers, and inside a chip they made one line of type look like two.
+- **Chips fold by surface.** Three keys in the chip, five in the panel row,
+  because the chip is the narrowest place any of it appears. One shared
+  constant let the tightest surface set the limit for the roomiest.
+- **A chip is not a panel control.** It sits on `--ctl-h-sm`, a rung below
+  `--ctl-h`, because it is a line of writing that happens to be operable.
+  At two pixels below the standard it read as a mistake instead of a choice.
+- **The instrument belongs beside the clef it decides**, not hung off the
+  wordmark. It spent one release in the kicker and came back.
+
 ### 5 · The feedback loop — ramp built, then cut; the rest needs a decision
 Adaptive letting-go and weak-spot targeting both need the app to know how
 you're doing, and it currently has no input at all. Options, cheapest first:
@@ -381,8 +404,9 @@ lessons paid for:
   measures what the animation actually drives.
 - A test that pokes hidden form elements directly can bypass the code path
   users actually take. Drive the visible controls — the mode remap and the
-  progression-pill rebuild hang off the cycle button's click, so setting
-  `#key-mode` directly leaves the picker showing the other mode's list.
+  progression-pill rebuild hang off the picker, so writing `#key-mode` or
+  `#keys` by hand leaves the progression list on the other mode's entries.
+  `test/drills.js` holds the helpers that go the long way round.
 - A test encodes the rule it is checking, so a rule change dates it. When
   V gained its seventh, harmony.js still scored every bar against a bare
   triad and marked each generated seventh a wrong note — an ~8 point drop

@@ -43,7 +43,7 @@
     titleSize: 29, baseWeight: 400, weightStep: 100,
     tracking: 1, leading: 1.5,
     // spacing
-    density: 1.2, controlH: 40, headerGap: 8, railW: 400, gutter: 28, pagePad: 48,
+    density: 1.2, controlH: 40, rowH: 38, headerGap: 8, railW: 400, gutter: 28, pagePad: 48,
     // shape
     pillRadius: 999, boxRadius: 18, surfaceRadius: 26, shadowDepth: 0.65,
     cornerCurve: 1,
@@ -53,7 +53,7 @@
     caretSize: 12, caretWeight: 2, bandFold: 260,
     swScale: 0.63, thumbW: 22, thumbGap: 2, checkRadius: 6,
     // colour
-    accentH: 199, accentS: 100, paperWarmth: 6, inkL: 12, mutedL: 57, faintL: 68, chunkAlpha: 0.5,
+    accentH: 199, accentS: 100, accentL: 52, paperWarmth: 6, inkL: 12, mutedL: 55, faintL: 80, chunkAlpha: 0.5,
     selEdge: 2, selEdgeOp: 40, selHue: 0, selWash: 8, selWeight: 0,
     // music
     perLine: 6, staffSize: 1, musicFade: 60,
@@ -100,7 +100,9 @@
       { key: "density",   label: "Panel density", min: 0.7, max: 1.4, step: 0.05, unit: "×",
         note: "the settings panel's gaps and padding" },
       { key: "controlH",  label: "Control size",  min: 32,  max: 54,  step: 1, unit: "px",
-        note: "pills and toggles; round buttons follow at +8" },
+        note: "pills and toggles; round buttons follow at +8, the subtitle's chips at -6" },
+      { key: "rowH",      label: "Menu row",      min: 30,  max: 48,  step: 1, unit: "px",
+        note: "a row you tap in a picker. Held off the control height on purpose: the 24-key menu starts scrolling on a phone above 38" },
       { key: "swScale",   label: "Switch size",   min: 0.45, max: 0.9, step: 0.02, unit: "×",
         note: "against the control height; iOS's own is 0.78 here" },
       { key: "thumbW",    label: "Slider thumb",  min: 14,  max: 40,  step: 1, unit: "px",
@@ -157,6 +159,8 @@
         note: "everything selected takes this" },
       { key: "accentS",     label: "Accent punch", min: 0, max: 100, step: 1, unit: "%",
         note: "saturation — 0 is a grey UI" },
+      { key: "accentL",     label: "Accent lightness", min: 25, max: 75, step: 1, unit: "%",
+        note: "hue and punch had dials and this did not, so the accent could not be darkened at all" },
       { key: "selEdge",     label: "Stroke width",   min: 1, max: 4, step: 0.5, unit: "px",
         note: "drives --ctl-border, so lit and unlit keep the same box and nothing reflows" },
       { key: "selEdgeOp",   label: "Stroke opacity", min: 10, max: 100, step: 5, unit: "%",
@@ -239,7 +243,7 @@
     baseWeight: "--weight-base", weightStep: "--weight-step",
     tracking: "--track-caption",
     leading: "--leading",
-    density: "--density", controlH: "--ctl-h", headerGap: "--tb-gap",
+    density: "--density", controlH: "--ctl-h", rowH: "--row-h", headerGap: "--tb-gap",
     swScale: "--sw-scale", thumbW: "--thumb-w", thumbGap: "--thumb-gap",
     railW: "--rail-w", gutter: "--music-gutter", pagePad: "--page-pad",
     pillRadius: "--ctl-radius", boxRadius: "--ctl-radius-box",
@@ -251,7 +255,7 @@
     railInset: "--rail-inset",
     caretSize: "--caret-size", caretWeight: "--caret-weight",
     bandFold: "--band-fold-ms",
-    accentH: "--accent-h", accentS: "--accent-s", paperWarmth: "--paper-warmth",
+    accentH: "--accent-h", accentS: "--accent-s", accentL: "--accent-l", paperWarmth: "--paper-warmth",
     selEdge: "--ctl-border", selEdgeOp: "--sel-edge-op", selHue: "--sel-hue",
     selWeight: "--sel-weight",
     selWash: "--sel-wash",
@@ -343,6 +347,7 @@
 
     r.setProperty("--density",      String(state.density));
     r.setProperty("--ctl-h",        state.controlH + "px");
+    r.setProperty("--row-h",        state.rowH + "px");
     r.setProperty("--tb-gap",       state.headerGap + "px");
     r.setProperty("--sw-scale",     String(state.swScale));
     r.setProperty("--thumb-w",      state.thumbW + "px");
@@ -373,6 +378,7 @@
     r.setProperty("--band-fold-ms",    String(state.bandFold));   // unitless ms
 
     r.setProperty("--accent-h",     String(state.accentH));
+    r.setProperty("--accent-l",     state.accentL + "%");
     r.setProperty("--accent-s",     state.accentS + "%");
     r.setProperty("--paper-warmth", String(state.paperWarmth));
     r.setProperty("--ink-l",        state.inkL + "%");

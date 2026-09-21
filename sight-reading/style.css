@@ -43,9 +43,9 @@
   --paper-dim: hsl(38 calc(var(--paper-warmth) * 1%) 96%);
   --ink-l: 12%;
   --ink: hsl(0 0% var(--ink-l));
-  --muted-l: 57%;        /* secondary ink's lightness — the dial --ink-l always had */
+  --muted-l: 55%;        /* secondary ink's lightness — the dial --ink-l always had */
   --muted: hsl(240 2% var(--muted-l));   /* was the literal #8e8e93, which is this */
-  --faint-l: 68%;        /* the third rung of the ink ladder: ink, then muted, then faint.
+  --faint-l: 80%;        /* the third rung of the ink ladder: ink, then muted, then faint.
                             Ornament that should recede rather than be read — the fold and
                             row chevrons are its only users today. Kept off --muted because
                             lightening every caption to match them was the thing that made
@@ -987,16 +987,11 @@ input[type="checkbox"]:checked::after {
 
 .stepper-val {
   font-size: var(--type-label);
-  font-weight: var(--weight-strong);   /* a value is a number — see .is-word */
+  font-weight: var(--weight-strong);   /* a value is a number, so it reads as one */
   color: var(--ink);
   white-space: nowrap;
   min-width: 30px;
 }
-
-/* A readout showing a word ("Off") is a label wearing a value's markup: it
-   takes the base weight, or it reads as a different control from the cycles
-   saying the same word beside it. JS flips the class as the content changes. */
-.stepper-val.is-word { font-weight: var(--weight-standard); }
 
 .stepper-range { flex: 1; min-width: 40px; }
 .bare-range { width: 100%; }

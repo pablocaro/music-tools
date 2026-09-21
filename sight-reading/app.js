@@ -4443,16 +4443,6 @@
     return row;
   }
 
-  function obGroup(host, titleKey) {
-    var g = document.createElement("div");
-    g.className = "ob-group";
-    var h = document.createElement("h3");
-    h.textContent = t(titleKey);
-    g.appendChild(h);
-    host.appendChild(g);
-    return g;
-  }
-
   function obPara(host, key, cls) {
     var p = document.createElement("p");
     if (cls) p.className = cls;
@@ -4460,10 +4450,6 @@
     host.appendChild(p);
     return p;
   }
-
-  // Same, but with {icon} swapped for the actual settings glyph — pointing at
-  // the real button beats naming a gear the interface doesn't have. The token
-  // lets each language put it wherever its own word order wants it.
 
   // ===========================================================================
   // Onboarding preview — four notes showing what a preset actually reads like
