@@ -2,6 +2,7 @@
 const PW = process.env.PW || '/opt/node22/lib/node_modules/playwright';
 const CHROMIUM = process.env.CHROMIUM || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const { chromium } = require(PW);
+const { setMusicality } = require('./drills.js');
 const LET = { C:0, D:1, E:2, F:3, G:4, A:5, B:6 };
 
 function stats(xml) {
@@ -21,7 +22,11 @@ function stats(xml) {
   // divisions per quarter
   const dv = /<divisions>(\d+)<\/divisions>/.exec(xml); div = dv ? +dv[1] : 1;
   bars.forEach((b,i) => {
+    // Triad, plus the seventh on the dominant — the engine puts it in V's
+    // chord-tone set, so scoring V bars against a bare triad marked every
+    // generated seventh as a wrong note and dragged the rate down ~8 points.
     const r = prog[i%4], tones=[r%7,(r+2)%7,(r+4)%7];
+    if (r === 4) tones.push((r+6)%7);
     let t = 0;
     b.forEach(n => {
       if (!n.rest && n.d != null) {
@@ -51,15 +56,26 @@ function stats(xml) {
   for (let i=0;i<4;i++){ if(await p.$('#ob-next')){await p.click('#ob-next').catch(()=>{});await p.waitForTimeout(200);} }
   await p.click('#settings-toggle'); await p.waitForTimeout(400);
 
+  // Intervals are fig-cells now, not rows with a slider: a hidden checkbox
+  // carries in-or-out and the weight rides in data-w, snapped to the control's
+  // two live rungs (2 = on, 4 = x2). The ALPHAS table below still writes the
+  // old 1-4 scale, so anything above 2 lands on x2 — the shape of each
+  // alphabet survives, the fine gradations between 3 and 4 do not.
+  //
+  // This went unnoticed because the old selector matched nothing and forEach
+  // over an empty list throws nothing: every row of this harness was measuring
+  // whichever preset happened to be loaded, not the alphabet it named.
   const setAlpha = (on,w) => p.evaluate(([o,wv])=>{
-    [...document.querySelectorAll('#matrix .matrix-row')].forEach((r,i)=>{
-      const cb=r.querySelector('input[type=checkbox]'), sl=r.querySelector('input[type=range]');
-      cb.checked=!!o[i]; if(wv[i]) sl.value=wv[i];
-      sl.dispatchEvent(new Event('input')); cb.dispatchEvent(new Event('change'));
+    [...document.querySelectorAll('#matrix .fig-cell')].forEach((cell,i)=>{
+      const cb=cell.querySelector('input[type=checkbox]');
+      if(!cb) return;
+      const want = o[i] ? ((wv[i]||2) > 2 ? 4 : 2) : 0;
+      cb.checked = want > 0;
+      cb.dataset.w = want > 0 ? want : 2;
+      cb.dispatchEvent(new Event('change'));   // the real path: syncs cell + badge
     });
   },[on,w]);
-  const setM = v => p.evaluate(x=>{const M=document.getElementById('musicality');
-    M.value=x; M.dispatchEvent(new Event('input')); M.dispatchEvent(new Event('change'));},v);
+  const setM = v => setMusicality(p, v > 0, 1300);
 
   const ALPHAS = {
     '2nds only':     [[0,1,0,0,0,0,0,0],[1,4,1,1,1,1,1,1]],
@@ -68,9 +84,14 @@ function stats(xml) {
     '4ths + 5ths':   [[0,0,0,1,1,0,0,0],[1,1,1,4,4,1,1,1]],
     'wide leaps':    [[0,1,2,3,3,2,1,2],[1,1,2,3,3,2,1,2]],
   };
+  // "on the beat" tracks "chord tones" exactly here, and that is arithmetic
+  // rather than a bug: this harness varies the alphabet but never the rhythm,
+  // and the default figures are quarters and halves, so every note already
+  // lands on a beat (measured: 0 off-beat notes out of 53). The column only
+  // separates from the first once eighths are in play.
   console.log('alphabet         dial │ chord tones   on the beat   repeats   distinct');
   for (const [name,[on,w]] of Object.entries(ALPHAS)) {
-    for (const v of [0, 50, 100]) {
+    for (const v of [0, 100]) {
       await setAlpha(on,w); await p.waitForTimeout(250);
       await setM(v); await p.waitForTimeout(1300);
       const s = stats(await p.evaluate(()=>window.__xml));

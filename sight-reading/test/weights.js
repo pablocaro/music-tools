@@ -2,6 +2,7 @@
 const PW = process.env.PW || '/opt/node22/lib/node_modules/playwright';
 const CHROMIUM = process.env.CHROMIUM || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const { chromium } = require(PW);
+const { pickDrill, newDrill } = require('./drills.js');
 
 // Count bars that are four quarters vs bars containing eighths.
 function census(xml) {
@@ -52,30 +53,30 @@ function census(xml) {
   const base = c.q / Math.max(1, c.e / 2);   // eighths come in pairs; per-slot ratio
   console.log('weights 1:1     : quarters', c.q, 'eighths', c.e, ' slot ratio', base.toFixed(2));
 
-  // the cycle: tap the quarter cell → ×2 → ×4, badge follows
+  // The cycle is off → on → ×2 → off. It ran to ×4 once; nobody could hear the
+  // top rung against a handful of other lit figures, and every shipped preset
+  // had already stopped at ×2.
   await clickCell('q'); await p.waitForTimeout(900);
   console.log('after 1 tap     :', JSON.stringify(await state('q')), '(want ×2)');
-  await clickCell('q'); await p.waitForTimeout(900);
-  console.log('after 2 taps    :', JSON.stringify(await state('q')), '(want ×4)');
 
   c = census(await p.evaluate(() => window.__xml));
   const skew = c.q / Math.max(1, c.e / 2);
-  console.log('weights 4:1     : quarters', c.q, 'eighths', c.e, ' slot ratio', skew.toFixed(2),
-    skew > base * 1.8 ? '(skewed as asked)' : '(NOT skewed)');
+  // Threshold is against the top of the ladder, so it moves when the ladder
+  // does: at ×2 the cell is drawn twice against the eighths' once, which is
+  // twice the 1:1 rate, not four times.
+  console.log('weights 2:1     : quarters', c.q, 'eighths', c.e, ' slot ratio', skew.toFixed(2),
+    skew > base * 1.5 ? '(skewed as asked)' : '(NOT skewed)');
 
-  // one more tap turns it off entirely
   await clickCell('q'); await p.waitForTimeout(900);
-  console.log('after 3 taps    :', JSON.stringify(await state('q')), '(want off)');
+  console.log('after 2 taps    :', JSON.stringify(await state('q')), '(want off)');
+  await clickCell('q'); await p.waitForTimeout(900);
+  console.log('after 3 taps    :', JSON.stringify(await state('q')), '(want on, no badge)');
 
-  // round-trips through a preset, and old-style bare ids still apply
-  await clickCell('q'); await clickCell('q'); await p.waitForTimeout(900);   // back to ×2
-  await p.evaluate(() => { window.prompt = () => 'WeightTest';
-    [...document.querySelectorAll('.presets .pill')].find(e => e.textContent.trim().startsWith('+')).click(); });
-  await p.waitForTimeout(500);
-  await p.evaluate(() => [...document.querySelectorAll('.presets .pill')].find(e => e.textContent.trim().startsWith('Steps Only')).click());
-  await p.waitForTimeout(900);
-  await p.evaluate(() => [...document.querySelectorAll('.presets .pill')].find(e => e.textContent.trim().startsWith('WeightTest')).click());
-  await p.waitForTimeout(900);
+  // round-trips through a drill, and old-style bare ids still apply
+  await clickCell('q'); await p.waitForTimeout(900);   // on → ×2
+  await newDrill(p, 'WeightTest');
+  await pickDrill(p, 'Steps Only');
+  await pickDrill(p, 'WeightTest');
   console.log('preset round-trip:', JSON.stringify(await state('q')), '(want ×2)');
   console.log('errors:', errs);
   await b.close();

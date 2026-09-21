@@ -15,15 +15,64 @@ node sight-reading/test/rhythm.js      # beat crossings + 2/4 gating of wide fig
 node sight-reading/test/hide.js        # curtain lands on unit boundaries; count-in
 node sight-reading/test/popovers.js    # header popover geometry + exclusivity
 node sight-reading/test/voicemenu.js   # voice menu: pick, reload, translate
+node sight-reading/test/ties.js        # ties: pitch, bar sums, curves, one attack
+node sight-reading/test/range.js       # intervals too wide for the range: muted, and mute
+node sight-reading/test/comping.js     # walking bass + chords agree with the progression
+node sight-reading/test/drills-ui.js   # the drills band: edited state, park/restore, push
+                                       # the slow one — needs ~900s, three reloads
+node sight-reading/test/subtitle.js    # key + meter sets rotate on Generate; +N fold; drill round-trip
+node sight-reading/test/inspector.js   # ?tweaks right-click: the dials that reach an element
 ```
 
 Screenshots land in `test/out/` (gitignored). `PW` / `CHROMIUM` env vars
 override the playwright and browser paths.
 
-## Two rules, both paid for
+`?tweaks` opens the design panel; right-clicking any element there opens an
+inspector holding only the tweaks that shape it. If you drive that from a
+harness, dispatch a real `contextmenu` MouseEvent rather than
+`click({button:'right'})` — the panel floats over the page, so Playwright's
+actionability check times out on anything underneath it. Read whether it
+found anything from `.tw-empty`, and its dials from `.tw-c .tw-l span`.
+Counting rows or grepping the text does not work: `.tw-n` is both the empty
+message and every dial's note, so "is it empty" answered yes for a full
+panel — which reads exactly like a dead feature and cost an afternoon.
+
+`drills.js` is not a test — it is the shared way to reach a drill, and every
+harness that needs one goes through it. It also holds `setKeys` and
+`setInstrument`, which drive the subtitle and kicker pickers: the key is a set
+now, and the old `#key-tonic` / mode-cycle pokes left the rotation index and
+the progression list behind. The band shows three rows, so anything
+else lives behind the All drills page; `pickDrill` finds it either way and
+returns which surface it used.
+
+## Three rules, all paid for
 
 - A hanging test is not evidence the app is broken. Check the page with
   smoke.js before debugging the app.
 - Drive the visible controls, not the hidden form elements — poking the
   hidden `<select>`s directly bypasses the code path users take, and once
-  reported working gating as broken.
+  reported working gating as broken. Setting `#key-mode` rather than
+  clicking the mode cycle leaves the progression picker on the other
+  mode's list, because the remap hangs off the click.
+- A test encodes the rule it checks, so a rule change dates the test. When
+  V gained its seventh, harmony.js was still scoring against a bare triad
+  and counted every generated seventh as a wrong note — an ~8 point drop
+  that read exactly like a regression. Check the expectation first. ii-V-I
+  becoming four bars did the same thing twice over: progressions.js scored
+  it at 48% against its own chords until its table was updated to `[1,4,0,0]`.
+- Print a control number beside every rate, so a run cannot pass on an empty
+  sample. "altered 0" read as a broken chroma dial for as long as the check
+  measured one exercise of quarter notes — there was nowhere for a passing
+  tone to go. Measured on Chromatic Steps over six exercises: 51 of 512.
+
+Ten `EncodingError: Unable to decode audio data` lines on every run are the
+sandbox, not the app. The instrument samples are AAC in an MP4 container, and
+this Chromium build reports `canPlayType('audio/mp4; codecs="mp4a.40.2"')` as
+the empty string — it has no AAC decoder, so every sample of every instrument
+fails identically here and sounds fine in Chrome, Safari and Firefox. Do not
+read those lines as a broken voice, and do not let them hide a real one:
+anything other than the sample decodes is worth reading.
+
+`window.__srSession` exposes the live play state (melody, onsets, ink) for
+the things only observable there — that a tied pair is one sounding event
+rather than two cannot be seen in the rendered page at all.

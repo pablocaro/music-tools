@@ -1,0 +1,1049 @@
+/* ---------------------------------------------------------------------------
+   Tweaks — a live panel over the spacing and type tokens.
+
+   Off unless the URL carries ?tweaks, so it ships inert: the script loads, sees
+   no flag, and returns before touching the page.
+
+   Why it exists. Every spacing or type decision so far has cost a full
+   edit → screenshot → look → edit round trip, and the values are already named
+   in :root — so they can be dragged in the browser instead and handed back as
+   numbers once they look right. That last step is what "Copy as prompt" is for;
+   without it this is just a debug readout.
+
+   What earns a control: a decision, not a property. "How dense is the panel" is
+   a decision; --pop-gap is a property. Five controls that each mean something
+   beat twenty that need a map to navigate — and each one here drives a token
+   the stylesheet already had, never a new one invented for the panel's sake.
+
+   Adding one is a data change: a field in DEFAULTS, an entry in SETS, a line in
+   apply(), and its token in TOKEN. The rendering code never learns about it.
+
+   The panel is styled in literal px on purpose. It reads none of the tokens it
+   drives — otherwise dragging density would deform the slider under the cursor.
+
+   Right-click (or long-press) anything on the page for an inspector holding
+   just the tweaks that shape it — see wireInspector below. The list is computed
+   from the stylesheets rather than written down, so it never needs updating.
+   --------------------------------------------------------------------------- */
+(function () {
+  "use strict";
+
+  if (!/[?&]tweaks(?:[=&]|$)/.test(location.search)) return;
+
+  var KEY = "sr_tweaks:v26";      // bumped when the defaults move, so a stored
+                                 // set of slider values cannot mask the new baseline
+                                 // (v16: stores only what moved — see save())
+  var FOLD = "sr_tweaks_fold";
+
+  // 1 · Defaults — one flat object, one entry per decision. Every value here is
+  //     the neutral one, so "all defaults" is byte-identical to no panel.
+  var DEFAULTS = {
+    // type
+    typeScale: 1, sizeMicro: 13, sizeCaption: 12, sizeLabel: 14.5, sizeLead: 18,
+    titleSize: 29, baseWeight: 400, weightStep: 100,
+    tracking: 1, leading: 1.5,
+    // spacing
+    density: 1.2, controlH: 40, rowH: 38, headerGap: 8, railW: 400, gutter: 28, pagePad: 48,
+    // shape
+    pillRadius: 999, boxRadius: 18, surfaceRadius: 26, shadowDepth: 0.65,
+    cornerCurve: 1,
+    // rail
+    railTone: 4, platterRadius: 24, platterPad: 18, platterGap: 10,
+    platterLift: 0.1, platterEdge: 0, railInset: 20,
+    caretSize: 12, caretWeight: 2, bandFold: 260,
+    swScale: 0.63, thumbW: 22, thumbGap: 2, checkRadius: 6,
+    // colour
+    accentH: 199, accentS: 100, accentL: 52, paperWarmth: 6, inkL: 12, mutedL: 55, faintL: 80, chunkAlpha: 0.5,
+    selEdge: 2, selEdgeOp: 40, selHue: 0, selWash: 8, selWeight: 0,
+    // music
+    perLine: 6, staffSize: 1, musicFade: 60,
+    // onboarding
+    obLogoSize: 72, obLogoAlpha: 0.5, obLogoR: 20, obLogoSpread: 7,
+    obTitle: 30, obTitleWeight: 550, wordmark: 40, wordmarkTrack: -0.02,
+    obBody: 24, obLeading: 1.4, obPad: 44, obRadius: 34,
+    obEnterMs: 420, obEnterRise: 16,
+    obMarkMs: 620, obMarkTurn: 12, obMarkStagger: 70,
+    // motion
+    motion: 1, reduceMotion: 0
+  };
+
+  // 2 · Specs — the panel renders from this. `re` marks a control the engraver
+  //     cares about: changing it re-lays the music out (see nudge()).
+  var SETS = [
+    { id: "type", title: "Typography", controls: [
+      { key: "typeScale",   label: "Type scale",   min: 0.85, max: 1.25, step: 0.01, unit: "×",
+        note: "multiplies every step below at once" },
+      { key: "sizeMicro",   label: "Micro",        min: 7,  max: 16, step: 0.5, unit: "px",
+        note: "note letters, octave numbers, weights" },
+      { key: "sizeCaption", label: "Caption",      min: 8,  max: 18, step: 0.5, unit: "px",
+        note: "section headings, legend, tooltips" },
+      { key: "sizeLabel",   label: "Label",        min: 10, max: 22, step: 0.5, unit: "px",
+        note: "anything you tap that says a word" },
+      { key: "sizeLead",    label: "Lead",         min: 12, max: 26, step: 0.5, unit: "px",
+        note: "the subtitle under the drill title" },
+      { key: "titleSize",   label: "Drill title",  min: 18, max: 44, step: 1, unit: "px",
+        note: "display type, riding over the scale" },
+      { key: "baseWeight",  label: "Base weight",  min: 300, max: 800, step: 25, unit: "",
+        note: "labels and body copy — the one running weight" },
+      { key: "weightStep",  label: "Value step",   min: 0, max: 600, step: 25, unit: "",
+        note: "how much heavier a value is than a label" },
+      { key: "weightStep",  label: "Strong weight", min: 100, max: 900, step: 25, unit: "",
+        from: function (st) { return st.baseWeight + st.weightStep; },
+        to:   function (v, st) { return Math.max(0, v - st.baseWeight); },
+        note: "the same rung as a number — drill names, stepper values. Stored as the step, so moving the base carries it along" },
+      { key: "tracking",    label: "Caption track", min: 0, max: 2, step: 0.05, unit: "px",
+        note: "letter-spacing on the uppercase headings" },
+      { key: "leading",     label: "Line height",  min: 1.1, max: 2, step: 0.05, unit: "×",
+        note: "body copy only; controls set their own" }
+    ] },
+    { id: "space", title: "Spacing", controls: [
+      { key: "density",   label: "Panel density", min: 0.7, max: 1.4, step: 0.05, unit: "×",
+        note: "the settings panel's gaps and padding" },
+      { key: "controlH",  label: "Control size",  min: 32,  max: 54,  step: 1, unit: "px",
+        note: "pills and toggles; round buttons follow at +8, the subtitle's chips at -6" },
+      { key: "rowH",      label: "Menu row",      min: 30,  max: 48,  step: 1, unit: "px",
+        note: "a row you tap in a picker. Held off the control height on purpose: the 24-key menu starts scrolling on a phone above 38" },
+      { key: "swScale",   label: "Switch size",   min: 0.45, max: 0.9, step: 0.02, unit: "×",
+        note: "against the control height; iOS's own is 0.78 here" },
+      { key: "thumbW",    label: "Slider thumb",  min: 14,  max: 40,  step: 1, unit: "px",
+        note: "its width — the height follows the track" },
+      { key: "thumbGap",  label: "Thumb gap",     min: 0,   max: 10,  step: 0.5, unit: "px",
+        note: "where the track breaks around it; 0 is one unbroken line" },
+      { key: "headerGap", label: "Header gap",    min: 6,   max: 28,  step: 1, unit: "px",
+        note: "between the three buttons top right" },
+      { key: "railW",     label: "Rail width",    min: 300, max: 520, step: 10, unit: "px", re: 1,
+        note: "the settings rail; also moves the push breakpoint" },
+      { key: "pagePad",   label: "Page margin",   min: 8,   max: 80,  step: 2, unit: "px",
+        note: "the title's inset and the floor under the music" },
+      { key: "gutter",    label: "Music margin",  min: 8,   max: 96,  step: 2, unit: "px", re: 1,
+        note: "air either side of the staff" }
+    ] },
+    { id: "shape", title: "Shape", controls: [
+      { key: "pillRadius",    label: "Pill radius",    min: 4, max: 30, step: 1, unit: "px",
+        maxLabel: "round", maxApply: 999, note: "presets, options, toggles" },
+      { key: "boxRadius",     label: "Cell radius",    min: 0, max: 25, step: 1, unit: "px",
+        note: "rhythm figures and the note grid" },
+      { key: "surfaceRadius", label: "Surface radius", min: 4, max: 30, step: 1, unit: "px",
+        note: "popovers; the sheet and menu follow at ±4" },
+      { key: "shadowDepth",   label: "Shadow depth",   min: 0, max: 2,  step: 0.05, unit: "×",
+        note: "how far surfaces lift off the paper" },
+      { key: "checkRadius",   label: "Checkbox corner", min: 0, max: 10, step: 0.5, unit: "px",
+        note: "give the curve below something to shape" },
+      { key: "cornerCurve",   label: "Corner curve",   min: 0, max: 3,  step: 0.1, unit: "",
+        note: "0 bevel · 1 round · 2 squircle (Chromium only)" }
+    ] },
+    { id: "rail", title: "Rail platters", controls: [
+      { key: "railTone",      label: "Trough tone",     min: 0, max: 14, step: 1, unit: "",
+        note: "grey behind the platters; 0 is white" },
+      { key: "platterRadius", label: "Platter radius",  min: 0, max: 28, step: 1, unit: "px",
+        note: "corner softness of a card" },
+      { key: "platterLift",   label: "Platter lift",    min: 0, max: 2,  step: 0.05, unit: "×",
+        note: "its shadow — 0 sits flat on the trough" },
+      { key: "platterEdge",   kind: "switch", label: "Platter hairline",
+        note: "a drawn edge as well as the shadow" },
+      { key: "platterPad",    label: "Platter padding", min: 6, max: 30, step: 1, unit: "px",
+        note: "air inside a card" },
+      { key: "platterGap",    label: "Platter gap",     min: 0, max: 24, step: 1, unit: "px",
+        note: "trough showing between cards" },
+      { key: "railInset",     label: "Panel inset",     min: 0, max: 40, step: 1, unit: "px",
+        note: "how far the stack sits off the rail's edge" },
+      { key: "caretSize",     label: "Chevron size",    min: 8, max: 22, step: 1, unit: "px",
+        note: "the fold arrow on a platter header" },
+      { key: "caretWeight",   label: "Chevron weight",  min: 1, max: 4, step: 0.25, unit: "px",
+        note: "its stroke — the points stay round at any weight" },
+      { key: "bandFold",      label: "Fold speed",      min: 0, max: 700, step: 20, unit: "ms",
+        note: "opening and closing a platter; the chevron turns with it" }
+    ] },
+    { id: "colour", title: "Colour", controls: [
+      { key: "accentH",     label: "Accent hue",   min: 0, max: 360, step: 1, unit: "°",
+        note: "everything selected takes this" },
+      { key: "accentS",     label: "Accent punch", min: 0, max: 100, step: 1, unit: "%",
+        note: "saturation — 0 is a grey UI" },
+      { key: "accentL",     label: "Accent lightness", min: 25, max: 75, step: 1, unit: "%",
+        note: "hue and punch had dials and this did not, so the accent could not be darkened at all" },
+      { key: "selEdge",     label: "Stroke width",   min: 1, max: 4, step: 0.5, unit: "px",
+        note: "drives --ctl-border, so lit and unlit keep the same box and nothing reflows" },
+      { key: "selEdgeOp",   label: "Stroke opacity", min: 10, max: 100, step: 5, unit: "%",
+        note: "100 is the full accent" },
+      { key: "selHue",      label: "Stroke colour",  min: -180, max: 180, step: 5, unit: "°",
+        note: "offset from the accent, so 0 keeps the two locked together" },
+      { key: "selWeight",   label: "Selected weight", min: -200, max: 300, step: 25, unit: "",
+        note: "added to the running weight inside a selected control — its label and its text" },
+      { key: "selWash",     label: "Selected wash",  min: 0, max: 30, step: 1, unit: "%",
+        note: "accent mixed into the paper behind it — the other half of how loud it reads" },
+      { key: "paperWarmth", label: "Paper warmth", min: 0, max: 30,  step: 1, unit: "",
+        note: "0 is white; a little gives manuscript cream" },
+      { key: "inkL",        label: "Ink lightness", min: 0, max: 40, step: 1, unit: "%",
+        note: "lower is blacker — the notation's contrast" },
+      { key: "faintL",      label: "Faint lightness", min: 40, max: 88, step: 1, unit: "%",
+        note: "the chevrons, and anything else that should recede rather than be read" },
+      { key: "mutedL",      label: "Muted lightness", min: 30, max: 80, step: 1, unit: "%",
+        note: "captions and secondary text. The chevrons left for Faint; the back-button one still takes its row's colour" },
+      { key: "chunkAlpha",  label: "Highlighter",  min: 0.1, max: 1, step: 0.05, unit: "×",
+        note: "strength of the pattern blocks" }
+    ] },
+    { id: "music", title: "Music", controls: [
+      { key: "perLine",   label: "Bars per line", min: 2,   max: 6,   step: 1, unit: "", re: 1,
+        note: "a cap — a narrow window still fits fewer" },
+      { key: "staffSize", label: "Staff size",    min: 0.6, max: 1.4, step: 0.05, unit: "×", re: 1,
+        note: "ceiling on how large the staff is drawn" },
+      { key: "musicFade", label: "Bottom fade",   min: 0, max: 160, step: 4, unit: "px", re: 1,
+        note: "music dissolves before the pill; 0 is a hard clip" }
+    ] },
+    { id: "ob", title: "Onboarding", controls: [
+      { key: "obLogoSize",   label: "Logo size",    min: 28, max: 72, step: 1, unit: "px",
+        note: "open ?onboarding&tweaks to watch these land" },
+      { key: "obLogoAlpha",  label: "Logo ink",     min: 0.2, max: 0.8, step: 0.05, unit: "×",
+        note: "each circle's strength; overlaps multiply" },
+      { key: "obLogoR",      label: "Circle size",  min: 7, max: 20, step: 0.5, unit: "px",
+        note: "radius of each of the three" },
+      { key: "obLogoSpread", label: "Circle spread", min: 0, max: 16, step: 0.5, unit: "px",
+        note: "less is more overlap; the mark refits itself either way" },
+      { key: "wordmark",     label: "Wordmark size", min: 20, max: 64, step: 1, unit: "px",
+        note: "Prima Vista on the onboarding card" },
+      { key: "wordmarkTrack",label: "Wordmark track", min: -0.06, max: 0.06, step: 0.005, unit: "em",
+        note: "in em, so the header and the card track alike" },
+      { key: "obTitle",      label: "Title size",   min: 20, max: 40, step: 1, unit: "px",
+        note: "the wordmark and each page's question" },
+      { key: "obTitleWeight",label: "Title weight", min: 400, max: 900, step: 25, unit: "",
+        note: "" },
+      { key: "obBody",       label: "Body size",    min: 14, max: 28, step: 0.5, unit: "px",
+        note: "the walkthrough's copy" },
+      { key: "obLeading",    label: "Body leading", min: 1.2, max: 1.9, step: 0.05, unit: "×",
+        note: "" },
+      { key: "obPad",        label: "Card padding", min: 24, max: 64, step: 2, unit: "px",
+        note: "desktop card; the phone wall keeps its own" },
+      { key: "obRadius",     label: "Card radius",  min: 12, max: 40, step: 1, unit: "px",
+        note: "" },
+      { key: "obEnterMs",    label: "Card entrance", min: 0, max: 1000, step: 20, unit: "ms",
+        note: "reload to see it; the mark is timed against it" },
+      { key: "obEnterRise",  label: "Card rise",     min: 0, max: 48, step: 1, unit: "px",
+        note: "how far it comes up through; it leaves downward" },
+      { key: "obMarkMs",     label: "Mark assembly", min: 0, max: 1400, step: 20, unit: "ms",
+        note: "click the mark to play it again" },
+      { key: "obMarkTurn",   label: "Mark spin",     min: 0, max: 60, step: 1, unit: "\u00b0",
+        note: "how far the ring unwinds as the circles part" },
+      { key: "obMarkStagger", label: "Mark stagger", min: 0, max: 200, step: 5, unit: "ms",
+        note: "delay between the three circles" }
+    ] },
+    { id: "motion", title: "Motion", controls: [
+      { key: "motion",       label: "Transition speed", min: 0, max: 2, step: 0.05, unit: "×",
+        note: "the rail's slide and the scrim's fade" },
+      { key: "reduceMotion", kind: "switch", label: "Reduce motion",
+        note: "hard override — stills everything, whatever the dial says" }
+    ] }
+  ];
+
+  // The token (or seam) each control drives. In the pasted block, so what comes
+  // back names the thing to edit rather than describing it in prose.
+  var TOKEN = {
+    typeScale: "--type-scale", titleSize: "--fs-4-base",
+    sizeMicro: "--fs-0-base", sizeCaption: "--fs-1-base",
+    sizeLabel: "--fs-2-base", sizeLead: "--fs-3-base",
+    baseWeight: "--weight-base", weightStep: "--weight-step",
+    tracking: "--track-caption",
+    leading: "--leading",
+    density: "--density", controlH: "--ctl-h", rowH: "--row-h", headerGap: "--tb-gap",
+    swScale: "--sw-scale", thumbW: "--thumb-w", thumbGap: "--thumb-gap",
+    railW: "--rail-w", gutter: "--music-gutter", pagePad: "--page-pad",
+    pillRadius: "--ctl-radius", boxRadius: "--ctl-radius-box",
+    surfaceRadius: "--radius-card", shadowDepth: "--shadow-depth",
+    cornerCurve: "--corner-curve", checkRadius: "--check-radius",
+    railTone: "--rail-tone", platterRadius: "--platter-radius",
+    platterPad: "--platter-pad", platterGap: "--platter-gap",
+    platterLift: "--platter-lift", platterEdge: "--platter-edge",
+    railInset: "--rail-inset",
+    caretSize: "--caret-size", caretWeight: "--caret-weight",
+    bandFold: "--band-fold-ms",
+    accentH: "--accent-h", accentS: "--accent-s", accentL: "--accent-l", paperWarmth: "--paper-warmth",
+    selEdge: "--ctl-border", selEdgeOp: "--sel-edge-op", selHue: "--sel-hue",
+    selWeight: "--sel-weight",
+    selWash: "--sel-wash",
+    inkL: "--ink-l", mutedL: "--muted-l", faintL: "--faint-l", chunkAlpha: "--chunk-alpha",
+    perLine: "app.js LAYOUT.perLine", staffSize: "app.js LAYOUT.zoomCap",
+    musicFade: "--music-fade",
+    obLogoSize: "--ob-logo-size", obLogoAlpha: "--ob-logo-alpha",
+    obLogoR: "--ob-logo-r", obLogoSpread: "--ob-logo-spread",
+    obTitle: "--ob-title-size", obTitleWeight: "--ob-title-weight",
+    wordmark: "--wordmark-size", wordmarkTrack: "--wordmark-track",
+    obBody: "--ob-body-size", obLeading: "--ob-leading",
+    obPad: "--ob-pad", obRadius: "--ob-radius",
+    obEnterMs: "--ob-enter-ms", obEnterRise: "--ob-enter-rise",
+    obMarkMs: "--ob-mark-ms", obMarkTurn: "--ob-mark-turn",
+    obMarkStagger: "--ob-mark-stagger",
+    motion: "--motion", reduceMotion: ".reduce-motion on <html>"
+  };
+
+  // --- the baseline this viewport actually shipped -------------------------
+  // DEFAULTS is one flat object, but the stylesheet's defaults are conditional:
+  // four tokens change under the 720px media query. The panel used to ignore
+  // that twice over. It seeded its sliders from the desktop numbers, and then
+  // apply() wrote them inline on <html>, where they outrank the media query —
+  // so merely opening the panel on a phone restored desktop spacing (a 390px
+  // screen got a 48px page margin), and every "was" reported afterwards named
+  // a value that viewport had never had.
+  //
+  // So the baseline is read rather than assumed, and read BEFORE the first
+  // apply(), while :root is still the only thing setting these. Anything that
+  // is not a plain number with a simple unit keeps its DEFAULTS entry, so an
+  // exotic value degrades to the old behaviour instead of to nonsense.
+  var NUMERIC = /^-?\d*\.?\d+(px|ms|s|em|rem|%|deg)?$/;
+  var SHIPPED = (function () {
+    var cs = getComputedStyle(document.documentElement), v = {}, k, t, raw;
+    for (k in DEFAULTS) {
+      v[k] = DEFAULTS[k];
+      t = TOKEN[k];
+      if (!t || t.slice(0, 2) !== "--") continue;      // app.js knobs, class flags
+      raw = cs.getPropertyValue(t).trim();
+      if (NUMERIC.test(raw)) v[k] = parseFloat(raw);
+    }
+    return v;
+  })();
+
+  // --- state ---------------------------------------------------------------
+  var state = load();
+
+  function load() {
+    var v = {}, k;
+    for (k in DEFAULTS) v[k] = SHIPPED[k];
+    try {
+      var raw = JSON.parse(localStorage.getItem(KEY) || "{}");
+      for (k in DEFAULTS) if (typeof raw[k] === "number") v[k] = raw[k];
+    } catch (e) {}
+    return v;
+  }
+  // Only what was actually moved is stored. Storing the whole set conflated
+  // "the user chose 48" with "48 was the desktop default at the time", which
+  // is what let a phone reload into desktop spacing even after the seeding
+  // above was right — and it makes one saved set mean the same thing on both
+  // viewports, since an untouched token now falls to whatever that screen
+  // ships rather than to whatever screen it was last saved from.
+  function save() {
+    try {
+      var out = {}, k;
+      for (k in DEFAULTS) if (state[k] !== SHIPPED[k]) out[k] = state[k];
+      localStorage.setItem(KEY, JSON.stringify(out));
+    } catch (e) {}
+  }
+
+  // 3 · Wiring — the one place a value becomes a CSS variable. Set on <html>,
+  //     so these inline properties beat the stylesheet's :root, including the
+  //     mobile media query (deliberate: on a phone the sliders still bite).
+  //     Only for values that were moved, though — see the release pass at the
+  //     end, and SHIPPED above for why that distinction had to be drawn.
+  function apply() {
+    var el = document.documentElement, r = el.style;
+
+    r.setProperty("--type-scale",       String(state.typeScale));
+    r.setProperty("--fs-4-base",        state.titleSize + "px");
+    r.setProperty("--fs-0-base",        state.sizeMicro + "px");
+    r.setProperty("--fs-1-base",        state.sizeCaption + "px");
+    r.setProperty("--fs-2-base",        state.sizeLabel + "px");
+    r.setProperty("--fs-3-base",        state.sizeLead + "px");
+    r.setProperty("--weight-base",    String(state.baseWeight));
+    r.setProperty("--weight-step",     String(state.weightStep));
+    r.setProperty("--track-caption",    state.tracking + "px");
+    r.setProperty("--leading",          String(state.leading));
+
+    r.setProperty("--density",      String(state.density));
+    r.setProperty("--ctl-h",        state.controlH + "px");
+    r.setProperty("--row-h",        state.rowH + "px");
+    r.setProperty("--tb-gap",       state.headerGap + "px");
+    r.setProperty("--sw-scale",     String(state.swScale));
+    r.setProperty("--thumb-w",      state.thumbW + "px");
+    r.setProperty("--thumb-gap",    state.thumbGap + "px");
+    r.setProperty("--rail-w",       state.railW + "px");
+    r.setProperty("--music-gutter", state.gutter + "px");
+    r.setProperty("--page-pad",     state.pagePad + "px");
+
+    // pillRadius carries a sentinel: its top step means "fully round", which is
+    // the shipped value (999px) and the app's identity. A linear slider to 999
+    // would spend its whole travel somewhere nothing changes.
+    r.setProperty("--ctl-radius",     (state.pillRadius >= 30 ? 999 : state.pillRadius) + "px");
+    r.setProperty("--ctl-radius-box", state.boxRadius + "px");
+    r.setProperty("--radius-card",    state.surfaceRadius + "px");
+    r.setProperty("--shadow-depth",   String(state.shadowDepth));
+    r.setProperty("--corner-curve",   String(state.cornerCurve));
+    r.setProperty("--check-radius",   state.checkRadius + "px");
+
+    r.setProperty("--rail-tone",       String(state.railTone));
+    r.setProperty("--platter-radius",  state.platterRadius + "px");
+    r.setProperty("--platter-pad",     state.platterPad + "px");
+    r.setProperty("--platter-gap",     state.platterGap + "px");
+    r.setProperty("--platter-lift",    String(state.platterLift));
+    r.setProperty("--platter-edge",    String(state.platterEdge));
+    r.setProperty("--rail-inset",      state.railInset + "px");
+    r.setProperty("--caret-size",      String(state.caretSize));    // unitless — see style.css
+    r.setProperty("--caret-weight",    String(state.caretWeight));
+    r.setProperty("--band-fold-ms",    String(state.bandFold));   // unitless ms
+
+    r.setProperty("--accent-h",     String(state.accentH));
+    r.setProperty("--accent-l",     state.accentL + "%");
+    r.setProperty("--accent-s",     state.accentS + "%");
+    r.setProperty("--paper-warmth", String(state.paperWarmth));
+    r.setProperty("--ink-l",        state.inkL + "%");
+    r.setProperty("--muted-l",      state.mutedL + "%");
+    r.setProperty("--faint-l",      state.faintL + "%");
+    r.setProperty("--chunk-alpha",  String(state.chunkAlpha));
+    // The width is the reserved border on EVERY control, not a property of the
+    // lit one: widening only the lit one would resize a cell as you tapped it.
+    r.setProperty("--ctl-border",   state.selEdge + "px");
+    r.setProperty("--sel-edge-op",  state.selEdgeOp + "%");
+    r.setProperty("--sel-hue",      String(state.selHue));
+    r.setProperty("--sel-wash",     state.selWash + "%");
+    r.setProperty("--sel-weight",   String(state.selWeight));
+
+    r.setProperty("--music-fade", state.musicFade + "px");
+
+    r.setProperty("--ob-logo-size",    state.obLogoSize + "px");
+    r.setProperty("--ob-logo-alpha",   String(state.obLogoAlpha));
+    r.setProperty("--ob-logo-r",       String(state.obLogoR));      // unitless
+    r.setProperty("--ob-logo-spread",  String(state.obLogoSpread));
+    r.setProperty("--wordmark-size",   state.wordmark + "px");
+    r.setProperty("--wordmark-track",  state.wordmarkTrack + "em");
+    r.setProperty("--ob-title-size",   state.obTitle + "px");
+    r.setProperty("--ob-title-weight", String(state.obTitleWeight));
+    r.setProperty("--ob-body-size",    state.obBody + "px");
+    r.setProperty("--ob-leading",      String(state.obLeading));
+    r.setProperty("--ob-pad",          state.obPad + "px");
+    r.setProperty("--ob-radius",       state.obRadius + "px");
+    // Unitless — style.css multiplies them into ms and deg, so --motion can
+    // scale the whole entrance the way it scales every other transition.
+    r.setProperty("--ob-enter-ms",     String(state.obEnterMs));
+    r.setProperty("--ob-enter-rise",   String(state.obEnterRise));
+    r.setProperty("--ob-mark-ms",      String(state.obMarkMs));
+    r.setProperty("--ob-mark-turn",    String(state.obMarkTurn));
+    r.setProperty("--ob-mark-stagger", String(state.obMarkStagger));
+    r.setProperty("--motion", String(state.motion));
+    el.classList.toggle("reduce-motion", !!state.reduceMotion);
+
+    // The two that aren't CSS at all.
+    if (window.__srLayout) {
+      window.__srLayout.perLine = state.perLine;
+      window.__srLayout.zoomCap = state.staffSize;
+    }
+
+    // Then hand back everything that was not actually moved. Writing all 60
+    // inline pinned them to whatever the viewport was at load: an untouched
+    // token could no longer answer a media query, so rotating a phone past
+    // 720px — or opening the panel on one at all — froze the layout at the
+    // other screen's spacing. An inline property is how a slider overrules
+    // the stylesheet, so only a moved slider should get one; the rest stay
+    // where the stylesheet can still reach them. Every token the panel drives
+    // is defined on :root, so removal always lands on a real value.
+    for (var k in DEFAULTS) {
+      if (state[k] === SHIPPED[k] && TOKEN[k] && TOKEN[k].slice(0, 2) === "--") {
+        r.removeProperty(TOKEN[k]);
+      }
+    }
+  }
+
+  // A control the engraver cares about needs the score laid out again. app.js
+  // already debounces window resize into its render pass, so borrowing that is
+  // cheaper than a second entry point — and it is the same path a real window
+  // resize takes, so there is nothing extra to keep correct.
+  var nudgeTimer = null;
+  function nudge() {
+    clearTimeout(nudgeTimer);
+    nudgeTimer = setTimeout(function () {
+      window.dispatchEvent(new Event("resize"));
+    }, 120);
+  }
+
+  function ctl(key) {
+    for (var i = 0; i < SETS.length; i++)
+      for (var j = 0; j < SETS[i].controls.length; j++)
+        if (SETS[i].controls[j].key === key) return SETS[i].controls[j];
+    return null;
+  }
+  function shown(spec, val) {
+    var c = (typeof spec === "string") ? ctl(spec) : spec;
+    if (c.kind === "switch") return val ? "on" : "off";
+    if (c.maxLabel && val >= c.max) return c.maxLabel;
+    // Round only where the step is whole — tracking moves in 0.05px, and
+    // rounding it reported the 0.7px default back as "1px".
+    return (c.unit === "px" && c.step >= 1 ? Math.round(val) : val) + c.unit;
+  }
+
+  // 5 · The block you paste back — only what moved, named by its token.
+  //     "was" names what THIS viewport shipped, not what the desktop :root
+  //     says, and where those differ the note says so: a number dragged on a
+  //     phone belongs in the media query, and pasting it as the base value
+  //     would move the desktop silently.
+  function toPrompt() {
+    var lines = [], notes = [], k;
+    for (k in DEFAULTS) {
+      if (state[k] !== SHIPPED[k]) {
+        lines.push("  " + TOKEN[k] + ": " + shown(k, state[k]) +
+                   "   (was " + shown(k, SHIPPED[k]) + ", " + ctl(k).label.toLowerCase() + ")");
+        if (SHIPPED[k] !== DEFAULTS[k]) {
+          notes.push("  " + TOKEN[k] + " is overridden for this screen — " +
+                     shown(k, SHIPPED[k]) + " here, " + shown(k, DEFAULTS[k]) +
+                     " on the base :root. Change the override, not the base.");
+        }
+      }
+    }
+    if (!lines.length) return "Nothing moved — the sight-reading defaults are unchanged.";
+    return "Update the sight-reading design defaults:\n\n" +
+           lines.join("\n") +
+           (notes.length ? "\n\nHeads up:\n" + notes.join("\n") : "") +
+           "\n\nEverything else unchanged.";
+  }
+
+  // --- 4 · panel -----------------------------------------------------------
+  var CSS =
+    "#tw{position:fixed;top:12px;left:12px;z-index:200;width:262px;" +
+      "font:500 12px/1.35 -apple-system,BlinkMacSystemFont,sans-serif;color:#1a1a1a;" +
+      "background:#fff;border-radius:14px;box-shadow:0 1px 2px rgba(0,0,0,.06),0 12px 32px rgba(0,0,0,.18)}" +
+    "#tw-top{display:flex;align-items:center;gap:8px;padding:11px 12px}" +
+    "#tw-top b{flex:1;font-size:11px;font-weight:600;letter-spacing:.7px;text-transform:uppercase;color:#8e8e93}" +
+    "#tw-top button{width:22px;height:22px;padding:0;border:none;border-radius:6px;background:#f0f0f3;" +
+      "color:#1a1a1a;font-family:inherit;font-size:13px;font-weight:600;line-height:1;cursor:pointer}" +
+    "#tw-top button:hover{background:#e4e4e9;opacity:1}" +
+    "#tw-top button:active{opacity:1}" +
+    "#tw-body{padding:0 12px 12px;max-height:76vh;overflow-y:auto}" +
+    "#tw.fold #tw-body{display:none}" +
+    ".tw-set{border-top:1px solid #ececf0}" +
+    ".tw-set:first-child{border-top:none}" +
+    ".tw-h{display:flex;align-items:center;gap:6px;width:100%;padding:9px 0;border:none;" +
+      "background:none;cursor:pointer;font-family:inherit;font-size:10px;font-weight:600;" +
+      "letter-spacing:.6px;text-transform:uppercase;color:#8e8e93;text-align:left}" +
+    ".tw-h:hover,.tw-h:active{color:#1a1a1a;opacity:1}" +
+    ".tw-h i{font-style:normal;font-size:9px;width:9px}" +
+    ".tw-in{display:none;padding-bottom:2px}" +
+    ".tw-set.open .tw-in{display:block}" +
+    ".tw-sw{width:34px;height:20px;flex-shrink:0;padding:0;border:none;border-radius:999px;" +
+      "background:rgba(0,0,0,.16);cursor:pointer;position:relative;transition:background .15s}" +
+    ".tw-sw::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;" +
+      "border-radius:50%;background:#fff;transition:transform .15s}" +
+    ".tw-sw.on{background:#0a84ff}" +
+    ".tw-sw.on::after{transform:translateX(14px)}" +
+    ".tw-sw:hover,.tw-sw:active{opacity:1}" +
+    ".tw-c{margin-bottom:11px}" +
+    ".tw-l{display:flex;justify-content:space-between;align-items:baseline;gap:8px}" +
+    ".tw-l span:last-child{font-variant-numeric:tabular-nums;font-weight:700;color:#0a84ff}" +
+    ".tw-n{display:block;color:#8e8e93;font-size:10px;margin-top:1px}" +
+    ".tw-empty{font-size:11px;margin-top:6px}" +
+    ".tw-c input{-webkit-appearance:none;appearance:none;width:100%;height:18px;margin-top:3px;" +
+      "background:transparent;cursor:pointer}" +
+    ".tw-c input::-webkit-slider-runnable-track{height:4px;border-radius:9px;background:rgba(0,0,0,.16)}" +
+    ".tw-c input::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;" +
+      "margin-top:-5px;border-radius:50%;background:#0a84ff}" +
+    ".tw-c input::-moz-range-track{height:4px;border-radius:9px;background:rgba(0,0,0,.16)}" +
+    ".tw-c input::-moz-range-thumb{width:14px;height:14px;border:none;border-radius:50%;background:#0a84ff}" +
+    "#tw-foot{display:flex;gap:6px;margin-top:12px}" +
+    "#tw-foot button{flex:1;padding:9px 6px;border:none;border-radius:8px;white-space:nowrap;" +
+      "font-family:inherit;font-size:12px;font-weight:600;line-height:1;cursor:pointer}" +
+    "#tw-foot button:hover,#tw-foot button:active{opacity:1}" +
+    "#tw-copy{background:#0a84ff;color:#fff}" +
+    "#tw-reset{background:#f0f0f3;color:#1a1a1a;flex:0 0 auto;padding:9px 12px}" +
+    "#tw-reset:hover{background:#e4e4e9}" +
+    "#tw-insp{position:fixed;z-index:100000;width:260px;max-height:70vh;overflow:auto;" +
+      "padding:10px 12px 12px;border-radius:12px;background:#fff;color:#1a1a1a;" +
+      "box-shadow:0 8px 30px rgba(0,0,0,.22);font-family:inherit}" +
+    ".tw-insp-h{display:flex;align-items:center;justify-content:space-between;gap:8px;" +
+      "margin-bottom:8px;font-size:11px}" +
+    ".tw-insp-h b{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;" +
+      "overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
+    ".tw-insp-h button{border:none;background:none;font-size:15px;line-height:1;cursor:pointer;color:#8e8e93}" +
+    "#tw-insp .tw-c{margin-bottom:10px}" +
+    /* Inherited from an ancestor rather than named on the element itself: still
+       shapes it, still worth reaching, but not what you right-clicked for. */
+    "#tw-insp .tw-inherited{opacity:.62}";
+
+  // One control, drawn from its spec. Extracted so the right-click inspector
+  // can render the same row the panel does — a control that behaved slightly
+  // differently depending on where you found it would be worse than no
+  // inspector at all.
+  var syncers = [];   // pull each control back to state — used by Reset
+  function controlRow(c) {
+      var row = document.createElement("div");
+      row.className = "tw-c";
+
+      var lab = document.createElement("div");
+      lab.className = "tw-l";
+      var lname = document.createElement("span");
+      lname.textContent = c.label;
+      // A control usually shows the state it drives, but not always: a derived
+      // rung is dialled as the number you want to see (a weight) while the
+      // state behind it stays the relationship (a step). from/to convert, and
+      // everything below goes through them so the two views of one key cannot
+      // drift.
+      var from = c.from || function () { return state[c.key]; };
+      var to   = c.to   || function (v) { return v; };
+      var lval = document.createElement("span");
+      lval.textContent = shown(c, from(state));
+      lab.appendChild(lname);
+      lab.appendChild(lval);
+      row.appendChild(lab);
+
+      var commit = function (v) {
+        state[c.key] = to(v, state);
+        apply();
+        save();
+        if (c.re) nudge();
+        // All of them, not just this key. A derived control reads several
+        // pieces of state — Strong weight is base plus step — so filtering by
+        // the key that changed left it showing 700 while the page rendered
+        // 900. Setting a slider to the value it already holds is a no-op, so
+        // the cost of syncing everything is nothing and the correctness is
+        // free.
+        syncers.forEach(function (sy) { sy.fn(); });
+      };
+
+      var input;
+      if (c.kind === "switch") {
+        input = document.createElement("button");
+        input.type = "button";
+        input.className = "tw-sw";
+        input.setAttribute("aria-label", c.label);
+        var paint = function () {
+          input.classList.toggle("on", !!state[c.key]);
+          input.setAttribute("aria-pressed", state[c.key] ? "true" : "false");
+        };
+        input.addEventListener("click", function () { commit(state[c.key] ? 0 : 1); });
+        paint();
+        lval.textContent = "";           // the switch *is* the readout
+        lab.appendChild(input);          // and it sits on its label's row
+        syncers.push({ key: c.key, fn: paint });
+      } else {
+        input = document.createElement("input");
+        input.type = "range";
+        input.min = c.min; input.max = c.max; input.step = c.step;
+        input.value = from(state);
+        input.setAttribute("aria-label", c.label);
+        input.addEventListener("input", function () { commit(parseFloat(input.value)); });
+        row.appendChild(input);
+        syncers.push({ key: c.key, fn: function () {
+          input.value = from(state);
+          lval.textContent = shown(c, from(state));
+        } });
+      }
+
+      if (c.note) {
+        var n = document.createElement("small");
+        n.className = "tw-n";
+        n.textContent = c.note;
+        row.appendChild(n);
+      }
+    return row;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Inspector — right-click anything and get the tweaks that actually shape it.
+  //
+  // The map from element to controls is COMPUTED, not written down. A hand
+  // list would be right the day it was written and quietly wrong after the
+  // next token: the failure mode is a missing slider that looks like the
+  // element simply has no tweaks. So instead: walk the stylesheets, keep the
+  // rules this element matches, read the var(--x) references straight out of
+  // their declarations, and map those back through TOKEN. Add a token to a
+  // rule and the inspector finds it with nothing to remember.
+  //
+  // getComputedStyle cannot do this — it hands back resolved values with every
+  // var() already substituted, so the thing being asked for is exactly what it
+  // throws away. The CSSOM keeps the raw text.
+  // ---------------------------------------------------------------------------
+  var BY_TOKEN = null;
+  function tokenIndex() {
+    if (BY_TOKEN) return BY_TOKEN;
+    BY_TOKEN = {};
+    for (var k in TOKEN) if (TOKEN[k].slice(0, 2) === "--") BY_TOKEN[TOKEN[k]] = k;
+    return BY_TOKEN;
+  }
+
+  // Which custom property is built out of which. The panel drives BASE tokens
+  // (--fs-0-base, --accent-h) while the rules that style things name DERIVED
+  // ones (--type-micro, --sel-tint), often several hops up:
+  //     .fig-cell .wt { font-size: var(--type-micro) }
+  //     --type-micro: var(--fs-0)
+  //     --fs-0: calc(var(--fs-0-base) * var(--type-scale))
+  // Matching a rule's tokens straight against TOKEN therefore finds almost
+  // nothing — the first version of this reported zero controls for every
+  // element on the page and looked like a broken selector match. So the graph
+  // gets built once and walked to the leaves the panel actually owns.
+  var DERIVES = null;
+  function derivations() {
+    if (DERIVES) return DERIVES;
+    DERIVES = {};
+    eachRule(function (rule) {
+      var st = rule.style;
+      for (var i = 0; i < st.length; i++) {
+        var prop = st[i];
+        if (prop.slice(0, 2) !== "--") continue;
+        var refs = st.getPropertyValue(prop).match(/var\(\s*--[\w-]+/g) || [];
+        var list = DERIVES[prop] || (DERIVES[prop] = []);
+        refs.forEach(function (r) {
+          var tok = r.replace(/var\(\s*/, "");
+          if (list.indexOf(tok) < 0) list.push(tok);
+        });
+      }
+    });
+    return DERIVES;
+  }
+
+  // Every panel key a token bottoms out at. Depth-capped and cycle-guarded:
+  // custom properties are allowed to reference each other in ways that make a
+  // naive walk spin.
+  function resolve(tok, seen, depth) {
+    seen = seen || {};
+    if (seen[tok] || (depth || 0) > 6) return [];
+    seen[tok] = 1;
+    var byToken = tokenIndex();
+    if (byToken[tok]) return [byToken[tok]];
+    var out = [], next = derivations()[tok] || [];
+    for (var i = 0; i < next.length; i++) {
+      var got = resolve(next[i], seen, (depth || 0) + 1);
+      for (var j = 0; j < got.length; j++) if (out.indexOf(got[j]) < 0) out.push(got[j]);
+    }
+    return out;
+  }
+
+  // One walk over every rule in every reachable sheet, including nested ones.
+  //
+  // Note the shape of the test. "If it has cssRules it is a group rule, so
+  // recurse instead of reading it" is the classic walk and it is now wrong:
+  // since CSS Nesting shipped, an ordinary CSSStyleRule carries a cssRules
+  // list too — usually empty. Written that way this skipped 387 of the 400
+  // rules on the page and reported that nothing on screen had any tweaks,
+  // which reads as a broken selector match rather than a broken walk. A rule
+  // can both carry declarations and hold children, so both are checked.
+  function eachRule(fn) {
+    var sheets = document.styleSheets;
+    for (var i = 0; i < sheets.length; i++) {
+      var rules;
+      try { rules = sheets[i].cssRules; } catch (e) { continue; }   // cross-origin
+      if (!rules) continue;
+      (function walk(list) {
+        for (var r = 0; r < list.length; r++) {
+          var rule = list[r];
+          if (rule.style) fn(rule);
+          if (rule.cssRules && rule.cssRules.length) walk(rule.cssRules);
+        }
+      })(rules);
+    }
+  }
+  // All of them, because a key can be dialled more than one way: the strong
+  // rung is both "Value step" (the relationship) and "Strong weight" (the
+  // number). Returning only the first meant right-clicking a drill's name
+  // offered the step and never the weight, which is the one you actually came
+  // for. Two views of one setting sitting together is worth the row.
+  function specsFor(key) {
+    var out = [];
+    for (var i = 0; i < SETS.length; i++) {
+      for (var j = 0; j < SETS[i].controls.length; j++) {
+        if (SETS[i].controls[j].key === key) out.push(SETS[i].controls[j]);
+      }
+    }
+    return out;
+  }
+
+  // Roughly CSS specificity — enough to rank "this element's own rule" above
+  // "something that styles half the app". Exact weights do not matter; the
+  // order does.
+  function weigh(sel) {
+    return (sel.match(/#[\w-]+/g) || []).length * 100 +
+           (sel.match(/\.[\w-]+|\[[^\]]+\]|:[\w-]+/g) || []).length * 10 +
+           (sel.match(/(^|[\s>+~])[a-z]+/gi) || []).length;
+  }
+
+  function rulesFor(el) {
+    var hits = [];
+    eachRule(function (rule) {
+      if (!rule.selectorText) return;
+      // A selector list can hold one part that matches and several that do
+      // not; only the matching part should lend its weight.
+      var parts = rule.selectorText.split(","), best = -1;
+      for (var q = 0; q < parts.length; q++) {
+        var sel = parts[q].trim();
+        var ok = false;
+        try { ok = el.matches(sel); } catch (e) { ok = false; }
+        if (ok) best = Math.max(best, weigh(sel));
+      }
+      if (best >= 0) hits.push({ rule: rule, w: best });
+    });
+    return hits;
+  }
+
+  // Which tweaks shape this element, best first. `own` marks a token named by a
+  // rule that targets the element itself rather than one it inherits from —
+  // --density feeds nearly every calc in the app, so without this every element
+  // would answer with the same handful of panel-wide dials at the top.
+  function tweaksFor(el, cap, origin) {
+    var found = {};
+
+    function harvest(node, penalty, own) {
+      var hits = rulesFor(node);
+      for (var h = 0; h < hits.length; h++) {
+        // cssText, not the property list: a shorthand carrying a var() —
+        // "border: var(--ctl-border) solid transparent" — serialises its
+        // longhands as empty strings, so iterating properties loses exactly
+        // the declarations this is looking for.
+        var refs = hits[h].rule.style.cssText.match(/var\(\s*--[\w-]+/g);
+        if (!refs) continue;
+        for (var v = 0; v < refs.length; v++) {
+          var tok = refs[v].replace(/var\(\s*/, "");
+          var keys = resolve(tok);
+          for (var kk = 0; kk < keys.length; kk++) {
+            var key = keys[kk];
+            if (!specsFor(key).length) continue;
+            var score = hits[h].w - penalty;
+            if (!found[key] || found[key].score < score) {
+              found[key] = { key: key, score: score, own: own };
+            }
+          }
+        }
+      }
+    }
+
+    harvest(el, 0, true);
+
+    // The thing actually under the cursor, when that is not the control itself.
+    // Climbing to the control is right — it is what people are aiming at — but
+    // it threw away the rung of the text they clicked: a drill's subtitle is
+    // --type-micro and the drill knows nothing about that, so right-clicking
+    // the small grey line offered the name's Label and never Micro. Boosted
+    // above the control's own rules, because it is the most specific answer to
+    // "what sets this".
+    if (origin && origin !== el) harvest(origin, -20, true);
+
+    // Down, then up. A control's face is mostly made of its children's rules —
+    // .drill declares no type at all, and the weight and size of the name you
+    // are looking at live on .drill-name inside it. Walking only ancestors
+    // meant right-clicking a drill row answered with colour and spacing and
+    // nothing about its own text, which is the first thing anyone would want
+    // to change. Descendants take a light penalty: they belong to this control,
+    // unlike an ancestor that merely contains it — 2 a level, not 10: a class
+    // selector is only worth 10 to begin with, so a heavier penalty drove
+    // .drill-name's rule below zero and the drill row went on reporting no
+    // type at all, which was the whole point of looking down.
+    var kids = el.querySelectorAll ? el.querySelectorAll("*") : [];
+    for (var i = 0; i < kids.length && i < 24; i++) {
+      var down = 0;
+      for (var up = kids[i]; up && up !== el; up = up.parentElement) down++;
+      if (down > 2) continue;
+      harvest(kids[i], 2 * down, true);
+    }
+
+    for (var node = el.parentElement, depth = 1; node && node.nodeType === 1 && depth < 6; node = node.parentElement, depth++) {
+      harvest(node, depth * 40, false);
+    }
+
+    var out = [];
+    for (var k in found) out.push(found[k]);
+    out.sort(function (a, b) { return b.score - a.score; });
+    // Fourteen, not eight: a control plus the text inside it genuinely has
+    // more to say, and the popover scrolls.
+    return out.slice(0, cap || 14);
+  }
+
+  function describe(el) {
+    var s = el.tagName.toLowerCase();
+    if (el.id) s += "#" + el.id;
+    var cls = (el.getAttribute("class") || "").trim().split(/\s+/).filter(Boolean).slice(0, 2);
+    if (cls.length) s += "." + cls.join(".");
+    return s;
+  }
+
+  // People aim at what they see, and what they see is usually text inside a
+  // control: right-clicking a drill's title gave you the title's typography
+  // and pushed the stroke dials off the bottom of the list. So the subject is
+  // the nearest thing that behaves like a control, and only the bare target
+  // when there is none — a heading, the staff, the page itself.
+  var CONTROLS = "button, label, input, select, textarea, a[href], [role=switch], [role=button], [role=option], [role=menuitem]";
+  function subjectOf(el) {
+    var ctl = el.closest ? el.closest(CONTROLS) : null;
+    return ctl || el;
+  }
+
+  function openInspector(el, x, y) {
+    var origin = el;
+    el = subjectOf(el);
+    closeInspector();
+    var found = tweaksFor(el, 0, origin);
+    var box = document.createElement("div");
+    box.id = "tw-insp";
+
+    var head = document.createElement("div");
+    head.className = "tw-insp-h";
+    var what = document.createElement("b");
+    // Both, when they differ, so it is never a mystery why the dials belong to
+    // something other than what the cursor was on.
+    what.textContent = (origin && origin !== el)
+      ? describe(origin) + " \u2192 " + describe(el)
+      : describe(el);
+    var shut = document.createElement("button");
+    shut.type = "button"; shut.textContent = "×"; shut.title = "Close";
+    shut.addEventListener("click", closeInspector);
+    head.appendChild(what);
+    head.appendChild(shut);
+    box.appendChild(head);
+
+    if (!found.length) {
+      var none = document.createElement("small");
+      none.className = "tw-n tw-empty";
+      none.textContent = "No tweaked tokens reach this element. Try its parent.";
+      box.appendChild(none);
+    } else {
+      found.forEach(function (f) {
+        specsFor(f.key).forEach(function (spec) {
+          var row = controlRow(spec);
+          if (!f.own) row.classList.add("tw-inherited");
+          box.appendChild(row);
+        });
+      });
+    }
+    document.body.appendChild(box);
+
+    // Placed after insertion, when it has a size to place.
+    var r = box.getBoundingClientRect();
+    var left = Math.min(x + 8, window.innerWidth - r.width - 8);
+    var top = Math.min(y + 8, window.innerHeight - r.height - 8);
+    box.style.left = Math.max(8, left) + "px";
+    box.style.top = Math.max(8, top) + "px";
+  }
+  function closeInspector() {
+    var old = document.getElementById("tw-insp");
+    if (old) old.remove();
+  }
+
+  function wireInspector() {
+    document.addEventListener("contextmenu", function (e) {
+      if (e.target.closest("#tw, #tw-insp")) return;   // the panel is not the subject
+      e.preventDefault();
+      openInspector(e.target, e.clientX, e.clientY);
+    });
+    // Trackpads and phones have no right-click, so a long press does the same.
+    var timer = null, moved = false;
+    document.addEventListener("pointerdown", function (e) {
+      if (e.pointerType === "mouse" || e.target.closest("#tw, #tw-insp")) return;
+      moved = false;
+      timer = setTimeout(function () {
+        if (!moved) openInspector(e.target, e.clientX, e.clientY);
+      }, 550);
+    });
+    document.addEventListener("pointermove", function () { moved = true; });
+    ["pointerup", "pointercancel"].forEach(function (ev) {
+      document.addEventListener(ev, function () { clearTimeout(timer); });
+    });
+    document.addEventListener("click", function (e) {
+      if (!e.target.closest("#tw-insp")) closeInspector();
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") closeInspector();
+    });
+  }
+
+  function build() {
+    var style = document.createElement("style");
+    style.textContent = CSS;
+    document.head.appendChild(style);
+
+    var el = document.createElement("div");
+    el.id = "tw";
+
+    var top = document.createElement("div");
+    top.id = "tw-top";
+    var name = document.createElement("b");
+    name.textContent = "Tweaks";
+    var fold = document.createElement("button");
+    fold.type = "button";
+    fold.title = "Collapse";
+    fold.textContent = "–";
+    top.appendChild(name);
+    top.appendChild(fold);
+
+    var body = document.createElement("div");
+    body.id = "tw-body";
+
+    // Rendered from SETS — this loop never names an individual control. Sets
+    // fold independently, which is what keeps twenty controls navigable: the
+    // one you are working on is the only one open.
+    var openSets = {};
+    try { openSets = JSON.parse(localStorage.getItem(FOLD + ":sets") || "{}"); } catch (e) {}
+
+    SETS.forEach(function (set) {
+      var wrap = document.createElement("div");
+      wrap.className = "tw-set";
+
+      var h = document.createElement("button");
+      h.type = "button";
+      h.className = "tw-h";
+      var caret = document.createElement("i");
+      caret.textContent = "▸";
+      var htxt = document.createElement("span");
+      htxt.textContent = set.title;
+      h.appendChild(caret);
+      h.appendChild(htxt);
+
+      var inner = document.createElement("div");
+      inner.className = "tw-in";
+
+      var isOpen = openSets[set.id] !== false;   // open unless folded before
+      var draw = function () {
+        wrap.classList.toggle("open", isOpen);
+        caret.textContent = isOpen ? "▾" : "▸";
+        h.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      };
+      h.addEventListener("click", function () {
+        isOpen = !isOpen;
+        openSets[set.id] = isOpen;
+        try { localStorage.setItem(FOLD + ":sets", JSON.stringify(openSets)); } catch (e) {}
+        draw();
+      });
+      draw();
+
+      set.controls.forEach(function (c) { inner.appendChild(controlRow(c)); });
+
+      wrap.appendChild(h);
+      wrap.appendChild(inner);
+      body.appendChild(wrap);
+    });
+
+    var foot = document.createElement("div");
+    foot.id = "tw-foot";
+    var copy = document.createElement("button");
+    copy.id = "tw-copy"; copy.type = "button"; copy.textContent = "Copy as prompt";
+    var reset = document.createElement("button");
+    reset.id = "tw-reset"; reset.type = "button"; reset.textContent = "Reset";
+    foot.appendChild(copy);
+    foot.appendChild(reset);
+    body.appendChild(foot);
+
+    el.appendChild(top);
+    el.appendChild(body);
+    document.body.appendChild(el);
+
+    // --- behaviour ---
+    fold.addEventListener("click", function () {
+      var f = el.classList.toggle("fold");
+      fold.textContent = f ? "+" : "–";
+      try { localStorage.setItem(FOLD, f ? "1" : "0"); } catch (e) {}
+    });
+    try { if (localStorage.getItem(FOLD) === "1") { el.classList.add("fold"); fold.textContent = "+"; } } catch (e) {}
+
+    copy.addEventListener("click", function () {
+      var text = toPrompt(), done = function () {
+        copy.textContent = "Copied — paste to Claude";
+        setTimeout(function () { copy.textContent = "Copy as prompt"; }, 1800);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () { window.prompt("Copy this:", text); });
+      } else {
+        window.prompt("Copy this:", text);
+      }
+    });
+
+    reset.addEventListener("click", function () {
+      for (var k in DEFAULTS) state[k] = SHIPPED[k];   // back to what this screen ships
+      apply(); save(); nudge();
+      syncers.forEach(function (sy) { sy.fn(); });
+    });
+  }
+
+  wireInspector();
+
+  apply();   // stored values land before first paint where possible
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", build);
+  else build();
+})();
