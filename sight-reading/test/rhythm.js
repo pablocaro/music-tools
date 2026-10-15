@@ -35,17 +35,34 @@ function crossings(xml) {
     const P = window.osme.OpenSheetMusicDisplay.prototype, o = P.load;
     P.load = function (x) { window.__xml = x; return o.apply(this, arguments); };
   });
+  // Which cells are showing is measured from their boxes, not their attributes
+  // — a cell inside a hidden family is not itself marked hidden — so the panel
+  // has to actually be open for any of it to have a size.
+  await p.evaluate(() => {
+    const ob = document.getElementById('ob'); if (ob) ob.hidden = true;
+    document.getElementById('settings-toggle').click();
+  });
+  await p.waitForTimeout(900);
 
-  // click the real pill, the way a person would, but without Playwright's
-  // actionability wait (the panel may be closed and the pill off-screen)
+  // Meter is a set now, so "pick 3/4" means turn 3/4 on and everything else
+  // off — and in that order, since the control clamps at one and would refuse
+  // to empty itself. Clicked the way a person would, but without Playwright's
+  // actionability wait (the panel may be closed and the cell off-screen).
   const meter = m => p.evaluate(x => {
-    const btn = [...document.querySelectorAll('#timesig-pills .opt')].find(e => e.textContent.trim() === x);
-    btn.click();
+    const cells = [...document.querySelectorAll('#timesig-pills .fig-cell')];
+    const want = cells.find(e => e.textContent.trim() === x);
+    if (want && !want.classList.contains('on')) want.click();
+    cells.forEach(c => { if (c !== want && c.classList.contains('on')) c.click(); });
   }, m);
+  // Families replaced groups: one grid per simple/compound, headed by the
+  // meters that selected it.
   const state = () => p.evaluate(() => ({
-    groups: [...document.querySelectorAll('#beats .fig-group')].map(g => g.dataset.group + (g.hidden ? ':hidden' : ':shown')),
-    inPlay: [...document.querySelectorAll('#beats .fig-group:not([hidden]) .beat:checked')].map(c => c.value),
-    headsVisible: [...document.querySelectorAll('#beats .fig-h')].filter(h => getComputedStyle(h).display !== 'none').length
+    groups: [...document.querySelectorAll('#beats .fig-fam')]
+      .map(g => g.dataset.fam + (g.getBoundingClientRect().height > 0 ? ':shown' : ':hidden')),
+    inPlay: [...document.querySelectorAll('#beats .fig-cell .beat:checked')]
+      .filter(c => c.closest('.fig-cell').getBoundingClientRect().width > 0).map(c => c.value),
+    headsVisible: [...document.querySelectorAll('#beats .fig-h')]
+      .filter(h => h.getBoundingClientRect().height > 0).length
   }));
 
   await p.evaluate(() => {

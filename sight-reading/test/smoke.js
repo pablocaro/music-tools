@@ -11,7 +11,12 @@ const { chromium } = require(PW);
   await p.goto('http://localhost:8091/', { waitUntil: 'domcontentloaded' });
   await p.waitForTimeout(4000);
   console.log('errors:', errs.slice(0, 4));
-  console.log('groups:', await p.evaluate(() => [...document.querySelectorAll('#beats .fig-group')].map(g => g.dataset.group + (g.hidden ? '(hidden)' : ''))));
+  // Families replaced groups when the palette split by meter. Read from the
+  // hidden attribute, which app.js sets on the family itself: this smoke test
+  // never opens the panel, so measuring boxes would report everything hidden
+  // and say nothing about which family the meter selected.
+  console.log('families:', await p.evaluate(() => [...document.querySelectorAll('#beats .fig-fam')]
+    .map(g => g.dataset.fam + (g.hidden ? '(hidden)' : ''))));
   console.log('cells :', await p.evaluate(() => document.querySelectorAll('#beats .fig-cell').length));
   console.log('wide  :', await p.evaluate(() => document.querySelectorAll('#beats .fig-cell.wide').length));
   console.log('sheet :', await p.evaluate(() => document.querySelectorAll('#sheet .vf-stavenote').length), 'notes');

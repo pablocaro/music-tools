@@ -1,4 +1,5 @@
-/* Rubik, self-hosted (variable, latin) so it works offline via file:// */
+/* Rubik, self-hosted (variable, latin) so it works offline via file://. The
+   app's working type: variable, so a weight token means exactly what it says. */
 @font-face {
   font-family: "Rubik";
   src: url("fonts/rubik.woff2") format("woff2");
@@ -7,12 +8,61 @@
   font-display: swap;
 }
 
+/* Sharphy Bold — the wordmark only, never body text. One weight ships because
+   one weight is used; another means another 22KB file, not a slider move.
+   (Sharphy is five static faces, not a variable font, so weights between them
+   round — and CSS looks UP first inside [400,500], which would have turned a
+   425 body weight into Medium. Immaterial here at a flat 700, but the reason
+   this stayed out of the body stack.) */
+@font-face {
+  font-family: "Sharphy";
+  src: url("fonts/Sharphy-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-  --paper: #ffffff;
-  --paper-dim: #f5f5f5;
-  --ink: #1a1a1a;
-  --muted: #8e8e93;
-  --accent: #0a84ff;  /* primary UI accent — iOS blue */
+  /* The live dials. Every one is neutral at its default, so an un-flagged page
+     renders exactly what this file says; ?tweaks (tweaks.js) drives them from a
+     panel and nothing else ever sets them. They exist so a design decision can
+     be explored in the browser and handed back as a number, instead of through
+     an edit → screenshot → look → edit round trip. Where a value below is
+     written as parts (accent, paper) or as a calc off a base (the radii, the
+     shadows), that is why — the parts are what a slider can reach. */
+  --type-scale: 1;       /* every step of the type scale at once */
+  --density: 1.2;          /* the settings panel's gaps and padding */
+  --shadow-depth: 0.65;     /* how far the floating surfaces lift off the page */
+  --motion: 1;           /* multiplier on the structural transitions */
+
+  /* Paper and ink in parts, so warmth and contrast are tunable. Warmth 0 is
+     exactly the white and #f5f5f5 this shipped with; a little of it gives the
+     cream of real manuscript paper, which is easier to read against. */
+  --paper-warmth: 6;
+  --paper: hsl(38 calc(var(--paper-warmth) * 1%) calc(100% - var(--paper-warmth) * 0.05%));
+  --paper-dim: hsl(38 calc(var(--paper-warmth) * 1%) 96%);
+  --ink-l: 12%;
+  --ink: hsl(0 0% var(--ink-l));
+  --muted-l: 55%;        /* secondary ink's lightness — the dial --ink-l always had */
+  --muted: hsl(240 2% var(--muted-l));   /* was the literal #8e8e93, which is this */
+  --faint-l: 80%;        /* the third rung of the ink ladder: ink, then muted, then faint.
+                            Ornament that should recede rather than be read — the fold and
+                            row chevrons are its only users today. Kept off --muted because
+                            lightening every caption to match them was the thing that made
+                            this a separate token. */
+  --faint: hsl(240 2% var(--faint-l));
+  /* The only colour in the palette that is not the accent, and it earns that
+     by appearing exactly once: on the menu item that deletes a drill you
+     saved. Nothing else in the app is irreversible. */
+  --danger: #d1362f;
+
+  /* The accent, likewise in parts. The default is exactly the iOS blue it
+     shipped with (#0a84ff); everything tinted — pills, toggles, the cursor —
+     follows from these three. */
+  --accent-h: 199;
+  --accent-s: 100%;
+  --accent-l: 52%;
+  --accent: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
 
   /* Chunk ink — highlighter pigment laid on the staff, and the same two values
      for the small marks that name it in the panel (interval dots, legend), so
@@ -26,7 +76,106 @@
   --music-max: 1040px;   /* the music column never grows wider than this — wide
                             viewports just gain negative space on the sides */
   --music-min: 640px;    /* …and never shrinks narrower than this */
-  --bar-h: 84px;         /* control-bar height (14 + button + 22) = the pocket's visible lip when closed */
+  --music-gutter: 28px;  /* air either side of the staff */
+  /* Air around the page itself — the title block's inset and the floor under
+     the music. Not the same decision as --music-gutter, and they were never
+     going to line up: the title is left-aligned inside a column capped at
+     --music-max, while the staff is centred in whatever width is left. One is
+     the frame, the other is how close the notation runs to its own edges. */
+  --page-pad: 48px;
+  --music-fade: 60px;    /* the music dissolves over this on its way down to the
+                            transport pill, instead of clipping. 0 restores the
+                            hard edge (and the bottom paper cover with it). */
+
+  /* The rail as a trough of platters. Three surfaces want to read as a stack —
+     trough behind, platter on it, control on that — which they do while the
+     trough stays below --ctl-fill (96%, so --rail-tone 5 or more).
+     At 3 the trough is 97%, a shade *lighter* than the controls (245 vs 247
+     measured), so that order inverts. It holds anyway for one reason: the
+     platter's own white still out-reads both, and --platter-pad keeps every
+     control well inside the card, so a control and the trough never actually
+     meet. Take the padding to nothing and they would. Chosen for a near-flat,
+     quiet rail — platter lift is 0.1 for the same reason. */
+  --rail-tone: 4;        /* how far the trough drops below white */
+  --rail-bg: hsl(38 calc(var(--paper-warmth) * 1%) calc(100% - var(--rail-tone) * 1%));
+  --platter-radius: 24px;
+  --platter-pad: 18px;
+  --platter-gap: 10px;
+  --rail-inset: 20px;    /* how far the platters sit off the rail's edge */
+  --platter-lift: 0.1;   /* platter shadow, softer than a floating surface's */
+  --platter-edge: 0;     /* 0 = shadow alone, 1 = a hairline instead */
+  --band-fold-ms: 260;   /* unitless ms; the caret turns on the same clock */
+  --caret-size: 12;      /* the fold chevron on a platter header, in px */
+  --caret-weight: 2;     /* its stroke, in real px whatever the size. Both are
+                            unitless so the stroke can be compensated in user
+                            units below — division needs bare numbers */
+
+  /* Corner curvature, as the exponent of a superellipse: 0 bevels, 1 is the
+     plain circular corner every border-radius draws, 2 is the continuous
+     "squircle" iOS uses, higher tends back to square. Applied through
+     corner-shape, which composes with border-radius and — unlike a clip-path
+     squircle — leaves shadows and borders intact. Chromium-only for now, so it
+     sits behind @supports and everywhere else simply stays circular. */
+  --corner-curve: 1;
+
+  /* Onboarding's own scale. The walkthrough is display typography — one page,
+     a few sentences, read once — so it does not borrow the panel's working
+     sizes; these are its own dials (tweaks · Onboarding set, best driven with
+     ?onboarding&tweaks so you can watch them land). */
+  --ob-logo-size: 72px;
+  --ob-logo-alpha: 0.5;  /* each circle's ink; overlaps multiply darker */
+  --ob-logo-r: 20;       /* unitless, so --ob-logo-fit can divide by them */
+  --ob-logo-spread: 7;
+  /* The mark sizes itself to its own box. Reach is radius + spread, so 24 over
+     that is exactly the factor that lands the outermost edge on the viewBox
+     edge. Baked into each circle's geometry rather than applied as a transform
+     on the group: a CSS transform inside a <symbol> is rejected outright here,
+     and calc on cx/cy/r is the same arithmetic with nothing to reject. The two
+     dials therefore set proportion only — --ob-logo-size sets size — and
+     cropping stops being possible instead of something overflow must rescue
+     (a <symbol> becomes an <svg> in the shadow tree and clips to its own
+     viewBox whatever the outer element says, which is why it could not). */
+  --ob-logo-fit: calc(24 / (var(--ob-logo-r) + var(--ob-logo-spread)));
+  /* How assembled the mark is: 0 stacks the three circles on the centre, 1 is
+     the mark as the dials draw it. Only ever those two values — it is the
+     journey, not a dial — but everything geometric multiplies by it, so the
+     dials keep owning the destination and the entrance only borrows the path. */
+  --ob-assemble: 1;
+  /* The card's own entrance, which the mark's is timed against. */
+  --ob-enter-ms: 420;
+  --ob-enter-rise: 16;    /* px it comes up through; it leaves downward */
+  --ob-enter-scale: 0.98;
+  --ob-mark-ms: 620;      /* unitless ms, so --motion can scale it */
+  --ob-mark-turn: 12;     /* degrees the ring unwinds through on the way out */
+  --ob-mark-stagger: 70;  /* ms between the three circles */
+  /* The three circles sit on an equilateral triangle about the viewBox centre,
+     so overlap is one number: how far each centre is pushed out from the
+     middle. Less spread, more overlap. Radius is its own dial, and the two
+     together are what the mark's density actually is. Both live in the 48-unit
+     viewBox, so they set proportions — --ob-logo-size sets how big it renders.
+     The note is knocked out of the circles at the triangle's centroid, so it
+     only reads while they still cover the middle: spread past roughly 11 (at
+     r 13) opens a gap under it and the note dissolves into the paper. Visible
+     the moment you drag it, so it is left as a limit to find rather than a
+     clamp — but that is the ceiling, not the slider's max. */
+
+  --ob-title-size: 30px; /* the wordmark and each page's question */
+  --ob-title-weight: 550;
+  /* The wordmark. Sharphy set tight and capitalised rather than the uppercase
+     letter-spaced label it used to be: the face has enough character to be the
+     mark itself, and spacing it out was compensating for a font that did not.
+     Tracking in em so it holds at the header's 11px and onboarding's 40px. */
+  --wordmark-size: 40px;
+  --wordmark-track: -0.02em;
+  --ob-body-size: 24px;
+  --ob-leading: 1.4;
+  --ob-pad: 44px;        /* the card's padding, desktop */
+  --ob-radius: 34px;
+  --rail-w: 400px;       /* the settings rail's width, open. With the gutters it
+                            sets what the push breakpoint must clear: 640 + 56 +
+                            400 = 1096, so the 1100px media query still has room.
+                            Widen the rail or the gutters much further and that
+                            query has to move with them. */
 
   /* Buttons / controls — sight-reading's own (filled-on-paper) system, sibling to
      pitch-trainer's outline-on-colour one.
@@ -36,20 +185,45 @@
      Borders are kept at a transparent 2px rather than removed, so they hold the
      metrics and a future selected state can colour them in without reflowing. */
   --ctl-border: 2px;
-  --ctl-radius: 999px;                                             /* pill controls (presets) */
-  --ctl-radius-box: 8px;                                           /* boxy controls (selects, tiles) */
+  --ctl-radius: 999px;                                             /* pill controls (opt, cycle) */
+  --ctl-radius-box: 18px;                                           /* boxy controls (selects, tiles) */
   --ctl-on: var(--accent);                                         /* selected = iOS-blue accent */
   --ctl-on-ink: var(--paper);                                      /* text/glyph on a filled selected control */
   --ctl-on-tint: color-mix(in srgb, var(--accent) 10%, var(--paper)); /* subtle tint for pill-selected */
   --ctl-h: 40px;                                                   /* standard control height in the panel */
-  --ctl-h-lg: 48px;                                                /* round icon buttons — transport, regenerate */
-  --panel-max: 1100px;                                             /* settings content stops widening past this */
-  --col-max: 540px;                                                /* one column of the panel's two-up bands */
+  --ctl-h-lg: calc(var(--ctl-h) + 8px);                            /* round icon buttons — transport, regenerate.
+                                                                      Derived, so the two sizes keep their step
+                                                                      when either is tuned */
+  --ctl-h-sm: calc(var(--ctl-h) - 6px);                            /* the subtitle's chips. A rung below the panel's
+                                                                      controls, because a chip is a line of type that
+                                                                      happens to be operable, not a control in a row
+                                                                      of them. Derived for the same reason -lg is.
+                                                                      The step down is 6 where the step up is 8: -8
+                                                                      read lighter than wanted against the title. */
+  --row-h: 38px;                                                   /* a list row you tap — the picker menus. Not a
+                                                                      control rung: sized by the finger, and held off
+                                                                      --ctl-h because 24 keys at that height start
+                                                                      scrolling on a phone. */
+  --col-max: 540px;                                                /* cap for a bare slider's travel */
   --ctl-fill: var(--paper-dim);                                    /* recessed track / plain-container fill */
   --ctl-fill-hover: #e9e9ee;                                       /* resting fill, hovered */
   --track: rgba(0, 0, 0, 0.18);                                    /* slider track — reads recessed on paper and on --ctl-fill */
   --track-h: 6px;
-  --thumb: 17px;
+  --thumb: 17px;         /* the thumb's height */
+  --thumb-w: 22px;       /* …and its width: a capsule, not a dot */
+  --thumb-gap: 2px;      /* air the track leaves on either side of it */
+  /* The checkbox's corner. It follows --corner-curve like every other
+     squircled surface, but a superellipse needs a corner to work in: at 5px
+     on a 19px box there is almost none, and raising the curve only reads as
+     "squarer". The two are dialled together or neither says anything. */
+  --check-radius: 6px;
+  /* The switch, as a fraction of the control height. Sized 1:1 off iOS at
+     first (0.78 → 51×31, exactly Apple's) which was the right number in the
+     wrong place: iOS sets that beside 17pt body text and these rows run at
+     15px with 12px headings, so the same control reads bigger here than it
+     does there. */
+  --sw-scale: 0.63;
+  --sw-ratio: 1.62;      /* its width, against its own height */
 
   /* Type scale — same naming as pitch-trainer's, so the two apps read as one
      system. Sizes differ (this one sits on paper, at desktop distances).
@@ -61,20 +235,45 @@
        label    anything you tap that says a word — pills, cycles, options,
                 and a stepper's readout, which is marked by weight not size
        lead     the main view's subtitle, above the panel's range
-     Weight follows suit: the panel is 600 throughout, and 700 marks a value. */
-  --fs-0: 10px;
-  --fs-1: 11px;
-  --fs-2: 14px;
-  --fs-3: 17px;
-  --fs-4: 28px;
+     Weight follows suit: everything runs at --weight-standard, and
+     --weight-strong marks a value — derived, standard plus a step, so the two
+     keep their relationship when the base moves. (It was once an absolute 700
+     against a 600 base; the base dropped and the pair fell apart.)
+     The panel ran at --weight-prominent until the airy pass brought that down
+     to standard's own value and the two rungs collapsed; now the collapse is
+     spelled out. Prominent stays in the vocabulary as a real emphasis rung —
+     600, nothing uses it today — rather than a second name for the default. */
+  --fs-0-base: 13px;
+  --fs-1-base: 12px;
+  --fs-2-base: 14.5px;
+  --fs-3-base: 18px;
+  --fs-0: calc(var(--fs-0-base) * var(--type-scale));
+  --fs-1: calc(var(--fs-1-base) * var(--type-scale));
+  --fs-2: calc(var(--fs-2-base) * var(--type-scale));
+  --fs-3: calc(var(--fs-3-base) * var(--type-scale));
+  /* The title is display type and already steps down on its own for mobile, so
+     it keeps a base of its own — one thing for the media query and the tweak
+     panel to set, with the scale still riding over the top. */
+  --fs-4-base: 29px;
+  --fs-4: calc(var(--fs-4-base) * var(--type-scale));
   --type-micro:   var(--fs-0);
   --type-caption: var(--fs-1);
   --type-label:   var(--fs-2);
   --type-lead:    var(--fs-3);
   --type-title:   var(--fs-4);
-  --weight-standard:  500;   /* body copy; the panel doesn't use it */
-  --weight-prominent: 600;   /* the panel's default */
-  --weight-strong:    700;   /* values and the drill title */
+  /* The running weight in two parts. --weight-base is the number the panel
+     drives; --weight-standard is what everything reads, and a selected control
+     redefines it on itself (see --sel-weight) so the text inside it — which
+     computes --weight-strong from whatever --weight-standard is in scope —
+     follows without a single per-element rule. */
+  --weight-base:      400;
+  --weight-standard:  var(--weight-base);   /* labels and body copy */
+  --weight-prominent: 600;   /* reserved: a genuine emphasis rung, unused today */
+  --weight-step:      100;   /* how much heavier a value is than a label */
+  --weight-strong: calc(var(--weight-standard) + var(--weight-step));
+  --track-caption: 1px;   /* the uppercase headings' letter-spacing — what
+                                makes a caption read as a label, not as text */
+  --leading: 1.5;           /* body copy only; controls set their own */
 
   /* Characters used as icons rather than text — clefs, accidentals, the
      stepper's +/-. Sized optically, so they sit outside the type scale. */
@@ -85,16 +284,28 @@
   /* Floating surfaces — anything that lifts off the paper. The radius steps
      down with the surface: a full sheet reads as a card, a popover as a chip
      of one, and the shadow softens to match. Named for what they are rather
-     than by a number, like every other measure in here. */
-  --radius-sheet: 20px;                                            /* help / onboarding card */
-  --radius-card:  16px;                                            /* popovers hung off a button */
-  --radius-menu:  12px;                                            /* a menu opened from inside one */
-  --shadow-sheet: 0 18px 60px rgba(0, 0, 0, 0.22);
-  --shadow-pop:   0 1px 2px rgba(0, 0, 0, 0.06), 0 12px 32px rgba(0, 0, 0, 0.16);
+     than by a number, like every other measure in here.
+     The ±4px step is absolute, so it reads as a ladder at a small base (20/16/12
+     was a 25% step) and nearly flat at a large one (30/26/22 is 15%). At this
+     base the three tiers are close to indistinguishable; make the step
+     proportional if they ever need to be told apart again. */
+  --radius-card:  26px;                                            /* popovers hung off a button */
+  --radius-sheet: calc(var(--radius-card) + 4px);                  /* help / onboarding card */
+  --radius-menu:  calc(var(--radius-card) - 4px);                  /* a menu opened from inside one */
+  --shadow-sheet: 0 18px calc(60px * var(--shadow-depth)) rgba(0, 0, 0, calc(0.22 * var(--shadow-depth)));
+  --shadow-pop:   0 1px 2px rgba(0, 0, 0, calc(0.06 * var(--shadow-depth))),
+                  0 12px calc(32px * var(--shadow-depth)) rgba(0, 0, 0, calc(0.16 * var(--shadow-depth)));
   --pop-w:   248px;                                                /* popover min width */
   --pop-pad: 16px;
   --pop-gap: 12px;                                                 /* between a popover's rows */
-  --tb-gap:  12px;                                                 /* between the header's action buttons */
+  --tb-gap:  8px;                                                 /* between the header's action buttons */
+
+  /* A rhythm figure's engraved preview. One note should be drawn the same
+     size in every cell, so a figure that lasts twice as long gets twice the
+     width rather than the same width at half scale — its viewBox is doubled
+     to match, and the wide cell already spans two columns. */
+  --fig-svg-w: 42px;
+  --fig-svg-h: 27px;
 
   /* How long the pointer must rest on a control before it names itself, so
      crossing the transport doesn't set off a run of tooltips. Leaving hides
@@ -108,16 +319,61 @@
   padding: 0;
 }
 
+/* Reduced motion is a hard override, not a preference among others: whatever a
+   control asks for, this wins. Honoured from the OS setting, and settable from
+   the tweaks panel so the contract can be checked without changing the OS —
+   which is the only way anyone ever remembers to check it. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
+.reduce-motion *, .reduce-motion *::before, .reduce-motion *::after {
+  transition-duration: 0.01ms !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+}
+
+/* Continuous ("squircle") corners, on the rounded rectangles only — pills are
+   already a full radius, where the shape barely differs and the cost is a
+   wobble at the join. Progressive enhancement in the truest sense: where
+   corner-shape is unsupported the same border-radius simply draws its circular
+   arc, and nothing else about the layout depends on it. */
+@supports (corner-shape: squircle) {
+  .band, .pop, .menu, .help-sheet, .ob-card, .controlbar,
+  .fig-cell, .stepper, .tb-btn, .cb-icon,
+  input[type="checkbox"] {
+    corner-shape: superellipse(var(--corner-curve));
+  }
+}
+
 /* iOS/iPadOS: stop a tap on a control from triggering double-tap-to-zoom
    (keeps pinch-zoom on the music itself). */
-button, select, input, label, summary, #tempo-pill { touch-action: manipulation; }
+/* touch-action kills the double-tap-zoom delay. The tap highlight is the other
+   half of the same job: iOS paints a translucent grey box over the whole border
+   box on release, and every control here already answers a press its own way —
+   the pills and icon buttons shrink, the platter header's label goes to full
+   ink and then the platter itself starts folding, which is the largest movement
+   on the screen. The highlight was only ever a second, worse answer.
+   It is worst on the platter header, which is why it surfaced there: that
+   button is the biggest tap target in the app, and it inherits the platter's
+   24px radius on all four corners — so an open platter flashed a grey box whose
+   bottom corners were rounded against nothing, sitting over the controls. */
+button, select, input, label {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
 
 body {
   font-family: "Rubik", -apple-system, "SF Pro Text", BlinkMacSystemFont, sans-serif;
   font-size: var(--fs-2);
   background: var(--paper);
   color: var(--ink);
-  height: 100dvh;        /* dvh, not vh — so the fixed pocket sits at the true bottom on iOS/iPadOS */
+  height: 100dvh;        /* dvh, not vh — so the transport pill sits at the true bottom on iOS/iPadOS */
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -140,36 +396,29 @@ body {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding-bottom: var(--bar-h);   /* clear the closed pocket's control-bar lip */
 }
 
-/* Persistent control bar — a centered, floating row of rounded icon buttons */
+/* Transport pill — a floating row of rounded icon buttons, centred on the music
+   column at the bottom of the window. In flow rather than fixed, so it centres
+   on .content and travels with the music when the rail pushes it aside. Paper
+   on paper, so the shadow is what lifts it off the page. */
 .controlbar {
   flex-shrink: 0;
-  display: grid;
-  /* settings | centred trio | deliberately empty. The third column carries no
-     button any more — the sound toggles moved to the header — but it stays in
-     the grid so the trio centres on the viewport rather than on the space left
-     of it. A lone icon at one edge reads as anchored; a trio drifting off
-     centre reads as broken. */
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  padding: 14px 24px 22px;
-  background: transparent;
-}
-#settings-toggle { justify-self: start; }
-.cb-center {
-  grid-column: 2;
+  align-self: center;
   display: flex;
   align-items: center;
   gap: 8px;
+  margin: 10px 0 18px;
+  padding: 8px;
+  border-radius: 999px;
+  background: var(--paper);
+  box-shadow: var(--shadow-pop);
 }
-.cb-right { grid-column: 3; justify-self: end; }
 
-/* A transport button that's currently active — metronome on, accompaniment on,
-   or the transport running — wears the same blue tint the settings button does
-   while the pocket is open. The glyph swaps too (see PATTERN: icon states), so
-   state reads by colour at a glance and by form up close. */
+/* A transport button that's currently active — the transport running — wears
+   the same blue tint the settings button does while the rail is open. The
+   glyph swaps too (see PATTERN: icon states), so state reads by colour at a
+   glance and by form up close. */
 .controlbar .cb-icon.on,
 .controlbar .cb-icon.playing { background: var(--ctl-on-tint); color: var(--ctl-on); }
 
@@ -190,23 +439,20 @@ body {
 .ic-restart    { width: 22px; height: 22px; }
 .ic-play       { width: 19px; height: 19px; }
 .ic-pause      { width: 18px; height: 18px; }
-.ic-accomp     { width: 20px; height: 20px; }
+/* The on and off glyphs share a width but not a height — the slash overhangs —
+   so a square box scales both by width and the keyboard itself comes out the
+   same size in either state. 23 matches the metronome beside it. */
+.ic-piano      { width: 23px; height: 23px; }
 .ic-metro      { width: 23px; height: 23px; }
-.ic-eye        { width: 23px; height: 23px; }
 .ic-regenerate { width: 19px; height: 19px; }
-/* The transport's centre trio runs lighter than the flanking buttons, so the
-   cluster reads as one group rather than five equal weights. */
-.cb-center .ic-restart { width: 18px; height: 18px; }
-.cb-center .ic-play    { width: 15px; height: 15px; }
-.cb-center .ic-pause   { width: 14px; height: 14px; }
-.cb-center .ic-accomp  { width: 19px; height: 19px; }
+/* The transport trio runs lighter than the header's buttons — it sits closest
+   to the music, so it whispers. */
+.controlbar .ic-restart { width: 18px; height: 18px; }
+.controlbar .ic-play    { width: 15px; height: 15px; }
+.controlbar .ic-pause   { width: 14px; height: 14px; }
 
 /* The panel's icon-toggles are a smaller button than the transport's, so the
    same glyphs step down with them. */
-.icon-toggle .ic-metro  { width: 21px; height: 21px; }
-.icon-toggle .ic-eye    { width: 21px; height: 21px; }
-.icon-toggle .ic-accomp { width: 19px; height: 19px; }
-
 /* The metronome ticks by mirroring: on each beat the glyph flips, so the
    pendulum snaps to its other extreme the way a real one does. Instant — no
    tween, no fade. Beat-locked, because app.js drives it from the same loop
@@ -238,44 +484,88 @@ button.playing svg.state-alt { display: block; }
 .controlbar button:active { transform: scale(0.94); opacity: 1; }
 
 .controlbar .cb-icon { width: var(--ctl-h-lg); height: var(--ctl-h-lg); }
-/* Settings shows the selected state (blue tint) while the pocket is open. */
+/* Settings shows the selected state (blue tint) while the rail is open. */
 .layout.panel-open #settings-toggle { background: var(--ctl-on-tint); color: var(--ctl-on); }
 
-/* Settings pocket — a bottom sheet whose top edge IS the control bar. Closed, it's
-   translated down so only that bar peeks at the screen bottom; ⚙ slides the whole
-   sheet up to reveal the settings grid beneath the bar. */
-.pocket {
+/* Settings rail — a right-hand column behind the header's ⚙. Two behaviours,
+   one element: below the push breakpoint it is a fixed drawer that slides in
+   over the music (nothing resizes, nothing re-engraves); at ≥1100px it joins
+   the flex row instead and the music re-lays out beside it. The breakpoint is
+   where the music floor + gutters + rail first fit — see --rail-w. */
+.rail {
   position: fixed;
-  left: 0; right: 0; bottom: 0;
+  top: 0; right: 0; bottom: 0;
   z-index: 50;
   display: flex;
   flex-direction: column;
-  max-height: 85dvh;
-  background: var(--paper);
-  border-top-left-radius: 22px;
-  border-top-right-radius: 22px;
-  box-shadow: 0 -6px 34px rgba(0, 0, 0, 0.14);
-  transform: translateY(calc(100% - var(--bar-h)));
-  transition: transform 0.34s cubic-bezier(0.32, 0.72, 0, 1);
+  /* Never the full viewport: the scrim keeps a tappable sliver on the left, so
+     the drawer can always be dismissed even where it covers the ⚙ that opened
+     it (Escape works too). */
+  width: min(var(--rail-w), 88vw);
+  background: var(--rail-bg);
+  box-shadow: -6px 0 calc(34px * var(--shadow-depth)) rgba(0, 0, 0, calc(0.14 * var(--shadow-depth)));
+  transform: translateX(100%);
+  transition: transform calc(0.34s * var(--motion)) cubic-bezier(0.32, 0.72, 0, 1);
 }
-.layout.panel-open .pocket { transform: translateY(0); }
+.layout.panel-open .rail { transform: translateX(0); }
 
-.pocket-body {
+@media (min-width: 1100px) {
+  .rail {
+    position: static;
+    order: 2;                     /* after .content in the row, whatever the DOM order */
+    width: var(--rail-w);
+    flex-shrink: 0;
+    box-shadow: none;
+    border-left: 1px solid rgba(0, 0, 0, 0.06);
+    /* display, not transform: a pushed rail has no closed position to slide to,
+       and hiding it is what hands the width back to the music. No animation —
+       the score re-engraves at the new width in one step, so a sliding edge
+       would only showcase the seam. */
+    transform: none;
+    transition: none;
+    display: none;
+  }
+  .layout.panel-open .rail { display: flex; }
+
+  /* The rail itself still cannot slide here: the music re-engraves at the new
+     width in one step, and a sliding edge would only showcase that seam. So the
+     column opens instantly and the *platters* arrive into it, one after the
+     next. The reflow the eye would have caught is over before the stack has
+     finished landing, which is the whole trick — nothing is hidden, it is just
+     no longer the most interesting thing on screen.
+     Narrower than 1100 the rail slides as a drawer and this would be a second
+     animation riding the first, so it lives only in here. */
+  .layout.panel-open .rail .band {
+    animation: band-in calc(var(--band-fold-ms) * var(--motion) * 1ms)
+               cubic-bezier(0.32, 0.72, 0, 1) backwards;
+  }
+  /* Counted among the platters, not among the rail's children — the error
+     region sits above them, and plain nth-child handed the first platter the
+     second platter's delay. */
+  .layout.panel-open .rail .band:nth-child(2 of .band) { animation-delay: 26ms; }
+  .layout.panel-open .rail .band:nth-child(3 of .band) { animation-delay: 52ms; }
+  .layout.panel-open .rail .band:nth-child(4 of .band) { animation-delay: 78ms; }
+  .layout.panel-open .rail .band:nth-child(5 of .band) { animation-delay: 104ms; }
+  .layout.panel-open .rail .band:nth-child(n+6 of .band) { animation-delay: 130ms; }
+}
+
+@keyframes band-in {
+  from { opacity: 0; transform: translateX(14px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.rail-body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   /* Nothing may ever drag the panel sideways. A hover tooltip on an edge tile
-     can still reach past the content box in a narrow desktop window; clipping
-     it beats letting the whole sheet slide. (`clip` would be tidier, but it
-     computes to `hidden` anyway whenever the other axis is `auto`.) */
+     can still reach past the content box; clipping it beats letting the whole
+     rail slide. (`clip` would be tidier, but it computes to `hidden` anyway
+     whenever the other axis is `auto`.) */
   overflow-x: hidden;
-  padding: 4px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+  padding: var(--rail-inset) var(--rail-inset)
+           calc(var(--rail-inset) + env(safe-area-inset-bottom, 0px));
 }
-
-/* The panel's content stops widening on a large monitor — past this the rows
-   stretch into unreadable runs. Capped per band so the dividers stop with it. */
-.pocket-body > .band,
-.pocket-body > .error { max-width: var(--panel-max); margin-inline: auto; }
 
 /* ---------------------------------------------------------------------------
    PATTERN: band + section
@@ -284,29 +574,177 @@ button.playing svg.state-alt { display: block; }
    stack when there isn't, so phone / iPad / desktop fall out of one rule set
    instead of three layouts. A section never splits across a wrap.
    --------------------------------------------------------------------------- */
+/* A band is a platter: a white card on the rail's trough. The hairline that
+   used to divide bands is gone — the trough showing between cards does that
+   job, and does it without drawing a line. */
+/* The fold animates the body's own height, in px measured by the click
+   handler — the same FLIP the onboarding card uses. It was a two-row grid
+   transitioning `auto 1fr` to `auto 0fr` first, which folded smoothly but
+   bounced the header: mid-interpolation the fr row gives up its space faster
+   than the band shrinks, the surplus lands in the `auto` header row (that is
+   where align-content puts it), and a header measured at 50px ballooned to
+   201px and back inside one fold, re-centring its label in the extra space the
+   whole way. Measured px leaves the engine nothing to resolve. */
 .band {
+  background: var(--paper);
+  border-radius: var(--platter-radius);
+  border: 1px solid rgba(0, 0, 0, calc(0.07 * var(--platter-edge)));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, calc(0.04 * var(--platter-lift))),
+              0 6px calc(16px * var(--platter-lift)) rgba(0, 0, 0, calc(0.06 * var(--platter-lift)));
+}
+.band + .band { margin-top: var(--platter-gap); }
+
+/* The platter's own header, and the whole row is the target — a 12px caret is
+   a poor thing to ask a thumb for. */
+.band-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: var(--platter-pad);
+  border: none;
+  border-radius: inherit;
+  background: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: var(--type-caption);
+  font-weight: var(--weight-standard);
+  text-transform: uppercase;
+  letter-spacing: var(--track-caption);
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.band-h:hover, .band-h:active { color: var(--ink); opacity: 1; }
+
+/* A stroked path rather than two borders, so all three points can be round —
+   borders can only round the elbow, since the free ends are cut square by the
+   border box. The stroke is compensated by hand — weight × 12/size in user
+   units, cancelling the viewBox scale — so the drawn weight stays in real px
+   at any size. vector-effect: non-scaling-stroke said the same thing for
+   free, but WebKit misapplies it through <use>, so Safari drew the chevrons
+   chunkier than Chrome; plain arithmetic scales identically everywhere. */
+.band-caret {
+  flex-shrink: 0;
+  display: block;
+  width: calc(var(--caret-size) * 1px);
+  height: calc(var(--caret-size) * 1px);
+  fill: none;
+  stroke: var(--faint);
+  stroke-width: calc(var(--caret-weight) * 12 / var(--caret-size));
+  transition: transform calc(var(--band-fold-ms) * var(--motion) * 1ms);
+}
+.band.folded .band-caret { transform: rotate(-90deg); }
+
+.band-body {
+  /* The padding snaps rather than travels: it flips under the clip while the
+     height is mid-animation, where 18px of empty space is invisible — and a
+     border box cannot be shorter than its padding, so animating height alone
+     would floor at a visible sliver. */
+  transition: height calc(var(--band-fold-ms) * var(--motion) * 1ms)
+              cubic-bezier(0.32, 0.72, 0, 1);
   display: flex;
   flex-wrap: wrap;
-  gap: 20px 22px;      /* row gap separates stacked sections on a phone */
-  padding: 20px 0;
-  border-bottom: 1px solid var(--line);
+  /* row gap separates stacked sections */
+  gap: calc(20px * var(--density)) calc(22px * var(--density));
+  padding: 0 var(--platter-pad) var(--platter-pad);
 }
-.band:last-of-type { border-bottom: none; }
+.band.folded .band-body { height: 0; padding-bottom: 0; }
+
+/* Clipped only while it matters. A settled-open platter must not clip, because
+   the hover tooltips on its figure cells and cycle pills reach outside it —
+   which is why this cannot simply be overflow:hidden. .moving is on for the
+   length of the fold and nothing longer. */
+.band.folded .band-body,
+.band.moving .band-body { overflow: hidden; }
+/* Out of the tab order once it has finished closing, not while it is closing. */
+.band.folded:not(.moving) .band-body { visibility: hidden; }
+
+/* The stored fold state is applied after first paint, so without this every
+   shut platter would play its collapse as the page loads. */
+.bands-init .band, .bands-init .band-body { transition: none; }
+
+/* Holds the rail's scroll length for the length of a fold — see holdScroll in
+   app.js. Zero-height and inert the rest of the time. */
+.rail-spacer { flex: 0 0 auto; height: 0; }
+
+/* The intro platter states what the app is before any control does. No header
+   button — there is nothing to fold, and folding away the explanation would
+   defeat it. */
+.band-intro { padding: var(--platter-pad); }
+.intro-copy {
+  font-size: var(--type-label);
+  font-weight: var(--weight-standard);
+  line-height: var(--leading);
+  color: var(--ink);
+  margin-top: 2px;
+}
+.intro-more {
+  margin-top: 10px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ctl-on);
+  font-family: inherit;
+  font-size: var(--type-label);
+  font-weight: var(--weight-standard);
+  cursor: pointer;
+}
+.intro-more:hover, .intro-more:active { opacity: 1; text-decoration: underline; }
 
 .sec {
   flex: 1 1 100%;      /* full width by default; the modifiers below pair them up */
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: calc(10px * var(--density));
 }
+
+/* A switch always sits at the right end of its own row, with what it turns on
+   named at the left — the arrangement every settings app has taught people to
+   read, and the one exception to "a label sits above what it labels". The label
+   is the section's own heading when the switch IS the section's subject
+   (Musicality, Highlight Patterns) and a caption of its own when the switch is
+   one control among several (Chord Names). Either way the caption styling is
+   identical, so the two cases read as one pattern.
+
+   Everything that is not a switch stacks: caption above, control below. That
+   was already true of nine sections and false of two, and the two were invisible
+   in the CSS because .fig-h was one class doing both jobs — an <h2> above a grid
+   and a <span> beside a row — with nothing but the tag name telling them apart. */
+.sw-row {
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+.sw-row .sec-h,
+.sw-row .fig-h { margin-bottom: 0; }
+
+/* A switch's children are not on the panel while it is off. The switch is the
+   row directly above them, so the collapse happens under the finger that caused
+   it and reads as consequence rather than as something disappearing. Used by
+   Musicality, Hide Ahead, Highlight Patterns' legend, and Play Along's rows. */
+/* A group of popover rows that appear and go together. Like .sec-deps it is one
+   flex child of a flex column, so without a gap of its own the rows inside it
+   sit flush — Melody, Comping and Volume were touching while Sound kept the
+   popover's full gap above them. Second time this caught me: wrapping rows to
+   make them hideable silently drops whatever gap their parent was giving them.
+   The [hidden] rules outrank these on specificity, so the group still hides. */
+.pop-deps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pop-gap);
+}
+.pop-deps[hidden],
+.sec-row[hidden] { display: none; }
 
 /* Section heading — the caption style shared with the old group summaries. */
 .sec-h {
   font-size: var(--type-caption);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   text-transform: uppercase;
-  letter-spacing: 0.7px;
+  letter-spacing: var(--track-caption);
   color: var(--muted);
 }
 
@@ -318,21 +756,20 @@ button.playing svg.state-alt { display: block; }
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: calc(8px * var(--density));
 }
 .sec-row.unit { flex-wrap: nowrap; }
 
-/* A full-width section whose control is a bare slider stops at one column's
-   width — stretched across the whole panel it reads as a scrollbar, and the
-   travel becomes far finer than the setting warrants. */
+/* A bare slider stops at one column's width — stretched across the whole panel
+   it reads as a scrollbar, and the travel becomes far finer than the setting
+   warrants. Musicality is a switch now and needs no such protection, but its
+   rows keep the same measure so the two sections still line up. */
 .sec-musicality .sec-row,
 .sec-chroma .sec-row { max-width: var(--col-max); }
 
 /* Band pairing. Sections declare the width they want to keep; below it they
    wrap to their own line on their own. */
 .sec-hide       { flex: 1 1 240px; }
-.sec-chordnames { flex: 1 1 180px; }
-.sec-ramp       { flex: 1 1 140px; }
 .sec-step       { flex: 1 1 380px; }
 .sec-chunks     { flex: 1 1 260px; }
 
@@ -344,15 +781,15 @@ button.playing svg.state-alt { display: block; }
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: calc(20px * var(--density));
 }
 .sec-col > .sec { flex: 0 0 auto; }
+.sec-instrument { flex: 1 1 200px; }
 .sec-key        { flex: 1 1 300px; }
 .sec-measures   { flex: 1 1 260px; }
-.sec-instrument { flex: 3 1 420px; }
 .sec-language   { flex: 1 1 160px; }
 
-/* Scrim: dims the music behind the open pocket; tap it to close. */
+/* Scrim: dims the music behind the overlaid rail; tap it to close. */
 .scrim {
   position: fixed;
   inset: 0;
@@ -360,21 +797,20 @@ button.playing svg.state-alt { display: block; }
   background: rgba(0, 0, 0, 0.16);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.3s;
+  transition: opacity calc(0.3s * var(--motion));
 }
 .layout.panel-open .scrim { opacity: 1; pointer-events: auto; }
-
-section {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
+/* Pushed, the rail sits beside the music rather than over it — nothing to dim,
+   and the page must stay clickable. */
+@media (min-width: 1100px) {
+  .layout.panel-open .scrim { opacity: 0; pointer-events: none; }
 }
 
 label {
   font-size: var(--type-caption);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   text-transform: uppercase;
-  letter-spacing: 0.7px;
+  letter-spacing: var(--track-caption);
   color: var(--muted);
   display: flex;
   justify-content: space-between;
@@ -395,23 +831,37 @@ input[type="range"] {
   height: 20px;
   background: transparent;
   cursor: pointer;
-  --pct: 0%;
+  --pct: 0;          /* 0–1, unitless — see paintRange */
 }
 
+/* The track breaks around the thumb rather than running under it, so the thumb
+   reads as a held object on a broken line instead of a bead on a wire. Both
+   segments are cut from one gradient — a native range gives exactly one track
+   element to style, so two rounded ends is not on offer; at this track height
+   the square inner ends are not the thing anyone sees. */
 input[type="range"]::-webkit-slider-runnable-track {
+  /* Where the thumb's centre actually is. It travels between half a thumb in
+     from each end, never the full width, so a gap placed at a plain percentage
+     drifts by half a thumb — which a round dot hid and a capsule does not: it
+     left a stub of blue before the thumb at the minimum and a stub of grey
+     after it at the maximum. */
+  --at: calc(var(--thumb-w) / 2 + var(--pct) * (100% - var(--thumb-w)));
+  --lead: calc(var(--thumb-w) / 2 + var(--thumb-gap));
   height: var(--track-h);
   border: none;
   border-radius: 999px;
   background: linear-gradient(to right,
-    var(--ctl-on) 0 var(--pct), var(--track) var(--pct) 100%);
+    var(--ctl-on) 0 calc(var(--at) - var(--lead)),
+    transparent   calc(var(--at) - var(--lead)) calc(var(--at) + var(--lead)),
+    var(--track)  calc(var(--at) + var(--lead)) 100%);
 }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: var(--thumb); height: var(--thumb);
+  width: var(--thumb-w); height: var(--thumb);
   margin-top: calc((var(--track-h) - var(--thumb)) / 2);
   border: none;
-  border-radius: 50%;
+  border-radius: 999px;
   background: var(--ctl-on);
 }
 
@@ -426,10 +876,13 @@ input[type="range"]::-moz-range-progress {
   border-radius: 999px;
   background: var(--ctl-on);
 }
+/* Firefox gives track and progress as separate elements, so the fill is honest
+   there, but there is nowhere to cut the gap from — it keeps the unbroken line
+   and the capsule thumb. */
 input[type="range"]::-moz-range-thumb {
-  width: var(--thumb); height: var(--thumb);
+  width: var(--thumb-w); height: var(--thumb);
   border: none;
-  border-radius: 50%;
+  border-radius: 999px;
   background: var(--ctl-on);
 }
 
@@ -448,7 +901,7 @@ input[type="checkbox"] {
   height: 19px;
   flex-shrink: 0;
   margin: 0;
-  border-radius: 5px;
+  border-radius: var(--check-radius);
   background: var(--ctl-fill);
   cursor: pointer;
   position: relative;
@@ -486,7 +939,7 @@ input[type="checkbox"]:checked::after {
   color: var(--ink);
   font-family: inherit;
   font-size: var(--type-label);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   line-height: 1;
   cursor: pointer;
   display: inline-flex;
@@ -496,11 +949,6 @@ input[type="checkbox"]:checked::after {
 }
 .cycle:hover { background: var(--ctl-fill-hover); opacity: 1; }
 .cycle:active { transform: scale(0.96); opacity: 1; }
-/* A cycle whose value is itself an "on" state (chunks on) takes the accent. */
-.cycle.on {
-  background: var(--ctl-on-tint);
-  color: var(--ctl-on);
-}
 /* Music characters (clefs, accidentals) sit small and light beside text at the
    same nominal size, so they get their own optical size. */
 .cycle-glyph { font-size: var(--glyph-md); line-height: 1; }
@@ -523,8 +971,6 @@ input[type="checkbox"]:checked::after {
   align-items: center;
   gap: 12px;
 }
-/* No buttons on this one, so the track needs its own margin from the edge. */
-.stepper-plain { padding: 0 18px 0 14px; }
 
 /* A stepper with no slider has nothing to fill extra width with — it hugs its
    value and buttons instead of stretching them apart. */
@@ -541,7 +987,7 @@ input[type="checkbox"]:checked::after {
 
 .stepper-val {
   font-size: var(--type-label);
-  font-weight: var(--weight-strong);
+  font-weight: var(--weight-strong);   /* a value is a number, so it reads as one */
   color: var(--ink);
   white-space: nowrap;
   min-width: 30px;
@@ -549,8 +995,6 @@ input[type="checkbox"]:checked::after {
 
 .stepper-range { flex: 1; min-width: 40px; }
 .bare-range { width: 100%; }
-
-.vol-glyph { width: 20px; height: 20px; flex-shrink: 0; color: var(--ink); }
 
 .step-btn {
   width: 26px; height: 26px;
@@ -560,7 +1004,7 @@ input[type="checkbox"]:checked::after {
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.07);
   color: var(--ink);
-  font-size: var(--glyph-sm); font-weight: var(--weight-prominent); line-height: 1;
+  font-size: var(--glyph-sm); font-weight: var(--weight-standard); line-height: 1;
   cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
   transition: background 0.15s, transform 0.1s;
@@ -568,26 +1012,62 @@ input[type="checkbox"]:checked::after {
 .step-btn:hover { background: rgba(0, 0, 0, 0.12); opacity: 1; }
 .step-btn:active { transform: scale(0.92); opacity: 1; }
 
+/* The note range is the first stepper that can run out of travel — its ends
+   stop at the outer octaves and at the narrowest useful span — so this is the
+   first disabled state the pattern has needed. Dimmed, and inert under hover
+   and press: a button that cannot act should not answer as though it can.
+   These sit after :hover/:active deliberately, and restate the opacity, since
+   those rules set opacity themselves and would otherwise win. */
+.step-btn:disabled { opacity: 0.3; cursor: default; }
+.step-btn:disabled:hover { background: rgba(0, 0, 0, 0.07); opacity: 0.3; }
+.step-btn:disabled:active { transform: none; opacity: 0.3; }
+
 /* ---------------------------------------------------------------------------
    PATTERN: icon-toggle
    A round icon button that is on or off — the panel-sized sibling of the
    transport bar's .cb-icon. Off is a grey disc; on takes the accent tint.
    --------------------------------------------------------------------------- */
-.icon-toggle {
-  width: var(--ctl-h); height: var(--ctl-h);
+/* ---------------------------------------------------------------------------
+   PATTERN: switch
+   On/off, and nothing else. The app had four shapes saying the same thing — a
+   glyph that swapped, a pill reading "On", a segmented row, a checkbox — and
+   worse, the pill reading "On" was the same control as the pill reading "C",
+   which is not a state you flip but a value you advance through a list. One
+   shape per contract now:
+     switch     on/off
+     cycle      advance through a named set (C, Major, Marimba)
+     opt        pick from a small visible set, one or many
+   State rides on .on, the same channel the glyph buttons used, so the sync
+   functions did not have to learn a new word. role="switch" + aria-checked is
+   the semantic; the label beside it is the accessible name.
+   --------------------------------------------------------------------------- */
+.sw {
+  --sw-h: calc(var(--ctl-h) * var(--sw-scale));
   flex-shrink: 0;
+  width: calc(var(--sw-h) * var(--sw-ratio));
+  height: var(--sw-h);
   padding: 0;
   border: none;
-  border-radius: 50%;
-  background: var(--ctl-fill);
-  color: var(--ink);
+  border-radius: 999px;
+  background: var(--track);
   cursor: pointer;
-  display: inline-flex; align-items: center; justify-content: center;
-  transition: background 0.15s, color 0.15s, transform 0.1s;
+  position: relative;
+  transition: background calc(0.2s * var(--motion));
 }
-.icon-toggle:hover { background: #e7e7ec; opacity: 1; }
-.icon-toggle:active { transform: scale(0.94); opacity: 1; }
-.icon-toggle.on { background: var(--ctl-on-tint); color: var(--ctl-on); }
+.sw-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(var(--sw-h) - 4px);
+  height: calc(var(--sw-h) - 4px);
+  border-radius: 50%;
+  background: var(--paper);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.16);
+  transition: transform calc(0.2s * var(--motion)) cubic-bezier(0.32, 0.72, 0, 1);
+}
+.sw.on { background: var(--ctl-on); }
+.sw.on .sw-knob { transform: translateX(calc(var(--sw-h) * (var(--sw-ratio) - 1))); }
+.sw:active { opacity: 1; }
 
 /* ---------------------------------------------------------------------------
    PATTERN: opt
@@ -604,7 +1084,7 @@ input[type="checkbox"]:checked::after {
   color: var(--ink);
   font-family: inherit;
   font-size: var(--type-label);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   line-height: 1;
   cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
@@ -612,10 +1092,6 @@ input[type="checkbox"]:checked::after {
 }
 .opt:hover { background: var(--ctl-fill-hover); opacity: 1; }
 .opt:active { transform: scale(0.96); opacity: 1; }
-.opt.on {
-  background: var(--ctl-on-tint);
-  color: var(--ctl-on);
-}
 
 button {
   padding: 11px 14px;
@@ -623,7 +1099,7 @@ button {
   border-radius: 6px;
   font-family: inherit;
   font-size: var(--fs-2);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   cursor: pointer;
   background: var(--ink);
   color: var(--paper);
@@ -633,138 +1109,276 @@ button {
 button:hover { opacity: 0.85; }
 button:active { opacity: 0.7; }
 
-button.secondary {
-  background: var(--paper);
-  color: var(--ink);
-  border: 1px solid var(--line);
-}
+/* ---------------------------------------------------------------------------
+   PATTERN: drills
+   Three full-width rows and a door to the rest. A drill is a whole exercise,
+   not a value inside one, so it gets a row it can carry a second line on —
+   the name alone was never going to say what "Jig" or "Mixed Rhythms" sets,
+   and the old pill field had nowhere to put it. Selected wears the same solid
+   accent every chosen control in the panel wears; no extra marker is needed
+   once the fill is doing that job.
+   --------------------------------------------------------------------------- */
+.drills { display: flex; flex-direction: column; gap: calc(6px * var(--density)); }
 
-/* Preset pills */
-.presets {
+/* The wrapper anchors both the ⋯ and the menu it opens, so neither is a child
+   of the button that applies the drill. */
+.drill-row { position: relative; display: flex; }
+.drill-row.mine .drill { padding-right: 42px; }
+
+.drill {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.pill {
-  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 15px;
-  font-size: var(--type-label);
-  font-weight: var(--weight-prominent);
-  border-radius: var(--ctl-radius);
-  border: var(--ctl-border) solid transparent;   /* transparent, not absent: keeps the metrics a selected state can fill in */
+  gap: 10px;
+  width: 100%;
+  padding: calc(9px * var(--density)) 12px;
+  border: var(--ctl-border) solid transparent;
+  border-radius: var(--ctl-radius-box);
   background: var(--ctl-fill);
   color: var(--ink);
-}
-
-.pill:hover { background: var(--ctl-fill-hover); }
-
-.pill .upd,
-.pill .del {
-  font-size: var(--type-lead);
-  line-height: 1;
-  color: var(--muted);
+  text-align: left;
   cursor: pointer;
+  transition: background 0.12s, color 0.12s;
 }
+.drill:hover { background: var(--ctl-fill-hover); }
 
-.pill .upd:hover,
-.pill .del:hover { color: var(--ink); }
-
-.pill.active {
-  background: var(--ctl-on-tint);
-  color: var(--ctl-on);
+.drill-txt { min-width: 0; flex: 1; }
+.drill-name {
+  font-size: var(--type-label);
+  font-weight: var(--weight-strong);
+  line-height: 1.25;
 }
-
-/* "+ save" is an action rather than a saved setup, so it sits back: same filled
-   shape, muted label. */
-.pill.save { color: var(--muted); }
-
-/* Alphabet matrix — a checkbox owns whether an interval is in play; the two
-   sliders are its up / down weight (which therefore never needs to reach 0). */
-.matrix-head,
-.matrix-row {
-  display: grid;
-  grid-template-columns: 22px 46px 1fr;
-  gap: 6px 10px;
-  align-items: center;
-}
-
-/* Names the axis the sliders below run along, which is the job the per-row
-   1–4 readout was doing badly — a number the student couldn't act on. The
-   two words sit at the ends of the track they describe. */
-.matrix-head .axis {
-  display: flex;
-  justify-content: space-between;
+/* The second line is what the name could never carry: which intervals, which
+   meter, which key. Clipped rather than wrapped so a row stays one height and
+   the three keep a rhythm down the band. */
+.drill-sub {
   font-size: var(--type-micro);
-  font-weight: var(--weight-prominent);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-weight: var(--weight-standard);
   color: var(--muted);
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.matrix-head em { font-style: normal; }
+.drill-edited { font-weight: var(--weight-standard); opacity: 0.85; }
 
-/* An interval that's switched off dims its weights, but they stay legible and
-   draggable — so you can dial a weight in before enabling the row. */
-.matrix-row.off .cell { opacity: 0.38; }
+/* Rename / update / delete live behind this, off the row that applies the
+   drill. They used to sit inside the pill you tap to load it, so the control
+   that destroys a saved drill was a few pixels inside the control that runs
+   it. */
+.drill-more {
+  position: absolute;
+  right: 6px; top: 50%;
+  transform: translateY(-50%);
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  border: 0; border-radius: 50%;
+  background: none;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+.drill-more:hover { background: color-mix(in srgb, var(--ink) 12%, transparent); }
 
-.matrix {
+/* Same menu the voice pills open — one surface family, so a list of actions
+   looks the same wherever it is opened from. */
+.drill-menu { top: calc(100% - 4px); right: 4px; min-width: 168px; }
+.menu-item.danger { color: var(--danger); }
+.menu-item.danger:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); }
+
+/* A group of rows that appear and go together. It is one flex child of the
+   section, so without this the rows inside it lose the section's gap and sit
+   flush against each other. The [hidden] rule is not redundant: display:flex
+   here would otherwise out-rank the attribute and the group would never hide. */
+.sec-deps {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: calc(10px * var(--density));
 }
+.sec-deps[hidden] { display: none; }
 
-.matrix-row .row-label {
+/* Caption then control on one line, the way the Ties row reads. .fig-h carries
+   a bottom margin for the case where it sits above its grid, which here would
+   push the label off the switch's centre line. */
+
+.drill-acts {
+  display: flex;
+  flex-direction: column;
+  margin-top: calc(8px * var(--density));
+  padding-top: calc(6px * var(--density));
+  border-top: 1px solid var(--line);
+}
+.drill-act {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 9px;
+  width: 100%;
+  padding: calc(8px * var(--density)) 8px;
+  border: 0; border-radius: var(--ctl-radius-box);
+  background: none;
+  color: var(--ink);
   font-size: var(--type-label);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
+  text-align: left;
+  cursor: pointer;
 }
-
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+.drill-act:hover { background: var(--ctl-fill); }
+.drill-act .da-ic { width: 16px; text-align: center; color: var(--muted); flex: 0 0 16px; }
+.drill-act .da-n  { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* Points the way the page arrives from. Sits after the count, so the row reads
+   "All drills — eleven of them — through here". */
+.drill-act .da-caret {
   flex-shrink: 0;
+  display: block;
+  width: calc(var(--caret-size) * 1px);
+  height: calc(var(--caret-size) * 1px);
+  fill: none;
+  stroke: var(--faint);
+  stroke-width: calc(var(--caret-weight) * 12 / var(--caret-size));
+  transform: rotate(-90deg);
 }
+/* Save and Restore are the two that act on your own work, so they take the
+   accent rather than sitting in the same grey as "All drills". */
+.drill-act.accent, .drill-act.accent .da-ic { color: var(--ctl-on); }
 
-.cell {
+/* ---- the pushed page ---------------------------------------------------- */
+/* Absolute over the rail rather than a sheet above it: the rail is already a
+   drawer, and stacking a second floating surface on it reads as two modals. */
+.rail-page {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  /* Paper, not the rail's trough: the rows are --ctl-fill, which is within a
+     percent of --rail-bg, so on the trough they vanished into it. Every other
+     surface holding controls in this app is a platter, and this is one too —
+     full-bleed, because it fills the rail rather than sitting inside it. */
+  background: var(--paper);
+  transform: translateX(100%);
+  transition: transform calc(0.3s * var(--motion)) cubic-bezier(0.32, 0.72, 0, 1);
+}
+.rail.pushed .rail-page { transform: translateX(0); }
+/* Nothing moves underneath. The rail counter-slid a fraction of the distance
+   for a while, which is the usual way to fake depth on a push — but there is
+   no depth here to fake: this is one flat sheet the size of the rail, sliding
+   in over another. The parallax only made a simple swap look like a stack. */
+
+.page-nav {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  padding: var(--rail-inset) var(--rail-inset) 10px;
+  border-bottom: 1px solid var(--line);
+}
+.page-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 8px 6px 4px;
+  border: 0; border-radius: var(--ctl-radius-box);
+  background: none;
+  color: var(--ctl-on);
+  font-size: var(--type-label);
+  font-weight: var(--weight-standard);
+  cursor: pointer;
+}
+.page-back:hover { background: var(--ctl-fill); }
+/* Stroked like every other chevron in the app. #ic-chevron is a bare path
+   with fill:none and no stroke of its own, so a class that sets only a size
+   renders nothing at all — which is what this did, at every width. The
+   weight x 12/size arithmetic is the platter caret's, and for the same
+   reason: it keeps the drawn stroke in real px whatever the box becomes.
+   Strokes with currentColor, not --faint like the fold and row chevrons: this
+   one is half of a Back link, so it has to take the label's colour and follow
+   it on hover. A chevron that recedes is ornament; this one is the control. */
+.page-caret {
+  flex-shrink: 0;
+  display: block;
+  width: calc(var(--caret-size) * 1.25px);
+  height: calc(var(--caret-size) * 1.25px);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: calc(var(--caret-weight) * 12 / (var(--caret-size) * 1.25));
+  transform: rotate(90deg);
+}
+.page-t {
+  font-size: var(--type-label);
+  font-weight: var(--weight-strong);
+  color: var(--ink);
+  margin: 0 auto;
+  padding-right: 56px;            /* balances the back control, so the title centres */
+}
+.page-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px var(--rail-inset)
+           calc(var(--rail-inset) + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: calc(6px * var(--density));
+}
+/* The page's own add row. Full width and labelled like the band's actions,
+   pinned above the groups rather than after them: with eleven drills the
+   bottom of the list is a scroll away, and wanting to make one is exactly
+   why you would be here with nothing to pick. */
+.page-add { margin-bottom: calc(4px * var(--density)); }
+
+/* Yours first: they are what you came for, and the built-ins are starting
+   points you have already moved past. */
+.page-group {
+  font-size: var(--type-caption);
+  font-weight: var(--weight-standard);
+  letter-spacing: var(--track-caption);
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: calc(10px * var(--density)) 2px 0;
 }
 
-.cell input[type="range"] { flex: 1; }
-
-/* Rhythm figures: a flat grid of notation cells toggled on/off, name on hover */
+/* Rhythm figures: a flat grid of notation cells toggled on/off, name on hover.
+   The alphabet matrix (#matrix) is the same .fig-grid of .fig-cell, one per
+   interval, off/on/×2 cycling the same way a figure's weight does — see the
+   note above snapIntervalWeight in app.js for why it stayed three rungs
+   rather than the old slider's four. Its cells carry a text label (.fig-txt)
+   in the glyph's place, since an interval has no notation shape of its own. */
 /* Figures are grouped by whether they stay inside a beat or reach across one.
    The heading is dropped when only one group is on screen — it would be naming
    the only thing there. */
-.fig-group + .fig-group { margin-top: 14px; }
-.fig-group[hidden] { display: none; }
+.fig-cell[hidden] { display: none; }
+/* Air between the meter grid and the figure grid. They are the same cell in
+   the same section, so without it the two read as one undifferentiated field
+   of blue and grey. Only #beats has a caption for a next sibling: the meter
+   grid is followed by #beats itself, and every .fig-fam carries its caption
+   inside rather than beside it, so the two other selectors this rule used to
+   carry — from before the figures were regrouped by meter — matched nothing. */
+#beats + .fig-h { margin-top: 14px; }
+/* Each meter family's own section, headed by the meters it serves. */
+.fig-fam[hidden] { display: none; }
+.fig-fam + .fig-fam { margin-top: 14px; }
 .fig-h {
   font-size: var(--type-caption);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   text-transform: uppercase;
-  letter-spacing: 0.7px;
+  letter-spacing: var(--track-caption);
   color: var(--muted);
   margin-bottom: 8px;
 }
-.beats.one-group .fig-h { display: none; }
 
-/* The bowing row sits under the figure grid: a caption-styled label, then the
+/* The slurs row sits under the figure grid: a caption-styled label, then the
    pills. The label reuses the group-heading style — it names a set of options
-   the same way BASIC and MORE do. */
-.bowing-row { align-items: center; gap: 12px; margin-top: 2px; }
-.bowing-row .fig-h { margin-bottom: 0; }
-#bowing-pills { display: flex; gap: 8px; }
+   the same way BASIC and MORE do. The selector keeps the old `bowing` name,
+   as do the preset field and the hidden input: presets already saved in
+   localStorage carry that key, and renaming it would silently drop the
+   setting on every one of them. Only the word the player reads changed. */
 
 .fig-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));
-  gap: 6px;
+  gap: calc(6px * var(--density));
 }
 
 /* A two-beat figure takes two cells' worth of width, so how wide it sits in the
@@ -798,12 +1412,110 @@ button.secondary {
 
 .fig-cell:hover { background: var(--ctl-fill-hover); }
 
-.fig-cell.on {
-  background: var(--ctl-on);
-  color: var(--ctl-on-ink);
+/* ---------------------------------------------------------------------------
+   PATTERN: selected
+   A chosen control in the panel is a stroke over a wash, not a block of accent.
+   Three numbers, each settled on its own after they were briefly fused into one
+   "heavy" preset that made a change in the wash read as a change in the edge:
+
+     edge   2px, which is exactly the --ctl-border every control already
+            reserves — so the stroke costs no layout at all, and the transparent
+            border that has been sitting there waiting for "a future selected
+            state" is finally the thing it was reserved for.
+     fade   40%, toward transparent rather than toward paper. Toward paper the
+            stroke stops being one line over what is behind it and becomes a
+            second, paler colour that only matches while the wash holds still.
+     wash   8%, enough to group the lit controls without filling them.
+
+   What this spends: a solid block is findable in peripheral vision and an
+   outline is not, and the interval grid is the control most often read that
+   way. The wash is what buys that back — the stroke alone would not.
+   --------------------------------------------------------------------------- */
+:root {
+  --sel-weight: 0;                                  /* added to a selected control's weight */
+  --sel-wash: 8%;                                   /* accent mixed into paper */
+  --sel-edge-op: 40%;                               /* how present the stroke is */
+  /* A hue OFFSET, not a colour: at 0 the stroke is the accent, and moving the
+     accent carries it along. Naming an absolute colour here would let the two
+     drift apart the moment the accent hue is touched. */
+  --sel-hue: 0;
+  --sel-edge-hue: hsl(calc(var(--accent-h) + var(--sel-hue)) var(--accent-s) var(--accent-l));
+  --sel-tint: color-mix(in srgb, var(--accent) var(--sel-wash), var(--paper));
+  --sel-stroke: color-mix(in srgb, var(--sel-edge-hue) var(--sel-edge-op), transparent);
 }
 
-.fig-svg { width: 42px; height: 27px; display: block; }
+/* .cycle.on is the accidental cycle carrying a sharp or a flat — a cycle is
+   normally a value display rather than an on/off, and that one is the
+   exception. */
+.fig-cell.on,
+.opt.on,
+.cycle.on,
+.drill.on {
+  background: var(--sel-tint);
+  color: var(--ctl-on);
+  border-color: var(--sel-stroke);
+  /* Scoped, not per-element: redefining the running weight here reaches the
+     control's own label and anything inside it that reads --weight-standard,
+     so a drill's name moves without .drill-name being mentioned at all.
+
+     Both rungs have to be restated, and the reason is easy to get wrong: a
+     var() inside a custom property is substituted where that property is
+     DECLARED, not where it is used. --weight-strong is computed once on :root
+     against :root's --weight-standard, and an element inheriting it inherits
+     that already-resolved number — so overriding --weight-standard here does
+     nothing for anything reading --weight-strong. .drill-name sat at 475
+     through the whole range until this second line existed. */
+  --weight-standard: calc(var(--weight-base) + var(--sel-weight));
+  --weight-strong: calc(var(--weight-base) + var(--weight-step) + var(--sel-weight));
+}
+.drill.on .drill-sub { color: color-mix(in srgb, var(--ctl-on) 78%, transparent); }
+.drill-row:has(.drill.on) .drill-more { color: var(--ctl-on); }
+
+/* Muted: the range is too narrow to hold this interval. Off and muted just
+   fades back. On and muted keeps the accent as ink and loses the fill — the
+   cell still reads "you asked for this" while visibly not being in the same
+   club as the lit ones, which is the honest picture: the setting is real, the
+   range is what's vetoing it. It stays cursor: pointer because tapping still
+   does something — it explains itself. */
+.fig-cell.muted {
+  opacity: 0.45;
+  background: var(--ctl-fill);
+}
+.fig-cell.muted:hover { background: var(--ctl-fill-hover); }
+/* Muted and on keeps the fill — it is still a lit cell, just one the range
+   cannot honour — and thins it instead. The outline version this replaces read
+   as a different kind of control rather than as the same control turned down,
+   which is the wrong story: nothing about the setting changed, only whether
+   there is room for it. The label takes the accent as ink because white on a
+   third-strength fill is not readable. */
+.fig-cell.muted.on {
+  opacity: 1;
+  background: color-mix(in srgb, var(--ctl-on) 32%, transparent);
+  border-color: transparent;
+  color: var(--ctl-on);
+}
+.fig-cell.muted.on:hover { background: color-mix(in srgb, var(--ctl-on) 42%, transparent); }
+.fig-cell.muted.on .wt { opacity: 0.75; }
+
+.fig-svg { width: var(--fig-svg-w); height: var(--fig-svg-h); display: block; }
+.fig-cell.wide .fig-svg { width: calc(var(--fig-svg-w) * 2); }
+
+/* An interval cell's label stands in for the glyph a rhythm figure draws.
+   text-transform: none undoes the global label{} caption treatment (all
+   caps) — the .fig-cell is a <label> like every other figure, but this is
+   the first one showing real text through it rather than an SVG glyph, and
+   "2ND" loses the ordinal a plain "2nd" reads at a glance.
+   The tracking is the other half of that same treatment and was left behind:
+   --track-caption is what makes a heading read as a label rather than as
+   text, and inherited down here it was spacing out a control's own word.
+   Every other pill saying a word — .opt, .cycle, .menu-item — sits at the
+   face's normal spacing, and these are the same kind of object. */
+.fig-txt {
+  font-size: var(--type-label);
+  font-weight: var(--weight-standard);
+  text-transform: none;
+  letter-spacing: normal;
+}
 
 /* ---------------------------------------------------------------------------
    PATTERN: tooltip
@@ -819,17 +1531,14 @@ button.secondary {
    whole sheet slide sideways on a phone.
    --------------------------------------------------------------------------- */
 @media (hover: hover) and (pointer: fine) {
-  .cb-icon, .tb-btn, .icon-toggle, .cycle, .step-btn, .fig-cell,
-  .pill .upd, .pill .del { position: relative; }
+  .cb-icon, .tb-btn, .cycle, .step-btn, .fig-cell { position: relative; }
 
   .cb-icon::after,
   .tb-btn::after,
-  .icon-toggle::after,
   .cycle::after,
   .step-btn::after,
   .fig-cell::after,
-  .pill .upd::after,
-  .pill .del::after {
+  .drill-more::after {
     content: attr(aria-label);
     position: absolute;
     bottom: calc(100% + 6px);
@@ -838,7 +1547,7 @@ button.secondary {
     background: var(--ink);
     color: var(--paper);
     font-size: var(--type-micro);
-    font-weight: var(--weight-prominent);
+    font-weight: var(--weight-standard);
     white-space: nowrap;
     padding: 3px 7px;
     border-radius: 5px;
@@ -855,16 +1564,15 @@ button.secondary {
      when you come back to it. */
   .cb-icon:hover:not(.tip-off)::after,
   .tb-btn:hover:not(.tip-off)::after,
-  .icon-toggle:hover:not(.tip-off)::after,
   .cycle:hover:not(.tip-off)::after,
   .step-btn:hover:not(.tip-off)::after,
   .fig-cell:hover:not(.tip-off)::after,
-  .pill .upd:hover:not(.tip-off)::after,
-  .pill .del:hover:not(.tip-off)::after { opacity: 1; transition-delay: var(--tip-delay); }
+  .drill-more:hover:not(.tip-off)::after { opacity: 1; transition-delay: var(--tip-delay); }
 
-  /* The transport sits at the top edge of the open sheet, so its tooltips
-     hang below rather than off the top of the panel. */
-  .controlbar .cb-icon::after { top: calc(100% + 6px); bottom: auto; }
+  /* The set-up cluster sits at the window's top edge, so its tooltips hang
+     below rather than off the top of the screen. The transport pill at the
+     bottom keeps the default above-the-button side for the mirrored reason. */
+  .tb-btn::after { top: calc(100% + 6px); bottom: auto; }
 }
 
 /* Legend — what the two highlighter colours mean, beside the Chunks toggle. */
@@ -904,7 +1612,7 @@ button.secondary {
   min-height: 0;
   overflow: hidden;
   background: var(--paper);
-  padding: 12px 40px 40px;
+  padding: 12px var(--music-gutter) var(--page-pad);
   display: flex;
   flex-direction: column;
   align-items: center;           /* center the music column in the window */
@@ -924,6 +1632,12 @@ button.secondary {
   min-height: 0;
   position: relative;
   overflow-y: auto;
+  /* A mask, not a paper cover: the cover paints an edge, the mask removes ink
+     gradually, so a line is gone by the time it reaches the pill. While this
+     is non-zero updateGap stands its bottom cover down — the two are rival
+     treatments of the same edge, not layers. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--music-fade)), transparent);
+          mask-image: linear-gradient(to bottom, #000 calc(100% - var(--music-fade)), transparent);
 }
 
 #sheet {
@@ -949,16 +1663,103 @@ button.secondary {
   align-self: center;
   width: 100%;
   max-width: var(--music-max);
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 22px 40px 6px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: 16px;
+  padding: calc(var(--page-pad) * 0.55) var(--page-pad) 6px;
 }
-.tb-titles { min-width: 0; }
+/* The subtitle wants the whole width, and on a phone it needs it: the action
+   cluster is 140px wide but only 40px tall, and as a flex sibling it charged
+   the titles column that 140px all the way down — including the third line,
+   where the cluster has long since ended. As a grid the cluster holds column
+   two beside the kicker and the title only, and the subtitle spans both. That
+   is the difference between two lines and one at 390px, with nothing dropped. */
+.tb-titles { display: contents; }
+.topbar > .tb-titles > .kicker { grid-column: 1; grid-row: 1; }
+.topbar #sh-title { grid-column: 1; grid-row: 2; }
+.topbar #sh-sub   { grid-column: 1 / -1; grid-row: 3; }
+.tb-actions       { grid-column: 2; grid-row: 1 / span 2; }
 #sh-title { font-size: var(--type-title); font-weight: var(--weight-strong); color: var(--ink); letter-spacing: 0.2px; line-height: 1.15; }
-#sh-sub   { font-size: var(--type-lead); font-weight: var(--weight-prominent); color: var(--muted); margin-top: 5px; }
+#sh-sub   { font-size: var(--type-label); font-weight: var(--weight-standard); color: var(--muted); margin-top: 7px;
+            display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 
+/* ---------------------------------------------------------------------------
+   PATTERN: pick
+   A fact under the title that is also the control for it — the keys, the
+   meters, the length. Each wears a chip sized by the finger rather than by
+   the type. A set shows in the compact spelling the chord names use, all of
+   it in one ink: the chip says what is in play, and the staff says which one
+   is playing. Past three keys it folds to "+N", because this is the narrowest
+   place any of these appear; the panel's own row folds at five.
+   --------------------------------------------------------------------------- */
+.pick {
+  display: inline;
+  padding: 2px 6px;
+  margin: -2px -6px;               /* the fill grows outward; the text does not move */
+  border: 0;
+  border-radius: var(--ctl-radius-box);
+  background: none;
+  color: var(--ctl-on);
+  font: inherit;
+  line-height: inherit;
+  white-space: nowrap;             /* "C, G, Am" is one thing; a line breaks between picks */
+  cursor: pointer;
+}
+.pick:hover, .pick[aria-expanded="true"] { background: var(--ctl-fill); }
+/* In the subtitle each fact wears a chip. The wash is the tint every chosen
+   control in the app already uses, but without the stroke, because a stroke
+   means SELECTED here and these are not selected — nothing sits unselected
+   beside them. The chip is sized to the text, not to the panel's 40px control
+   height: this is a line of type that happens to be operable, and a row of
+   full-height controls under the title would out-shout it. With chips the
+   middots go: the gaps do that work now. */
+#sh-sub .pick {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: var(--ctl-h-sm);
+  /* Padding as a fraction of the height, so the chip scales as a shape: drop a
+     rung and it keeps its proportions instead of losing its sides. */
+  padding: 0 calc(var(--ctl-h-sm) * 0.368);
+  margin: 0;
+  border-radius: var(--ctl-radius);
+  background: var(--ctl-on-tint);
+}
+#sh-sub .pick:hover, #sh-sub .pick[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--accent) 18%, var(--paper));
+}
+
+
+/* The menu the picks open. Fixed to the viewport (see placePick), so any
+   anchor works; otherwise the popover menu's own look. */
+.menu.pick-menu { position: fixed; top: auto; right: auto; max-height: 70vh; overflow: auto; }
+.pick-cols { display: flex; gap: 6px; }
+.pick-col { display: flex; flex-direction: column; min-width: 92px; }
+/* Ticked rows need air between them. Stacked flush, two adjacent selections
+   share an edge and their corners meet, so a run reads as one lozenge with a
+   pinched waist rather than as three chosen keys — which is exactly what
+   C, G and Am look like, being adjacent in fifths order. The rows lose the
+   height the gap takes, so the menu itself does not grow. */
+.pick-menu, .pick-col { gap: 4px; }
+/* Tap targets, so they are sized by the finger rather than by the text. The
+   row height is the token; the base rule's 12px sides stay. */
+.pick-menu .menu-item {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: var(--row-h);
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.pick-h {
+  font-size: var(--type-caption);
+  font-weight: var(--weight-standard);
+  text-transform: uppercase;
+  letter-spacing: var(--track-caption);
+  color: var(--muted);
+  padding: 6px 12px 4px;
+}
 /* The header's action cluster and the popovers that hang from it. Anchored to
    the cluster, not the page, so the same rule places them on a phone and a wide
    window; right-aligned because their owners sit at the right edge. */
@@ -1011,7 +1812,7 @@ button.secondary {
   color: var(--ink);
   font: inherit;
   font-size: var(--type-label);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   text-align: left;
   white-space: nowrap;
   cursor: pointer;
@@ -1028,12 +1829,14 @@ button.secondary {
    clean right-hand edge however long the labels run. */
 .pop-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .pop-row .stepper-range { flex: 0 1 140px; min-width: 0; }
-.pop-label { font-size: var(--type-label); font-weight: var(--weight-prominent); color: var(--ink); }
+.pop-label { font-size: var(--type-label); font-weight: var(--weight-standard); color: var(--ink); }
 
-/* Regenerate — same rounded-icon family as the transport, set in paper-dim. */
+/* The header's set-up cluster — same rounded-icon family as the transport, set
+   in paper-dim, one size down from the pill: these are reached for between
+   lines, not during one. */
 .tb-btn {
   flex-shrink: 0;
-  width: var(--ctl-h-lg); height: var(--ctl-h-lg);
+  width: var(--ctl-h); height: var(--ctl-h);
   padding: 0;
   border: none;
   border-radius: 999px;
@@ -1047,12 +1850,20 @@ button.secondary {
 }
 .tb-btn:hover { background: #e7e7ec; opacity: 1; }
 .tb-btn:active { transform: scale(0.94); opacity: 1; }
+/* On-state, matching every other toggle in the app. These two buttons open a
+   popover rather than toggling, so the tint is the only thing reporting the
+   metronome and play-along without a tap — the glyph does swap, but on/off
+   metronome icons read almost identically at this size. Sits after :hover
+   deliberately: equal specificity, so the earlier rule would have lost and
+   the tint would vanish under the pointer. */
+.tb-btn.on { background: var(--ctl-on-tint); color: var(--ctl-on); }
+.tb-btn.on:hover { background: color-mix(in srgb, var(--accent) 18%, var(--paper)); }
 
 /* Chord names above the staff — drawn on their own overlay, positioned off
    the engraved geometry the way the chunk blocks are. */
 #chord-overlay { position: absolute; top: 0; left: 0; pointer-events: none; }
 #chord-overlay .chord-name {
-  font: var(--weight-prominent) 13px system-ui, sans-serif;
+  font: var(--weight-standard) 13px system-ui, sans-serif;
   fill: var(--muted);
 }
 
@@ -1070,75 +1881,140 @@ button.secondary {
   opacity: var(--chunk-alpha);
 }
 
-/* Count-in countdown number */
-/* The count-in numeral is display type — sized to the page, not the scale. */
-#countdown {
-  position: fixed;
-  top: 50%;
-  left: 50%;                     /* music is centered in the window now */
-  transform: translate(-50%, -50%);
-  font-size: 160px;
-  font-weight: var(--weight-prominent);
-  color: var(--ink);
-  opacity: 0.12;
-  pointer-events: none;
-  z-index: 50;
-}
+/* Count-in countdown number
+   The count lives in the play button, not over the staff. A numeral parked on
+   the music was legible but it covered four bars for the length of the count —
+   which is exactly the bar a count-in exists to give you for reading ahead.
+   In the button it costs the music nothing.
 
-#countdown[hidden] { display: none; }
+   The trade is size: at 48px the numeral is a third of what the disc could
+   carry, and during a count-in you are looking at bar 1, not at the transport.
+   So the button takes the beat itself — filling with the accent and swelling a
+   third larger, then decaying across the beat. That is a movement large enough
+   to catch in peripheral vision while your eyes stay on the staff, which the
+   digit alone was not. */
+.cb-num {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 23px;
+  font-weight: var(--weight-standard);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+  pointer-events: none;
+}
+.cb-num[hidden] { display: none; }
+/* The glyph and the number share the button, so the one not in use goes. */
+#play.counting .ic { visibility: hidden; }
+
+/* Scale, never width or height: the transport is a flex row, so animating the
+   box would shove From-the-top and New-exercise sideways on every beat. Scale
+   only paints, which also keeps it smooth at tempo. 1.33 is the ceiling the
+   8px gap allows — a 48px button grows 7.9px each side, so it fills the gap
+   and stops short of its neighbours. z-index lifts it over them while it is
+   swollen. */
+/* Two animations, because the swell and the fade want opposite timing and one
+   easing curve cannot serve both. The scale wants to snap — most of its travel
+   inside the first sixth of the beat — while the colour wants to bleed evenly
+   across the whole of it. Run together under the snappy curve, the fill raced
+   to nearly washed-out by the time the button had finished growing, so the beat
+   looked spent at the moment it should have looked loudest. */
+@keyframes countSwell {
+  0%   { transform: scale(1); }
+  16%  { transform: scale(1.33); }
+  46%  { transform: scale(1); }
+  100% { transform: scale(1); }
+}
+/* The numeral holds its paper colour through the loud half of the beat and only
+   then follows the fill down. Fading both from the first frame left the number
+   greying against a still-saturated blue, which is the one combination on the
+   way down that is hard to read. Properties interpolate independently across
+   the frames that declare them, so naming only colour at 55% leaves the
+   background running its own even fade the whole way. */
+@keyframes countFade {
+  0%   { background: var(--ctl-on);   color: var(--ctl-on-ink); }
+  55%  {                              color: var(--ctl-on-ink); }
+  100% { background: var(--ctl-fill); color: var(--ink); }
+}
+#play.counting.beat {
+  animation:
+    countSwell calc(var(--beat-ms, 500ms) * var(--motion)) cubic-bezier(0.22, 0.9, 0.3, 1),
+    countFade  calc(var(--beat-ms, 500ms) * var(--motion)) linear;
+  z-index: 1;
+}
 
 /* Cursor blink during the count-in (overrides the cursor's faint resting alpha) */
 @keyframes srBlink { 0%, 100% { opacity: 0.55; } 50% { opacity: 0.05; } }
 .sr-cursor-blink { animation: srBlink 0.5s ease-in-out infinite; }
 
-/* Note range grid */
-#range-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  margin-top: 4px;
+/* Note range — two steppers and the staff that shows what they mean.
+   The two ends sit side by side under their captions, so they read as one
+   control with a low end and a high end rather than two stacked settings. */
+.range-row { align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.range-end { display: flex; flex-direction: column; gap: 5px; }
+/* These two steppers are the only pair in the panel that has to share a line,
+   and at 375px they missed it by four pixels: 122 + 12 + 122 against 252. The
+   row wrapped, both steppers landed in the same column, and the staff below
+   could no longer put each note under the control that sets it — the one thing
+   that drawing is for. Eight pixels off each left inset buys back more than the
+   four needed, so 375, 390 and 414 all hold. Scoped to this row because every
+   other stepper has its line to itself and no reason to move. Narrower than
+   about 240 still wraps, which is why the staff keeps its fallback. */
+.range-row .stepper { padding-left: 8px; }
+.range-end .fig-h { margin-bottom: 0; }
+
+/* The readout, and also the control: the notes are draggable, with the whole
+   staff as the grab target and the nearer note winning. touch-action stops a
+   vertical drag from scrolling the panel out from under the finger — without
+   it the gesture is claimed by the scroller and the note never moves. The
+   height comes from the SVG's own aspect, so ledger lines can push it taller
+   without anything here having to know how many there are. */
+#range-staff {
+  margin-top: 6px;
+  position: relative;   /* the two hit targets are placed against this */
 }
-
-.note-row {
-  display: grid;
-  grid-template-columns: 22px 22px repeat(7, 1fr);
-  gap: 4px;
-  align-items: center;
+/* The grab targets, and the ONLY things here that take a gesture. touch-action
+   lived on the whole block once, which meant the staff swallowed every vertical
+   swipe over it and the panel would not scroll past this control on a phone.
+   Finger-sized, but narrow enough that most of the staff's width is still free
+   to scroll at the same height. The drawing itself takes no pointer events, so
+   a press either lands on a note or passes through to the page. */
+.rs-hit {
+  position: absolute;
+  width: 46px; height: 34px;
+  margin: -17px 0 0 -23px;      /* centred on the notehead */
+  touch-action: none;
+  cursor: ns-resize;
 }
+#range-staff.dragging .rs-hit { cursor: grabbing; }
+.rs-draw { pointer-events: none; }
+/* The viewBox is set to this element's own pixel width, so 100% here is 1:1 —
+   which is what lets a notehead sit at the same x as the stepper above it. */
+#range-staff svg { display: block; width: 100%; overflow: visible; }
 
-.note-col-hdr {
-  font-size: var(--type-micro);
-  font-weight: var(--weight-prominent);
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: var(--muted);
-  text-align: center;
+/* Darker than --line, which is tuned for dividers sitting quietly behind
+   content. These lines ARE the content: they have to read as a staff at a
+   glance, and they carry a tinted band behind them. Mixed from --ink rather
+   than pinned, so it holds wherever the ink token goes. */
+.rs-line, .rs-ledger {
+  stroke: color-mix(in srgb, var(--ink) 34%, transparent);
+  stroke-width: 1;
+  shape-rendering: crispEdges;   /* hairlines, not a grey blur */
 }
+/* The span between the two notes. Sits under the staff lines, so it reads as
+   the paper being lit rather than a bar drawn over the music. */
+.rs-band { fill: color-mix(in srgb, var(--accent) 8%, transparent); }
+.rs-note { fill: var(--ctl-on); }
+.rs-clef { fill: var(--ink); }
 
-/* The octave number beside its checkbox — the checkbox toggles the whole row. */
-.note-row-lbl {
-  font-size: var(--type-micro);
-  font-weight: var(--weight-prominent);
-  color: var(--muted);
-  text-align: left;
-  letter-spacing: 0.2px;
-}
-
-.note-cell {
-  height: 22px;
-  width: 100%;
-  border-radius: 4px;
-  border: 1px solid transparent;
-  background: var(--ctl-fill);
-  cursor: pointer;
-  padding: 0;
-  display: block;
-  transition: background 0.1s, border-color 0.1s;
-}
-
-.note-cell.on { background: var(--ctl-on); }
-
-.note-cell:hover:not(.on) { background: var(--ctl-fill-hover); }
+/* The grip disc behind each notehead — what tells a finger these two are the
+   handles. Faint at rest so it does not compete with the staff, and it firms
+   up while a drag is in progress to confirm which one was caught. */
+.rs-grip { fill: color-mix(in srgb, var(--accent) 14%, transparent); }
+#range-staff.dragging .rs-grip { fill: color-mix(in srgb, var(--accent) 24%, transparent); }
 
 /* ---------------------------------------------------------------------------
    PATTERN: help
@@ -1146,17 +2022,9 @@ button.secondary {
    heading row is the one place with space to spare at every width — the pills
    below wrap as they always did, on a phone as much as a monitor.
 
-   The sheet itself follows the settings pocket: it rises from the bottom on a
-   phone and sits as a centred card once there's room, so it reads as part of
-   the app rather than a browser dialog.
+   The sheet rises from the bottom on a phone and sits as a centred card once
+   there's room, so it reads as part of the app rather than a browser dialog.
    --------------------------------------------------------------------------- */
-.sec-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
 .help-btn {
   width: 26px; height: 26px;
   flex-shrink: 0;
@@ -1167,7 +2035,7 @@ button.secondary {
   color: var(--muted);
   font-family: inherit;
   font-size: var(--type-label);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   line-height: 1;
   cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
@@ -1211,6 +2079,47 @@ button.secondary {
   }
 }
 
+/* The note card. A sentence and a button, centred on every width — it is too
+   short to earn the drawer treatment help gets on a phone. */
+.note-sheet {
+  position: fixed;
+  z-index: 90;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(360px, calc(100vw - 48px));
+  padding: 22px 22px 18px;
+  background: var(--paper);
+  border-radius: var(--radius-sheet);
+  box-shadow: var(--shadow-sheet);
+  text-align: center;
+}
+.note-sheet[hidden] { display: none; }
+.note-sheet h2 {
+  font-size: var(--type-lead);
+  font-weight: var(--weight-strong);
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+.note-sheet p {
+  font-size: var(--type-label);
+  font-weight: var(--weight-standard);
+  line-height: 1.45;
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+.note-ok {
+  width: 100%;
+  height: var(--ctl-h);
+  border: 0;
+  border-radius: var(--ctl-radius-box);
+  background: var(--ctl-on);
+  color: var(--ctl-on-ink);
+  font-size: var(--type-label);
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+.note-ok:active { transform: scale(0.98); }
+
 .help-top {
   flex-shrink: 0;
   display: flex;
@@ -1221,17 +2130,28 @@ button.secondary {
   border-bottom: 1px solid var(--line);
 }
 .help-titles { min-width: 0; }
-/* The app's one branding moment, wherever it appears: small, blue, uppercase.
-   Shared by the help sheet's header and the main title above the drill name —
-   one rule so the two stay identical if either ever moves. */
-.kicker {
-  font-size: var(--type-caption);
-  font-weight: var(--weight-prominent);
-  text-transform: uppercase;
-  letter-spacing: 0.7px;
+/* The wordmark, wherever the app writes its own name — the header, the help
+   sheet, the onboarding card. One rule, so the three cannot drift apart.
+   Sharphy Bold, capitalised and tracked in, taking the accent so it moves with
+   the app's colour rather than pinning a hex. It reads as a mark rather than a
+   label now, which is why the old uppercase-and-spaced treatment goes: that
+   was a body font being asked to look like a logo. */
+.kicker, .ob-body .ob-wordmark, .ob-body .ob-wordmark-sm {
+  font-family: "Sharphy", "Rubik", sans-serif;
+  font-weight: 700;
+  text-transform: capitalize;
   color: var(--ctl-on);
-  margin-bottom: 2px;
+  line-height: 1.1;
 }
+
+/* Tracking belongs to the large setting only. Drawing letters together is a
+   display move — it fixes the gaps that open up at size — and applying it at
+   18px just makes small text tight to read. Small instances take the face's
+   own spacing. */
+.ob-body .ob-wordmark { letter-spacing: var(--wordmark-track); }
+.kicker, .ob-body .ob-wordmark-sm { font-size: var(--type-lead); letter-spacing: normal; }
+.kicker { margin-bottom: 2px; }
+.ob-body .ob-wordmark-sm { margin-bottom: 24px; }
 .help-top h2 {
   font-size: var(--type-lead);
   font-weight: var(--weight-strong);
@@ -1250,7 +2170,7 @@ button.secondary {
 .help-intro {
   font-size: var(--type-label);
   font-weight: var(--weight-standard);
-  line-height: 1.55;
+  line-height: var(--leading);
   color: var(--ink);
   margin-bottom: 22px;
 }
@@ -1259,9 +2179,9 @@ button.secondary {
 
 .help-item h3 {
   font-size: var(--type-caption);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   text-transform: uppercase;
-  letter-spacing: 0.7px;
+  letter-spacing: var(--track-caption);
   color: var(--muted);
   margin-bottom: 5px;
 }
@@ -1269,7 +2189,7 @@ button.secondary {
 .help-item p {
   font-size: var(--type-label);
   font-weight: var(--weight-standard);
-  line-height: 1.55;
+  line-height: var(--leading);
   color: var(--ink);
 }
 
@@ -1287,7 +2207,7 @@ button.secondary {
   position: fixed;
   inset: 0;
   outline: none;              /* it takes focus as a container, not as a control */
-  z-index: 120;                    /* above the settings pocket and the help sheet */
+  z-index: 120;                    /* above the settings rail and the help sheet */
   background: var(--paper);
   display: flex;
   align-items: center;
@@ -1313,11 +2233,142 @@ button.secondary {
     min-height: 460px;
     max-height: 86dvh;
     background: var(--paper);
-    border-radius: 22px;
+    border-radius: var(--ob-radius);
     box-shadow: var(--shadow-sheet);
-    padding: 34px 34px 26px;
+    padding: var(--ob-pad) var(--ob-pad) calc(var(--ob-pad) - 14px);
   }
 }
+
+.ob-logo {
+  display: block;
+  width: var(--ob-logo-size);
+  height: var(--ob-logo-size);
+  margin-bottom: 20px;
+  /* An SVG root clips to its viewBox. Let the mark spill instead, so a big
+     radius against a wide spread explores freely rather than being quietly
+     cropped at the exact moment it gets interesting. */
+  overflow: visible;
+}
+
+/* The three circles sit on an equilateral triangle about the centre: one number
+   — how far each is pushed out — is the whole of the overlap. Each is drawn at
+   r="1" on the origin and placed by a transform, so transform-origin must be
+   0 0: the default would scale about the middle of the view box and slide every
+   circle off with it. */
+.ob-logo-ring { isolation: isolate; }
+
+.ob-logo-c {
+  --push: calc(var(--ob-logo-spread) * var(--ob-logo-fit) * var(--ob-assemble));
+  transform-box: view-box;
+  transform-origin: 0 0;
+  transform: translate(calc((24 + var(--dx)) * 1px), calc((24 + var(--dy)) * 1px))
+             scale(calc(var(--ob-logo-r) * var(--ob-logo-fit)));
+  fill: var(--accent);
+  fill-opacity: var(--ob-logo-alpha);
+  mix-blend-mode: multiply;
+  transition: transform calc(var(--ob-mark-ms) * var(--motion) * 1ms)
+              cubic-bezier(0.16, 0.84, 0.24, 1);
+}
+.ob-logo-c.a { --dx: calc(-0.866 * var(--push)); --dy: calc(-0.5 * var(--push)); }
+.ob-logo-c.b { --dx: calc( 0.866 * var(--push)); --dy: calc(-0.5 * var(--push)); }
+.ob-logo-c.c { --dx: 0;                          --dy: var(--push); }
+.ob-logo-c.b { transition-delay: calc(var(--ob-mark-stagger) * var(--motion) * 1ms); }
+.ob-logo-c.c { transition-delay: calc(var(--ob-mark-stagger) * var(--motion) * 2ms); }
+
+/* Rotating the ring while the circles travel outward composes into a spiral
+   without anyone having to describe one. */
+.ob-logo-ring {
+  transform-box: view-box;
+  transform-origin: 24px 24px;
+  transform: rotate(calc((1 - var(--ob-assemble)) * var(--ob-mark-turn) * 1deg));
+  transition: transform calc(var(--ob-mark-ms) * var(--motion) * 1ms)
+              cubic-bezier(0.16, 0.84, 0.24, 1);
+}
+
+/* The note is drawn on top, so it cannot be revealed by the circles parting —
+   it has to arrive. It starts small and absent and comes in once they are
+   roughly half apart, which is a sixth of the way through the time and not a
+   half: the circles' easing spends most of its travel in the first third, so a
+   delay set by eye against the clock lands the note when the mark is already
+   made. Measured in test/mark.js against the distance, not the duration. */
+.ob-logo-note {
+  fill: var(--paper);
+  transform-box: view-box;
+  transform-origin: 24px 24px;
+  transform: scale(calc(0.6 + 0.4 * var(--ob-assemble)));
+  opacity: var(--ob-assemble);
+  transition: transform calc(var(--ob-mark-ms) * var(--motion) * 0.6ms)
+              cubic-bezier(0.16, 0.84, 0.24, 1),
+              opacity   calc(var(--ob-mark-ms) * var(--motion) * 0.4ms) ease-out;
+  transition-delay: calc(var(--ob-mark-ms) * var(--motion) * 0.16ms);
+}
+
+/* Stacked: all three on the centre, where at half strength they multiply into
+   one dark dense disc — the opening frame is not "one circle" but a deeper blue
+   than any of them, which lightens and blooms as they separate. */
+.ob-logo.ob-stacked { --ob-assemble: 0; }
+/* Used for one frame when replaying, to land in the stacked state without
+   animating backwards into it first. */
+.ob-logo.ob-nowind * { transition: none !important; }
+
+/* Pages slide: the outgoing one leaves as a lifted copy so the incoming one can
+   take its place immediately, and the card eases between the two heights (set
+   in px by JS, since height:auto cannot transition). All of it multiplies by
+   --motion, and .reduce-motion zeroes the durations while obSwap skips the
+   choreography outright — a stilled transition that still reparents nodes is
+   not the same as not animating. */
+.ob-body { position: relative; overflow-x: hidden; }
+
+.ob-ghost {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  pointer-events: none;
+  transition: transform calc(0.3s * var(--motion)) cubic-bezier(0.32, 0.72, 0, 1),
+              opacity   calc(0.18s * var(--motion)) ease-out;
+}
+.ob-ghost.to-left  { transform: translateX(-38px); opacity: 0; }
+.ob-ghost.to-right { transform: translateX(38px);  opacity: 0; }
+
+.ob-page {
+  transition: transform calc(0.3s * var(--motion)) cubic-bezier(0.32, 0.72, 0, 1),
+              opacity   calc(0.24s * var(--motion)) ease-out;
+}
+.ob-page.ob-enter            { transform: translateX(38px);  opacity: 0; }
+.ob-page.ob-enter.from-left  { transform: translateX(-38px); }
+
+.ob-card.ob-sizing {
+  transition: height calc(0.3s * var(--motion)) cubic-bezier(0.32, 0.72, 0, 1);
+  overflow: hidden;
+}
+
+/* Arriving and leaving are the same move in opposite directions: the card comes
+   up through --ob-enter-rise and drops back down through it, while the scrim —
+   the paper wall on a phone, the dimmed backdrop on a desktop — fades with it.
+   Leaving is quicker than arriving, because behind it is the music you asked
+   for and there is nothing to introduce.
+
+   The base duration is the entrance's: removing .ob-entering transitions with
+   whatever the settled rule says, so that is the rule the entrance has to be
+   written in, and the exit overrides it. */
+.ob, .ob .ob-card {
+  transition: opacity calc(var(--ob-enter-ms) * var(--motion) * 1ms) ease-out,
+              transform calc(var(--ob-enter-ms) * var(--motion) * 1ms)
+                        cubic-bezier(0.22, 0.9, 0.24, 1);
+}
+.ob.ob-entering { opacity: 0; }
+.ob.ob-entering .ob-card {
+  transform: translateY(calc(var(--ob-enter-rise) * 1px)) scale(var(--ob-enter-scale));
+}
+
+.ob.ob-leaving, .ob.ob-leaving .ob-card {
+  transition-duration: calc(0.28s * var(--motion));
+  transition-timing-function: ease-out, cubic-bezier(0.32, 0.72, 0, 1);
+}
+.ob.ob-leaving { opacity: 0; }
+.ob.ob-leaving .ob-card { transform: translateY(10px) scale(0.985); }
 
 /* The pages scroll; the footer never does, so Next is always reachable. */
 .ob-body {
@@ -1336,58 +2387,127 @@ button.secondary {
    rather than a heading; the previous 46px read as a poster, not a page.
    Scoped to .ob-body so it outranks the body-copy sizing on its siblings. */
 .ob-body .ob-wordmark {
-  font-size: var(--type-title);
-  font-weight: var(--weight-strong);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  line-height: 1.15;
-  margin-bottom: 18px;
+  font-size: var(--wordmark-size);
+  line-height: 1.1;
+  margin-bottom: 26px;
 }
 
-/* The panel's grid is auto-fill, which would leave this fixed six-figure set
-   as a row of five and an orphan. Six across, always. */
-.ob .fig-grid { grid-template-columns: repeat(6, 1fr); }
-
 .ob-body h2 {
-  font-size: var(--type-lead);
-  font-weight: var(--weight-strong);
-  line-height: 1.3;
-  margin-bottom: 20px;
+  font-size: var(--ob-title-size);
+  font-weight: var(--ob-title-weight);
+  line-height: 1.25;
+  margin-bottom: 24px;
 }
 
 .ob-body p {
-  font-size: var(--type-label);
+  font-size: var(--ob-body-size);
   font-weight: var(--weight-standard);
-  line-height: 1.55;
+  line-height: var(--ob-leading);
   color: var(--ink);
 }
 .ob-body p + p { margin-top: 14px; }
 
-/* A quiet caption under a group of controls, saying what the choice does. */
-.ob-note {
-  margin-top: 18px;
+/* Two captioned rows, so the page's two questions are visibly parallel rather
+   than one long list of pills. The caption is the panel's own label size — it
+   names the axis, it is not part of the question. */
+.ob-row { margin-bottom: 14px; }
+/* Scoped under .ob-body for the third time in this file: bare .ob-row-label is
+   one class against .ob-body p's class-plus-type, so the page's display sizing
+   wins and the caption comes out at 24px. */
+.ob-body .ob-row-label {
+  margin-bottom: 7px;
+  font-size: var(--type-caption);
+  font-weight: var(--weight-standard);
+  text-transform: uppercase;
+  letter-spacing: var(--track-caption);
   color: var(--muted);
 }
 
-/* The settings glyph sitting inside a sentence. .ic is display:block for
-   buttons, so it has to go inline here, and it takes the surrounding text's
-   colour rather than the control-bar treatment. */
-.ob-ic {
-  display: inline-block;
-  width: 15px;
-  height: 15px;
-  vertical-align: -2px;
-  color: var(--ink);
+/* The preview staff on the vocab page. Paper-coloured ink at the app's own
+   weights: staff lines are the divider grey, noteheads are ink, so it reads as
+   notation rather than as a diagram. */
+.ob-preview-bar {
+  margin-top: 22px;
+  padding: 16px 4px;
 }
+.ob-preview {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.ob-preview .staff  { stroke: var(--line); stroke-width: 0.9; }
+.ob-preview ellipse { fill: var(--ink); }
+.ob-preview .stem, .ob-pbeam rect { fill: var(--ink); }
+
+/* The beam rides on its own height, so a change of pitch slides it with the
+   notes under it instead of forcing a redraw. */
+.ob-pbeam {
+  transform-box: view-box;
+  transform-origin: 0 0;
+  transform: translateY(calc(var(--by) * 1px));
+  transition: transform calc(0.36s * var(--motion)) cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Switching preset moves the same four notes rather than drawing four new ones,
+   so the interval you picked is something you watch widen. Each note is a group
+   placed by a transform; only --y changes.
+   The stem carries the direction rule (up below the middle line, down at or
+   above it) as two drawn stems crossfading, because a stem that rotated 180°
+   about its notehead would be the loudest thing in a bar that is meant to say
+   one quiet thing. */
+.ob-pnote {
+  transform-box: view-box;
+  transform-origin: 0 0;
+  transform: translate(calc(var(--x) * 1px), calc(var(--y) * 1px));
+  transition: transform calc(0.36s * var(--motion)) cubic-bezier(0.32, 0.72, 0, 1);
+}
+/* A rect scaled on Y rather than a line, because scaleY leaves a rect's width
+   alone and would have thinned a line's stroke as it stretched. Its origin is
+   the notehead, so the scale reads as the stem growing to meet its beam. */
+.ob-preview .stem {
+  opacity: 0;
+  transform-box: view-box;
+  transform-origin: 0 0;
+  transform: scaleY(var(--stem));
+  transition: opacity calc(0.2s * var(--motion)) ease-out,
+              transform calc(0.36s * var(--motion)) cubic-bezier(0.32, 0.72, 0, 1);
+}
+.ob-pnote.up .stem.up      { opacity: 1; }
+.ob-pnote:not(.up) .stem.dn { opacity: 1; }
+
+/* A subtitle of the question, between the heading and the controls: it
+   qualifies the choice being asked for, so it reads before the answer rather
+   than after it. Body copy's size would compete with the question; the panel's
+   label size sits under it without whispering. */
+.ob-body .ob-sub {
+  margin-top: -14px;
+  margin-bottom: 22px;
+  font-size: var(--type-label);
+  color: var(--muted);
+}
+
+/* A quiet caption under a group of controls, saying what the choice does —
+   working text, so it steps back down to the panel's label size while the
+   page's own copy runs at display size. Scoped under .ob-body to outrank the
+   .ob-body p display sizing above; bare .ob-note always lost that fight, which
+   is why this caption has been rendering as body copy. */
+.ob-body .ob-note {
+  margin-top: 18px;
+  font-size: var(--type-label);
+  color: var(--muted);
+}
+/* A second caption line reads as a continuation, not a second block, so it sits
+   at line spacing rather than at the group's own gap. */
+.ob-body .ob-soon { margin-top: 6px; }
 
 /* Sub-headings inside a page reuse the panel's section-heading treatment, so
    RHYTHM here and RHYTHM there read as the same label. */
 .ob-group + .ob-group { margin-top: 24px; }
 .ob-group > h3 {
   font-size: var(--type-caption);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   text-transform: uppercase;
-  letter-spacing: 0.7px;
+  letter-spacing: var(--track-caption);
   color: var(--muted);
   margin-bottom: 10px;
 }
@@ -1398,10 +2518,9 @@ button.secondary {
   gap: 8px;
 }
 
+
 /* An interval pill: the matrix row compressed to its checkbox and its dot. The
    dot is the exact colour that will highlight that interval on the staff. */
-.ob-int { padding: 0 14px 0 11px; }
-.ob-int .dot { margin-right: 7px; }
 
 .ob-foot {
   flex-shrink: 0;
@@ -1426,6 +2545,45 @@ button.secondary {
 }
 .ob-dots i.on { background: var(--ctl-on); }
 
+/* Back sits beside the small wordmark rather than in the footer, and the two
+   are built together because they appear on exactly the same pages. It was at
+   the head of the footer, where it had to be held-not-hidden on the first page
+   so the dots would not shift under it — which meant the dots were permanently
+   indented by a control that was invisible half the time. Out of that row they
+   sit at the card's edge, where a progress indicator belongs.
+   Pulled left by its own optical padding so the glyph, not the tap target,
+   lines up with everything below it. */
+.ob-crumb {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: 18px;
+}
+.ob-crumb .ob-wordmark-sm { margin: 0; }
+
+.ob-back {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: var(--ctl-h);
+  height: var(--ctl-h);
+  margin-left: calc(var(--ctl-h) / -2 + 5px);
+  border: none;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.ob-back:hover { color: var(--ink); opacity: 1; }
+.ob-back-caret {
+  width: calc(var(--caret-size) * 1px);
+  height: calc(var(--caret-size) * 1px);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: calc(var(--caret-weight) * 12 / var(--caret-size));
+  transform: rotate(90deg);
+}
+
 .ob-skip {
   padding: 0 4px;
   border: none;
@@ -1433,7 +2591,7 @@ button.secondary {
   color: var(--muted);
   font-family: inherit;
   font-size: var(--type-label);
-  font-weight: var(--weight-prominent);
+  font-weight: var(--weight-standard);
   cursor: pointer;
   transition: color 0.15s;
 }
@@ -1455,9 +2613,39 @@ button.secondary {
 /* Mobile: trim the gutters and let the music column shrink below its desktop
    floor so narrow screens reflow instead of clipping. */
 @media (max-width: 720px) {
-  .sheet-area { padding: 8px 14px 18px; }
-  :root { --fs-4: 24px; }        /* the title steps down; the rest of the scale holds */
-  .topbar { padding: 16px 16px 4px; }
+  :root {
+    /* These two move in opposite directions on purpose, and only here — the
+       desktop pair stays 28/48. A phone has no width to spare for the staff,
+       so the music runs nearly to the edges; the page chrome above it wants
+       the opposite, because a title and a row of round buttons crammed to the
+       edge of a phone reads as an accident. Wider margin around the words,
+       narrower around the notes. */
+    --music-gutter: 8px;
+    --page-pad: 32px;
+    /* No scale on the way in here: the card is the whole screen, and a screen
+       that grows into place reads as a zoom rather than as a card arriving. It
+       still rises, which is the part that carries the gesture. */
+    --ob-enter-scale: 1;
+  }
+  .sheet-area { padding: 8px var(--music-gutter) 18px; }   /* its own floor down here */
+  :root {
+    --fs-4-base: 24px; /* the title steps down; the rest of the scale holds */
+    /* Was 16 — double the desktop 8 — on the reasoning that fingers need
+       separation a cursor does not. That reasoning was aimed at the wrong
+       measurement: the buttons are 40px square, so the TARGETS are what clears
+       a fingertip, and the gap between them was only ever making the row look
+       loose. It reads as three buttons drifting apart on a phone, which is the
+       one screen where the header has no width to waste. Two pixels over
+       desktop is enough to acknowledge the thumb. */
+    --tb-gap: 10px;
+  }
+  /* The phone keeps its own vertical rhythm: 0.55 of a 16px inset would put
+     9px over the title, and the notch needs more than that. */
+  .topbar { padding: 20px var(--page-pad) 10px; }
+  /* The pill loses its desktop neighbours (nothing else sits at this edge on
+     a phone), so it can afford more air on both counts: from the last
+     system above it and from the screen edge below — clear of a thumb, and
+     of an iPhone's home indicator. */
+  .controlbar { gap: 10px; padding: 10px; margin: 14px 0 26px; }
   #sheet-stage { min-width: 0; }   /* let it shrink to fit the phone */
-  #countdown { font-size: 96px; }
 }

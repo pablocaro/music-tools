@@ -13,7 +13,11 @@ const SP = __dirname + '/out/';
   const probe = id => p.evaluate(x=>{
     const el=document.getElementById(x), cs=getComputedStyle(el);
     const rows=[...el.querySelectorAll('.pop-row')].map(r=>{
-      const lab=r.querySelector('.pop-label'), ctl=r.lastElementChild;
+      // Not lastElementChild: the Voice row carries its own listbox after the
+      // button, so that measured a hidden menu at 0 and the accomp popover's
+      // alignment check could never pass. Ask for the control by what it is.
+      const lab=r.querySelector('.pop-label');
+      const ctl=r.querySelector('.sw, .cycle, input[type="range"]');
       return { label: lab?lab.textContent:null,
                ctlRight: Math.round(ctl.getBoundingClientRect().right) };
     });
@@ -32,6 +36,22 @@ const SP = __dirname + '/out/';
   await p.screenshot({path: SP + 'p-accomp.png'});
 
   const gap = await p.evaluate(()=>getComputedStyle(document.querySelector('.tb-actions')).gap);
+  // Rows evenly spaced. Melody, Comping and Volume live in a wrapper so the
+  // master switch can hide them, and a wrapper inside a flex column is one
+  // flex child: without a gap of its own the rows inside it sit flush while
+  // the row above keeps the popover's full gap. Nothing about the labels or
+  // their alignment would show it.
+  const spacing = await p.evaluate(() => {
+    const rows = [...document.querySelectorAll('#accomp-pop .pop-row')];
+    const gaps = [];
+    for (let i = 1; i < rows.length; i++) {
+      gaps.push(Math.round(rows[i].getBoundingClientRect().top - rows[i - 1].getBoundingClientRect().bottom));
+    }
+    return { gaps: [...new Set(gaps)], popGap: getComputedStyle(document.querySelector('#accomp-pop')).gap };
+  });
+  console.log('row gaps        :', JSON.stringify(spacing),
+    spacing.gaps.length === 1 ? '(even, and equal to the popover gap)' : '(UNEVEN)');
+
   console.log('header button gap:', gap);
   // do the controls share one right edge?
   const edges = [...pace.rows, ...acc.rows].map(r=>r.ctlRight);

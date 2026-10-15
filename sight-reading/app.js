@@ -57,12 +57,20 @@
   // staff, so the code is learned in one place and recognised in the other.
   var HL_STEP = "#4fd9ef";       // highlighter cyan — stepwise motion
   var HL_LEAP = "#a8e63c";       // highlighter lime — leaps / arpeggios
-  var WEIGHT_MIN = 1;            // min per-interval slider weight (the checkbox owns off)
-  var WEIGHT_MAX = 4;            // max per-interval slider weight
   var MEASURES_PER_LINE = 6;     // cap on a wide screen
   var MIN_PER_LINE = 2;          // never fewer than this; shrink to fit if needed
   var MEASURE_PX = 175;          // ~full-size measure width (FixedMeasureWidth keeps it stable)
   var CLEF_PX = 88;              // ~clef + key + time prefix at a line start
+
+  // How the page is laid out, in one mutable place because these two are the
+  // only engraving decisions that aren't CSS — and they are the ones that most
+  // change how the music reads. renderLoaded() takes them fresh on every pass,
+  // so writing here and firing a resize re-engraves. The ?tweaks panel is the
+  // only writer; the constants above stay the defaults.
+  var LAYOUT = window.__srLayout = {
+    perLine: MEASURES_PER_LINE,  // cap on bars per line
+    zoomCap: 1                   // ceiling on the staff's drawn size
+  };
   var HL_PAD_X = 4;             // px the block runs past the first/last notehead
   var HL_PAD_Y = 6;             // px above the top notehead and below the bottom
   var HL_RADIUS = 6;            // corner radius — a highlighter stroke, not a pill
@@ -74,15 +82,14 @@
   // ===========================================================================
   // The alphabet matrix (notes)
   // ===========================================================================
+  // No colour on these any more. Each row carried a dot in the highlighter's
+  // step or leap tint, which was the one reader of the field — the mapping it
+  // taught is already stated in words by the legend under Highlight Patterns,
+  // and eight coloured dots down the side of eight labelled rows was saying it
+  // a second time in a quieter voice.
   var INTERVALS = [
-    { n: "unison", c: "#888780" },
-    { n: "2nd",    c: HL_STEP },
-    { n: "3rd",    c: HL_LEAP },
-    { n: "4th",    c: HL_LEAP },
-    { n: "5th",    c: HL_LEAP },
-    { n: "6th",    c: HL_LEAP },
-    { n: "7th",    c: HL_LEAP },
-    { n: "octave", c: HL_LEAP }
+    { n: "unison" }, { n: "2nd" }, { n: "3rd" }, { n: "4th" },
+    { n: "5th" },    { n: "6th" }, { n: "7th" }, { n: "octave" }
   ];
 
   // built-in presets (same weight applied to down + up): [uni,2,3,4,5,6,7,oct]
@@ -96,20 +103,34 @@
     "rhythm workout":  [1, 4, 2, 0, 0, 0, 0, 0],
     "jig":             [0, 3, 2, 1, 1, 0, 0, 0],
     "chromatic steps": [0, 4, 0, 0, 0, 0, 0, 0],
-    "minor cadences":  [1, 3, 3, 1, 1, 0, 0, 0]
+    "minor cadences":  [1, 3, 3, 1, 1, 0, 0, 0],
+    // Not "everything at once": steps commonest, thirds next, a thinning tail.
+    // Flat weights read as noise, because real melodies are not uniform over
+    // the interval set.
+    "mixed intervals": [0, 4, 3, 2, 2, 1, 1, 1]
   };
 
   // What a built-in leaves alone would otherwise be whatever the last drill
   // happened to use, so each one carries the same five fields a saved preset
   // does — the alphabet it's named for, plus the neutral staff to read it on.
-  var BUILTIN_DEFAULTS = { musicality: "0", progression: "I-IV-V-I", chroma: "0", bowing: "off", key: "major_0-0", clef: "treble", timesig: "4/4", measures: "16" };
+  // musicality starts at the top. The markup default alone would never have
+  // survived: onboarding finishes by applying "steps only", and every built-in
+  // inherits this baseline, so a fresh user would have been dropped back to a
+  // random walk before they saw a bar. That makes this a change to what the
+  // built-in presets mean, for everyone — not only to a starting value.
+  var BUILTIN_DEFAULTS = { musicality: "100", progression: "I-IV-V-I", chroma: "0", bowing: "", ties: "off", key: "major_0-0", clef: "treble", timesig: "4/4", measures: "16" };
 
   // What a drill needs beyond its alphabet. The first four interval drills
   // deliberately carry no rhythm, so switching between them leaves your
   // figures alone; the newer ones ARE their rhythm (or their key, or their
   // chromaticism), so they set it — a jig without 6/8 is just leaps.
+  //
+  // Nothing here sets musicality any more. Both entries that did were written
+  // when the baseline was near zero, where "70" and "100" meant turn this well
+  // up. Once the baseline moved to the top they stopped meaning that — 100
+  // became a restatement and 70 became a brake, on the one drill in the list
+  // whose whole subject is the harmony.
   var BUILTIN_EXTRA = {
-    "arpeggios":       { musicality: "100" },
     "long tones":      { beats: ["w", "h:2"], measures: "8" },
     // beats arrays are written in the grid's own order — presetMatchesPanel
     // compares against readBeatIds, which reads the DOM top to bottom, and a
@@ -117,7 +138,7 @@
     "rhythm workout":  { beats: ["q", "ee", "des:2", "sde", "re", "eqe:2", "dqe:2"] },
     "jig":             { timesig: "6/8", beats: ["dq", "eee:2", "qe"] },
     "chromatic steps": { chroma: "60", beats: ["q:2", "ee"] },
-    "minor cadences":  { key: "minor_5-0", progression: "i-VII-VI-V", musicality: "70",
+    "minor cadences":  { key: "minor_5-0", progression: "i-VII-VI-V",
                          beats: ["h", "q:2", "ee"] }
   };
 
@@ -141,72 +162,191 @@
 
   // One weight per interval. There used to be two — an up column and a down one
   // — but the pair couldn't express the only directional drill worth having
-  // ("descending 3rds only"): the slider floors at WEIGHT_MIN and the checkbox
-  // owns the whole row, so neither direction could be zeroed on its own. It
-  // cost eight extra sliders to offer ratios nobody reaches for. The engine
-  // still takes {down, up}; readAlphabet just emits the same value for both.
-  var weightInputs = [], stepChecks = [], matrixRows = [];
+  // ("descending 3rds only"): a weight of 0 owns off and every other row was
+  // symmetric anyway. The engine still takes {down, up}; readAlphabet just
+  // emits the same value for both.
+  //
+  // The weight itself used to be a checkbox plus a 1-4 slider: two controls
+  // for one idea, and a slider whose four rungs read as one continuum when
+  // rhythm figures' own weight already proved most of a dial like this goes
+  // unheard (off/on/x2 was every shipped figure's ceiling). Intervals turned
+  // out to be the exception, not the rule — sweeping a single row's weight
+  // against a fixed preset (test/melody.js's sibling, run ad hoc) moved that
+  // interval's measured share by several points at EVERY step, 3 vs 4
+  // included, on two shipped presets that lean on the top rung. So the rungs
+  // stay at four in the numbers the engine sees; what changed is the control.
+  // Same fig-cell tap-cycle as rhythm figures now — off / on / on×2, one cell
+  // per interval — with "on×2" landing on 4 rather than 2 so the weight scale
+  // an interval reaches is exactly the one the sweep measured, not a new one.
+  function snapIntervalWeight(w) {
+    var n = +w;
+    return (!isFinite(n) || n <= 0) ? 0 : (n <= 2 ? 2 : 4);
+  }
+
+  var staffGeom = null;  // last render's step<->y mapping, for the drag handler
+  var matrixRows = [];
   var matrixEl  = document.getElementById("matrix");
   var presetsEl = document.getElementById("presets");
 
-  // Row labels live in the catalogue: they used to be bare digits, which needed
-  // no translating, but ordinals do — Spanish writes 2ª where English writes
-  // 2nd. All eight are three characters wide, so the column stays narrow.
+  // Cell labels live in the catalogue: they used to be bare digits, which
+  // needed no translating, but ordinals do — Spanish writes 2ª where English
+  // writes 2nd.
   function stepLabel(i) { return t("step." + i); }
 
-  // No numeric readout: 1–4 named nothing a student could act on, and the
-  // less/more header above the column already says which way the slider runs.
-  // The value still reaches assistive tech through the range input itself.
-  function makeCell(arr) {
-    var cell = document.createElement("div");
-    cell.className = "cell";
-    var input = document.createElement("input");
-    input.type = "range"; input.min = WEIGHT_MIN; input.max = WEIGHT_MAX; input.step = 1; input.value = WEIGHT_MIN;
-    input.addEventListener("change", generate);
-    cell.appendChild(input);
-    arr.push(input);
-    return cell;
+  // Every ingredient in the app — meters, rhythm figures, intervals, slurs — is
+  // a fig-cell, and a fig-cell is a <label> wrapping a hidden checkbox with the
+  // tap-cycle hung off the label itself. That put the whole vocabulary outside
+  // the tab order: a label is not focusable, and the checkbox that would have
+  // been is hidden. Nothing in the panel's top half could be reached, let alone
+  // operated, without a pointer. So each cell is given the role it already
+  // behaves as and a stop of its own; setSwitch writes the pressed state.
+  function figCellRole(cell) {
+    cell.setAttribute("role", "button");
+    cell.setAttribute("aria-pressed", "false");
+    cell.tabIndex = 0;
   }
 
-  // Each interval row: a checkbox (is it in play?) + its weight.
-  // The checkbox owns on/off, so a weight never has to mean "never" — it floors
-  // at WEIGHT_MIN and readAlphabet() zeroes out unchecked rows instead.
+  // The other half of that: a label does not turn Enter or Space into a click
+  // the way a real <button> does, so the tab stop would land on a cell that
+  // then refused to cycle. Delegated, since every cell is built at runtime and
+  // three of the four grids are rebuilt as the language or the meter changes.
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" && e.key !== " " && e.key !== "Spacebar") return;
+    var cell = (e.target && e.target.closest) ? e.target.closest(".fig-cell") : null;
+    if (!cell) return;
+    e.preventDefault();      // Space would otherwise scroll the rail out from under it
+    cell.click();
+  });
+
+  // Each interval is one fig-cell, tapped through the same off → on → ×2 → off
+  // cycle as a rhythm figure. A hidden checkbox owns in-or-out (so an old
+  // saved alphabet — a plain weight array — still reads back through it), and
+  // the weight rides in data-w exactly like a figure's does.
   function buildMatrix() {
     INTERVALS.forEach(function (iv, i) {
-      var row = document.createElement("div");
-      row.className = "matrix-row";
+      var cell = document.createElement("label");
+      cell.className = "fig-cell";
+      cell.setAttribute("aria-label", t("interval." + i));
+      figCellRole(cell);
 
       var cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.setAttribute("aria-label", t("interval." + i));
-      cb.addEventListener("change", function () { syncStepRow(i); generate(); });
-      stepChecks.push(cb);
-      row.appendChild(cb);
+      cb.type = "checkbox"; cb.hidden = true; cb.dataset.w = "2";
 
-      var label = document.createElement("div");
-      label.className = "row-label";
-      label.innerHTML = '<span class="dot" style="background:' + iv.c + '"></span>'
-                      + '<span class="row-name"></span>';
-      label.querySelector(".row-name").textContent = stepLabel(i);
-      row.appendChild(label);
+      var txt = document.createElement("span");
+      txt.className = "fig-txt";
+      txt.textContent = stepLabel(i);
 
-      row.appendChild(makeCell(weightInputs));
-      matrixRows.push(row);
-      matrixEl.appendChild(row);
+      var badge = document.createElement("span");
+      badge.className = "wt";
+      function syncWt() {
+        var w = +cb.dataset.w || 2;
+        badge.textContent = (cb.checked && w > 2) ? "×2" : "";
+      }
+      cb.addEventListener("change", function () { setSwitch(cell, cb.checked); syncWt(); generate(); });
+      cell.addEventListener("click", function (e) {
+        e.preventDefault();      // labels re-dispatch to the checkbox; we own the cycle
+        // A cell the range can't reach doesn't cycle. Letting it turn "on"
+        // would be the panel agreeing to something it is about to ignore, and
+        // a tap that visibly changes nothing reads as a broken control — so
+        // say why instead, and name the fix, which lives in another section.
+        if (!intervalFits(i)) { showRangeNote(i); return; }
+        var w = cb.checked ? (+cb.dataset.w || 2) : 0;
+        var next = (w === 0) ? 2 : (w === 2) ? 4 : 0;
+        cb.checked = next > 0;
+        cb.dataset.w = next > 0 ? next : 2;
+        cb.dispatchEvent(new Event("change"));
+      });
+
+      cell.appendChild(cb);
+      cell.appendChild(txt);
+      cell.appendChild(badge);
+      matrixRows.push(cell);
+      matrixEl.appendChild(cell);
     });
   }
 
-  function syncStepRow(i) {
-    if (matrixRows[i]) matrixRows[i].classList.toggle("off", !stepChecks[i].checked);
+  // Grey out the intervals the current range is too narrow to hold. A cell
+  // keeps its setting while muted — widen the range and it lights straight back
+  // up — for the same reason a figure cell hidden by a meter change keeps its
+  // tick: the range is a separate control, and one control silently editing
+  // another's state is how settings get lost.
+  function syncIntervalCells() {
+    var span = rangeSpan();
+    matrixRows.forEach(function (cell, i) {
+      var muted = i > span;
+      cell.classList.toggle("muted", muted);
+      // Not aria-disabled, which it used to carry. A muted cell is the one cell
+      // in the panel guaranteed to do something when it is pressed — it opens
+      // the note saying what this interval needs and where to widen the range —
+      // and aria-disabled is a promise that pressing does nothing, which
+      // assistive tech keeps by refusing to press at all. So the mute rides in
+      // the name instead, which is where the grey tint's meaning belongs: the
+      // reason is exactly what a reader who cannot see the tint is missing.
+      cell.setAttribute("aria-label", muted
+        ? t("range.note.title", { interval: t("interval." + i) })
+        : t("interval." + i));
+    });
   }
 
-  // Apply a weight to a row. 0 means "not in play" — the checkbox goes off and
-  // the slider rests at the floor.
+  // The explanation behind a muted cell. Small enough to say the whole thing in
+  // the title and one sentence: what this interval needs, what the range
+  // currently is, and where to change it.
+  function showRangeNote(i) {
+    var b = rangeBounds();
+    setNote(
+      t("range.note.title", { interval: t("interval." + i) }),
+      t("range.note.body", {
+        needs: i + 1,
+        has: b[1] - b[0] + 1,
+        low: nameOfIdx(b[0]),
+        high: nameOfIdx(b[1]),
+        section: t("sec.notes")
+      })
+    );
+  }
+
+  function setNote(title, body) {
+    var scrim = document.getElementById("note-scrim");
+    var sheet = document.getElementById("note-sheet");
+    if (!scrim || !sheet) return;
+    if (title != null) {
+      sheet.querySelector("#note-title").textContent = title;
+      sheet.querySelector("#note-body").textContent = body;
+    }
+    var open = title != null;
+    scrim.hidden = !open;
+    sheet.hidden = !open;
+    if (open) { var ok = document.getElementById("note-ok"); if (ok) ok.focus(); }
+  }
+
+  function wireNote() {
+    var close = function () { setNote(null); };
+    ["note-ok", "note-scrim"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener("click", close);
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") {
+        var sheet = document.getElementById("note-sheet");
+        if (sheet && !sheet.hidden) { close(); e.stopPropagation(); }
+      }
+    }, true);
+  }
+
+  // Apply a weight to a cell, snapped to the nearest of the three rungs a
+  // preset or saved session might carry any of the old 1-4 range in. Mirrors
+  // applyBeats: sets state directly rather than through the change event, so
+  // callers that apply a whole alphabet at once don't trigger a regenerate
+  // per interval.
   function setRow(i, w) {
-    var on = w > 0, v = on ? Math.max(WEIGHT_MIN, Math.min(WEIGHT_MAX, w)) : WEIGHT_MIN;
-    stepChecks[i].checked = on;
-    weightInputs[i].value = v;
-    syncStepRow(i);
+    var cell = matrixRows[i];
+    if (!cell) return;
+    var cb = cell.querySelector("input"), snapped = snapIntervalWeight(w);
+    cb.checked = snapped > 0;
+    cb.dataset.w = snapped > 0 ? snapped : 2;
+    setSwitch(cell, cb.checked);
+    var badge = cell.querySelector(".wt");
+    if (badge) badge.textContent = (cb.checked && snapped > 2) ? "×2" : "";
   }
 
   function setWeights(weights) {
@@ -214,10 +354,24 @@
     for (var i = 0; i < weights.length && i < INTERVALS.length; i++) setRow(i, +weights[i] || 0);
   }
 
-  // An unchecked interval contributes 0, which is what the engine's weighted
-  // draw already understands — so nothing downstream needed to change.
+  // Off is just weight 0, which is what the engine's weighted draw already
+  // understands — so nothing downstream needed to change.
+  //
+  // An interval wider than the range is zeroed here, and that is not cosmetic.
+  // Left in, the engine draws it, finds the destination out of bounds, reflects
+  // to the other direction, finds that out of bounds too, and clamps — so a 7th
+  // in a five-note range did not quietly fail, it pinned the line to the top or
+  // bottom of the range and held it there. Muting it in the alphabet is what
+  // the greyed-out cell is promising, so the promise is kept here rather than
+  // in the stylesheet. If that empties the alphabet, the engine's own fallback
+  // takes over and walks in steps.
   function readAlphabet() {
-    var w = weightInputs.map(function (x, i) { return stepChecks[i].checked ? +x.value : 0; });
+    var span = rangeSpan();
+    var w = matrixRows.map(function (cell, i) {
+      var cb = cell.querySelector("input");
+      if (i > span) return 0;
+      return cb.checked ? (+cb.dataset.w || 2) : 0;
+    });
     return { down: w.slice(), up: w.slice() };   // engine still wants both; they're symmetric now
   }
 
@@ -261,36 +415,50 @@
     if (p.alphabet) applyAlphabet(p.alphabet);
     else if (p.down || p.up) applyAlphabet(p);              // legacy {down, up}
     if (p.range) applyRange(p.range);
-    if (p.key != null) setKeyFromCode(p.key);
+    if (p.key != null) setKeys(canonKeys(p.key));
     if (p.clef != null) clefEl.value = p.clef;
-    if (p.timesig != null) timesigEl.value = p.timesig;
+    if (p.timesig != null) timesigEl.value = canonSigs(p.timesig).join(",");
     if (p.measures != null) measuresEl.value = String(Math.max(8, parseInt(p.measures, 10) || 16));
-    if (p.musicality != null) musicalityEl.value = p.musicality;
+    if (p.musicality != null) musicalityEl.value = snapMusicality(p.musicality);
     // Validated through progressionDef: an id saved under the other mode falls
     // back to this mode's first entry instead of sticking as a dead string.
     if (p.progression != null) progressionEl.value = progressionDef(p.progression).id;
     if (p.chroma != null) chromaEl.value = p.chroma;
-    if (p.bowing != null) { bowingEl.value = p.bowing; syncBowingPills(); }
+    // Normalised on the way in, so an old "off" or "2" does not survive into
+    // the next save and the field only ever holds one spelling.
+    if (p.bowing != null) { bowingEl.value = canonSlurs(p.bowing).join(","); syncBowingPills(); }
+    if (p.ties != null) { tiesEl.value = p.ties; syncTiesPills(); }
     // Musicality and chord-following used to be two dials. A preset saved
     // then carries both; the survivor is whichever was set higher, so an old
     // "follow the chords hard, never mind the phrasing" preset still reads as
     // a strong setting rather than collapsing to zero.
-    if (p.harmony != null) musicalityEl.value = String(Math.max(+musicalityEl.value || 0, +p.harmony || 0));
-    syncBeatsFamily();   // meter may have just changed the figure grid — rebuild
-                         // before applyBeats looks for checkboxes in it
+    if (p.harmony != null) musicalityEl.value = snapMusicality(Math.max(+musicalityEl.value || 0, +p.harmony || 0));
+    syncFigureCells();   // the meter set may have just changed which cells apply
     if (p.beats) applyBeats(p.beats);
     if (p.tempo != null) { tempoEl.value = p.tempo; tempoValEl.textContent = p.tempo; }
     if (p.cursor != null) cursorModeEl.value = p.cursor;
     if (p.metronome != null) clickOnEl.checked = p.metronome;
     if (p.playAlong != null) playAlongEl.checked = p.playAlong;
-    if (p.instrument != null) instrumentEl.value = p.instrument;
+    // A session saved before comping existed has no value here; the
+    // select's own default (None) then stands, so an old session sounds
+    // exactly as it did.
+    if (p.comping != null && compingEl.querySelector('option[value="' + p.comping + '"]')) {
+      compingEl.value = p.comping;
+    }
+    // Organ and Vibraphone left the menu. A session saved on either would set a
+    // value the <select> no longer has, which silently blanks it — so they land
+    // on marimba instead. The organ *synth* is untouched: scheduleNote still
+    // stands in with it for every note until the samples decode.
+    if (p.instrument != null) {
+      instrumentEl.value =
+        (p.instrument === "organ" || p.instrument === "vibraphone") ? "marimba" : p.instrument;
+    }
     if (p.volume != null) volumeEl.value = p.volume;
     if (p.hideBehind != null) hideBehindEl.checked = p.hideBehind;
     if (p.hideLead != null) hideLeadEl.value = p.hideLead;
     if (p.hideUnit != null) hideUnitEl.dataset.unit = p.hideUnit;
     if (p.showChunks != null) showChunksEl.checked = p.showChunks;
     if (p.showChords != null) showChordsEl.checked = p.showChords;
-    if (p.ramp != null) rampOnEl.checked = p.ramp;
   }
 
   // What a *preset* defines: the melodic material itself — which intervals,
@@ -300,10 +468,6 @@
   // saved preset leaves them alone — whatever's currently set stays set.
   function readPresetConfig() {
     return {
-      // readAlphabet, not the raw sliders: an unchecked row's slider still
-      // reads WEIGHT_MIN (the checkbox owns off, the slider floors at 1), so
-      // reading it raw saved every switched-off interval as weight 1 — and
-      // reloading the preset turned them all back on.
       alphabet: readAlphabet(),
       range: JSON.parse(JSON.stringify(rangeState)),
       // Which figures are in play is as much a part of the drill as which
@@ -315,7 +479,8 @@
       progression: progressionEl.value,
       chroma: chromaEl.value,
       bowing: bowingEl.value,
-      key: currentKeyCode(),
+      ties: tiesEl.value,
+      key: selectedKeyCodes().join(","),
       clef: clefEl.value,
       timesig: timesigEl.value,
       measures: measuresEl.value
@@ -331,13 +496,13 @@
     cfg.metronome = clickOnEl.checked;
     cfg.playAlong = playAlongEl.checked;
     cfg.instrument = instrumentEl.value;
+    cfg.comping = compingEl.value;
     cfg.volume = volumeEl.value;
     cfg.hideBehind = hideBehindEl.checked;
     cfg.hideLead = hideLeadEl.value;
     cfg.hideUnit = hideUnitEl.dataset.unit || "beats";
     cfg.showChunks = showChunksEl.checked;
     cfg.showChords = showChordsEl.checked;
-    cfg.ramp = rampOnEl.checked;
     return cfg;
   }
 
@@ -347,66 +512,439 @@
 
   function restoreSession() {
     var s; try { s = JSON.parse(localStorage.getItem(SESSION_KEY)); } catch (e) {}
-    if (s) { applyPreset(s); activePreset = null; }   // a session isn't a named preset
+    if (!s) return;
+    applyPreset(s);
+    // The session stores the panel, not the name — so the name is recovered by
+    // asking which drill this panel *is*. Without this, closing the app on Long
+    // Notes and coming back put you on a panel identical to Long Notes with the
+    // header saying "Custom" and no row lit: the band stopped saying where you
+    // were, over a fact it could work out. Yours are checked first, so a drill
+    // you saved wins over the built-in it was based on.
+    activePreset = panelDrillName();
+  }
+
+  function panelDrillName() {
+    var names = allDrillNames();
+    for (var i = 0; i < names.length; i++) {
+      var cfg = drillConfig(names[i]);
+      if (cfg && presetMatchesPanel(cfg)) return names[i];
+    }
+    return null;
+  }
+
+
+  // ---- drills -------------------------------------------------------------
+  // A one-line summary of what a drill actually sets, which is the thing a name
+  // can never carry: "Jig" says nothing about 6/8, and "Mixed Rhythms" and
+  // "Mixed Intervals" are near-identical strings pointing at different axes.
+  // Three facts, most-distinguishing first, from the eleven fields a drill has.
+  function drillSummary(cfg) {
+    if (!cfg) return "";
+    var bits = [];
+
+    // The intervals, named by the one carrying the most weight rather than by
+    // the full list. Every drill lights several — Thirds runs uni through 5th —
+    // so listing them produced "uni-5th" for one thing and "2nd-8ve" for
+    // another, which distinguishes nothing. The heaviest is the drill's
+    // identity; a much wider tail is worth a second word.
+    var a = cfg.alphabet && (cfg.alphabet.up || cfg.alphabet.down);
+    if (a) {
+      var top = -1, topW = 0, widest = -1;
+      for (var i = 0; i < a.length && i < INTERVALS.length; i++) {
+        var w = +a[i] || 0;
+        if (w > topW) { topW = w; top = i; }
+        if (w > 0) widest = i;
+      }
+      if (top >= 0) {
+        var name = plural(top);
+        if (widest - top > 2) name += " " + t("sum.to") + " " + plural(widest);
+        bits.push(name);
+      }
+    }
+
+    // Only what differs from the default. Saying "4/4 · C major" on every row
+    // fills the line without telling you anything: a summary earns its place by
+    // being the part that is not the same as everything else.
+    if (cfg.timesig && String(cfg.timesig) !== "4/4") {
+      bits.push(canonSigs(cfg.timesig).join(", "));
+    }
+    if (cfg.key) {
+      var ks = canonKeys(cfg.key);
+      if (ks.length > 1) bits.push(ks.map(keyShort).join(", "));
+      else if (ks[0] !== "major_0-0") bits.push(keyLong(ks[0]).toLowerCase());
+    }
+    // The two dials that change what the notes ARE rather than which they are.
+    // Without these, Chromatic Steps summarised as "steps" — true, and the one
+    // word that makes it a different drill was missing.
+    if (+cfg.chroma > 0) bits.push(t("sum.chromatic"));
+    var fig = figureFlavour(cfg.beats);
+    if (fig) bits.push(fig);
+    if (cfg.measures && String(cfg.measures) !== "16") {
+      bits.push(cfg.measures + " " + t("val.bars").toLowerCase());
+    }
+    return bits.slice(0, 3).join(" \u00b7 ");
+  }
+
+  // What the rhythm feels like, from the figure ids in play. Named by the
+  // shortest thing present, because that is what a reader notices first: a bar
+  // with sixteenths in it is a sixteenth-note bar whatever else it holds.
+  function figureFlavour(ids) {
+    if (!ids || !ids.length) return "";
+    var has = function (re) { return ids.some(function (k) { return re.test(k); }); };
+    if (has(/s/)) return t("sum.sixteenths");
+    if (has(/trip/)) return t("sum.triplets");
+    if (has(/^d|d[qh]/)) return t("sum.dotted");
+    if (has(/e/)) return t("sum.eighths");
+    return "";
+  }
+
+  // "2nds" is technically right for a step and reads wrong, so the one interval
+  // everybody has a better word for gets it. The rest take the catalogue's
+  // ordinal; English pluralises, Spanish already reads as a count.
+  function plural(i) {
+    if (i === 1) return t("sum.steps");
+    var w = t("step." + i);
+    return /[a-z]$/.test(w) ? w + "s" : w;
+  }
+
+  // Which three are on show. Frozen for the session on purpose: a list that
+  // reorders under a finger is worse than one that is slightly stale, because
+  // you reach for where a thing was, not where a score says it should be. Use
+  // is counted all session and only decides the order at the next open.
+  var DRILL_USE = "sr_drill_use";
+  var drillSlots = [];
+  var parkedSetup = null;                    // one deep, session only
+
+  function loadUse() {
+    try { return JSON.parse(localStorage.getItem(DRILL_USE)) || {}; }
+    catch (e) { return {}; }
+  }
+  function noteUse(name) {
+    var u = loadUse();
+    u[name] = (u[name] || 0) + 1;
+    try { localStorage.setItem(DRILL_USE, JSON.stringify(u)); } catch (e) {}
+  }
+  function allDrillNames() {
+    var saved = loadSaved(), out = [];
+    Object.keys(saved).forEach(function (k) { out.push(k); });
+    Object.keys(BUILTIN).forEach(function (k) { if (out.indexOf(k) < 0) out.push(k); });
+    return out;
+  }
+  function drillConfig(name) {
+    var saved = loadSaved();
+    return saved.hasOwnProperty(name) ? saved[name] : builtinPreset(name);
+  }
+  // Called once per open. Anything the panel is already on stays visible even
+  // if it has never been used, so the band never opens without saying where
+  // you are.
+  function seedDrillSlots() {
+    var u = loadUse(), names = allDrillNames();
+    var ranked = names.slice().sort(function (a, b) { return (u[b] || 0) - (u[a] || 0); });
+    drillSlots = ranked.slice(0, 3);
+    var live = loadedPresetName() || activePreset;
+    if (live && drillSlots.indexOf(live) < 0 && names.indexOf(live) >= 0) {
+      drillSlots[drillSlots.length - 1] = live;
+    }
+  }
+
+  // Closes every open drill menu. One at a time, and any tap outside shuts it —
+  // the same rule the voice menus follow.
+  function closeDrillMenus() {
+    document.querySelectorAll(".drill-menu").forEach(function (m) {
+      if (m.hidden) return;
+      m.hidden = true;
+      var btn = m.parentNode.querySelector(".drill-more");
+      if (btn) btn.setAttribute("aria-expanded", "false");
+    });
+  }
+  document.addEventListener("click", function () { closeDrillMenus(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") closeDrillMenus();
+  });
+
+  // One row per drill: name, what it sets, and — on your own — a menu for
+  // renaming, updating and deleting. It is a sibling of the row rather than a
+  // child of it, so the control that destroys a saved drill is genuinely not
+  // inside the control that runs it (and so the menu's buttons are not nested
+  // in a button).
+  function drillRow(name) {
+    var saved = loadSaved(), mine = saved.hasOwnProperty(name);
+    var live = loadedPresetName();
+    var on = (live && live === name) || (!live && activePreset === name);
+
+    var wrap = document.createElement("div");
+    wrap.className = "drill-row" + (mine ? " mine" : "");
+
+    var row = document.createElement("button");
+    row.type = "button";
+    row.className = "drill" + (on ? " on" : "");
+    row.dataset.preset = name;
+    row.setAttribute("aria-pressed", on ? "true" : "false");
+
+    var txt = document.createElement("div");
+    txt.className = "drill-txt";
+    var nm = document.createElement("div");
+    nm.className = "drill-name";
+    nm.appendChild(document.createTextNode(presetLabel(name)));
+    // Provenance kept rather than thrown away: the app knows you started from
+    // this drill, so it says so instead of collapsing to an unnamed "Custom".
+    if (on && !live) {
+      var ed = document.createElement("span");
+      ed.className = "drill-edited";
+      ed.textContent = " \u00b7 " + t("val.edited");
+      nm.appendChild(ed);
+    }
+    txt.appendChild(nm);
+    var sub = document.createElement("div");
+    sub.className = "drill-sub";
+    sub.textContent = drillSummary(drillConfig(name));
+    txt.appendChild(sub);
+    row.appendChild(txt);
+
+    row.addEventListener("click", function () { applyDrill(name); });
+    wrap.appendChild(row);
+
+    if (mine) {
+      var more = document.createElement("button");
+      more.type = "button";
+      more.className = "drill-more";
+      more.setAttribute("aria-haspopup", "menu");
+      more.setAttribute("aria-expanded", "false");
+      more.setAttribute("aria-label", t("aria.drillMore", { name: presetLabel(name) }));
+      more.textContent = "\u22ef";
+
+      var menu = document.createElement("div");
+      menu.className = "menu drill-menu";
+      menu.setAttribute("role", "menu");
+      menu.hidden = true;
+      // Picking from a menu is itself the deliberate act, so only the one that
+      // cannot be undone asks again. Chaining a confirm onto each was worse
+      // than no menu: dismissing "Update?" offered "Delete?" next, so one
+      // misread tap on the wrong dialog destroyed the drill.
+      [[t("lbl.rename"), function () { renameDrill(name); }],
+       [t("lbl.update"), function () { updatePreset(name); }],
+       [t("lbl.delete"), function () { deletePreset(name); }, "danger"]
+      ].forEach(function (it) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "menu-item" + (it[2] ? " " + it[2] : "");
+        b.setAttribute("role", "menuitem");
+        b.textContent = it[0];
+        b.addEventListener("click", function (e) { e.stopPropagation(); closeDrillMenus(); it[1](); });
+        menu.appendChild(b);
+      });
+
+      more.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var opening = menu.hidden;
+        closeDrillMenus();
+        menu.hidden = !opening;
+        more.setAttribute("aria-expanded", opening ? "true" : "false");
+      });
+      wrap.appendChild(more);
+      wrap.appendChild(menu);
+    }
+    return wrap;
+  }
+
+  // The drill you are on has to be one of the three, or the band stops saying
+  // where you are — which is the whole job of showing three. It takes the
+  // least-used slot, so the two you have been reaching for stay put. Both ways
+  // in need this: picking from the full list, and naming a drill you just made.
+  function showInBand(name) {
+    if (drillSlots.indexOf(name) >= 0) return;
+    var u = loadUse(), worst = 0;
+    for (var i = 1; i < drillSlots.length; i++) {
+      if ((u[drillSlots[i]] || 0) < (u[drillSlots[worst]] || 0)) worst = i;
+    }
+    if (drillSlots.length < 3) drillSlots.push(name); else drillSlots[worst] = name;
+  }
+
+  // Applying never warns. It parks what you had first — but only when that was
+  // actually edited, so loading a pristine drill cannot displace real work. A
+  // confirmation here would fire on almost every tap, because almost every use
+  // involves a tweak, and a dialog that always fires is one people learn to
+  // dismiss unread.
+  function applyDrill(name) {
+    var live = loadedPresetName();
+    if (live === name) return;                       // already exactly this
+    if (!live && activePreset) {
+      parkedSetup = { basedOn: activePreset, cfg: readPresetConfig() };
+    }
+    applyPreset(drillConfig(name));
+    syncPanel();
+    activePreset = name;
+    noteUse(name);
+    showInBand(name);
+    generate();
+    renderPresets();
+  }
+
+  function restoreParked() {
+    if (!parkedSetup) return;
+    applyPreset(parkedSetup.cfg);
+    syncPanel();
+    activePreset = parkedSetup.basedOn;
+    showInBand(activePreset);
+    parkedSetup = null;
+    generate();
+    renderPresets();
+  }
+
+  function actRow(cls, glyph, text, fn, extra) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "drill-act" + (cls ? " " + cls : "");
+    var g = document.createElement("span");
+    g.className = "da-ic"; g.textContent = glyph;
+    b.appendChild(g);
+    b.appendChild(document.createTextNode(text));
+    (extra || []).forEach(function (el) { b.appendChild(el); });
+    b.addEventListener("click", fn);
+    return b;
+  }
+
+  // The app's chevron, stroked by the class it is given.
+  function caret(cls) {
+    var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", cls);
+    svg.setAttribute("aria-hidden", "true");
+    var use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+    use.setAttribute("href", "#ic-chevron");
+    svg.appendChild(use);
+    return svg;
   }
 
   function renderPresets() {
+    if (!drillSlots.length) seedDrillSlots();
+    var names = allDrillNames();
     presetsEl.innerHTML = "";
-    var saved = loadSaved();
-    var all = {};
-    Object.keys(BUILTIN).forEach(function (k) { all[k] = builtinPreset(k); });
-    Object.keys(saved).forEach(function (k) { all[k] = saved[k]; });
-
-    Object.keys(all).forEach(function (name) {
-      var pill = document.createElement("button");
-      pill.className = "pill";
-      var label = document.createElement("span");
-      label.textContent = presetLabel(name);
-      pill.appendChild(label);
-      pill.addEventListener("click", function () {
-        // Built-ins are materialised at click time, not at render time: they
-        // derive their clef from the instrument preference, which the player
-        // may have changed since the pills were built.
-        applyPreset(saved.hasOwnProperty(name) ? saved[name] : builtinPreset(name));
-        syncPanel();              // a preset can move any control — re-read them all
-        activePreset = name;
-        generate();               // renderLoaded -> updateHeader -> syncActivePill
-      });
-      if (saved.hasOwnProperty(name)) {                // user preset/override: updatable + deletable
-        var upd = document.createElement("span");
-        upd.className = "upd"; upd.textContent = "↻"; upd.setAttribute("aria-label", t("aria.updatePreset"));
-        upd.addEventListener("click", function (e) {
-          e.stopPropagation();
-          updatePreset(name);
-        });
-        pill.appendChild(upd);
-        var del = document.createElement("span");
-        del.className = "del"; del.textContent = "×"; del.setAttribute("aria-label", t("aria.deletePreset"));
-        del.addEventListener("click", function (e) {
-          e.stopPropagation();
-          deletePreset(name);
-        });
-        pill.appendChild(del);
-      }
-      pill.dataset.preset = name;
-      presetsEl.appendChild(pill);
+    // A slot can name a drill that has since been deleted, so it is filtered
+    // rather than trusted.
+    drillSlots.forEach(function (name) {
+      if (names.indexOf(name) >= 0) presetsEl.appendChild(drillRow(name));
     });
 
-    var save = document.createElement("button");
-    save.className = "pill save"; save.textContent = t("val.save");
-    save.addEventListener("click", saveCurrent);
-    presetsEl.appendChild(save);
+    var acts = document.getElementById("drill-acts");
+    if (acts) {
+      acts.innerHTML = "";
+      var live = loadedPresetName();
+      // Saving is offered exactly when it means something: you are on a drill
+      // you have changed.
+      if (!live && activePreset) {
+        acts.appendChild(actRow("accent", "\uff0b",
+          t("lbl.saveEdited", { name: presetLabel(activePreset) }), saveCurrent));
+      }
+      if (parkedSetup) {
+        acts.appendChild(actRow("accent", "\u21a9",
+          t("lbl.restore", { name: presetLabel(parkedSetup.basedOn) }), restoreParked));
+      }
+      if (live || !activePreset) {
+        acts.appendChild(actRow("", "\uff0b", t("lbl.newDrill"), saveCurrent));
+      }
+      var n = document.createElement("span");
+      n.className = "da-n";
+      n.textContent = String(names.length);
+      acts.appendChild(actRow("", "\u2630", t("sec.allDrills"), pushDrills,
+        [n, caret("da-caret")]));
+    }
+    renderAllDrills();
     updateHeader();
   }
 
-  // The lit pill follows the same rule as the title: it marks the preset the
-  // panel currently *is*, not merely the last one clicked, so the two can't
-  // disagree once a control has been touched.
+  // Yours first. The built-ins are starting points; what you saved is what you
+  // came back for.
+  function renderAllDrills() {
+    var host = document.getElementById("all-drills-list");
+    if (!host) return;
+    host.innerHTML = "";
+    var saved = loadSaved();
+    var mine = Object.keys(saved);
+    var std = Object.keys(BUILTIN).filter(function (k) { return !saved.hasOwnProperty(k); });
+
+    // Making one is a reason to be on this page, so it does not send you back
+    // to the band to do it. Naming a drill pops the page the same way picking
+    // one does — either way you leave with the panel on something.
+    var add = actRow("page-add", "\uff0b", t("lbl.newDrill"), function () {
+      if (saveCurrent()) popDrills();
+    });
+    host.appendChild(add);
+
+    function group(key, names) {
+      if (!names.length) return;
+      var h = document.createElement("div");
+      h.className = "page-group";
+      h.textContent = t(key);
+      host.appendChild(h);
+      names.forEach(function (nm) { host.appendChild(drillRow(nm)); });
+    }
+    group("lbl.yours", mine);
+    group("lbl.builtIn", std);
+  }
+
+  function pushDrills() {
+    var rail = document.querySelector(".rail");
+    var page = document.getElementById("all-drills");
+    if (!rail || !page) return;
+    rail.classList.add("pushed");
+    page.setAttribute("aria-hidden", "false");
+    // preventScroll, because the page it lives on is still translated fully
+    // off-screen at this instant: a plain focus() makes the browser scroll to
+    // reveal it, which shoves the music column ~400px left and then unwinds as
+    // the transform lands. The sheet appeared to slide in from the left every
+    // time the drills page opened, and nothing in the drills code was moving it.
+    var back = document.getElementById("drills-back");
+    if (back) back.focus({ preventScroll: true });
+  }
+  function wireDrills() {
+    var back = document.getElementById("drills-back");
+    if (back) back.addEventListener("click", popDrills);
+    // Escape pops the page before the rail closes, so it unwinds one level at a
+    // time the way a push should.
+    document.addEventListener("keydown", function (e) {
+      var rail = document.querySelector(".rail");
+      if (e.key === "Escape" && rail && rail.classList.contains("pushed")) {
+        e.stopPropagation();
+        closeDrillMenus();      // this handler stops the key, so it has to
+        popDrills();
+      }
+    }, true);
+    // Choosing from the full list takes you back to the rail, the way a push
+    // does — you came here to pick one, not to browse.
+    var host = document.getElementById("all-drills-list");
+    if (host) host.addEventListener("click", function (e) {
+      if (e.target.closest(".drill") && !e.target.closest(".drill-more")) {
+        setTimeout(popDrills, 90);
+      }
+    });
+  }
+
+  function popDrills() {
+    var rail = document.querySelector(".rail");
+    var page = document.getElementById("all-drills");
+    if (!rail || !page) return;
+    rail.classList.remove("pushed");
+    page.setAttribute("aria-hidden", "true");
+  }
+
+  // The lit row follows the same rule as the title: it marks the drill the
+  // panel currently *is*, not merely the last one tapped, so the two cannot
+  // disagree once a control has been touched. A row that is on but no longer
+  // matching is the edited state, which re-renders to pick up its "· edited".
   function syncActivePill() {
     var live = loadedPresetName();
-    presetsEl.querySelectorAll(".pill").forEach(function (p) {
-      p.classList.toggle("active", !!live && p.dataset.preset === live);
+    var wanted = live || activePreset;
+    var shown = null;
+    document.querySelectorAll(".drill").forEach(function (p) {
+      var on = p.dataset.preset === wanted;
+      p.classList.toggle("on", on);
+      p.setAttribute("aria-pressed", on ? "true" : "false");
+      if (on) shown = p;
     });
+    // "· edited" appears and disappears with the match, so the band has to be
+    // rebuilt when that flips rather than only re-tinted.
+    var hasTag = shown && shown.querySelector(".drill-edited");
+    if ((!live && activePreset && !hasTag) || (live && hasTag)) renderPresets();
   }
 
   function deletePreset(name) {
@@ -415,6 +953,42 @@
     delete saved[name];
     localStorage.setItem(STORE_KEY, JSON.stringify(saved));
     if (activePreset === name) activePreset = null;
+    if (parkedSetup && parkedSetup.basedOn === name) parkedSetup = null;
+    // The slot has to be refilled, not just emptied — renderPresets skips a
+    // name that no longer exists, so a delete otherwise left the band showing
+    // two rows and a gap where the third had been.
+    var at = drillSlots.indexOf(name);
+    if (at >= 0) {
+      drillSlots.splice(at, 1);
+      var u = loadUse();
+      var next = allDrillNames()
+        .filter(function (k) { return drillSlots.indexOf(k) < 0; })
+        .sort(function (a, b) { return (u[b] || 0) - (u[a] || 0); })[0];
+      if (next) drillSlots.push(next);
+    }
+    renderPresets();
+  }
+
+  // The name is the key, so renaming is a move: the use count and the slot go
+  // with it, or the drill you just renamed drops out of the band and out of
+  // the ranking that put it there.
+  function renameDrill(name) {
+    var saved = loadSaved();
+    if (!saved.hasOwnProperty(name)) return;
+    var next = prompt(t("msg.renameDrill", { name: presetLabel(name) }), name);
+    if (next == null) return;
+    next = next.trim();
+    if (!next || next === name) return;
+    saved[next] = saved[name];
+    delete saved[name];
+    localStorage.setItem(STORE_KEY, JSON.stringify(saved));
+    var u = loadUse();
+    if (u.hasOwnProperty(name)) { u[next] = u[name]; delete u[name]; }
+    try { localStorage.setItem(DRILL_USE, JSON.stringify(u)); } catch (e) {}
+    var at = drillSlots.indexOf(name);
+    if (at >= 0) drillSlots[at] = next;
+    if (activePreset === name) activePreset = next;
+    if (parkedSetup && parkedSetup.basedOn === name) parkedSetup.basedOn = next;
     renderPresets();
   }
 
@@ -422,26 +996,35 @@
   // (see readPresetConfig) — not the whole panel, so it doesn't freeze in
   // whatever tempo or metronome state happened to be set at save time.
   function updatePreset(name) {
-    if (!confirm(t("msg.updatePreset", { name: presetLabel(name) }))) return;
     var saved = loadSaved();
     saved[name] = readPresetConfig();
     localStorage.setItem(STORE_KEY, JSON.stringify(saved));
     activePreset = name;
+    showInBand(name);
     renderPresets();
   }
 
-  // Create a new preset from the current panel (updating an existing one is the
-  // ↻ button's job). Typing an existing name still overwrites it.
+  // Create a new drill from the current panel (overwriting one is the ⋯ menu's
+  // job). Typing an existing name still overwrites it. Naming something is the
+  // strongest signal you are on it, so it takes a slot and counts as a use —
+  // without that the band came back showing three other drills and nothing lit,
+  // seconds after you named the one you were looking at.
+  // Returns the name it saved, or null — the All drills page needs to know,
+  // because cancelling the prompt should leave you on the page rather than
+  // popping you back as though you had done something.
   function saveCurrent() {
     var name = prompt(t("msg.newPresetName"), "");
-    if (name == null) return;
+    if (name == null) return null;
     name = name.trim();
-    if (!name) return;
+    if (!name) return null;
     var saved = loadSaved();
     saved[name] = readPresetConfig();
     localStorage.setItem(STORE_KEY, JSON.stringify(saved));
     activePreset = name;
+    noteUse(name);
+    showInBand(name);
     renderPresets();
+    return name;
   }
 
   // ===========================================================================
@@ -458,6 +1041,63 @@
 
   // The scale key as a "<mode>_<symbol>-<acc>" code (the form makeScaleKey reads).
   function currentKeyCode() { return keyModeEl.value + "_" + keyTonicEl.value; }
+
+  // The keys the sheet rotates through. #keys holds the set; key-tonic and
+  // key-mode hold THIS sheet's key, written from the set, so the engine and the
+  // chord names go on reading the two selects they have always read.
+  var keysEl = document.getElementById("keys");
+  var keyIdx = 0, keyFresh = true;     // where in the rotation, and whether the
+                                       // next sheet should advance or use it
+  function keyCodeValid(code) {
+    var parts = String(code).split("_");
+    if (parts.length !== 2 || MODES.indexOf(parts[0]) < 0) return false;
+    // Before probeKeys has run the select is empty; accept the form and let the
+    // probe settle it. After, only a key the engine can build survives.
+    return !keyTonicEl.options.length ||
+           !!keyTonicEl.querySelector('option[value="' + parts[1] + '"]');
+  }
+  // A comma list of codes -> the valid ones, in order, never empty. A drill
+  // saved when a key was one value carries "major_0-0" and reads as a set of
+  // one, the way a single slur length did once slurs became a set.
+  function canonKeys(v) {
+    var out = [];
+    String(v == null ? "" : v).split(",").forEach(function (c) {
+      c = c.trim();
+      if (c && keyCodeValid(c) && out.indexOf(c) < 0) out.push(c);
+    });
+    return out.length ? out : ["major_0-0"];
+  }
+  function selectedKeyCodes() { return canonKeys(keysEl.value); }
+  function applyCurrentKey() {
+    var codes = selectedKeyCodes();
+    keyIdx = keyIdx % codes.length;
+    var before = keyModeEl.value;
+    setKeyFromCode(codes[keyIdx]);
+    if (keyModeEl.value !== before && typeof progressionDef === "function") {
+      progressionEl.value = progressionDef(progressionEl.value).id;   // remap across modes
+      buildProgressionPills();
+    }
+  }
+  // Replacing the set starts the rotation over: the first sheet after a change
+  // is in the first key you picked, not the second.
+  function setKeys(codes) {
+    keysEl.value = canonKeys(codes.join ? codes.join(",") : codes).join(",");
+    keyIdx = 0; keyFresh = true;
+    applyCurrentKey();
+  }
+  // "C", "Am", "F♯", "B♭m" — the spelling the chord names above the staff
+  // already use. C and Am are the same notes and different keys; the m is what
+  // keeps them apart here, as it does there.
+  function keyShort(code) {
+    var parts = String(code).split("_"), tp = (parts[1] || "0-0").split("-");
+    var acc = tp[1] === "#" ? "\u266f" : tp[1] === "b" ? "\u266d" : "";
+    return LETTERS[parseInt(tp[0], 10) || 0] + acc + (parts[0] === "minor" ? "m" : "");
+  }
+  function keyLong(code) {
+    var parts = String(code).split("_"), tp = (parts[1] || "0-0").split("-");
+    var acc = tp[1] === "#" ? "\u266f" : tp[1] === "b" ? "\u266d" : "";
+    return LETTERS[parseInt(tp[0], 10) || 0] + acc + " " + t("mode." + (parts[0] || "major"));
+  }
   // Restore a "<mode>_<symbol>-<acc>" code, ignoring anything the current build
   // doesn't offer (a preset saved before a key list changed shouldn't wedge the app).
   function setKeyFromCode(code) {
@@ -469,8 +1109,8 @@
   var beatsEl      = document.getElementById("beats");
   var showChunksEl = document.getElementById("show-chunks");
   var showChordsEl = document.getElementById("show-chords");
-  var rampOnEl     = document.getElementById("ramp-on");
   var bowingEl     = document.getElementById("bowing");
+  var tiesEl       = document.getElementById("ties");
   var generateBtn  = document.getElementById("generate");
   var errorEl      = document.getElementById("error-msg");
   var sheetEl      = document.getElementById("sheet");
@@ -487,8 +1127,38 @@
     { name: "B", semi: 11 }
   ];
 
+  // Still stored as a per-octave bitmap, because that is the shape every preset
+  // and session in localStorage already carries. What changed is that the panel
+  // now only ever writes a contiguous span into it: the range is two boundary
+  // notes, which is all readRange ever extracted anyway.
   var rangeState = {};   // { [oct]: [bool × 7] }
-  var rangeCells = {};   // { "oct-i": button }
+
+  // Natural notes, numbered straight through: C2 = 0 … B6 = 34. The index the
+  // steppers walk.
+  var NOTE_MAX = RANGE_OCTAVES.length * NOTE_COLS.length - 1;
+  function idxOf(oct, col) { return RANGE_OCTAVES.indexOf(oct) * NOTE_COLS.length + col; }
+  function octOfIdx(i)  { return RANGE_OCTAVES[Math.floor(i / NOTE_COLS.length)]; }
+  function colOfIdx(i)  { return i % NOTE_COLS.length; }
+  function nameOfIdx(i) { return NOTE_COLS[colOfIdx(i)].name + octOfIdx(i); }
+  // Where the note sits on a staff, counted in diatonic steps from C0 — one
+  // step per line-or-space, which is exactly how staves are spaced.
+  function staffStepOfIdx(i) { return octOfIdx(i) * 7 + colOfIdx(i); }
+
+  // Three notes — a third. Narrower than that and there is no line left to
+  // read, only an oscillation. It used to be five (the first-position
+  // pentachord), but a three-note range is a real exercise for a first lesson,
+  // and now that an interval too wide for the range mutes rather than
+  // misbehaving, the narrow end is safe to open up.
+  var MIN_SPAN = 2;
+
+  // How many diatonic steps the range spans, which is the only thing that
+  // decides whether an interval is playable: an interval of n steps needs a
+  // range at least n wide. Note index and staff step move 1:1, so this is the
+  // same number in either. Key, mode and clef don't come into it — the ladder
+  // is diatonic degrees, and chromaticism alters a pitch without changing how
+  // many steps were taken to reach it.
+  function rangeSpan() { var b = rangeBounds(); return b[1] - b[0]; }
+  function intervalFits(i) { return i <= rangeSpan(); }
 
   // A clef's home octaves — the starting selection, and what a built-in resets
   // to. defaultRange() keeps its old meaning (treble) for callers that predate
@@ -505,99 +1175,304 @@
 
   function initRangeState() { rangeState = defaultRange(); }
 
-  function syncRangeCells(oct) {
-    NOTE_COLS.forEach(function (nc, i) {
-      var cell = rangeCells[oct + "-" + i];
-      if (cell) cell.className = "note-cell" + (rangeState[oct][i] ? " on" : "");
+  // The two boundaries, read back off the bitmap. A preset saved under the old
+  // grid may hold any scattered set of notes; its outer two are what the
+  // generator was using, so that is what it becomes.
+  function rangeBounds() {
+    var lo = -1, hi = -1;
+    RANGE_OCTAVES.forEach(function (oct, oi) {
+      NOTE_COLS.forEach(function (nc, i) {
+        if (rangeState[oct] && rangeState[oct][i]) {
+          var idx = oi * NOTE_COLS.length + i;
+          if (lo < 0) lo = idx;
+          hi = idx;
+        }
+      });
     });
-    syncOctCheck(oct);
+    if (lo < 0) return [idxOf(4, 0), idxOf(5, 6)];   // fallback C4–B5
+    return [lo, hi];
+  }
+
+  function setRangeBounds(lo, hi) {
+    RANGE_OCTAVES.forEach(function (oct, oi) {
+      rangeState[oct] = NOTE_COLS.map(function (nc, i) {
+        var idx = oi * NOTE_COLS.length + i;
+        return idx >= lo && idx <= hi;
+      });
+    });
   }
 
   function applyRange(r) {
     RANGE_OCTAVES.forEach(function (oct) {
-      if (r[oct]) {
-        rangeState[oct] = NOTE_COLS.map(function (nc, i) { return !!r[oct][i]; });
-        syncRangeCells(oct);
+      if (r[oct]) rangeState[oct] = NOTE_COLS.map(function (nc, i) { return !!r[oct][i]; });
+    });
+    syncRangeUI();
+  }
+
+  // ---- the staff readout ----
+  // Which diatonic step the bottom line of each clef carries: treble's is E4,
+  // bass's G2, alto's F3, tenor's D3. Everything else on the staff follows from
+  // it at half a line-gap per step.
+  var CLEF_BOTTOM_STEP = { treble: 30, alto: 24, tenor: 22, bass: 18 };
+  // Where each clef's glyph wants to sit, and how big — a treble clef centres
+  // on its G and overhangs the staff, an F clef sits low and compact.
+  // `at` is the diatonic step the glyph centres on: a treble clef sits around
+  // the middle of its staff and overhangs both ends, an F clef hangs off its
+  // fourth line, and a C clef centres on the middle C it points at — which is
+  // the middle line in alto and the fourth in tenor.
+  // `size` is a multiple of the staff's line gap, not a px value, so the whole
+  // drawing scales from that one number. All four happen to want the same
+  // multiple; what differs is where each sits, which is why they stay separate.
+  // Both numbers are eyeballed against the rendered staff rather than derived —
+  // these are text glyphs, and how much of the em box each one inks is a
+  // property of the font, not of the notation.
+  var CLEF_ART = {
+    treble: { size: 5.1, at: 34 },
+    bass:   { size: 5.1, at: 21 },
+    alto:   { size: 5.1, at: 27.2 },
+    tenor:  { size: 5.1, at: 27.2 }
+  };
+
+  // Where each stepper's centre falls, in the staff's own coordinates. Measured
+  // rather than assumed: the steppers are sized off --ctl-h and the type scale,
+  // and the tweaks panel moves both. Null when there is nothing worth aligning
+  // to, which the caller answers by spreading the notes to the staff's ends.
+  function stepperCentres(host, W) {
+    var lo = document.getElementById("low-val"), hi = document.getElementById("high-val");
+    if (!lo || !hi) return null;
+    lo = lo.closest(".stepper"); hi = hi.closest(".stepper");
+    if (!lo || !hi) return null;
+    var hr = host.getBoundingClientRect(), a = lo.getBoundingClientRect(), b = hi.getBoundingClientRect();
+    if (!a.width || !b.width || !hr.width) return null;
+    // Wrapped onto separate lines — on a phone the pair misses fitting side by
+    // side by about four pixels — and both steppers then sit in the same
+    // column, one above the other. There is no horizontal fact left to align
+    // to, and aligning anyway is worse than not: the two noteheads collapse
+    // onto one x, their drag targets land on top of each other, and the
+    // stacking has inverted the relationship in any case — the LOW stepper is
+    // now above the HIGH one while the low note stays below the high one. So
+    // the drawing stops claiming an alignment it cannot have.
+    if (Math.abs(a.top - b.top) > 4) return null;
+    return [a.left + a.width / 2 - hr.left, b.left + b.width / 2 - hr.left];
+  }
+
+  function renderRangeStaff(lo, hi) {
+    var host = document.getElementById("range-staff");
+    if (!host) return;
+    var clef  = (typeof clefEl !== "undefined" && clefEl) ? clefEl.value : "treble";
+    var bottom = CLEF_BOTTOM_STEP[clef] != null ? CLEF_BOTTOM_STEP[clef] : CLEF_BOTTOM_STEP.treble;
+    var art    = CLEF_ART[clef] || CLEF_ART.treble;
+    var top    = bottom + 8;
+    var loStep = staffStepOfIdx(lo), hiStep = staffStepOfIdx(hi);
+
+    // The viewBox is the host's own pixel width, so the drawing is 1:1 with the
+    // page and a notehead can be put at the same x as the control it belongs to
+    // with no scale conversion in between. Every vertical measurement is a
+    // multiple of GAP, so opening the staff up is a one-number change.
+    var GAP = 12, HALF = GAP / 2, W = Math.round(host.clientWidth) || 280;
+    // The drawing grows only as far as the notes actually reach past the staff,
+    // so a range inside it costs no extra height and a ledger-line excursion
+    // shows itself instead of being cropped.
+    var minStep = Math.min(bottom, loStep) - 2;
+    var maxStep = Math.max(top, hiStep) + 2;
+    var H = (maxStep - minStep) * HALF;
+    var y = function (s) { return (maxStep - s) * HALF; };
+    // Kept for the drag handler, which has to run this mapping backwards. The
+    // drawing is 1:1 with the page, so these need no scaling to be useful.
+    staffGeom = { maxStep: maxStep, half: HALF };
+
+    // Hard against the left edge: the low stepper's centre is only ~60px in, so
+    // the clef has to keep out of the way of that note's ledger lines.
+    var CLEF_X = 3;
+    // A notehead fills its space, and a ledger line clears it either side.
+    var NOTE_RX = GAP * 0.56, NOTE_RY = GAP * 0.4, LEDGE = GAP * 0.95;
+    // Each note under the stepper that sets it, kept clear of the clef and of
+    // the right edge so its ledger lines have somewhere to go.
+    var pin = function (x) { return Math.max(CLEF_X + GAP * 3, Math.min(W - LEDGE - 2, x)); };
+    // With no stepper to sit under (see stepperCentres), the width is worth
+    // more as separation than as a pointless offset: low as far left as its
+    // ledger lines clear the clef, high as far right as the staff allows. The
+    // gap that buys is what keeps the two drag targets off each other, which
+    // the pair of fixed fractions this replaces never guaranteed — they were
+    // shares of a width that shrinks, and the hit boxes are a fixed size.
+    // A clef glyph inks roughly two thirds of the em box it is set in, which
+    // is the one number here that says where it stops.
+    var clefEnd = CLEF_X + art.size * GAP * 0.7;
+    var xs = stepperCentres(host, W) || [clefEnd + LEDGE, W];
+    var LO_X = pin(xs[0]), HI_X = pin(xs[1]);
+    var svg = [];
+    svg.push('<svg viewBox="0 0 ' + W + ' ' + H.toFixed(1) + '" width="100%" role="img">');
+
+    // The band between the two notes — what "in play" means, vertically. Full
+    // width and drawn first, so it reads as the paper being lit rather than a
+    // bar laid over the staff; stopping it short of the clef only produced a
+    // hard vertical edge halfway along the lines.
+    svg.push('<rect class="rs-band" x="0" y="' + y(hiStep).toFixed(1) +
+             '" width="' + W + '" height="' + ((hiStep - loStep) * HALF).toFixed(1) + '"/>');
+
+    for (var k = 0; k <= 8; k += 2) {
+      svg.push('<line class="rs-line" x1="0" x2="' + W +
+               '" y1="' + y(bottom + k).toFixed(1) + '" y2="' + y(bottom + k).toFixed(1) + '"/>');
+    }
+    svg.push('<text class="rs-clef" x="' + CLEF_X + '" y="' + y(art.at).toFixed(1) +
+             '" font-size="' + (art.size * GAP).toFixed(1) + '" dominant-baseline="central">' +
+             clefDef(clef).label + '</text>');
+
+    // Ledger lines are drawn per note, only as far out as that note reaches —
+    // the same rule an engraver follows.
+    [[loStep, LO_X], [hiStep, HI_X]].forEach(function (p) {
+      var s = p[0], x = p[1], j;
+      // A soft disc behind the notehead: the thing that says "this is a handle"
+      // on a touch screen, where there is no cursor to change shape. It costs no
+      // height — it sits inside the staff — and the drag itself is not limited
+      // to it, so it can stay small enough not to clutter the lines. Drawn
+      // before the ledger lines, which have to stay legible through it: a
+      // ledger line is what tells you the note is above or below the staff.
+      // Deliberately narrower than LEDGE, so a ledger line still shows its tips
+      // either side of the disc instead of vanishing under it.
+      svg.push('<circle class="rs-grip" cx="' + x + '" cy="' + y(s).toFixed(1) +
+               '" r="' + (GAP * 0.72).toFixed(1) + '"/>');
+      for (j = bottom - 2; j >= s; j -= 2) {
+        svg.push('<line class="rs-ledger" x1="' + (x - LEDGE) + '" x2="' + (x + LEDGE) +
+                 '" y1="' + y(j).toFixed(1) + '" y2="' + y(j).toFixed(1) + '"/>');
       }
+      for (j = top + 2; j <= s; j += 2) {
+        svg.push('<line class="rs-ledger" x1="' + (x - LEDGE) + '" x2="' + (x + LEDGE) +
+                 '" y1="' + y(j).toFixed(1) + '" y2="' + y(j).toFixed(1) + '"/>');
+      }
+      svg.push('<ellipse class="rs-note" cx="' + x + '" cy="' + y(s).toFixed(1) +
+               '" rx="' + NOTE_RX + '" ry="' + NOTE_RY + '" transform="rotate(-20 ' +
+               x + ' ' + y(s).toFixed(1) + ')"/>');
+    });
+
+    svg.push('</svg>');
+    // Only the drawing is replaced. The two hit targets are persistent nodes:
+    // a pointer capture taken on one of them would be lost the moment the
+    // drawing re-rendered, which is every single step of a drag.
+    var draw = host.querySelector(".rs-draw");
+    if (!draw) { draw = document.createElement("div"); draw.className = "rs-draw"; host.appendChild(draw); }
+    draw.innerHTML = svg.join("");
+    [["low", LO_X, loStep], ["high", HI_X, hiStep]].forEach(function (p) {
+      var hit = host.querySelector('.rs-hit[data-end="' + p[0] + '"]');
+      if (!hit) {
+        hit = document.createElement("div");
+        hit.className = "rs-hit";
+        hit.dataset.end = p[0];
+        hit.setAttribute("aria-hidden", "true");
+        host.appendChild(hit);
+      }
+      // The drawing is 1:1 with the page, so the note's SVG coordinates are
+      // already the offsets this needs.
+      hit.style.left = p[1] + "px";
+      hit.style.top  = y(p[2]).toFixed(1) + "px";
     });
   }
 
-  // Octave checkbox: on when any note in the row is picked; toggling it turns the
-  // whole octave on or off (matching the Step rows' checkbox-owns-the-row idea).
-  var octChecks = {};
-
-  function syncOctCheck(oct) {
-    if (octChecks[oct]) octChecks[oct].checked = rangeState[oct].some(Boolean);
+  function syncRangeUI() {
+    var b = rangeBounds(), lo = b[0], hi = b[1];
+    var loEl = document.getElementById("low-val"), hiEl = document.getElementById("high-val");
+    if (loEl) loEl.textContent = nameOfIdx(lo);
+    if (hiEl) hiEl.textContent = nameOfIdx(hi);
+    var dis = function (id, off) { var e = document.getElementById(id); if (e) e.disabled = off; };
+    dis("low-down",  lo <= 0);
+    dis("low-up",    lo >= hi - MIN_SPAN);
+    dis("high-down", hi <= lo + MIN_SPAN);
+    dis("high-up",   hi >= NOTE_MAX);
+    renderRangeStaff(lo, hi);
+    syncIntervalCells();   // the range is what decides which intervals are reachable
   }
 
-  function buildRangeGrid() {
-    var container = document.getElementById("range-grid");
-    container.innerHTML = "";
-    // column headers
-    var hdr = document.createElement("div");
-    hdr.className = "note-row";
-    hdr.appendChild(document.createElement("span")); // checkbox corner
-    hdr.appendChild(document.createElement("span")); // octave-label corner
-    NOTE_COLS.forEach(function (nc) {
-      var h = document.createElement("span");
-      h.className = "note-col-hdr"; h.textContent = nc.name;
-      hdr.appendChild(h);
+  // Move one end to an absolute note, clamped by the other end and the outer
+  // octaves. Returns whether anything actually moved, so a drag that has not
+  // crossed into the next note does not redraw or regenerate.
+  function setRangeEnd(which, idx) {
+    var b = rangeBounds(), lo = b[0], hi = b[1];
+    if (which === "low") lo = Math.max(0, Math.min(hi - MIN_SPAN, idx));
+    else                 hi = Math.max(lo + MIN_SPAN, Math.min(NOTE_MAX, idx));
+    if (lo === b[0] && hi === b[1]) return false;
+    setRangeBounds(lo, hi);
+    syncRangeUI();
+    return true;
+  }
+
+  function nudgeRange(which, delta) {
+    var b = rangeBounds();
+    if (setRangeEnd(which, (which === "low" ? b[0] : b[1]) + delta)) generate();
+  }
+
+  // Dragging the notes. The whole staff is the grab target and the nearer end
+  // wins, which is how a two-thumb slider behaves — so neither handle needs a
+  // finger-sized box of its own and the drawing stays as short as it is.
+  // generate() waits for the release: redrawing the staff on every pointermove
+  // is cheap, re-engraving sixteen bars is not.
+  function bindRangeDrag() {
+    var host = document.getElementById("range-staff");
+    if (!host || !window.PointerEvent) return;
+    var active = null, moved = false, startY = 0, startIdx = 0, grabHalf = 6;
+
+    // A drag starts on a note and nowhere else. Grabbing the nearest end from
+    // anywhere on the staff made the whole block swallow vertical swipes, so on
+    // a phone the panel would not scroll past this control. Only the two hit
+    // targets take the gesture now — everything else on the staff scrolls, and
+    // they are the only elements carrying touch-action: none.
+    host.addEventListener("pointerdown", function (e) {
+      var hit = e.target.closest && e.target.closest(".rs-hit");
+      if (!hit) return;
+      active = hit.dataset.end;
+      // Measured as movement, not position: the drawing re-renders on every
+      // step and its vertical extent tracks the notes, so the y that meant B5
+      // at the press does not mean B5 a moment later — reading absolutely made
+      // the note run away from the finger.
+      startY = e.clientY;
+      startIdx = (active === "low") ? rangeBounds()[0] : rangeBounds()[1];
+      grabHalf = (staffGeom && staffGeom.half) || 6;
+      moved = false;
+      host.classList.add("dragging");
+      if (host.setPointerCapture) host.setPointerCapture(e.pointerId);
+      e.preventDefault();
     });
-    container.appendChild(hdr);
-    // octave rows
-    RANGE_OCTAVES.forEach(function (oct) {
-      var row = document.createElement("div");
-      row.className = "note-row";
-
-      var cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.checked = rangeState[oct].some(Boolean);
-      cb.setAttribute("aria-label", t("aria.octave") + " " + oct);
-      (function (o) {
-        cb.addEventListener("change", function () {
-          var on = cb.checked;
-          rangeState[o] = rangeState[o].map(function () { return on; });
-          syncRangeCells(o);
-          generate();
-        });
-      })(oct);
-      octChecks[oct] = cb;
-      row.appendChild(cb);
-
-      var lbl = document.createElement("span");
-      lbl.className = "note-row-lbl"; lbl.textContent = String(oct);
-      row.appendChild(lbl);
-
-      NOTE_COLS.forEach(function (nc, i) {
-        var cell = document.createElement("button");
-        cell.className = "note-cell" + (rangeState[oct][i] ? " on" : "");
-        rangeCells[oct + "-" + i] = cell;
-        (function (o, idx) {
-          cell.addEventListener("click", function () {
-            rangeState[o][idx] = !rangeState[o][idx];
-            syncRangeCells(o);
-            generate();
-          });
-        })(oct, i);
-        row.appendChild(cell);
-      });
-      container.appendChild(row);
+    host.addEventListener("pointermove", function (e) {
+      if (!active) return;
+      var steps = Math.round((startY - e.clientY) / grabHalf);
+      if (setRangeEnd(active, startIdx + steps)) moved = true;
     });
+    var release = function () {
+      if (!active) return;
+      active = null;
+      host.classList.remove("dragging");
+      if (moved) generate();
+      moved = false;
+    };
+    host.addEventListener("pointerup", release);
+    host.addEventListener("pointercancel", release);
+  }
+
+  function buildRangeUI() {
+    [["low-down", "low", -1], ["low-up", "low", 1],
+     ["high-down", "high", -1], ["high-up", "high", 1]].forEach(function (spec) {
+      var el = document.getElementById(spec[0]);
+      if (el) el.addEventListener("click", function () { nudgeRange(spec[1], spec[2]); });
+    });
+    // The staff is drawn in page pixels so its notes can line up with the
+    // steppers, which means a width change — the rail opening, a rotation, the
+    // tweaks panel moving --ctl-h — has to redraw it. Watched on the row of
+    // steppers rather than on the staff itself: the staff's own height changes
+    // every time it redraws, and observing that would feed straight back in.
+    var row = document.querySelector(".range-row");
+    if (row && window.ResizeObserver) {
+      new ResizeObserver(function () {
+        var b = rangeBounds();
+        renderRangeStaff(b[0], b[1]);
+      }).observe(row);
+    }
+    bindRangeDrag();
+    syncRangeUI();
   }
 
   function readRange() {
-    var lowH = Infinity, highH = -Infinity;
-    RANGE_OCTAVES.forEach(function (oct) {
-      NOTE_COLS.forEach(function (nc, i) {
-        if (rangeState[oct][i]) {
-          var h = oct * 12 + nc.semi;
-          if (h < lowH) lowH = h;
-          if (h > highH) highH = h;
-        }
-      });
-    });
-    if (!isFinite(lowH)) { lowH = 48; highH = 71; } // fallback C4–B5
-    return { lowH: lowH, highH: highH };
+    var b = rangeBounds();
+    var pitch = function (i) { return octOfIdx(i) * 12 + NOTE_COLS[colOfIdx(i)].semi; };
+    return { lowH: pitch(b[0]), highH: pitch(b[1]) };
   }
 
   // ===========================================================================
@@ -629,6 +1504,7 @@
     { id: "violin",   clef: "treble" },
     { id: "viola",    clef: "alto"   },
     { id: "cello",    clef: "bass"   },
+    { id: "bass",     clef: "bass"   },
     { id: "flute",    clef: "treble" },
     { id: "clarinet", clef: "treble" },
     { id: "sax",      clef: "treble" },
@@ -675,11 +1551,51 @@
     return TIME_SIGS[2];   // 4/4
   }
 
+  // The meter is a SET now, and every exercise is drawn entirely in one of them.
+  // Two different questions follow from that, and keeping them apart is what
+  // makes the rest of this work:
+  //
+  //   selectedSigs()  what the panel is offering — drives the figure palette
+  //                   and the meter cells, and nothing else.
+  //   currentSig()    the meter the exercise ON SCREEN is actually in — drives
+  //                   the generator, the beaming, the playback clock and
+  //                   hide-ahead. Reading the selection here would break the
+  //                   moment the set held more than one.
+  //
+  // Stored as a comma list in the hidden input, so a preset saved as plain
+  // "4/4" still reads back correctly and nothing in localStorage has to move.
+  var drawnSig = null;
+
+  function canonSigs(v) {
+    var want = String(v == null ? "" : v).split(",").map(function (s) { return s.trim(); });
+    var ids = TIME_SIGS.filter(function (s) { return want.indexOf(s.id) >= 0; })
+                       .map(function (s) { return s.id; });
+    return ids.length ? ids : ["4/4"];   // never nothing; the cells clamp at one
+  }
+  function selectedSigIds() { return canonSigs(timesigEl.value); }
+  function selectedSigs() { return selectedSigIds().map(timeSigDef); }
+  function currentSig() { return timeSigDef(drawnSig || selectedSigIds()[0]); }
+  // Which meter this exercise gets. Called once per generation; everything
+  // downstream then agrees on the answer.
+  // Rotates, in the order the cells show, rather than drawing at random: a
+  // practice run should visit each meter in turn, and the header should be
+  // able to say which comes next. Like the keys, the first sheet after the
+  // set changes takes the first meter; every "next sheet" after that advances.
+  var sigIdx = 0, sigFresh = true;
+  function drawSig() {
+    var ids = selectedSigIds();
+    if (nextSheet && !sigFresh) sigIdx = (sigIdx + 1) % ids.length;
+    sigFresh = false;
+    sigIdx = sigIdx % ids.length;
+    drawnSig = ids[sigIdx];
+    return timeSigDef(drawnSig);
+  }
+
   // One felt pulse, in quarter notes — what a reader counts. A quarter in the
   // simple meters, a dotted quarter in 6/8, which is why 6/8 gets two pulses to
   // a bar rather than six. The generator anchors chord tones to these, so "on
   // the beat" has to mean the same thing in every meter.
-  function pulseBeats() { return timeSigDef(timesigEl.value).compound ? 1.5 : 1; }
+  function pulseBeats() { return currentSig().compound ? 1.5 : 1; }
 
   // Rewrite the exported score's clef. The exporter emits exactly one
   // <clef><sign>G</sign><line>2</line></clef> per part, at the first measure.
@@ -690,35 +1606,155 @@
       "<clef><sign>" + c.sign + "</sign><line>" + c.line + "</line></clef>");
   }
 
-  // Bowing: slur consecutive sounding notes in groups of n, per bar. Rests
-  // break a group, and a leftover group of one gets no slur — a slur needs two
-  // ends. OSMD draws the curves from the <slur> notations natively.
-  function applySlursToXml(xml, n) {
+  // Write the ties the engine decided on. It hands back the indices of the
+  // bars whose last note holds over, which is all the position we need: by
+  // construction the held note is a bar's last note and its continuation is
+  // the first note of the bar after. <tie> is the sounding half of it and
+  // <tied> the drawn half; OSMD needs the notation, playback needs the other.
+  // Returns the rewritten xml *and* the bars it actually tied. Playback and the
+  // chunk analyzer both have to know which noteheads are one sounding note, and
+  // deriving that twice from slightly different rules is how the two drift
+  // apart — so what got written is what they are told.
+  function applyTiesToXml(xml, bars) {
+    if (!bars || !bars.length) return { xml: xml, applied: [] };
+    var doc = new DOMParser().parseFromString(xml, "application/xml");
+    if (doc.querySelector("parsererror")) return { xml: xml, applied: [] };
+    var applied = [];
+    var measures = doc.querySelectorAll("measure");
+    function mark(note, type) {
+      if (!note || note.querySelector("rest")) return false;
+      var tie = doc.createElement("tie");
+      tie.setAttribute("type", type);
+      // MusicXML wants <tie> straight after <duration>, and <tied> inside
+      // <notations> — the same note can already carry a slur, so append.
+      var dur = note.querySelector("duration");
+      if (dur && dur.nextSibling) note.insertBefore(tie, dur.nextSibling);
+      else note.appendChild(tie);
+      var nts = note.querySelector("notations");
+      if (!nts) { nts = doc.createElement("notations"); note.appendChild(nts); }
+      var tied = doc.createElement("tied");
+      tied.setAttribute("type", type);
+      nts.appendChild(tied);
+      return true;
+    }
+    bars.forEach(function (bi) {
+      var from = measures[bi], to = measures[bi + 1];
+      if (!from || !to) return;
+      var fromNotes = from.querySelectorAll("note");
+      var toNotes = to.querySelectorAll("note");
+      if (!fromNotes.length || !toNotes.length) return;
+      // Both ends or neither: a lone start or stop is a curve into nothing.
+      var a = fromNotes[fromNotes.length - 1], b = toNotes[0];
+      if (a.querySelector("rest") || b.querySelector("rest")) return;
+      mark(a, "start");
+      mark(b, "stop");
+      applied.push(bi);
+    });
+    return { xml: new XMLSerializer().serializeToString(doc), applied: applied };
+  }
+
+  // Which group lengths are in play, read off the hidden field. Stored as a
+  // comma list ("2,3") since more than one can be on at once. Presets saved
+  // before that carry a single value, and "off" from before there was a way to
+  // say it with no selection at all — both still load, which matters because
+  // they are sitting in people's browsers.
+  // How Musical? offered twenty-one positions and now offers three. Nobody
+  // could hear 65 against 70, and a bare track with no readout gave no way to
+  // find either again — so the control keeps its range and loses the
+  // resolution it could not spend. The values in between are still real to the
+  // engine; they are simply no longer reachable by hand.
+  //
+  // Same shape of problem as canonSlurs below: presets saved under the old
+  // control carry values the new one cannot represent, and they are sitting in
+  // people's browsers. Snapping on the way in — and again when a preset is
+  // compared against the panel — is what stops a saved 65 from reading as
+  // "not the current panel" forever after.
+  // Two states, so old values have to land on one of them. Anything above a
+  // random walk rounds up rather than down — the middle stop used to mean
+  // "some structure", and reading that as "none" throws away the setting
+  // rather than approximating it.
+  function snapMusicality(v) {
+    var n = +v;
+    if (!isFinite(n)) return "100";
+    return (n > 0) ? "100" : "0";
+  }
+
+  function canonSlurs(v) {
+    var s = String(v == null ? "" : v).trim();
+    if (!s || s === "off") return [];        // "off" is the pre-multi-select spelling
+    var out = [];
+    s.split(",").forEach(function (part) {
+      var n = parseInt(part, 10);
+      // 1 stays a member. It looks like "no slur" and alone it is, but mixed
+      // with a real length it is the thing that leaves notes standing on their
+      // own: {1,2} draws pairs through 42 of 128 notes and leaves the rest
+      // bare, which is a different exercise from {2}'s unbroken pairs.
+      if (n >= 1 && n <= 4 && out.indexOf(n) < 0) out.push(n);
+    });
+    return out.sort(function (a, b) { return a - b; });
+  }
+  function slurLengths() { return canonSlurs(bowingEl.value); }
+
+  // Slur consecutive sounding notes in groups drawn from `lengths`, straight
+  // through barlines,
+  // because a phrase does. Grouping per bar used to strand the tail of every
+  // bar the group did not divide — "slur in 2s" in 3/4 joined two notes and
+  // left the third alone, in every bar, which is a stutter rather than a
+  // phrase. Where the group does divide the bar the chain re-aligns at each
+  // barline by itself, so the meters that already looked right are untouched.
+  //
+  // Rests break a group: that is a real lift, not a barline. A leftover group
+  // of one gets no slur — a slur needs two ends.
+  //
+  // A tied note counts once, however many noteheads it is written with. Both
+  // marks are the same curve and they mean opposite things — a tie says do not
+  // play the second head, a slur says play them all, joined — so a slur that
+  // restarted on the far side of a tie turned the line into a chain of curves
+  // with no way to tell one from the other. The slur spans the held note
+  // instead, entering before it and leaving after.
+  function applySlursToXml(xml, lengths) {
+    if (!lengths || !lengths.length) return xml;
     var doc = new DOMParser().parseFromString(xml, "application/xml");
     if (doc.querySelector("parsererror")) return xml;
-    doc.querySelectorAll("measure").forEach(function (measure) {
-      var run = [];
-      function flush() {
-        for (var i = 0; i + 1 < run.length; i += n) {
-          var group = run.slice(i, i + n);
-          if (group.length < 2) break;
-          [[group[0], "start"], [group[group.length - 1], "stop"]].forEach(function (pair) {
-            var nts = pair[0].querySelector("notations");
-            if (!nts) { nts = doc.createElement("notations"); pair[0].appendChild(nts); }
-            var slur = doc.createElement("slur");
-            slur.setAttribute("type", pair[1]);
-            slur.setAttribute("number", "1");
-            nts.appendChild(slur);
-          });
-        }
-        run = [];
+
+    function addSlur(note, type) {
+      var nts = note.querySelector("notations");
+      if (!nts) { nts = doc.createElement("notations"); note.appendChild(nts); }
+      var slur = doc.createElement("slur");
+      slur.setAttribute("type", type);
+      slur.setAttribute("number", "1");
+      nts.appendChild(slur);
+    }
+
+    // One unit per sounding note — first and last are the same notehead unless
+    // the note is tied, in which case the unit spans the whole held chain.
+    var run = [];
+    function flush() {
+      var i = 0;
+      while (i < run.length) {
+        var n = lengths[Math.floor(Math.random() * lengths.length)];
+        // A group of one is the separate bow — the note stands on its own, no
+        // curve, and the next group starts after it. On its own it says
+        // nothing (that is just "no slurs"); mixed in with longer groups it is
+        // what puts air between them.
+        if (n < 2) { i += 1; continue; }
+        var group = run.slice(i, i + n);
+        if (group.length < 2) break;   // one note left at the end: nothing to join it to
+        addSlur(group[0].first, "start");
+        addSlur(group[group.length - 1].last, "stop");
+        i += group.length;
       }
-      Array.prototype.forEach.call(measure.querySelectorAll("note"), function (note) {
-        if (note.querySelector("rest")) flush();
-        else run.push(note);
-      });
-      flush();
+      run = [];
+    }
+    Array.prototype.forEach.call(doc.querySelectorAll("note"), function (note) {
+      if (note.querySelector("rest")) { flush(); return; }
+      if (run.length && note.querySelector("tie[type=stop]")) {
+        run[run.length - 1].last = note;    // still the same sound
+        return;
+      }
+      run.push({ first: note, last: note });
     });
+    flush();
     return new XMLSerializer().serializeToString(doc);
   }
 
@@ -849,16 +1885,15 @@
     return new XMLSerializer().serializeToString(doc);
   }
 
-  // Move the picked notes onto the new clef's staff: select every pitch in that
-  // clef's two octaves. (Hand-picking afterwards is untouched until the next
-  // clef change.)
+  // Move the range onto the new clef's staff: its two home octaves, end to end.
+  // (Stepping it afterwards is untouched until the next clef change.) This is
+  // also what keeps the staff readout honest — the notes can only be sitting on
+  // a pile of ledger lines if you deliberately stepped them there.
   function shiftRangeToClef(id) {
     var octs = clefDef(id).octaves;
-    RANGE_OCTAVES.forEach(function (oct) {
-      var on = (octs.indexOf(oct) >= 0);
-      rangeState[oct] = NOTE_COLS.map(function () { return on; });
-      syncRangeCells(oct);
-    });
+    var lo = Math.min.apply(null, octs), hi = Math.max.apply(null, octs);
+    setRangeBounds(idxOf(lo, 0), idxOf(hi, NOTE_COLS.length - 1));
+    syncRangeUI();
   }
 
   // ===========================================================================
@@ -1004,6 +2039,43 @@
     return '<svg viewBox="0 0 ' + w + ' 28" class="fig-svg">' + g + "</svg>";
   }
 
+  // A slur, drawn. The words ("Apart 2 3 4") never said what the setting does —
+  // a curve over n noteheads does, and it puts slurs in the same visual family
+  // as the figures above them, which is where they belong: both are marks on
+  // the notes rather than settings about them.
+  //
+  // Noteheads without stems on purpose. This is an icon for "how many notes
+  // under one curve", and stems would add ink that carries no part of that.
+  // Group 4 is a wide cell for the same reason a two-beat figure is: how wide
+  // it sits is how far the slur reaches.
+  function slurGlyph(n) {
+    var H = 19, wide = n >= 4;
+    var w = wide ? 88 : 44;
+    var count = n === 1 ? 3 : n;            // "apart" shows three loose notes
+    var span = wide ? 62 : (n === 3 ? 30 : 22);
+    var x0 = (w - span) / 2;
+    var gap = count > 1 ? span / (count - 1) : 0;
+    var g = "", i, x;
+    for (i = 0; i < count; i++) {
+      x = x0 + gap * i;
+      g += '<ellipse cx="' + x.toFixed(1) + '" cy="' + H + '" rx="3.3" ry="2.5" fill="currentColor"/>';
+    }
+    if (n > 1) {
+      // One arc from the first notehead to the last, rising clear of both. Its
+      // height grows with the span but sub-linearly, the way an engraved slur
+      // does — a flat rise looked like a tie at group 4, where the span is
+      // nearly three times the group-2 one. A quadratic peaks halfway to its
+      // control point, so the control sits at twice the wanted rise.
+      var a = x0, b = x0 + span, mid = (a + b) / 2;
+      var endY = H - 5, rise = 5 + span * 0.06;
+      g += '<path d="M ' + a.toFixed(1) + ' ' + endY +
+           ' Q ' + mid.toFixed(1) + ' ' + (endY - rise * 2).toFixed(1) +
+           ' ' + b.toFixed(1) + ' ' + endY +
+           '" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>';
+    }
+    return '<svg viewBox="0 0 ' + w + ' 28" class="fig-svg">' + g + "</svg>";
+  }
+
   // Flat grid of rhythm figures — each cell is a notation glyph toggled on/off,
   // its name revealed on hover. A hidden .beat checkbox keeps the read/apply
   // path (buildBeatPatterns / readBeatIds / applyBeats) unchanged.
@@ -1019,55 +2091,66 @@
     });
   });
 
-  function currentBeatFigures() {
-    return timeSigDef(timesigEl.value).compound ? BEAT_FIGURES_COMPOUND : BEAT_FIGURES_SIMPLE;
-  }
-
-  // Figures are grouped, and a group can be hidden without being torn down —
-  // switching to 2/4 hides the across-the-beat set rather than rebuilding the
-  // palette, so whatever you had ticked is still ticked when you come back.
-  // Headings only appear when more than one group is showing: a lone "Basic"
-  // above the only grid on screen would be labelling nothing.
-  var FIG_GROUPS = ["basic", "more"];
-
-  function buildBeatsPalette(figures) {
+  // One grid, every figure, both families — built once and never torn down.
+  //
+  // It used to be two palettes that swapped, which had a bug nobody hit often
+  // enough to report: the swap rebuilt the grid from `item.def`, so going
+  // 4/4 → 6/8 → 4/4 silently threw away whatever you had ticked. Multi-select
+  // would have made that constant. Now nothing is rebuilt on a meter change —
+  // cells are only shown or hidden, and a hidden cell keeps its tick.
+  //
+  // The Basic/More headings are gone with it. They were describing the shape of
+  // the DOM (two groups) rather than anything a reader cares about, and with a
+  // third family's cells arriving they would have needed a third heading to
+  // explain a distinction that was never the point. One grid of figures.
+  function buildBeatsPalette() {
     beatsEl.innerHTML = "";
-    beatsEl.dataset.family = timeSigDef(timesigEl.value).compound ? "compound" : "simple";
-    FIG_GROUPS.forEach(function (gid) {
-      var members = figures.filter(function (f) { return (f.group || "basic") === gid; });
-      if (!members.length) return;
-      var group = document.createElement("div");
-      group.className = "fig-group";
-      group.dataset.group = gid;
+    [[BEAT_FIGURES_SIMPLE, "simple"], [BEAT_FIGURES_COMPOUND, "compound"]].forEach(function (set) {
+      // One section per family, each headed by the meters it serves. A simple
+      // figure and a compound one cannot share a bar, so a single mixed grid
+      // would be showing you 26 cells without saying which of them the meter
+      // you are about to read can actually use.
+      var fam = document.createElement("div");
+      fam.className = "fig-fam";
+      fam.dataset.fam = set[1];
       var h = document.createElement("h3");
       h.className = "fig-h";
-      h.setAttribute("data-i18n", "grp." + gid);
-      h.textContent = t("grp." + gid);
-      group.appendChild(h);
+      fam.appendChild(h);
       var grid = document.createElement("div");
       grid.className = "fig-grid";
-      members.forEach(function (item) {
+      fam.appendChild(grid);
+      beatsEl.appendChild(fam);
+      set[0].forEach(function (item) {
         var cell = document.createElement("label");
         cell.className = "fig-cell" + (item.wide ? " wide" : "");
+        cell.dataset.fam = set[1];
+        if (item.wide) cell.dataset.wide = "1";
         cell.setAttribute("aria-label", t("fig." + item.id));
+        figCellRole(cell);
         var cb = document.createElement("input");
         cb.type = "checkbox"; cb.className = "beat"; cb.value = item.id; cb.checked = !!item.def; cb.hidden = true;
-        if (cb.checked) cell.classList.add("on");
+        setSwitch(cell, cb.checked);
         // A figure carries a weight, like an interval row does: how *often* it
         // is drawn, not just whether. The checkbox still owns in-or-out (so
         // every existing reader keeps working); the weight rides in data-w and
-        // the tap cycles off → on → ×2 → ×4 → off.
+        // the tap cycles off → on → ×2 → off.
+        //
+        // Three rungs, not four. ×4 was a rung nobody could hear as distinct
+        // from ×2 — against a handful of other lit figures both read as "mostly
+        // this one" — and it made the tap cycle long enough that getting back to
+        // off meant thinking about where you were. Every shipped preset already
+        // topped out at ×2, so the ladder is now what the presets were using.
         var badge = document.createElement("span");
         badge.className = "wt";
         function syncWt() {
           var w = +cb.dataset.w || 1;
           badge.textContent = (cb.checked && w > 1) ? "\u00d7" + w : "";
         }
-        cb.addEventListener("change", function () { cell.classList.toggle("on", cb.checked); syncWt(); generate(); });
+        cb.addEventListener("change", function () { setSwitch(cell, cb.checked); syncWt(); generate(); });
         cell.addEventListener("click", function (e) {
           e.preventDefault();      // labels re-dispatch to the checkbox; we own the cycle
           var w = cb.checked ? (+cb.dataset.w || 1) : 0;
-          var next = (w === 0) ? 1 : (w === 1) ? 2 : (w === 2) ? 4 : 0;
+          var next = (w === 0) ? 1 : (w === 1) ? 2 : 0;
           cb.checked = next > 0;
           cb.dataset.w = next > 0 ? next : 1;
           cb.dispatchEvent(new Event("change"));
@@ -1077,48 +2160,47 @@
         cell.appendChild(badge);
         grid.appendChild(cell);
       });
-      group.appendChild(grid);
-      beatsEl.appendChild(group);
     });
-    syncFigureGroups();
+    syncFigureCells();
   }
 
-  // A two-beat figure fills a 2/4 bar on its own, leaving no room for anything
-  // else, and compound time's syncopation is a different animal (hemiola) that
-  // this set doesn't cover. In both cases the group is hidden — and hidden
-  // means out of play, since readBeatIds skips it.
-  function syncFigureGroups() {
-    var ts = timeSigDef(timesigEl.value);
-    var allowWide = !ts.compound && ts.num > 2;
-    var shown = 0;
-    beatsEl.querySelectorAll(".fig-group").forEach(function (g) {
-      var hide = g.dataset.group === "more" && !allowWide;
-      g.hidden = hide;
-      if (!hide) shown++;
+  // Which cells the selected meters can use. A compound figure is meaningless
+  // without a compound meter and vice versa; a two-beat figure needs a simple
+  // meter with room for it (it fills a 2/4 bar on its own, and compound
+  // syncopation is hemiola, a different animal this set doesn't cover).
+  // Gated per cell rather than per group, because the groups are gone — and
+  // a hidden cell keeps its tick, so turning 6/8 off and on again brings your
+  // compound figures back exactly as you left them.
+  function syncFigureCells() {
+    var sigs = selectedSigs();
+    var allowWide = sigs.some(function (s) { return !s.compound && s.num > 2; });
+    // Each family's section is headed by the meters it serves, taken from the
+    // selection — so with 4/4 and 6/8 both ticked the two grids say "4/4" and
+    // "6/8" rather than leaving you to know which cells are which.
+    beatsEl.querySelectorAll(".fig-fam").forEach(function (fam) {
+      var wantCompound = fam.dataset.fam === "compound";
+      var mine = sigs.filter(function (s) { return !!s.compound === wantCompound; });
+      fam.hidden = !mine.length;
+      var h = fam.querySelector(".fig-h");
+      if (h) h.textContent = mine.map(function (s) { return s.id; }).join(" · ");
     });
-    beatsEl.classList.toggle("one-group", shown < 2);
+    beatsEl.querySelectorAll(".fig-cell").forEach(function (cell) {
+      cell.hidden = cell.dataset.wide === "1" && !allowWide;
+    });
   }
 
-  // Only rebuilds (and resets to that family's defaults) when the meter
-  // actually crosses the simple/compound line — cycling among 2/4, 3/4 and
-  // 4/4 shares one grid and leaves whatever is checked alone.
-  function syncBeatsFamily() {
-    var wantCompound = !!timeSigDef(timesigEl.value).compound;
-    var have = beatsEl.dataset.family === "compound";
-    // The palette is only rebuilt when the meter crosses the simple/compound
-    // line. Every other meter change still has to re-gate the groups, though —
-    // 2/4 has no room for a two-beat figure — so that runs either way.
-    if (wantCompound !== have) buildBeatsPalette(currentBeatFigures());
-    else syncFigureGroups();
-  }
-
-  function buildBeatPatterns() {
+  // The bag for ONE exercise, so it filters by the meter that was drawn — not
+  // by what the panel is showing. With both families offered the grid holds
+  // cells that cannot tile this bar at all, and a compound cell in a 4/4 bag
+  // would simply never fit and skew the draw.
+  function buildBeatPatterns(sig) {
     var out = [];
-    // Scoped past hidden groups for the same reason readBeatIds is: what the
-    // panel isn't showing must not turn up in the music. A figure's weight is
-    // expressed the cheapest way possible — the cell goes into the bag that
-    // many times, and the uniform draw does the rest.
-    beatsEl.querySelectorAll(".fig-group:not([hidden]) .beat:checked").forEach(function (cb) {
+    var fam = sig.compound ? "compound" : "simple";
+    var wideOk = !sig.compound && sig.num > 2;
+    beatsEl.querySelectorAll(".fig-cell:not([hidden]) .beat:checked").forEach(function (cb) {
+      var cell = cb.closest(".fig-cell");
+      if (!cell || cell.dataset.fam !== fam) return;
+      if (cell.dataset.wide === "1" && !wideOk) return;
       var w = +cb.dataset.w || 1;
       for (var k = 0; k < w; k++)
       if (BEAT_PATTERNS[cb.value]) out.push(BEAT_PATTERNS[cb.value]);
@@ -1127,13 +2209,15 @@
     return out;
   }
 
+  // Every ticked figure, hidden or not. A preset now carries the meter SET it
+  // was saved with, so the figures of a family that set does not use are still
+  // part of the drill and have to travel with it — saving only what is on
+  // screen would quietly drop your compound figures the moment 6/8 was off.
+  // A weighted figure is stored as "id:w"; weight 1 stays a bare id, so presets
+  // saved before weights existed read back unchanged.
   function readBeatIds() {
     var ids = [];
-    // A hidden group is out of play but keeps its ticks, so the setting comes
-    // back intact when the meter allows it again. A weighted figure is stored
-    // as "id:w"; weight 1 stays a bare id, so presets saved before weights
-    // existed read back unchanged — and ones saved now read back in old code.
-    beatsEl.querySelectorAll(".fig-group:not([hidden]) .beat:checked").forEach(function (cb) {
+    beatsEl.querySelectorAll(".beat:checked").forEach(function (cb) {
       var w = +cb.dataset.w || 1;
       ids.push(w > 1 ? cb.value + ":" + w : cb.value);
     });
@@ -1144,13 +2228,15 @@
     var set = {};
     (ids || []).forEach(function (id) {
       var parts = String(id).split(":");
-      set[parts[0]] = Math.max(1, parseInt(parts[1], 10) || 1);
+      // Capped at the top of the cycle: a preset or session saved while ×4
+      // existed would otherwise restore a badge no tap could reach or clear.
+      set[parts[0]] = Math.min(2, Math.max(1, parseInt(parts[1], 10) || 1));
     });
     beatsEl.querySelectorAll(".beat").forEach(function (cb) {
       cb.checked = !!set[cb.value];
       cb.dataset.w = set[cb.value] || 1;
       var cell = cb.closest(".fig-cell");
-      if (cell) cell.classList.toggle("on", cb.checked);
+      if (cell) setSwitch(cell, cb.checked);
       // Fires the change so the weight badge redraws — but applyBeats runs
       // inside applyPreset, whose caller generates once at the end, so the
       // change handler's own generate() would stack regenerations. The badge
@@ -1176,9 +2262,24 @@
     major: [
       { id: "I-IV-V-I",   roots: [0, 3, 4, 0] },
       { id: "I-V-vi-IV",  roots: [0, 4, 5, 3] },
-      { id: "ii-V-I",     roots: [1, 4, 0] }
+      // Four long, like every other entry — roots is one root per BAR, not a
+      // list of the chords involved. ii-V-I is a three-chord progression and
+      // was stored as three bars, so its cycle ran against the four-bar phrase
+      // the engine works in (engine.js hardcodes mi % 4) and the two only
+      // realigned every twelve bars. Phrase endings landed on ii, V, I, ii —
+      // the cadence logic resolving a phrase onto a ii chord, which is not a
+      // cadence in any style. The tonic takes the extra bar, which is where a
+      // ii-V-I rests anyway.
+      { id: "ii-V-I",     roots: [1, 4, 0, 0] }
     ],
     minor: [
+      // First on purpose: an id from the other mode falls back to the mode's
+      // first entry, and i-iv-V-i is I-IV-V-I's exact mirror — so flipping a
+      // major exercise into minor keeps the progression's identity instead of
+      // trading it for a different harmonic story. The engine already makes
+      // its V real: dominant bars raise the leading tone and carry the
+      // seventh, so this arrives as a true V7, not the diatonic minor v.
+      { id: "i-iv-V-i",   roots: [0, 3, 4, 0] },
       { id: "i-VI-VII-i", roots: [0, 5, 6, 0] },
       { id: "i-VII-VI-V", roots: [0, 6, 5, 4] }   // Andalusian
     ]
@@ -1190,12 +2291,19 @@
     return list[0];   // an id from the other mode falls back to the mode's first
   }
   // Triad quality by degree, per mode — for the chord symbols above the staff.
+  // Minor's V is major, not the diatonic minor v: the engine raises the 7th
+  // degree in dominant bars (the leading tone), so a major chord is what
+  // actually sounds there and the old "m" was mislabelling it.
+  var DOMINANT = 4;                        // 0-based scale degree; matches engine.js
   var TRIAD_QUALITY = {
     major: ["", "m", "m", "", "", "m", "\u00b0"],
-    minor: ["m", "\u00b0", "", "m", "m", "", ""]
+    minor: ["m", "\u00b0", "", "m", "", "", ""]
   };
 
   function buildOptions() {
+    // Draw this exercise's meter first: buildBeatPatterns and pulseBeats both
+    // have to be answering about the same one.
+    var sig = drawSig();
     var scaleKey = makeScaleKey(currentKeyCode());
     var ladder = SREngine.buildLadder(scaleKey);
     var range = readRange();
@@ -1205,7 +2313,7 @@
       complexity: 0.5,  // required by OSME; pitch/rhythm are driven by our settings
       measure_count: parseInt(measuresEl.value, 10),
       tempo: 80,
-      time_signature: new RhythmInstruction(new Fraction(timeSigDef(timesigEl.value).num, timeSigDef(timesigEl.value).den, 0, false), RhythmSymbolEnum.NONE),
+      time_signature: new RhythmInstruction(new Fraction(sig.num, sig.den, 0, false), RhythmSymbolEnum.NONE),
       scale_key: scaleKey,
       instruments: [DefaultInstrumentOptions.get("trumpet")],
       pitch_settings: ComplexityMap.getPitchSettings(0.5), // unused (overridden) but kept valid
@@ -1213,29 +2321,44 @@
       ladder: ladder,
       rangeMin: bounds.min,
       rangeMax: bounds.max,
-      beatPatterns: buildBeatPatterns(),
+      beatPatterns: buildBeatPatterns(sig),
       musicality: (+musicalityEl.value) / 100,
       chroma: (+chromaEl.value) / 100,
       mode: keyModeEl.value,
       pulseBeats: pulseBeats(),
+      ties: tieRate(),
       progression: progressionDef(progressionEl.value).roots
     };
   }
 
-  var lastFifths = 0;   // <fifths> from the last exported score
+  var lastFifths = 0;      // <fifths> from the last exported score
+  var lastTieBars = [];    // bars whose last note holds over, from the last generation
 
+  // Rotation advances on a NEXT sheet — the Generate button, and later the
+  // auto-continue — not on every regeneration. Nudging a slider regenerates
+  // the line in place, and having the key change under a chroma tweak would be
+  // a setting changing itself behind you.
+  var nextSheet = false;
   function generate(after) {
     clearError();
+    if (nextSheet && !keyFresh) keyIdx = (keyIdx + 1) % selectedKeyCodes().length;
+    keyFresh = false;
+    applyCurrentKey();
     if ((playing || paused) && !advancing) resetTop();   // manual regen stops playback; auto-advance keeps it
     try {
       var plugin = new ExampleSourceGenerator(buildOptions());
       currentSheet = plugin.generate();
+      var wantTies = SREngine.takeTies();   // read before anything else generates
       var xml = applyClefToXml(new XMLSourceExporter().export(currentSheet));
       xml = applyTupletsToXml(xml);
-      if (bowingEl.value !== "off") xml = applySlursToXml(xml, parseInt(bowingEl.value, 10));
-      if (timeSigDef(timesigEl.value).compound) xml = applyBeamsToXml(xml);
+      var tied = applyTiesToXml(xml, wantTies);
+      xml = tied.xml;
+      lastTieBars = tied.applied;
+      xml = applySlursToXml(xml, slurLengths());
+      if (currentSig().compound) xml = applyBeamsToXml(xml);
       var fm = /<fifths>(-?\d+)<\/fifths>/.exec(xml);
       lastFifths = fm ? +fm[1] : 0;   // the chord names spell themselves from this
+      nextSheet = false;
       osmd.load(xml).then(function () {
         renderLoaded();
         persistSession();
@@ -1266,17 +2389,44 @@
   // go, and putting a value back restores the name instead of stranding it on
   // "Custom". Only fields the preset actually defines are compared, mirroring
   // applyPreset — so a preset saved before a field existed still matches.
-  var PRESET_FIELDS = ["musicality", "progression", "chroma", "bowing", "key", "clef", "timesig", "measures"];
+  var PRESET_FIELDS = ["musicality", "progression", "chroma", "bowing", "ties", "key", "clef", "timesig", "measures"];
+
+  // What applyAlphabet would actually leave in the cells: the louder of the two
+  // directions, snapped to a rung the tap-cycle can hold. Comparing the stored
+  // arrays raw was wrong on both counts. The BUILTIN tables are still written on
+  // the engine's 1-4 scale (previewWalk ranks them, so they have to stay that
+  // way), while the cells only offer 0 / 2 / 4 — so eight of the ten built-ins
+  // could not match themselves the instant they were applied, and every one of
+  // them dropped its own name for "Custom" on the click that loaded it.
+  function alphabetCells(a) {
+    var down = fix7(a && a.down), up = fix7(a && a.up), out = [];
+    for (var i = 0; i < INTERVALS.length; i++) {
+      out.push(snapIntervalWeight(Math.max((down && +down[i]) || 0, (up && +up[i]) || 0)));
+    }
+    return out;
+  }
 
   function presetMatchesPanel(p) {
     var cur = readPresetConfig();
     var alpha = p.alphabet || ((p.down || p.up) ? { down: p.down, up: p.up } : null);
-    if (alpha && JSON.stringify(alpha) !== JSON.stringify(cur.alphabet)) return false;
+    if (alpha && JSON.stringify(alphabetCells(alpha)) !== JSON.stringify(alphabetCells(cur.alphabet))) return false;
     if (p.range && JSON.stringify(p.range) !== JSON.stringify(cur.range)) return false;
     if (p.beats && JSON.stringify(p.beats) !== JSON.stringify(cur.beats)) return false;
     for (var i = 0; i < PRESET_FIELDS.length; i++) {
       var f = PRESET_FIELDS[i];
-      if (p[f] != null && String(p[f]) !== String(cur[f])) return false;
+      if (p[f] == null) continue;
+      // Slurs went from one value to a set, so "off", "2" and "2,3" are all
+      // spellings a saved preset might carry. Compare what they mean, or every
+      // preset saved before the change would read as "not the current panel".
+      var a = (f === "bowing") ? canonSlurs(p[f]).join(",")
+            : (f === "key")    ? canonKeys(p[f]).join(",")
+            : (f === "timesig") ? canonSigs(p[f]).join(",")
+            : (f === "musicality") ? snapMusicality(p[f]) : String(p[f]);
+      var b = (f === "bowing") ? canonSlurs(cur[f]).join(",")
+            : (f === "key")    ? canonKeys(cur[f]).join(",")
+            : (f === "timesig") ? canonSigs(cur[f]).join(",")
+            : (f === "musicality") ? snapMusicality(cur[f]) : String(cur[f]);
+      if (a !== b) return false;
     }
     return true;
   }
@@ -1289,14 +2439,216 @@
     return (p && presetMatchesPanel(p)) ? activePreset : null;
   }
 
+  // ---- the subtitle: what THIS sheet is, and where to change it ------------
+  // Keys, meters, length — the facts that vary sheet to sheet. Each is a
+  // control that opens a menu, so they are changed where they are read. The
+  // drill named in the title is the recipe; this line is the instance.
+  //
+  // A set shows in the compact spelling the chord names use — "C, G, Am" — with
+  // this sheet's entry in the accent and the rest muted, so one glance says
+  // where you are and what is coming. Past six it folds to "+N".
+  var SUB_SHOW = 3;          // the chip under the title, where width is scarcest
+  var ROW_SHOW = 5;          // the panel's key row, which has a section to itself
+  // The set, in one ink. There used to be a brighter rung for the key this
+  // sheet happens to be in, but the staff already says that in its signature,
+  // and two weights inside one chip made a line of type look like two things.
+  // The chip answers what is in play; the music answers what is playing.
+  function setText(codes, short, max) {
+    var shown = codes.slice(0, max).map(short).join(", ");
+    return shown + (codes.length > max ? " +" + (codes.length - max) : "");
+  }
+  function pickButton(kind, aria) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "pick";
+    b.dataset.pick = kind;
+    b.setAttribute("aria-haspopup", "menu");
+    b.setAttribute("aria-expanded", "false");
+    b.setAttribute("aria-label", t(aria));
+    b.addEventListener("click", function (e) { e.stopPropagation(); openPick(kind, b); });
+    return b;
+  }
+  function renderSub() {
+    shSubEl.innerHTML = "";
+    if (obBlanking) return;
+    var keys = pickButton("keys", "aria.pickKeys");
+    keys.textContent = setText(selectedKeyCodes(), keyShort, SUB_SHOW);
+    var sigs = pickButton("sigs", "aria.pickMeters");
+    sigs.textContent = setText(selectedSigIds(), function (x) { return x; }, SUB_SHOW);
+    var bars = pickButton("bars", "aria.pickBars");
+    bars.textContent = measuresEl.value + " " + t("val.bars").toLowerCase();
+    // No separators: each fact is a chip, and the row's gap divides them. The
+    // dots parted three runs of plain text; a chip beside a chip needs no
+    // punctuation between them.
+    shSubEl.appendChild(keys);
+    shSubEl.appendChild(sigs);
+    shSubEl.appendChild(bars);
+
+    // A menu can be open while this runs. Ticking a key regenerates, the
+    // regenerate lands here, and this rebuilds the very button the open menu
+    // is anchored to. The old button is then detached, and a detached element
+    // measures as a rect of zeros, so the next placement put the menu at the
+    // top-left corner of the window. Hand the menu the button that replaced
+    // its anchor, and place it again: a neighbour that grew wider can have
+    // shifted it along the row even when the anchor itself did not move.
+    if (pickOpenFor && pickOpenFor.dataset.pick && !document.body.contains(pickOpenFor)) {
+      var live = shSubEl.querySelector('.pick[data-pick="' + pickOpenFor.dataset.pick + '"]');
+      if (live) {
+        live.setAttribute("aria-expanded", "true");
+        pickOpenFor = live;
+        var openMenu = document.getElementById("pick-menu");
+        if (openMenu) placePick(openMenu, live);
+      }
+    }
+  }
+
+  // One menu, positioned under whatever opened it — fixed to the viewport so a
+  // button in the header, the subtitle and the panel can all anchor it without
+  // any of them having to be a positioned container. Multi-select menus stay
+  // open until you click away; pick-one menus close on the pick.
+  var FIFTHS_MAJOR = ["0-0","4-0","1-0","5-0","2-0","6-0","3-#","0-#","3-0","6-b","2-b","5-b","1-b","4-b","0-b"];
+  var FIFTHS_MINOR = ["5-0","2-0","6-0","3-#","0-#","4-#","1-#","5-#","1-0","4-0","0-0","3-0","6-b","2-b","5-b"];
+  var pickOpenFor = null;
+  function closePick() {
+    var m = document.getElementById("pick-menu");
+    if (m) m.remove();
+    if (pickOpenFor) pickOpenFor.setAttribute("aria-expanded", "false");
+    pickOpenFor = null;
+  }
+  function menuItem(text, on, fn) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "menu-item" + (on ? " on" : "");
+    b.setAttribute("role", "menuitemcheckbox");
+    b.setAttribute("aria-checked", on ? "true" : "false");
+    b.textContent = text;
+    b.addEventListener("click", function (e) { e.stopPropagation(); fn(); });
+    return b;
+  }
+  function buildPick(kind) {
+    var box = document.createElement("div");
+    box.id = "pick-menu";
+    box.className = "menu pick-menu pick-" + kind;
+    box.setAttribute("role", "menu");
+
+    if (kind === "keys") {
+      // Two columns in fifths order, the relative minor beside its major —
+      // which is how people hold keys in their head. Only keys the engine can
+      // build appear; probeKeys decided that once.
+      var have = selectedKeyCodes();
+      var cols = document.createElement("div");
+      cols.className = "pick-cols";
+      [["major", FIFTHS_MAJOR], ["minor", FIFTHS_MINOR]].forEach(function (col) {
+        var c = document.createElement("div");
+        c.className = "pick-col";
+        var h = document.createElement("div");
+        h.className = "pick-h";
+        h.textContent = t("mode." + col[0]);
+        c.appendChild(h);
+        col[1].forEach(function (tonic) {
+          var code = col[0] + "_" + tonic;
+          if (!keyCodeValid(code)) return;
+          var on = have.indexOf(code) >= 0;
+          c.appendChild(menuItem(keyShort(code), on, function () {
+            var next = have.slice();
+            if (on) { if (next.length === 1) return; next.splice(next.indexOf(code), 1); }
+            else next.push(code);
+            // Kept in fifths order whatever order they were ticked, so the
+            // rotation and the subtitle read the same and stay stable.
+            var order = FIFTHS_MAJOR.map(function (x) { return "major_" + x; })
+                        .concat(FIFTHS_MINOR.map(function (x) { return "minor_" + x; }));
+            next.sort(function (a, b) { return order.indexOf(a) - order.indexOf(b); });
+            keysEl.value = next.join(",");
+            keysEl.dispatchEvent(new Event("change"));
+            refreshPick();
+          }));
+        });
+        cols.appendChild(c);
+      });
+      box.appendChild(cols);
+    } else if (kind === "sigs") {
+      var ids = selectedSigIds();
+      TIME_SIGS.forEach(function (ts) {
+        var on = ids.indexOf(ts.id) >= 0;
+        box.appendChild(menuItem(ts.id, on, function () {
+          var next = ids.slice();
+          if (on) { if (next.length === 1) return; next.splice(next.indexOf(ts.id), 1); }
+          else next.push(ts.id);
+          timesigEl.value = canonSigs(next.join(",")).join(",");
+          sigIdx = 0; sigFresh = true;
+          syncTimesigPills();
+          syncFigureCells();
+          generate();
+          refreshPick();
+        }));
+      });
+    } else if (kind === "bars") {
+      Array.prototype.forEach.call(measuresEl.options, function (opt) {
+        box.appendChild(menuItem(opt.textContent, opt.value === measuresEl.value, function () {
+          measuresEl.value = opt.value;
+          syncMeasuresPills();
+          closePick();
+          generate();
+        }));
+      });
+    } else if (kind === "instr") {
+      var cur = instrumentPref();
+      INSTRUMENTS.forEach(function (ins) {
+        box.appendChild(menuItem(t("instr." + ins.id), ins.id === cur, function () {
+          setInstrument(ins.id);
+          closePick();
+          generate();
+        }));
+      });
+    }
+    return box;
+  }
+  function placePick(box, anchor) {
+    var r = anchor.getBoundingClientRect(), b = box.getBoundingClientRect();
+    var left = Math.min(r.left, window.innerWidth - b.width - 8);
+    var top = r.bottom + 6;
+    if (top + b.height > window.innerHeight - 8) top = Math.max(8, r.top - b.height - 6);
+    box.style.left = Math.max(8, left) + "px";
+    box.style.top = top + "px";
+  }
+  function openPick(kind, anchor) {
+    if (pickOpenFor === anchor) { closePick(); return; }
+    closePick();
+    var box = buildPick(kind);
+    document.body.appendChild(box);
+    placePick(box, anchor);
+    anchor.setAttribute("aria-expanded", "true");
+    pickOpenFor = anchor;
+  }
+  // A multi-select menu stays up while its set changes underneath it, so it is
+  // rebuilt in place rather than reopened — reopening would scroll and flash.
+  function refreshPick() {
+    if (!pickOpenFor) return;
+    var anchor = pickOpenFor, kind = anchor.dataset.pick || "keys";
+    var old = document.getElementById("pick-menu");
+    if (!old) return;
+    var box = buildPick(kind);
+    old.replaceWith(box);
+    placePick(box, anchor);
+  }
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest("#pick-menu")) closePick();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && pickOpenFor) { e.stopPropagation(); closePick(); }
+  }, true);
+
   function updateHeader() {
-    var sel = keyTonicEl.options[keyTonicEl.selectedIndex];
-    var tonic = sel ? sel.textContent : "C";
-    var mode = t("mode." + keyModeEl.value);
     // Onboarding blanks the staff; the title would leak the same thing in words.
     shTitleEl.textContent = obBlanking ? "" : (presetLabel(loadedPresetName()) || t("val.custom"));
-    shSubEl.textContent = obBlanking ? ""
-      : tonic + " " + mode + " – " + measuresEl.value + " " + t("val.bars");
+    // What this sheet actually came out as, on the sheet itself. The subtitle
+    // names the whole set and stops there, so once a set rotates, the drawn key
+    // and meter live only in the engraving — where VexFlow writes them as glyph
+    // paths that nothing can read back. Same reason __srSession exists.
+    sheetEl.dataset.key = currentKeyCode();
+    sheetEl.dataset.sig = drawnSig || selectedSigIds()[0];
+    renderSub();
+    syncKeyRow();
     syncActivePill();
     syncTransport();
   }
@@ -1307,9 +2659,9 @@
   // rather than 1 huge measure, but desktop is never scaled).
   function renderLoaded() {
     var avail = availWidth();
-    var per = Math.max(MIN_PER_LINE, Math.min(MEASURES_PER_LINE, Math.floor((avail - CLEF_PX) / MEASURE_PX)));
+    var per = Math.max(MIN_PER_LINE, Math.min(LAYOUT.perLine, Math.floor((avail - CLEF_PX) / MEASURE_PX)));
     osmd.EngravingRules.RenderXMeasuresPerLineAkaSystem = per;
-    osmd.zoom = Math.min(1, avail / (CLEF_PX + MEASURE_PX * per));
+    osmd.zoom = Math.min(LAYOUT.zoomCap, avail / (CLEF_PX + MEASURE_PX * per));
     osmd.render();
     var svg = sheetEl.querySelector("svg");               // correct any estimate drift
     if (svg) {
@@ -1427,6 +2779,10 @@
     var r = visibleLineRange();
     var topGap = (r.firstIdx < 0) ? 0 : Math.max(0, r.firstT - r.scrollTop);
     var botGap = (r.firstIdx < 0) ? 0 : Math.max(0, r.visBottom - r.lastB);
+    // The fade owns the bottom edge while it's on — painting the paper cover
+    // over a dissolving line would put a hard edge back exactly where the mask
+    // is removing one. Top cover keeps its job; the fade is bottom-only.
+    if (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--music-fade")) > 0) botGap = 0;
     coverTopEl.style.top = top + "px";
     coverTopEl.style.height = topGap + "px";
     coverBotEl.style.top = (top + r.stageH - botGap) + "px";
@@ -1453,19 +2809,37 @@
     updateGap();
   }
 
+  // Every binary control reports through .on, switches and glyph buttons alike,
+  // so one helper serves both — and a switch additionally carries aria-checked,
+  // which is the part a class cannot say.
+  function setSwitch(el, on) {
+    if (!el) return;
+    el.classList.toggle("on", !!on);
+    if (el.getAttribute("role") === "switch") el.setAttribute("aria-checked", on ? "true" : "false");
+    // And a fig-cell carries aria-pressed, which is its half of the same job.
+    // The tint is the whole of what a lit cell says, and a tint says nothing
+    // to a screen reader — so every meter, figure, interval and slur read as
+    // an unlabelled toggle stuck in one state.
+    else if (el.getAttribute("role") === "button") el.setAttribute("aria-pressed", on ? "true" : "false");
+  }
+
   // Two classes, deliberately. A *-face button only shows the state — those are
   // the header buttons, whose tap opens a popover instead of toggling. A plain
   // .js-metro / .js-accomp button toggles. Both wear the tint, so the header
   // still reports on/off without being opened.
   function syncMetroPill() {
     document.querySelectorAll(".js-metro, .js-metro-face").forEach(function (b) {
-      b.classList.toggle("on", clickOnEl.checked);
+      setSwitch(b, clickOnEl.checked);
     });
   }
   function syncAccompBtn() {
     document.querySelectorAll(".js-accomp, .js-accomp-face").forEach(function (b) {
-      b.classList.toggle("on", playAlongEl.checked);
+      setSwitch(b, playAlongEl.checked);
     });
+    // Melody, comping and volume are what Sound turns on, so they follow the
+    // same rule the panel's switches follow: off means not present.
+    var deps = document.getElementById("accomp-deps");
+    if (deps) deps.hidden = !playAlongEl.checked;
   }
   function syncTransport() { syncMetroPill(); syncAccompBtn(); }
 
@@ -1479,6 +2853,10 @@
     for (var m = 0; m < measureList.length; m++) {
       var staves = measureList[m];
       if (!staves || !staves[0]) continue;
+      // The first note of a bar that was tied into is a continuation, not a
+      // new note: same pitch, no attack. The highlighter has to skip it or it
+      // reads as a unison move and paints a chunk that nobody played.
+      var heldInto = lastTieBars.indexOf(m - 1) >= 0, seenNote = false;
       var staffEntries = staves[0].staffEntries || [];
       for (var s = 0; s < staffEntries.length; s++) {
         var gves = staffEntries[s].graphicalVoiceEntries || [];
@@ -1497,10 +2875,12 @@
             // Which engraved system this note landed on, so a run that wraps at
             // a line break can be highlighted once per line.
             var sys = el ? el.closest(".staffline") : null;
+            var tieStop = heldInto && !seenNote && !isRest;
+            if (!isRest) seenNote = true;
             // idx counts voice entries in the same order the playback cursor
             // walks them, so it indexes straight into the session's onsets[].
             out.push({ isRest: isRest, halfTone: halfTone, el: el, head: head, sys: sys,
-                       measure: m, idx: noteIdx++ });
+                       tieStop: tieStop, measure: m, idx: noteIdx++ });
           }
         }
       }
@@ -1546,6 +2926,10 @@
     }
     for (var i = 0; i < notes.length; i++) {
       var note = notes[i];
+      // A tie's far side is the same note still sounding. Left in, it reads as
+      // a unison against its own first half and breaks the run at the barline
+      // — the opposite of what a tie does to a phrase.
+      if (note.tieStop) continue;
       if (note.isRest || note.halfTone == null || !note.head) { flush(); continue; }
       if (run.length === 0) { run = [note]; dir = 0; continue; }
       var diff = note.halfTone - run[run.length - 1].halfTone;
@@ -1652,8 +3036,52 @@
     if (lastFifths > 0 && SHARP_ORDER.indexOf(li) < lastFifths) acc = "\u266f";
     if (lastFifths < 0 && SHARP_ORDER.slice().reverse().indexOf(li) < -lastFifths) acc = "\u266d";
     var q = (TRIAD_QUALITY[keyModeEl.value] || TRIAD_QUALITY.major)[rootDegree] || "";
+    // The dominant is spelled as a seventh because it is generated as one —
+    // the engine puts the 7th in its chord-tone set, so the symbol says what
+    // the notes under it are actually drawn from.
+    if (rootDegree === DOMINANT) q += "7";
     return LETTERS[li] + acc + q;
   }
+
+  // ---- the harmony, as pitches ------------------------------------------
+  // chordName() turns a scale degree into a symbol; comping needs the same
+  // degree as a sounding note. Both read the key the same way — letter index
+  // from the tonic, accidental from the key signature the exporter computed —
+  // so the chord you hear and the chord written above the staff can never
+  // disagree about what key they are in.
+  var NATURAL_PC = [0, 2, 4, 5, 7, 9, 11];    // C D E F G A B
+
+  function degreePc(degree) {
+    var tonicSym = parseInt(keyTonicEl.value, 10) || 0;
+    var li = (tonicSym + degree) % 7;
+    var pc = NATURAL_PC[li];
+    if (lastFifths > 0 && SHARP_ORDER.indexOf(li) < lastFifths) pc += 1;
+    if (lastFifths < 0 && SHARP_ORDER.slice().reverse().indexOf(li) < -lastFifths) pc -= 1;
+    return ((pc % 12) + 12) % 12;
+  }
+
+  // The notes a bar's chord is built from, as pitch classes: triad, plus the
+  // seventh on the dominant because the engine generates one and the symbol
+  // already says so. In minor the dominant's third is the raised leading tone —
+  // the engine raises it in the melody, so the accompaniment has to raise it
+  // too or the two would sound a minor second apart on the strongest chord of
+  // the progression.
+  function chordPcs(rootDegree) {
+    var deg = [rootDegree, rootDegree + 2, rootDegree + 4];
+    if (rootDegree === DOMINANT) deg.push(rootDegree + 6);
+    var minorV = keyModeEl.value === "minor" && rootDegree === DOMINANT;
+    return deg.map(function (d) {
+      var pc = degreePc(d % 7);
+      if (minorV && (d % 7) === 6) pc = (pc + 1) % 12;   // raised 7th = V's major 3rd
+      return pc;
+    });
+  }
+
+  function pcToMidi(pc, nearMidi) {
+    var m = pc + 12 * Math.round((nearMidi - pc) / 12);
+    return m;
+  }
+  function midiToFreq(m) { return 440 * Math.pow(2, (m - 69) / 12); }
 
   // Whether the names should be on screen at all: the toggle owns intent, and
   // the dial owns relevance — with the harmony off, naming chords the line is
@@ -1680,7 +3108,18 @@
 
     var seen = {};
     notes.forEach(function (n) {
-      if (n.isRest || !n.head || seen[n.measure]) return;   // first sounding note of the bar
+      // The bar's first EVENT, rest or note — not its first sounding note. A
+      // bar opening on a rest had its chord pushed in by the width of that
+      // rest, so a line whose bars all began with an upbeat rest showed four
+      // labels indented against the ones above them. The label belongs to the
+      // bar, and the bar starts where it starts.
+      //
+      // Not the measure's own left edge, which would be the truest barline:
+      // .vf-measure contains the clef and key signature on the first bar of
+      // every system, so anchoring there would drop that system's label on top
+      // of the clef. The first event sits at a consistent offset from the
+      // barline in every bar, which is the alignment being asked for.
+      if (!n.head || seen[n.measure]) return;
       seen[n.measure] = true;
       var box = n.head.getBoundingClientRect();
       var sysBox = n.sys ? n.sys.getBoundingClientRect() : box;
@@ -1711,6 +3150,7 @@
   var tempoValEl   = document.getElementById("tempo-val");
   var clickOnEl    = document.getElementById("click-on");
   var playAlongEl  = document.getElementById("play-along");
+  var compingEl    = document.getElementById("comping");
   var instrumentEl = document.getElementById("instrument");
   var voiceBtnEl   = document.getElementById("voice-btn");
   var voiceMenuEl  = document.getElementById("voice-menu");
@@ -1736,7 +3176,7 @@
   // as many as a 3/4 bar, since duration is duration regardless of how the bar
   // is felt). barBeats() is that one number; nothing else here is meter-aware.
   function barBeats() {
-    var ts = timeSigDef(timesigEl.value);
+    var ts = currentSig();
     return ts.num * 4 / ts.den;
   }
   var playing = false;
@@ -1818,7 +3258,7 @@
   // Play-along: one melody note — triangle through a lowpass (warmth) with a
   // smooth attack/release, sent dry + into the reverb. Scheduled on the audio
   // clock for tight timing; tracked in playVoices so Stop can kill it.
-  function scheduleTone(freq, startT, endT) {
+  function scheduleTone(freq, startT, endT, mul) {
     var b = audioBus();
     if (!b) return;
     var osc = audioCtx.createOscillator();
@@ -1829,7 +3269,7 @@
     filt.frequency.value = Math.min(freq * 3.5, 2600);    // roll off harsh harmonics
     filt.Q.value = 0.4;
     var g = audioCtx.createGain();
-    var peak = Math.max(0.06, 0.13 * Math.min(1, 520 / freq));  // quieter as pitch climbs
+    var peak = Math.max(0.06, 0.13 * Math.min(1, 520 / freq)) * (mul || 1);  // quieter as pitch climbs
     var atk = 0.014;
     var noteLen = Math.max(0.06, endT - startT);
     var rel = Math.min(0.16, noteLen * 0.6);
@@ -1847,12 +3287,12 @@
   // Organ: additive sine "drawbars" (sub-octave, fundamental, octave, fifth,
   // two octaves) with a gentle vibrato — warm and sustaining, no samples.
   var ORGAN_BARS = [{ m: 0.5, g: 0.34 }, { m: 1, g: 1 }, { m: 2, g: 0.5 }, { m: 3, g: 0.28 }, { m: 4, g: 0.16 }];
-  function scheduleOrgan(freq, startT, endT) {
+  function scheduleOrgan(freq, startT, endT, mul) {
     var b = audioBus();
     if (!b) return;
     var noteLen = Math.max(0.06, endT - startT);
     var atk = 0.018, rel = Math.min(0.16, noteLen * 0.5), e = startT + noteLen;
-    var peak = 0.085;                                   // partials sum, leave headroom
+    var peak = 0.085 * (mul || 1);                      // partials sum, leave headroom
     var ng = audioCtx.createGain();
     ng.gain.setValueAtTime(0.0001, startT);
     ng.gain.exponentialRampToValueAtTime(peak, startT + atk);
@@ -1882,8 +3322,7 @@
   // set is ready (or if it fails), the organ stands in.
   var SAMPLE_SETS = {
     marimba: { data: "SR_MARIMBA", notes: [["F1",29],["C2",36],["G2",43],["B2",47],["F3",53],["C4",60],["G4",67],["B4",71],["F5",77],["C6",84]] },
-    piano:   { data: "SR_PIANO",   notes: [["C2",36],["F#2",42],["C3",48],["F#3",54],["C4",60],["F#4",66],["C5",72],["F#5",78],["C6",84]] },
-    vibraphone: { data: "SR_VIBRAPHONE", notes: [["F2",41],["A2",45],["C3",48],["E3",52],["G3",55],["B3",59],["D4",62],["F4",65],["A4",69],["C5",72],["E5",76]] }
+    piano:   { data: "SR_PIANO",   notes: [["C2",36],["F#2",42],["C3",48],["F#3",54],["C4",60],["F#4",66],["C5",72],["F#5",78],["C6",84]] }
   };
   var sampleBuffers = {};   // name -> { midi: {buf, norm} } once decoded
   var sampleLoading = {};   // name -> true while decoding
@@ -1944,7 +3383,7 @@
 
   function freqToMidi(freq) { return 69 + 12 * Math.log(freq / 440) / Math.log(2); }
 
-  function scheduleSampled(name, freq, startT, endT) {
+  function scheduleSampled(name, freq, startT, endT, mul) {
     var b = audioBus(), bufs = sampleBuffers[name];
     if (!b || !bufs) return false;
     var midi = freqToMidi(freq), best = null, bestD = 1e9;
@@ -1961,7 +3400,7 @@
     var g = audioCtx.createGain();
     var ring = Math.min((endT - startT) + 0.4, src.buffer.duration / src.playbackRate.value);
     var stopAt = startT + Math.max(0.18, ring);
-    var peak = 0.9 * entry.norm;                                       // normalized to full scale, then played hot
+    var peak = 0.9 * entry.norm * (mul || 1);                          // normalized to full scale, then played hot
     g.gain.setValueAtTime(peak, startT);
     g.gain.setValueAtTime(peak, Math.max(startT + 0.02, stopAt - 0.08));
     g.gain.linearRampToValueAtTime(0.0001, stopAt);                    // release fade, no click
@@ -1974,16 +3413,21 @@
   // Dispatch a play-along note to the selected voice. A sampled instrument falls
   // back to the organ whenever it can't actually sound a sample (still loading,
   // or failed) — so a load problem is audible rather than silent.
-  function scheduleNote(freq, startT, endT) {
-    var inst = instrumentEl.value;
+  // inst and mul default to the melody voice at full level, so every existing
+  // caller keeps its behaviour; comping passes its own voice and a level under
+  // the melody's, because a bass line and a struck chord are supporting parts
+  // and should never sit level with the line being read.
+  function scheduleNote(freq, startT, endT, inst, mul) {
+    if (inst == null) inst = instrumentEl.value;
+    if (inst === "none") return;
     if (isSampled(inst)) {
-      if (scheduleSampled(inst, freq, startT, endT)) return;
+      if (scheduleSampled(inst, freq, startT, endT, mul)) return;
       if (!sampleBuffers[inst]) loadSamples(inst);
-      scheduleOrgan(freq, startT, endT);
+      scheduleOrgan(freq, startT, endT, mul);
       return;
     }
-    if (inst === "organ") scheduleOrgan(freq, startT, endT);
-    else scheduleTone(freq, startT, endT);
+    if (inst === "organ") scheduleOrgan(freq, startT, endT, mul);
+    else scheduleTone(freq, startT, endT, mul);
   }
 
   function stopVoices() {
@@ -1991,8 +3435,32 @@
     playVoices = [];
   }
 
-  function showCountdown(n) { if (countdownEl) { countdownEl.textContent = n; countdownEl.hidden = false; } }
-  function hideCountdown() { if (countdownEl) countdownEl.hidden = true; }
+  // The count is the play button: it shows the number and takes the beat.
+  //
+  // The class has to come off and go back on with a reflow between, because
+  // re-setting an animation that is already running does nothing — without the
+  // reflow only the first number of the count would move and the rest would
+  // swap in silence.
+  //
+  // The fill decays across one beat, so the animation is told how long a beat
+  // currently is rather than guessing: the dial runs 40–200bpm, and a duration
+  // fixed at one tempo either overruns the next number or finishes long before
+  // it.
+  function showCountdown(n) {
+    if (!countdownEl || !playBtn) return;
+    countdownEl.textContent = n;
+    countdownEl.hidden = false;
+    playBtn.style.setProperty("--beat-ms", Math.round(60000 / (+tempoEl.value || 90)) + "ms");
+    playBtn.classList.add("counting");
+    playBtn.classList.remove("beat");
+    void playBtn.offsetWidth;
+    playBtn.classList.add("beat");
+  }
+  function hideCountdown() {
+    if (!countdownEl) return;
+    countdownEl.hidden = true;
+    if (playBtn) playBtn.classList.remove("counting", "beat");
+  }
 
   function blinkCursor(on, ms) {
     var el = osmd.cursor && osmd.cursor.cursorElement;
@@ -2006,7 +3474,7 @@
   // staff lines, clef and barlines in place — so a played bar reads as a clean
   // empty measure rather than a white hole. VexFlow wraps each measure's content
   // in a .vf-measure node, which maps 1:1 (document order) to our measure index.
-  var INK_SEL = ".vf-stavenote, .vf-beam, .vf-ledgers, .vf-stem";
+  var INK_SEL = ".vf-stavenote, .vf-beam, .vf-ledgers, .vf-stem, .vf-curve, .vf-stavetie";
 
   function showAllInk() {
     sheetEl.querySelectorAll(INK_SEL).forEach(function (el) { el.style.visibility = ""; });
@@ -2049,7 +3517,7 @@
         cut[L] = (cut[L] == null) ? notes[i].right : Math.max(cut[L], notes[i].right);
       }
     }
-    for (var b = 0; b < ink.spans.length; b++) {           // beams: gone with their first note
+    for (var b = 0; b < ink.spans.length; b++) {           // beams + curves: gone with their first note
       var bc = cut[ink.spans[b].line];
       ink.spans[b].el.style.visibility = (bc != null && ink.spans[b].left < bc) ? "hidden" : "";
     }
@@ -2093,14 +3561,6 @@
   // playing flag set, generate a fresh line, and play it with a fresh count-in
   // so every new line gets its own countdown, until the user pauses or resets.
   function advanceAndPlay() {
-    // Letting-go, v1: finishing a line is the only signal the app has, so the
-    // ramp spends it here — one more unit of curtain per completed line, up to
-    // the ceiling. It widens Hide Ahead when it's on; it never switches it on,
-    // so the pressure is something you opted into twice.
-    if (rampOnEl.checked && hideBehindEl.checked) {
-      var cur = parseInt(hideValEl.dataset.n, 10) || 0;
-      if (cur < hideMaxN()) setHide(cur + 1);
-    }
     if (session && session.rafId) cancelAnimationFrame(session.rafId);
     rafId = null;
     pinTop = true;   // hold the top through the re-render + count-in of the fresh line
@@ -2138,9 +3598,16 @@
       // and must not vary with meter; see barBeats() above.
       var durBeats = (note ? note.Length.RealValue : 0.25) * 4;
       var meas = Math.floor(beat / bpb + 1e-6);
-      if (measureFirst[meas] == null) measureFirst[meas] = idx;
+      var opensMeasure = (measureFirst[meas] == null);
+      if (opensMeasure) measureFirst[meas] = idx;
       if (note && !note.isRest() && note.Pitch) {
-        melody.push({ onset: beat, dur: durBeats, freq: note.Pitch.Frequency });
+        // The far side of a tie is the same note still sounding, so it length-
+        // ens the note before it instead of starting one. Played as its own
+        // event it would re-attack at the barline, which is the exact mistake
+        // the tie is there to train out of the reader.
+        var holdsOver = opensMeasure && lastTieBars.indexOf(meas - 1) >= 0 && melody.length > 0;
+        if (holdsOver) melody[melody.length - 1].dur += durBeats;
+        else melody.push({ onset: beat, dur: durBeats, freq: note.Pitch.Frequency });
       }
       onsets.push(beat);
       beat += durBeats;
@@ -2189,7 +3656,11 @@
     // the page like a fence post.
     var ink = {
       notes: Array.prototype.map.call(sheetEl.querySelectorAll(".vf-stavenote"), spanOf),
-      spans: Array.prototype.map.call(sheetEl.querySelectorAll(".vf-beam"), spanOf),
+      // Ties and slurs ride with the beams: a curve goes the moment its first
+      // note goes. Left standing it floats over blank paper — and a tie stub
+      // pointing at a hidden note is exactly the debris the beam rule exists
+      // to avoid. (.vf-stavetie is a tie's curve, .vf-curve a slur's.)
+      spans: Array.prototype.map.call(sheetEl.querySelectorAll(".vf-beam, .vf-curve, .vf-stavetie"), spanOf),
       marks: Array.prototype.map.call(sheetEl.querySelectorAll(".vf-ledgers, .vf-stem"), spanOf)
     };
     showAllInk();
@@ -2199,6 +3670,8 @@
     var countIn = noCountIn ? 0 : bpb;     // 1-bar count-in, skipped on auto-advance
     session = {
       cur: cur, measureFirst: measureFirst, melody: melody, beatNote: beatNote,
+      comping: buildComping(melody, bpb, totalBeats),
+      harmony: compHarmony(bpb, totalBeats),
       ink: ink, onsets: onsets, totalBeats: totalBeats, barBeats: bpb, pulse: pulse,
       elapsed: -countIn,       // count-in beats are negative
       nextBeat: -Math.round(countIn / pulse),   // counts pulses, not quarters
@@ -2206,6 +3679,11 @@
       hideState: -1,
       rafId: null
     };
+    // Read-only handle for the test harnesses. Most of what matters here is
+    // invisible in the rendered page — that a tied pair is one sounding event
+    // and not two is only observable in this list — and the alternative is a
+    // test that asserts nothing about playback at all.
+    window.__srSession = session;
     runSession(true);          // fresh start: run the count-in, schedule play-along from the top
   }
 
@@ -2234,16 +3712,148 @@
   // dropping whatever was already queued. Anything that changes how the melody
   // should sound from here on — tempo, instrument, the accompaniment toggle —
   // just calls this and the change takes effect without interrupting playback.
+  // ---- comping: a walking bass and the chord it outlines ------------------
+  // Built once per exercise, from the same progression the melody was generated
+  // against, so the backing cannot drift out of agreement with the line.
+  //
+  // Why walking quarters are safe in a rhythm-reading app: they carry the beat,
+  // which the metronome already carries, but never the subdivision — and the
+  // subdivision is the thing being read. A comping pattern with its own
+  // syncopation would do the reader's work for them.
+  //
+  // One note per pulse, so 6/8 walks in dotted quarters rather than sounding
+  // four-square against its own compound beat.
+  // The chord each bar sits on, as pitch classes. Split out from buildComping
+  // so a test can ask the app what it meant to play and compare that with what
+  // it scheduled, rather than re-deriving the harmony and checking one copy of
+  // the logic against another.
+  function compHarmony(barBeats, totalBeats) {
+    var roots = progressionDef(progressionEl.value).roots;
+    if (!roots || !roots.length) return [];
+    var out = [], nBars = Math.ceil(totalBeats / barBeats);
+    for (var b = 0; b < nBars; b++) out.push(chordPcs(roots[b % roots.length]));
+    return out;
+  }
+
+  function buildComping(melody, barBeats, totalBeats) {
+    var roots = progressionDef(progressionEl.value).roots;
+    if (!roots || !roots.length) return [];
+
+    // Sit clear of the line being read. The melody's own floor decides this,
+    // not a fixed octave: a bass-clef exercise already lives where a default
+    // bass would be, and the two would fight for the same notes.
+    var lowMidi = 60;
+    melody.forEach(function (n) {
+      var m = freqToMidi(n.freq);
+      if (m < lowMidi) lowMidi = m;
+    });
+    // Two octaves under the melody's floor, not one. At one octave the bass
+    // sat at C3 with the chord stacked above it, which left the whole
+    // accompaniment crowding the line being read. Floored at C2 because that
+    // is the lowest piano sample; below it every note is the same buffer
+    // pitched down, which goes dull.
+    var bassAnchor = Math.max(36, Math.min(48, Math.round(lowMidi) - 24));
+    // Never below the anchor, which is the lowest sampled note: the nearest
+    // chord tone to C2 is often the B a semitone under it, and that B is a
+    // buffer pitched down rather than a note.
+    var loM = bassAnchor, hiM = bassAnchor + 9;
+
+    var out = [], nBars = Math.ceil(totalBeats / barBeats), prevBass = null;
+
+    for (var b = 0; b < nBars; b++) {
+      var t0 = b * barBeats;
+      if (t0 >= totalBeats) break;
+      var barLen = Math.min(barBeats, totalBeats - t0);
+      var pcs = chordPcs(roots[b % roots.length]);
+
+      // One note a bar, struck with the chord and left to ring. A walking line
+      // was the first version and it was the wrong instrument for this app: it
+      // put a note on every beat, which is a second thing to hear against the
+      // one being read. This states the harmony and stops.
+      //
+      // Which chord tone is whichever is closest to the last one — the bass
+      // moves as little as the chord change allows, so the progression is felt
+      // as a shift underneath rather than as a part with opinions of its own.
+      // The first bar takes the root, because nothing has been established yet
+      // for it to move the least distance from.
+      var bass;
+      if (prevBass == null) {
+        // The first bar takes the root, folded into the band like every note
+        // after it. Left unclamped it could land a whole octave under the
+        // anchor — in A major the nearest A to C2 is A1, below the lowest
+        // sample, and every bar after it then followed from there.
+        bass = pcToMidi(pcs[0], bassAnchor);
+        while (bass < loM) bass += 12;
+        while (bass > hiM) bass -= 12;
+      } else {
+        bass = nearestOf(pcs, prevBass, loM, hiM);
+      }
+      out.push({ onset: t0, dur: barLen, midi: bass, gain: 0.5 });
+      prevBass = bass;
+
+      // The chord, struck on the downbeat and left to ring. It sits in the gap
+      // between the bass and the line being read — a fifth or so under the
+      // melody's floor. Voiced an octave over the bass it landed exactly on
+      // that floor, which is where the reader's own notes are, and the two
+      // muddied each other.
+      // The chord fills the gap between the bass and the line being read, and
+      // it leaves out whatever the bass is already playing — doubling that note
+      // an octave up is what pushed the voicing onto the melody's own floor.
+      //
+      // Every tone is placed inside one octave-wide window, which is what makes
+      // it a voicing rather than a set of pitches. Choosing each tone's octave
+      // independently — nearest to some centre — scattered them: an E3 with its
+      // own chord's G a ninth below it, which at that register is mud rather
+      // than harmony. A window starting an octave above the bass sits the chord
+      // where a left hand would put it, and capping it a further octave under
+      // the melody keeps even a four-note dominant clear of the line.
+      var bottom = Math.min(bass + 12, Math.round(lowMidi) - 12);
+      var bassPc = ((bass % 12) + 12) % 12;
+      pcs.forEach(function (pc) {
+        if (pc === bassPc) return;
+        var m = pc + 12 * Math.ceil((bottom - pc) / 12);   // lowest of this pc in the window
+        out.push({ onset: t0, dur: barLen, midi: m, gain: 0.30 });
+      });
+    }
+    return out;
+  }
+
+  // The pitch in `pcs` nearest to `from`, within the band. Every octave of
+  // every chord tone is a candidate, so "nearest" means nearest by semitone
+  // rather than nearest by name — which is the whole point of asking.
+  function nearestOf(pcs, from, loM, hiM) {
+    var best = null, bestD = 1e9, i, k, m, d;
+    for (i = 0; i < pcs.length; i++) {
+      for (k = -2; k <= 2; k++) {
+        m = pcToMidi(pcs[i], from) + 12 * k;
+        if (m < loM || m > hiM) continue;
+        d = Math.abs(m - from);
+        if (d < bestD) { bestD = d; best = m; }
+      }
+    }
+    return best == null ? from : best;
+  }
+
   function scheduleAhead() {
     var s = session;
     stopVoices();
     if (!s || !playAlongEl.checked || !audioCtx) return;
     var secPerBeat = s.bms / 1000;
+    var when = function (beat) {
+      return audioCtx.currentTime + (beat - s.elapsed) * secPerBeat;
+    };
     s.melody.forEach(function (n) {
       if (n.onset + n.dur <= s.elapsed) return;      // already finished
-      var startBeat = Math.max(n.onset, s.elapsed);
-      scheduleNote(n.freq, audioCtx.currentTime + (startBeat - s.elapsed) * secPerBeat,
-                           audioCtx.currentTime + (n.onset + n.dur - s.elapsed) * secPerBeat);
+      scheduleNote(n.freq, when(Math.max(n.onset, s.elapsed)), when(n.onset + n.dur));
+    });
+    var comp = compingEl.value;
+    if (comp === "none" || !s.comping) return;
+    s.comping.forEach(function (n) {
+      if (n.onset + n.dur <= s.elapsed) return;
+      // A chord already struck is not re-struck on a mid-line change: it would
+      // re-attack out of time, on a beat that is not a downbeat.
+      if (n.onset < s.elapsed) return;
+      scheduleNote(midiToFreq(n.midi), when(n.onset), when(n.onset + n.dur), comp, n.gain);
     });
   }
 
@@ -2336,14 +3946,17 @@
   // The visible pills / steppers / grids drive the hidden form elements, which
   // remain the single source of truth the preset + session snapshot reads.
   // ===========================================================================
-  var tonicCycleEl = document.getElementById("tonic-cycle");
-  var accCycleEl   = document.getElementById("acc-cycle");
-  var modeCycleEl  = document.getElementById("mode-cycle");
+  var keysCycleEl  = document.getElementById("keys-cycle");
   var clefCycleEl  = document.getElementById("clef-cycle");
+  var instrCycleEl = document.getElementById("instr-cycle");
   var timesigPillsEl = document.getElementById("timesig-pills");
   var hideUnitEl   = document.getElementById("hide-unit");
+  var hideBtnEl    = document.getElementById("hide-toggle");
+  var hideDepsEl   = document.getElementById("hide-deps");
   var hideValEl    = document.getElementById("hide-val");
   var chunksBtnEl  = document.getElementById("chunks-toggle");
+  var chordsBtnEl  = document.getElementById("chords-toggle");
+  var musicalityBtnEl = document.getElementById("musicality-toggle");
   var cursorBtnEl  = document.getElementById("cursor-toggle");
   var tempoUiEl    = document.getElementById("tempo-ui");
   var volumeUiEl   = document.getElementById("volume-ui");
@@ -2405,45 +4018,50 @@
     keyTonicEl.value = keyTonicEl.querySelector('option[value="' + current + '"]') ? current : "0-0";
   }
 
-  function keyParts() {
-    var tp = String(keyTonicEl.value).split("-");
-    return { sym: parseInt(tp[0], 10) || 0, acc: tp[1] || "0" };
-  }
-  function setKeyParts(sym, acc) {
-    if (validAcc[sym] && validAcc[sym].indexOf(acc) < 0) acc = validAcc[sym][0];
-    keyTonicEl.value = sym + "-" + acc;   // probeKeys() guarantees the option exists
-  }
-
   function syncKeyRow() {
-    var k = keyParts();
-    tonicCycleEl.textContent = LETTERS[k.sym];
-    var a = ACCS.filter(function (x) { return x.v === k.acc; })[0] || ACCS[0];
-    accCycleEl.textContent = a.label;
-    accCycleEl.classList.toggle("on", k.acc !== "0");
-    modeCycleEl.textContent = t("mode." + keyModeEl.value);
+    if (keysCycleEl) keysCycleEl.textContent = setText(selectedKeyCodes(), keyShort, ROW_SHOW);
     clefCycleEl.textContent = clefDef(clefEl.value).label;
+    if (instrCycleEl) instrCycleEl.textContent = t("instr." + instrumentPref());
   }
 
+  // The meters an exercise may be written in. A set, not a value: tick 4/4 and
+  // 6/8 and each new exercise is entirely one or the other, which is the one
+  // setting in the app that makes you actually READ the time signature instead
+  // of assuming it. That makes it part of the material rather than a frame
+  // around it, so it wears the material's clothes — the same solid cell as the
+  // figures and intervals, not the tinted pill of a pick-one.
   function buildTimesigPills() {
     timesigPillsEl.innerHTML = "";
     TIME_SIGS.forEach(function (ts) {
-      var b = document.createElement("button");
-      b.type = "button";
-      b.className = "opt";
-      b.textContent = ts.id;
-      b.addEventListener("click", function () {
-        timesigEl.value = ts.id;
+      var cell = document.createElement("label");
+      cell.className = "fig-cell";
+      cell.setAttribute("aria-label", ts.id);
+      figCellRole(cell);
+      var txt = document.createElement("span");
+      txt.className = "fig-txt";
+      txt.textContent = ts.id;
+      cell.appendChild(txt);
+      cell.addEventListener("click", function (e) {
+        e.preventDefault();
+        var ids = selectedSigIds(), at = ids.indexOf(ts.id);
+        // Clamped at one. Nothing can be written in no meter, and a silent
+        // fallback to 4/4 would be a setting changing itself behind you.
+        if (at >= 0) { if (ids.length === 1) return; ids.splice(at, 1); }
+        else ids.push(ts.id);
+        timesigEl.value = canonSigs(ids.join(",")).join(",");
+        sigIdx = 0; sigFresh = true;
         syncTimesigPills();
-        syncBeatsFamily();    // swaps the figure grid only if simple<->compound changed
+        syncFigureCells();
         generate();
       });
-      timesigPillsEl.appendChild(b);
+      timesigPillsEl.appendChild(cell);
     });
     syncTimesigPills();
   }
   function syncTimesigPills() {
-    Array.prototype.forEach.call(timesigPillsEl.children, function (b, i) {
-      b.classList.toggle("on", TIME_SIGS[i].id === timesigEl.value);
+    var ids = selectedSigIds();
+    Array.prototype.forEach.call(timesigPillsEl.children, function (cell, i) {
+      setSwitch(cell, ids.indexOf(TIME_SIGS[i].id) >= 0);
     });
   }
 
@@ -2451,10 +4069,15 @@
   // checkbox, so any value above 0 means hiding is on with that much lead.
   function hideUnitIsMeasures() { return hideUnitEl.dataset.unit === "measures"; }
   function syncHide() {
-    var n = parseInt(hideValEl.dataset.n, 10) || 0;
-    hideValEl.textContent = n === 0 ? t("val.off") : String(n);
+    var n = parseInt(hideValEl.dataset.n, 10) || 1;
+    // Only ever a number now: "off" moved to the switch, so the stepper counts
+    // from 1 and there is one place saying whether the curtain is down.
+    hideValEl.textContent = String(n);
     hideUnitEl.textContent = hideUnitIsMeasures() ? t("val.measures") : t("val.beats");
-    hideBehindEl.checked = n > 0;
+    // The switch is the state, not a readout of the stepper — this used to run
+    // the other way (checked = n > 0), which is why "off" had two homes.
+    setSwitch(hideBtnEl, hideBehindEl.checked);
+    if (hideDepsEl) hideDepsEl.hidden = !hideBehindEl.checked;
     // The stepper's number is in whatever unit is showing; the lead is always
     // in the clock's quarter-note units. Clamping the product by the stepper's
     // own limit made every setting above two measures behave like two, and
@@ -2464,16 +4087,20 @@
     // without a second clamp.
     hideLeadEl.value = n * unitBeats();
   }
+  // Floors at 1: the stepper cannot say "off" any more, so a decrement past the
+  // bottom simply stops rather than silently turning the feature off from a
+  // control that no longer owns that.
   function setHide(n, unit) {
-    hideValEl.dataset.n = Math.max(0, Math.min(hideMaxN(), n));
+    hideValEl.dataset.n = Math.max(1, Math.min(hideMaxN(), n));
     if (unit) hideUnitEl.dataset.unit = unit;
     syncHide();
   }
-  // Restore the stepper from the stored beats-lead + on/off flag.
+  // Restore the stepper from the stored beats-lead. The lead keeps its last
+  // value while the switch is off, so turning it back on comes back where you
+  // left it rather than at 1.
   function hideFromState() {
     var lead = parseFloat(hideLeadEl.value) || 0;
-    if (!hideBehindEl.checked) { setHide(0); return; }
-    setHide(Math.max(1, Math.round(lead / unitBeats())));
+    setHide(lead > 0 ? Math.round(lead / unitBeats()) : 1);
   }
 
   // The pill shows the chosen voice; the hidden <select> holds it. Same split
@@ -2482,13 +4109,31 @@
   function syncInstrument() {
     if (voiceBtnEl) voiceBtnEl.textContent = t("inst." + instrumentEl.value);
   }
+  function syncComping() {
+    var b = document.getElementById("comping-btn");
+    if (b) b.textContent = t("inst." + compingEl.value);
+  }
+  // No textContent any more: these read "On"/"Off" while they were pills, and a
+  // switch is its own readout.
   function syncChunks() {
-    chunksBtnEl.textContent = showChunksEl.checked ? t("val.on") : t("val.off");
-    chunksBtnEl.classList.toggle("on", showChunksEl.checked);
+    setSwitch(chunksBtnEl, showChunksEl.checked);
+    // The legend names two colours that are not on the staff when the switch is
+    // off, so it goes with them.
+    var deps = document.getElementById("chunks-deps");
+    if (deps) deps.hidden = !showChunksEl.checked;
   }
-  function syncCursorBtn() {
-    cursorBtnEl.classList.toggle("on", cursorModeEl.value !== "off");
+  function syncChordsBtn() { setSwitch(chordsBtnEl, showChordsEl.checked); }
+
+  // The progression and the chord names are only meaningful once the harmony
+  // is on, so they are not on screen when it is off. Hidden rather than muted
+  // because the switch that causes it is the row directly above.
+  function syncMusicality() {
+    var on = (+musicalityEl.value) > 0;
+    setSwitch(musicalityBtnEl, on);
+    var deps = document.getElementById("musicality-deps");
+    if (deps) deps.hidden = !on;
   }
+  function syncCursorBtn() { setSwitch(cursorBtnEl, cursorModeEl.value !== "off"); }
   function syncTempoUi() {
     tempoUiEl.value = tempoEl.value;
     tempoValEl.textContent = tempoEl.value;
@@ -2499,8 +4144,11 @@
   // jump between "Piano" and "Vibraphone" (or "Major" and "Harmonic Minor") and
   // shove its neighbours around. Measure every value it can show and pin the
   // width to the widest, so the row stays put.
+  // Sizes a cycle pill to its widest label so it stops resizing as you tap it.
+  // It measures by writing each label in, so it must only ever be handed a
+  // control whose content *is* text — anything with children loses them.
   function lockCycleWidth(btn, labels) {
-    if (!btn || !labels.length) return;
+    if (!btn || !labels.length || btn.firstElementChild) return;
     var prev = btn.textContent, max = 0;
     btn.style.minWidth = "";
     labels.forEach(function (t) {
@@ -2515,12 +4163,13 @@
     var optionText = function (sel) {
       return Array.prototype.map.call(sel.options, function (o) { return o.textContent; });
     };
-    lockCycleWidth(modeCycleEl, MODES.map(function (m) { return t("mode." + m); }));
     lockCycleWidth(hideUnitEl, [t("val.beats"), t("val.measures")]);
-    lockCycleWidth(tonicCycleEl, LETTERS);
-    lockCycleWidth(accCycleEl, ACCS.map(function (a) { return a.label; }));
     lockCycleWidth(clefCycleEl, CLEFS.map(function (c) { return c.label; }));
-    lockCycleWidth(chunksBtnEl, [t("val.off"), t("val.on")]);
+    // Highlight Patterns is not in this list any more. It was a cycle pill
+    // reading Off/On, and the widest-label measurement writes each label into
+    // the element to size it — which, now that it is a switch, wiped the knob
+    // out of it and pinned a width around nothing. A switch has no label to
+    // measure and no width to lock.
   }
 
   // ===========================================================================
@@ -2530,8 +4179,8 @@
   // guide top to bottom walks the panel top to bottom. Copy lives in i18n.js.
   // ===========================================================================
   var HELP_SECTIONS = ["exercise", "transport", "presets", "tempo", "accomp",
-                       "hide", "ramp", "rhythm", "step", "notes", "musicality",
-                       "chroma", "chunks", "staff"];
+                       "hide", "rhythm", "step", "notes", "musicality",
+                       "chroma", "chunks", "staff", "credits"];
 
   function buildHelpBody() {
     var host = document.getElementById("help-body");
@@ -2569,6 +4218,147 @@
     }
   }
 
+  // Platter folding. Every band opens on a first visit — the rail's whole job
+  // is to show the vocabulary, and a stack of closed lids shows none of it —
+  // but each one remembers being shut, so the panel settles into whatever you
+  // actually keep working on. The intro platter has no header and never folds.
+  // How long a fold takes, from the token, so the class that clips during it
+  // comes off exactly when the motion stops rather than at a number copied here.
+  function bandFoldMs() {
+    var cs = getComputedStyle(document.documentElement);
+    var ms = parseFloat(cs.getPropertyValue("--band-fold-ms"));
+    var mo = parseFloat(cs.getPropertyValue("--motion"));
+    return (isNaN(ms) ? 260 : ms) * (isNaN(mo) ? 1 : mo);
+  }
+
+  // Folding near the bottom of the rail used to shove the header you tapped down
+  // the screen — 176px of it on a desktop, 267px on an iPad. Collapsing shortens
+  // the rail, so the browser has to claw scrollTop back, and pulling scrollTop
+  // back moves everything above the fold down.
+  //
+  // Animating that smoothly was the first answer and it was the wrong question:
+  // a quarter of the screen sliding out from under a finger is not better for
+  // being eased. The fix is for it not to happen. A spacer takes up exactly the
+  // scroll length the fold is about to remove, so scrollTop never has to move
+  // and nothing above the fold shifts at all — the platters below rise to close
+  // the gap, which is the whole of what an accordion is supposed to do.
+  //
+  // The spacer is then given back as you scroll up, a pixel per pixel. That is
+  // the one direction where it can be taken away for free: scrolling up lowers
+  // scrollTop first, so shrinking the content behind it can never leave the
+  // scroll position out of bounds, and the dead length disappears exactly as it
+  // stops being what is holding the view still.
+  function railSpacer(rb, make) {
+    var sp = rb.querySelector(".rail-spacer");
+    if (!sp && make) {
+      sp = document.createElement("div");
+      sp.className = "rail-spacer";
+      sp.setAttribute("aria-hidden", "true");
+      rb.appendChild(sp);
+    }
+    return sp;
+  }
+
+  function setSpacer(sp, h) {
+    sp.dataset.h = h;
+    sp.style.height = h + "px";
+  }
+
+  function holdScroll(band) {
+    var rb = band.closest(".rail-body");
+    var body = band.querySelector(".band-body");
+    if (!rb || !body) return;
+
+    var h0 = body.getBoundingClientRect().height;
+    // What the browser would have to take back once h0 leaves the flow. Zero
+    // whenever there is content below to fall into the gap, which is most folds.
+    var need = Math.max(0, rb.scrollTop - ((rb.scrollHeight - rb.clientHeight) - h0));
+    if (!h0 || !need) return;
+
+    var sp = railSpacer(rb, true);
+    setSpacer(sp, (+sp.dataset.h || 0) + need);
+  }
+
+  // One listener per rail, not per platter.
+  function wireSpacerRelease(rb) {
+    var last = rb.scrollTop;
+    rb.addEventListener("scroll", function () {
+      var up = last - rb.scrollTop;
+      last = rb.scrollTop;
+      var sp = railSpacer(rb, false);
+      if (!sp || up <= 0) return;
+      var h = +sp.dataset.h || 0;
+      if (h) setSpacer(sp, Math.max(0, h - up));
+    }, { passive: true });
+  }
+
+  function wireBands() {
+    var BAND_KEY = "sr_bands";
+    var shut = {};
+    try { shut = JSON.parse(localStorage.getItem(BAND_KEY) || "{}"); } catch (e) {}
+
+    // Restoring the stored state is not a fold anyone performed, so it must not
+    // look like one — without this every shut platter plays its collapse as the
+    // page loads.
+    var rail = document.querySelector(".rail");
+    if (rail) rail.classList.add("bands-init");
+    var railBody = document.querySelector(".rail-body");
+    if (railBody) wireSpacerRelease(railBody);
+
+    document.querySelectorAll(".band[data-band]").forEach(function (band) {
+      var id = band.getAttribute("data-band");
+      var btn = band.querySelector(".band-h");
+      if (!btn) return;
+      var timer = null;
+      function draw() {
+        band.classList.toggle("folded", !!shut[id]);
+        btn.setAttribute("aria-expanded", shut[id] ? "false" : "true");
+      }
+      btn.addEventListener("click", function () {
+        var closing = !shut[id];
+        shut[id] = closing;
+        try { localStorage.setItem(BAND_KEY, JSON.stringify(shut)); } catch (e) {}
+        if (closing) holdScroll(band);
+
+        var body = band.querySelector(".band-body");
+        if (!body || stillness()) {
+          clearTimeout(timer);
+          band.classList.remove("moving");
+          draw();
+          return;
+        }
+
+        // FLIP on the body's height, from wherever it is now — mid-flight
+        // included, so a second tap reverses the fold instead of restarting it.
+        // .moving clips the body for the length of the fold and no longer, so a
+        // settled-open platter stops cutting off its own tooltips.
+        var h0 = body.getBoundingClientRect().height;
+        band.classList.add("moving");
+        body.style.transition = "none";
+        draw();
+        body.style.height = "";                    // so the target measures true
+        var h1 = closing ? 0 : body.getBoundingClientRect().height;
+        body.style.height = h0 + "px";
+        void body.offsetHeight;                    // commit the start before animating
+        body.style.transition = "";
+        body.style.height = h1 + "px";
+
+        clearTimeout(timer);
+        timer = setTimeout(function () {
+          band.classList.remove("moving");
+          body.style.height = "";                  // the class holds 0 folded, auto open
+        }, bandFoldMs() + 40);
+      });
+      draw();
+    });
+
+    if (rail) {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () { rail.classList.remove("bands-init"); });
+      });
+    }
+  }
+
   function wireHelp() {
     var open = document.getElementById("help-open");
     var close = document.getElementById("help-close");
@@ -2602,26 +4392,36 @@
   // Once per visitor (sr_onboarded). Flip to true while reworking the
   // walkthrough to see it on every load without clearing storage.
   var OB_ALWAYS = false;
+  // ?onboarding does the same from the URL, matching ?tweaks — the walkthrough
+  // is a design surface too, and it should open without devtools or wiping
+  // state. It deliberately does NOT mark itself seen on the way out (see
+  // obFinish): a flag you had to clear storage to use twice would be no better
+  // than clearing storage.
+  var OB_FLAG = /[?&]onboarding(?:[=&]|$)/.test(location.search);
+  // Remembered across page rebuilds, so stepping back and forward does not
+  // silently reset either row's answer. Both start on the gentlest rung: a
+  // first line of steps in quarter notes is the one that everybody can read,
+  // and the rows are there to be moved up from, not defended against.
+  var obRhythmPick = "quarters";
+  var obIvPick = "";
   var OB_PAGES = ["intro", "instrument", "vocab"];
-  // The plain note values plus one rest: the first six cells of the real rhythm
-  // grid, in the same order, so the grid is recognisable when the rest appear.
-  var OB_FIGS = ["w", "h", "q", "ee", "ssss", "qr"];
   var obPage = 0;
-
-  function obSetFigure(id, on) {
-    var cb = beatsEl.querySelector('.beat[value="' + id + '"]');
-    if (!cb) return;
-    cb.checked = on;
-    cb.parentNode.classList.toggle("on", on);
-  }
-
-  function obFigureOn(id) {
-    var cb = beatsEl.querySelector('.beat[value="' + id + '"]');
-    return !!(cb && cb.checked);
-  }
 
   // A row of pills that behave like the panel control they stand for —
   // intervals here are independent toggles, same as the Step checkboxes.
+  // A row of pills under a caption. The caption uses the rail's own section
+  // names, so the page keeps naming things the student will meet again later.
+  function obRow(host, labelKey, items, isOn, onPick, cls) {
+    var wrap = document.createElement("div");
+    wrap.className = "ob-row";
+    var lab = document.createElement("p");
+    lab.className = "ob-row-label";
+    lab.textContent = t(labelKey);
+    wrap.appendChild(lab);
+    host.appendChild(wrap);
+    return obPills(wrap, items, isOn, onPick, cls);
+  }
+
   function obPills(host, items, isOn, onPick, cls) {
     var row = document.createElement("div");
     row.className = "ob-pills";
@@ -2643,16 +4443,6 @@
     return row;
   }
 
-  function obGroup(host, titleKey) {
-    var g = document.createElement("div");
-    g.className = "ob-group";
-    var h = document.createElement("h3");
-    h.textContent = t(titleKey);
-    g.appendChild(h);
-    host.appendChild(g);
-    return g;
-  }
-
   function obPara(host, key, cls) {
     var p = document.createElement("p");
     if (cls) p.className = cls;
@@ -2661,29 +4451,220 @@
     return p;
   }
 
-  // Same, but with {icon} swapped for the actual settings glyph — pointing at
-  // the real button beats naming a gear the interface doesn't have. The token
-  // lets each language put it wherever its own word order wants it.
-  function obIconPara(host, key, cls) {
-    var p = document.createElement("p");
-    if (cls) p.className = cls;
-    var parts = t(key).split("{icon}");
-    parts.forEach(function (chunk, i) {
-      if (i) p.insertAdjacentHTML("beforeend",
-        '<svg class="ic ic-settings ob-ic" aria-hidden="true"><use href="#ic-settings"/></svg>');
-      p.appendChild(document.createTextNode(chunk));
+  // ===========================================================================
+  // Onboarding preview — four notes showing what a preset actually reads like
+  //
+  // The preset's CHARACTERISTIC move, not a sample of its distribution. With
+  // three moves a weighted draw is a lottery: Thirds Drill's pool is only four
+  // ninths thirds, and it duly came out a 2nd, a 4th and a 2nd — a picture of
+  // the wrong thing, on the one preset named after an interval. Ranking the
+  // weights and alternating the top two says what the name promises every
+  // time, which is the only reason the picture is there at all.
+  //
+  // Deterministic, so no seed: the same preset always draws the same four
+  // notes. Weights still come from BUILTIN, so tuning an alphabet moves the
+  // picture with it rather than leaving it to lie.
+  //
+  // No clef — the preview is about the size of the moves, and a clef would
+  // promise particular pitches it is not choosing.
+  // ===========================================================================
+  function previewWalk(weights, n) {
+    // The bar has four to seven notes, so it cannot sample the alphabet — it
+    // has to *represent* it. Ranking by weight and cycling the top two was the
+    // first attempt and it made A Mix unreadable: its two commonest intervals
+    // are the 2nd and the 3rd, so the broadest alphabet in the app drew the
+    // same tight line as Steps. What the row promises is range, so the preview
+    // spreads its moves evenly across the whole alphabet instead.
+    //
+    // The bag holds each interval repeated by its weight, ascending, and the
+    // moves are read off it at even offsets. Weight then decides how much of
+    // the bag an interval owns, which is how a common 2nd still shows up more
+    // often than a rare 7th without crowding it out entirely.
+    var bag = [];
+    weights.forEach(function (w, iv) {
+      if (iv > 0) for (var k = 0; k < w; k++) bag.push(iv);
     });
-    host.appendChild(p);
-    return p;
+    if (!bag.length) bag = [1];
+
+    var moves = Math.max(1, n - 1), pick = [];
+    for (var i = 0; i < moves; i++) {
+      pick.push(bag[Math.floor(i * bag.length / moves)]);
+    }
+    // Read straight off an ascending bag the line would open out and never
+    // close, which reads as a ramp rather than as music. Swapping neighbours
+    // keeps the spread and takes the monotony out of it.
+    for (var j = 1; j < pick.length; j += 2) {
+      var sw = pick[j]; pick[j] = pick[j - 1]; pick[j - 1] = sw;
+    }
+
+    // An interval's number IS its distance in staff slots: a 3rd moves two.
+    var pos = 1, out = [pos], dir = 1;
+    for (var m = 0; m < moves; m++) {
+      var iv = pick[m];
+      if (pos + dir * iv > 8 || pos + dir * iv < 0) dir = -dir;   // turn at the staff edge
+      pos = Math.max(0, Math.min(8, pos + dir * iv));
+      out.push(pos);
+    }
+    return out;
   }
 
-  function buildObPage() {
-    var host = document.getElementById("ob-body");
+  // Nine slots — five lines and four spaces — so nothing needs a ledger line.
+  // Stems make them read as notes rather than dots: up on the right below the
+  // middle line, down on the left at or above it, which is the rule real
+  // engraving follows and the reason the shape looks like music.
+  // The viewBox margin is derived, not guessed. Stems only point away from the
+  // middle line, so the furthest any of them reaches past the staff is a stem
+  // starting at that line — STEM minus half the staff — plus a little air. A
+  // flat generous margin left the bar mostly white space.
+  var PV_L = 9, PV_W = 300, PV_PAD = 34, PV_STEM = 3.3 * PV_L, PV_SX = 4.1;
+
+  // One bar of 4/4 per rhythm choice, in quarters. The preview is a bar rather
+  // than four loose notes because rhythm only means anything against a measure.
+  var PV_RHYTHM = {
+    quarters: [1, 1, 1, 1],
+    eighths:  [1, 0.5, 0.5, 1, 1],
+    mix:      [1, 0.25, 0.25, 0.25, 0.25, 1, 1]
+  };
+
+  function previewY(p) { return 4 * PV_L - p * PV_L / 2; }
+
+  // Width by duration, but sublinear: a sixteenth gets less room than a quarter
+  // and more than a quarter of it. Strict proportion crushes a run of them into
+  // an unreadable clump at this size, which is why engravers do not use it
+  // either.
+  function previewX(durs) {
+    var w = durs.map(function (d) { return Math.pow(d, 0.55); }), tot = 0;
+    w.forEach(function (v) { tot += v; });
+    var span = PV_W - PV_PAD * 2, at = PV_PAD, out = [];
+    for (var i = 0; i < w.length; i++) { out.push(at); at += span * w[i] / tot; }
+    return out;
+  }
+
+  // Where every stem ends and every beam sits. Held apart from the drawing so
+  // the same numbers serve both the first build and every later move — the
+  // beam's height depends on the pitches under it, so a preview that glides has
+  // to recompute this, not just the noteheads.
+  function previewLayout(pos, durs) {
+    var xs = previewX(durs), ys = pos.map(previewY);
+    var notes = xs.map(function (x, i) {
+      return { x: x, y: ys[i], up: pos[i] < 4, stem: PV_STEM };
+    });
+
+    // Consecutive notes shorter than a quarter beam together.
+    var beams = [], run = null;
+    durs.forEach(function (d, i) {
+      if (d >= 1) { run = null; return; }
+      if (run) { run.to = i; run.dur = Math.min(run.dur, d); }
+      else { run = { from: i, to: i, dur: d }; beams.push(run); }
+    });
+    beams = beams.filter(function (g) { return g.to > g.from; });
+
+    beams.forEach(function (g) {
+      // One direction for the whole group, taken from where its notes average —
+      // a beam cannot have some stems up and some down.
+      var n = g.to - g.from + 1, avg = 0, j;
+      for (j = g.from; j <= g.to; j++) avg += pos[j];
+      g.up = (avg / n) < 4;
+      var tips = [];
+      for (j = g.from; j <= g.to; j++) tips.push(g.up ? ys[j] - PV_STEM : ys[j] + PV_STEM);
+      g.y = g.up ? Math.min.apply(null, tips) : Math.max.apply(null, tips);
+      for (j = g.from; j <= g.to; j++) {
+        notes[j].up = g.up;
+        notes[j].stem = g.up ? ys[j] - g.y : g.y - ys[j];   // every stem reaches the beam
+      }
+      g.x1 = xs[g.from] + (g.up ? PV_SX : -PV_SX);
+      g.x2 = xs[g.to]   + (g.up ? PV_SX : -PV_SX);
+      g.double = g.dur <= 0.25;
+    });
+    return { notes: notes, beams: beams };
+  }
+
+  // Everything that moves is a transform on a CSS variable — the note's place,
+  // its stem's length (a rect scaled on Y, so the stroke width does not scale
+  // with it), and the beam's height. Nothing animates a geometry attribute, so
+  // it glides in every engine rather than only where cx/cy/r are animatable.
+  function previewSvg(pos, durs) {
+    var L = previewLayout(pos, durs);
+    var M = PV_STEM - 2 * PV_L + 10, s = "";
+    for (var i = 0; i < 5; i++) {
+      s += '<line class="staff" x1="0" y1="' + (i * PV_L) + '" x2="' + PV_W + '" y2="' + (i * PV_L) + '"/>';
+    }
+    L.beams.forEach(function (g, i) {
+      s += '<g class="ob-pbeam" data-g="' + i + '" style="--by:' + g.y.toFixed(2) + '">' +
+           '<rect x="' + g.x1.toFixed(2) + '" y="-1.3" width="' + (g.x2 - g.x1).toFixed(2) + '" height="2.6"/>' +
+           (g.double
+             ? '<rect x="' + g.x1.toFixed(2) + '" y="' + (g.up ? 2.4 : -4.9).toFixed(2) +
+               '" width="' + (g.x2 - g.x1).toFixed(2) + '" height="2.6"/>'
+             : '') +
+           '</g>';
+    });
+    L.notes.forEach(function (n) {
+      s += '<g class="ob-pnote' + (n.up ? " up" : "") + '" style="--x:' + n.x.toFixed(2) +
+             '; --y:' + n.y.toFixed(2) + '; --stem:' + n.stem.toFixed(2) + '">' +
+             '<rect class="stem up" x="' + (PV_SX - 0.55) + '" y="-1" width="1.1" height="1"/>' +
+             '<rect class="stem dn" x="' + (-PV_SX - 0.55) + '" y="0" width="1.1" height="1"/>' +
+             '<ellipse cx="0" cy="0" rx="4.6" ry="3.4" transform="rotate(-20)"/>' +
+           '</g>';
+    });
+    return '<svg class="ob-preview" viewBox="0 ' + (-M) + ' ' + PV_W + ' ' + (4 * PV_L + M * 2) +
+           '" aria-hidden="true">' + s + '</svg>';
+  }
+
+  // Same rhythm, new pitches: move what is already drawn. The x positions and
+  // the beam widths depend only on the durations, so nothing but heights change
+  // and the whole bar can glide — which is the point of the preview, since the
+  // intervals widening is what the row is asking you to compare.
+  function previewMove(root, pos, durs) {
+    var L = previewLayout(pos, durs);
+    var notes = root.querySelectorAll(".ob-pnote");
+    L.notes.forEach(function (n, i) {
+      if (!notes[i]) return;
+      notes[i].style.setProperty("--y", n.y.toFixed(2));
+      notes[i].style.setProperty("--stem", n.stem.toFixed(2));
+      notes[i].classList.toggle("up", n.up);
+    });
+    var bs = root.querySelectorAll(".ob-pbeam");
+    L.beams.forEach(function (g, i) {
+      if (bs[i]) bs[i].style.setProperty("--by", g.y.toFixed(2));
+    });
+  }
+
+  function buildObPage(host) {
+    var body = document.getElementById("ob-body");
+    // Given a host, fill it; given none, this is the plain first render and the
+    // body is the host — which is what the initial page and every rebuild use.
+    if (!host) { host = body; host.innerHTML = ""; }
     var page = OB_PAGES[obPage];
-    host.innerHTML = "";
-    host.scrollTop = 0;
+    body.scrollTop = 0;
+
+    // Introduced large on the first page, then small on the rest: the card
+    // should keep saying whose it is without re-announcing itself. Back rides
+    // with it, because the two appear on exactly the same pages — and having
+    // left the footer, the dots can sit at the card's edge instead of being
+    // pushed off it by a control that was invisible half the time.
+    if (page !== "intro") {
+      var crumb = document.createElement("div");
+      crumb.className = "ob-crumb";
+      var back = document.createElement("button");
+      back.className = "ob-back";
+      back.type = "button";
+      back.setAttribute("data-i18n-aria", "ob.back");
+      back.setAttribute("aria-label", t("ob.back"));
+      back.innerHTML = '<svg class="ob-back-caret" aria-hidden="true"><use href="#ic-chevron"/></svg>';
+      back.addEventListener("click", function () { if (obPage > 0) obGo(obPage - 1); });
+      crumb.appendChild(back);
+      var sm = document.createElement("p");
+      sm.className = "ob-wordmark-sm";
+      sm.textContent = "Prima Vista";
+      crumb.appendChild(sm);
+      host.appendChild(crumb);
+    }
 
     if (page === "intro") {
+      var tpl = document.getElementById("tpl-logo");
+      var logo = tpl.content.firstElementChild.cloneNode(true);
+      host.appendChild(logo);
+      obAssemble(logo);
       var mark = document.createElement("p");
       mark.className = "ob-wordmark";
       mark.id = "ob-title";
@@ -2693,6 +4674,7 @@
 
     } else if (page === "instrument") {
       obHeading(host, "ob.instrTitle");
+      obPara(host, "ob.instrNote", "ob-sub");
       var items = INSTRUMENTS.map(function (ins) {
         return { id: ins.id, html: t("instr." + ins.id) };
       });
@@ -2700,41 +4682,87 @@
         function (it) { return instrumentPref() === it.id; },
         function (it) { setInstrument(it.id); },
         "ob-instr");
-      obPara(host, "ob.instrNote", "ob-note");
+      // Piano is the loudest absence on this list — more people play it than
+      // everything else here put together, and a pianist who scans the row and
+      // does not find themselves has no way to tell "not supported" from "not
+      // yet". Naming it is the whole job; it needs no more room than that.
+      obPara(host, "ob.instrSoon", "ob-note ob-soon");
 
     } else if (page === "vocab") {
       obHeading(host, "ob.vocabTitle");
+      // A subtitle of the question, not a footnote under the answer. It
+      // qualifies the choice you are being asked to make — "pick one, this is
+      // not binding" — which is worth knowing before you pick rather than after.
+      obPara(host, "ob.vocabNote", "ob-sub");
 
-      var rg = obGroup(host, "ob.vocabRhythm");
-      var grid = document.createElement("div");
-      grid.className = "fig-grid";
-      rg.appendChild(grid);
-      OB_FIGS.forEach(function (id) {
-        var cell = document.createElement("button");
-        cell.type = "button";
-        cell.className = "fig-cell";
-        cell.setAttribute("aria-label", t("fig." + id));
-        cell.innerHTML = figureGlyph(id);
-        cell.classList.toggle("on", obFigureOn(id));
-        cell.addEventListener("click", function () {
-          obSetFigure(id, !obFigureOn(id));
-          cell.classList.toggle("on", obFigureOn(id));
-        });
-        grid.appendChild(cell);
-      });
+      // Two rows, one preview. They are the app's two axes — what the notes do
+      // and how long they last — and putting them on one page is what lets a
+      // single bar answer both; split across pages each gets half a preview.
+      // Each row is two named vocabularies and then everything, which is what
+      // the alphabets always were: "steps only" is the one real restriction,
+      // while thirds and the mix are both mixtures with different centres.
+      // Labels are short here and longer in the rail's preset list, because a
+      // first-run row and a catalogue want different lengths.
+      var ivPicks = [
+        { id: "steps only",      key: "ob.iv.steps" },
+        { id: "thirds drill",    key: "ob.iv.thirds" },
+        { id: "mixed intervals", key: "ob.mix" }
+      ];
+      var rhPicks = [
+        { id: "quarters", key: "ob.rh.quarters" },
+        { id: "eighths",  key: "ob.rh.eighths" },
+        { id: "mix",      key: "ob.mix" }
+      ];
+      // The figures each rhythm lights. Set straight onto the grid rather than
+      // through a preset: the interval built-ins deliberately carry no rhythm,
+      // so that switching between them leaves your figures alone, and routing
+      // this through a preset would break that promise. presetMatchesPanel
+      // skips a preset's absent keys, so the title still reads the interval
+      // drill's name rather than falling to Custom.
+      var RH_BEATS = {
+        quarters: ["h", "q"],
+        eighths:  ["h", "q", "ee"],
+        mix:      ["q", "ee", "ssss", "des", "qr"]
+      };
 
-      // Unison is left out: a repeated note is the least useful thing a
-      // beginner can switch on, and dropping it makes the row read cleanly.
-      var ig = obGroup(host, "ob.vocabSteps");
-      var ivs = [];
-      for (var i = 1; i < INTERVALS.length; i++) ivs.push({ i: i, html:
-        '<span class="dot" style="background:' + INTERVALS[i].c + '"></span>' + stepLabel(i) });
-      obPills(ig, ivs,
-        function (it) { return stepChecks[it.i].checked; },
-        function (it) { stepChecks[it.i].checked = !stepChecks[it.i].checked; syncStepRow(it.i); },
-        "ob-int");
+      var obRhythm = obRhythmPick || "quarters";
 
-      obIconPara(host, "ob.vocabNote", "ob-note");
+      obRow(host, "sec.step", ivPicks.map(function (it) {
+        return { id: it.id, html: t(it.key) };
+      }), function (it) { return activePreset === it.id; }, function (it) {
+        applyPreset(builtinPreset(it.id));
+        applyBeats(RH_BEATS[obRhythm]);      // the preset carries none; keep ours
+        syncPanel();
+        activePreset = obIvPick = it.id;
+        drawPreview();
+      }, "ob-preset");
+
+      obRow(host, "sec.rhythm", rhPicks.map(function (it) {
+        return { id: it.id, html: t(it.key) };
+      }), function (it) { return obRhythm === it.id; }, function (it) {
+        obRhythm = obRhythmPick = it.id;
+        applyBeats(RH_BEATS[it.id]);
+        syncPanel();
+        drawPreview();
+      }, "ob-rhythm");
+
+      var prev = document.createElement("div");
+      prev.className = "ob-preview-bar";
+      host.appendChild(prev);
+      function drawPreview() {
+        var name = ivPicks.some(function (it) { return it.id === activePreset; })
+          ? activePreset : "steps only";
+        var durs = PV_RHYTHM[obRhythm];
+        var pos = previewWalk(BUILTIN[name] || BUILTIN["steps only"], durs.length);
+        // Same rhythm, so the bar can glide; a new rhythm changes how many
+        // notes there are and has to be redrawn.
+        if (prev.firstChild && prev.dataset.rh === obRhythm) previewMove(prev, pos, durs);
+        else { prev.innerHTML = previewSvg(pos, durs); prev.dataset.rh = obRhythm; }
+      }
+      applyBeats(RH_BEATS[obRhythm]);
+      syncPanel();
+      drawPreview();
+
     }
 
     var dots = document.getElementById("ob-dots");
@@ -2753,6 +4781,81 @@
     document.getElementById("ob-skip").hidden = (page === "intro" || last);
   }
 
+  // The mark arrives rather than appears. The three circles start stacked on the
+  // centre — at half strength they multiply into a disc darker than any of them
+  // — and travel out to their overlap while the ring unwinds a few degrees, so
+  // the spiral falls out of two plain transforms rather than being described.
+  // The note is on top and cannot be uncovered, so it scales up and fades in
+  // once they are roughly half apart.
+  //
+  // Held until the fonts land: the wordmark under it is font-display: swap, and
+  // an entrance that finishes just as the name jumps a face is worse than a
+  // slightly later one. The timeout is there so a slow font can delay the mark
+  // but never strand it.
+  function obPlayMark(logo) {
+    // Land in the stacked state without a frame of transition, then release it.
+    logo.classList.add("ob-nowind", "ob-stacked");
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        logo.classList.remove("ob-nowind", "ob-stacked");
+      });
+    });
+  }
+
+
+  // One gate for the whole entrance. The card and the mark both wait on the
+  // fonts because the wordmark sits between them: gating only the mark would
+  // move the face-swap onto the name instead of removing it. The timeout is
+  // what keeps a slow font able to delay the entrance but never withhold it.
+  function obReady(fn) {
+    var fired = false;
+    function go() { if (fired) return; fired = true; fn(); }
+    setTimeout(go, 600);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(go);
+    else go();
+  }
+
+  // Two frames, because a class removed in the same frame it was added is not a
+  // style change the browser ever sees.
+  function obRelease(el, cls) {
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () { el.classList.remove(cls); });
+    });
+  }
+
+  // How long the card takes, read from the token so the mark stays timed
+  // against whatever the dial currently says rather than a number copied here.
+  function obEnterMs() {
+    var cs = getComputedStyle(document.documentElement);
+    var ms = parseFloat(cs.getPropertyValue("--ob-enter-ms"));
+    var mo = parseFloat(cs.getPropertyValue("--motion"));
+    return (isNaN(ms) ? 420 : ms) * (isNaN(mo) ? 1 : mo);
+  }
+
+  var obMarkPlayed = false;
+
+  function obAssemble(logo) {
+    if (stillness()) return;             // no assembly at all — the mark is there
+    // Clicking the mark plays it again. Without that the timing dials in the
+    // tweaks panel drive an animation that is already over by the time you
+    // reach them. Wired on every copy of the mark, including the ones built by
+    // stepping back to the intro.
+    logo.addEventListener("click", function () {
+      if (!stillness()) obPlayMark(logo);
+    });
+    // The entrance itself is once. Back lands on the intro again, and a mark
+    // that reassembles every time you step backwards stops being an entrance.
+    if (obMarkPlayed) return;
+    obMarkPlayed = true;
+
+    logo.classList.add("ob-stacked");    // set before first paint, so nothing animates into it
+    // Overlapping the card rather than following it: waiting for the card to
+    // finish before the mark starts makes an entrance out of two entrances.
+    obReady(function () {
+      setTimeout(function () { obRelease(logo, "ob-stacked"); }, obEnterMs() * 0.55);
+    });
+  }
+
   function obHeading(host, key) {
     var h = document.createElement("h2");
     h.id = "ob-title";
@@ -2761,33 +4864,91 @@
     return h;
   }
 
+  // Slide the pages, ease the card's height, and never do either for someone
+  // who asked for stillness. The card is measured before and after because
+  // height:auto cannot be transitioned — the same read-the-geometry-back move
+  // the chunk highlighter and the hide curtain already make.
+  function stillness() {
+    return document.documentElement.classList.contains("reduce-motion") ||
+           (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }
+
+  function obSwap(build, back) {
+    var card = document.querySelector(".ob-card"), body = document.getElementById("ob-body");
+    if (!card || !body || stillness()) { build(); return; }
+
+    // The outgoing page leaves as a copy, lifted out of the flow so the
+    // incoming one can take the space immediately — otherwise the two would
+    // stack and the card would lurch to twice its height mid-transition.
+    var ghost = document.createElement("div");
+    ghost.className = "ob-ghost";
+    while (body.firstChild) ghost.appendChild(body.firstChild);
+    body.appendChild(ghost);
+
+    var h0 = card.offsetHeight;
+    var page = document.createElement("div");
+    page.className = "ob-page ob-enter" + (back ? " from-left" : "");
+    body.insertBefore(page, ghost);
+    build(page);
+
+    ghost.classList.add(back ? "to-right" : "to-left");
+    var h1 = card.offsetHeight;
+
+    card.style.height = h0 + "px";
+    void card.offsetHeight;                       // commit h0 before animating to h1
+    card.classList.add("ob-sizing");
+    card.style.height = h1 + "px";
+
+    requestAnimationFrame(function () { page.classList.remove("ob-enter"); });
+    setTimeout(function () {
+      if (ghost.parentNode) ghost.parentNode.removeChild(ghost);
+      card.classList.remove("ob-sizing");
+      card.style.height = "";                     // back to auto: the page can grow later
+    }, 360);
+  }
+
   function obGo(i) {
+    var back = i < obPage;
     obPage = i;
     if (OB_PAGES[obPage] === "vocab") {
       // Get Started puts a beginner on the gentlest built-in. It is applied as
       // the current setup, not saved as a new preset — naming one is a later
       // idea, and it would drag a keyboard into the first thirty seconds.
-      applyPreset(builtinPreset("steps only"));
-      activePreset = "steps only";
+      // Once you have answered, your answer is what gets re-applied: stepping
+      // back to the instrument page and forward again used to silently drop you
+      // to steps while the rhythm row kept what you chose.
+      var iv = obIvPick || "steps only";
+      applyPreset(builtinPreset(iv));
+      activePreset = iv;
       syncPanel();
     }
-    buildObPage();
+    obSwap(function (host) { buildObPage(host); }, back);
   }
 
+  // Leaving is the reveal. The line is generated while the card is still up and
+  // still blanked, so the churn happens unseen; then the ink and the title
+  // arrive as the card drops away, and the last frame of onboarding is the app
+  // rather than an empty stave that fills in a moment later.
   function obFinish() {
-    document.getElementById("ob").hidden = true;
-    obBlanking = false;  // the staff and title fill in with the first real exercise
-    try { localStorage.setItem(OB_KEY, "1"); } catch (e) {}
+    var ob = document.getElementById("ob");
+    if (!OB_FLAG) { try { localStorage.setItem(OB_KEY, "1"); } catch (e) {} }
     syncPanel();
     persistSession();
-    generate();          // one render for everything chosen along the way
+    generate(function () {
+      obBlanking = false;
+      showAllInk();
+      updateHeader();                 // the title was blanked for the same reason
+      if (stillness()) { ob.hidden = true; return; }
+      ob.classList.add("ob-leaving");
+      setTimeout(function () { ob.hidden = true; ob.classList.remove("ob-leaving"); }, 320);
+    });
   }
 
   function wireOnboarding() {
     var ob = document.getElementById("ob");
     if (!ob) return;
     var seen = true;
-    try { seen = !OB_ALWAYS && !!localStorage.getItem(OB_KEY); } catch (e) {}
+    try { seen = !OB_ALWAYS && !OB_FLAG && !!localStorage.getItem(OB_KEY); } catch (e) {}
     document.getElementById("ob-next").addEventListener("click", function () {
       if (obPage === OB_PAGES.length - 1) obFinish();
       else obGo(obPage + 1);
@@ -2798,11 +4959,16 @@
       obGo(OB_PAGES.length - 1);
     });
     if (seen) return;
+    // The card comes up through its rise as the scrim fades in — the same move
+    // the exit makes, run backwards. Set before it is unhidden so the first
+    // painted frame is the pre-state and not the settled card.
+    if (!stillness()) ob.classList.add("ob-entering");
     ob.hidden = false;
     // Set before init's generate() runs, so the first render comes up empty
     // rather than flashing a full exercise behind the card.
     obBlanking = true;
     buildObPage();
+    if (!stillness()) obReady(function () { obRelease(ob, "ob-entering"); });
     // Focus the dialog itself rather than Next: it puts keyboard and
     // screen-reader context inside the walkthrough without painting a
     // focus ring on a button nobody has reached for yet.
@@ -2821,15 +4987,17 @@
     });
 
     // runtime-built labels
-    stepChecks.forEach(function (cb, i) { cb.setAttribute("aria-label", t("interval." + i)); });
-    matrixRows.forEach(function (row, i) {
-      var n = row.querySelector(".row-name");   // 2nd / 2ª — ordinals translate
+    matrixRows.forEach(function (cell, i) {
+      var n = cell.querySelector(".fig-txt");   // 2nd / 2ª — ordinals translate
       if (n) n.textContent = stepLabel(i);
+      cell.setAttribute("aria-label", t("interval." + i));
     });
     buildInstrumentPills();   // word labels, so they re-render per language
-    RANGE_OCTAVES.forEach(function (oct) {
-      if (octChecks[oct]) octChecks[oct].setAttribute("aria-label", t("aria.octave") + " " + oct);
-    });
+    // Same reason, and they were missed: the slur row's "Off" and the tie
+    // row's frequencies are words built in JS, not data-i18n attributes, so
+    // switching to Spanish left them reading Off / Some / Lots.
+    buildBowingPills();
+    buildTiesPills();
     beatsEl.querySelectorAll(".beat").forEach(function (cb) {
       var cell = cb.closest(".fig-cell");
       if (cell) cell.setAttribute("aria-label", t("fig." + cb.value));
@@ -2854,56 +5022,106 @@
   // The panel's face for the instrument preference — so a wrong pick during
   // onboarding is a tap to fix, not a mystery. Rebuilt on language change,
   // since the labels are words rather than glyphs.
-  function buildInstrumentPills() {
-    var host = document.getElementById("instrument-pills");
-    if (!host) return;
-    host.innerHTML = "";
-    INSTRUMENTS.forEach(function (ins) {
-      var b = document.createElement("button");
-      b.type = "button";
-      b.className = "opt";
-      b.textContent = t("instr." + ins.id);
-      b.dataset.instr = ins.id;
-      b.addEventListener("click", function () { setInstrument(ins.id); });
-      host.appendChild(b);
-    });
-    syncInstrumentPills();
-  }
+  // The instrument sits in the header beside the app's name, and that is the
+  // one place to change it: its clef is what the sheet is written in, which is
+  // header information rather than a setting.
+  function buildInstrumentPills() { syncInstrumentPills(); }
   function syncInstrumentPills() {
-    var host = document.getElementById("instrument-pills");
-    if (!host) return;
-    var cur = instrumentPref();
-    Array.prototype.forEach.call(host.children, function (b) {
-      b.classList.toggle("on", b.dataset.instr === cur);
-    });
+    if (instrCycleEl) instrCycleEl.textContent = t("instr." + instrumentPref());
   }
 
-  // Bowing choices: separate bows, slurred in twos, slurred in fours.
-  var BOWINGS = ["off", "2", "4"];
+  // Slur groups: how many notes ride under one curve. Several can be on at
+  // once and each group is drawn from what is lit, so the line phrases in a
+  // mixture rather than one length over and over — which is how music is
+  // actually bowed. The rhythm figures directly above work the same way; this
+  // row being pick-one was the odd one out.
+  //
+  // Nothing lit means no slurs, so there is no Off pill to keep in step. 1 is
+  // the separate bow: alone it says nothing (every note on its own is exactly
+  // "no slurs"), but mixed with 2 or 3 it is what puts air between the groups.
+  // 3 is the compound-time group — one slur per dotted quarter in 6/8, and the
+  // way a triplet is slurred.
+  var BOWINGS = [1, 2, 3, 4];
   function buildBowingPills() {
     var host = document.getElementById("bowing-pills");
     if (!host) return;
     host.innerHTML = "";
-    BOWINGS.forEach(function (bw) {
-      var b = document.createElement("button");
-      b.type = "button";
-      b.className = "opt";
-      b.textContent = bw === "off" ? t("val.off") : bw;
-      b.dataset.bowing = bw;
-      b.addEventListener("click", function () {
-        bowingEl.value = bw;
+    BOWINGS.forEach(function (n) {
+      var cell = document.createElement("label");
+      cell.className = "fig-cell" + (n >= 4 ? " wide" : "");
+      // A group of 1 draws no curve — it is the separate bow, the air between
+      // slurred groups. The glyph says that without a word: three noteheads
+      // and nothing over them.
+      cell.setAttribute("aria-label", n === 1 ? t("val.apart") : t("aria.slurOf") + " " + n);
+      cell.dataset.bowing = String(n);
+      // It already carried aria-pressed, which a bare <label> has nowhere to
+      // report from — the role is what makes the state mean anything.
+      figCellRole(cell);
+      cell.insertAdjacentHTML("beforeend", slurGlyph(n));
+      cell.addEventListener("click", function (e) {
+        e.preventDefault();
+        var on = slurLengths(), at = on.indexOf(n);
+        if (at >= 0) on.splice(at, 1); else on.push(n);
+        bowingEl.value = on.sort(function (a, c) { return a - c; }).join(",");
         syncBowingPills();
         generate();
       });
-      host.appendChild(b);
+      host.appendChild(cell);
     });
     syncBowingPills();
   }
   function syncBowingPills() {
     var host = document.getElementById("bowing-pills");
     if (!host) return;
+    var on = slurLengths();
     Array.prototype.forEach.call(host.children, function (b) {
-      b.classList.toggle("on", b.dataset.bowing === bowingEl.value);
+      var n = parseInt(b.dataset.bowing, 10);
+      // Apart also lights when nothing is picked, because that is what nothing
+      // picked means: every note on its own bow. The row used to show a blank
+      // default — the only grid in the panel that did, with Ties beside it
+      // lighting its Off — and a grid with no cell lit reads as unset rather
+      // than as a setting. Lighting it costs nothing stored: the empty set and
+      // {1} generate the same line, so this is the same state wearing a label.
+      setSwitch(b, n === 1 ? (on.length === 0 || on.indexOf(1) >= 0) : on.indexOf(n) >= 0);
+    });
+  }
+
+  // How often a bar holds its last note over the barline. A frequency rather
+  // than a switch: one tie in a line is a curiosity, one every bar is a
+  // different exercise, and the reader should be able to choose which.
+  var TIE_RATES = [
+    { id: "off",  p: 0    },
+    { id: "some", p: 0.3  },
+    { id: "lots", p: 0.65 }
+  ];
+  function tieRate() {
+    for (var i = 0; i < TIE_RATES.length; i++) if (TIE_RATES[i].id === tiesEl.value) return TIE_RATES[i].p;
+    return 0;
+  }
+  function buildTiesPills() {
+    var host = document.getElementById("ties-pills");
+    if (!host) return;
+    host.innerHTML = "";
+    TIE_RATES.forEach(function (tr) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "opt";
+      b.textContent = t("val." + tr.id);
+      b.dataset.ties = tr.id;
+      b.addEventListener("click", function () {
+        tiesEl.value = tr.id;
+        syncTiesPills();
+        generate();
+      });
+      host.appendChild(b);
+    });
+    syncTiesPills();
+  }
+  function syncTiesPills() {
+    var host = document.getElementById("ties-pills");
+    if (!host) return;
+    Array.prototype.forEach.call(host.children, function (b) {
+      b.classList.toggle("on", b.dataset.ties === tiesEl.value);
     });
   }
 
@@ -2989,8 +5207,11 @@
   // including the sixteen built for the Step matrix.
   function paintRange(el) {
     var min = +el.min || 0, max = (el.max === "" ? 100 : +el.max), v = +el.value;
-    var pct = (max > min) ? ((v - min) / (max - min)) * 100 : 0;
-    el.style.setProperty("--pct", pct + "%");
+    // A unitless 0–1 fraction, not a percentage: the track has to work out
+    // where the thumb's *centre* actually is, and a thumb centre only travels
+    // (100% − its own width). CSS can do that arithmetic with a number and
+    // cannot with a percentage token.
+    el.style.setProperty("--pct", (max > min) ? (v - min) / (max - min) : 0);
   }
   function paintAllRanges() {
     document.querySelectorAll('input[type="range"]').forEach(paintRange);
@@ -3004,9 +5225,22 @@
   function syncPanel() {
     syncKeyRow();
     syncTimesigPills();
-    syncBeatsFamily();    // a preset/session restore can change meter family too
+    syncFigureCells();    // a preset/session restore can change the meter set too
+    // The staff readout draws itself in whatever clef is set, and a preset
+    // restores the range BEFORE the clef it belongs to — so without this the
+    // notes moved to C2–B3 while the drawing kept the treble clef they were
+    // never meant to be read in.
+    syncRangeUI();
+    // Rebuilt, not just re-lit: each mode has its own list, so restoring a minor
+    // preset onto a major panel has to replace the three pills as well as move
+    // the tick. Left alone, the row went on offering I–IV–V–I while the hidden
+    // input held i–VII–VI–V, and lit a progression that isn't in the mode.
+    buildProgressionPills();
     syncInstrument();
+    syncComping();
     syncChunks();
+    syncChordsBtn();      // a session carries the chord-names switch too
+    syncMusicality();     // …and a drill carries the harmony switch
     syncCursorBtn();
     syncTempoUi();
     syncMeasuresPills();
@@ -3018,23 +5252,21 @@
 
   function wirePanel() {
     // --- key row: each pill advances through its own list ---
-    tonicCycleEl.addEventListener("click", function () {
-      var k = keyParts();
-      setKeyParts((k.sym + 1) % 7, k.acc);
-      syncKeyRow(); generate();
+    if (instrCycleEl) instrCycleEl.addEventListener("click", function (e) {
+      e.stopPropagation();
+      openPick("instr", instrCycleEl);
     });
-    accCycleEl.addEventListener("click", function () {
-      var k = keyParts(), allowed = validAcc[k.sym] || ["0"];
-      var i = allowed.indexOf(k.acc);
-      setKeyParts(k.sym, allowed[(i + 1) % allowed.length]);
-      syncKeyRow(); generate();
+    // The panel's key row opens the same picker the subtitle opens.
+    if (keysCycleEl) keysCycleEl.addEventListener("click", function (e) {
+      e.stopPropagation();
+      openPick("keys", keysCycleEl);
     });
-    modeCycleEl.addEventListener("click", function () {
-      var i = MODES.indexOf(keyModeEl.value);
-      keyModeEl.value = MODES[(i + 1) % MODES.length];
-      progressionEl.value = progressionDef(progressionEl.value).id;   // remap across modes
-      buildProgressionPills();
-      syncKeyRow(); generate();
+    // Changing the set is one path whichever surface did it: the picker writes
+    // #keys and fires change, and so can a harness.
+    keysEl.addEventListener("change", function () {
+      setKeys(canonKeys(keysEl.value));
+      syncKeyRow();
+      generate();
     });
     clefCycleEl.addEventListener("click", function () {
       var ids = CLEFS.map(function (c) { return c.id; });
@@ -3064,49 +5296,81 @@
     document.getElementById("tempo-up").addEventListener("click", function () { bumpTempo(1); });
 
     // --- accompaniment ---
-    // The voice menu is built at open time rather than kept in sync: the list,
-    // which entry is ticked, and the translations all come off the <select>'s
-    // own options, so there is no second copy to drift.
-    function buildVoiceMenu() {
-      voiceMenuEl.innerHTML = "";
-      Array.prototype.forEach.call(instrumentEl.options, function (o) {
+    // Two voices, one builder. The menu is built at open time rather than kept
+    // in sync: the list, which entry is ticked, and the translations all come
+    // off the <select>'s own options, so there is no second copy to drift —
+    // and adding comping meant giving that builder its select rather than
+    // writing the whole thing again against a different id.
+    var voiceMenus = [
+      { sel: instrumentEl, btn: voiceBtnEl,
+        menu: voiceMenuEl,
+        after: syncInstrument },
+      { sel: compingEl,    btn: document.getElementById("comping-btn"),
+        menu: document.getElementById("comping-menu"),
+        // Changing the comping voice mid-line takes effect on the spot, the
+        // same way the melody voice does: scheduleAhead drops what was queued
+        // and re-plans from where the cursor actually is.
+        // `playing`, not `session`: a session outlives a pause, so testing for
+        // one queued the whole accompaniment into a stopped transport and the
+        // app started playing the moment the voice was changed. Every other
+        // reschedule in here guards on `playing` for exactly this reason.
+        after: function () { syncComping(); if (playing) scheduleAhead(); } }
+    ];
+
+    function buildMenu(v) {
+      v.menu.innerHTML = "";
+      Array.prototype.forEach.call(v.sel.options, function (o) {
         var item = document.createElement("button");
         item.type = "button";
         item.className = "menu-item";
         item.setAttribute("role", "option");
         item.textContent = t("inst." + o.value);
-        var chosen = o.value === instrumentEl.value;
+        var chosen = o.value === v.sel.value;
         item.classList.toggle("on", chosen);
         item.setAttribute("aria-selected", chosen ? "true" : "false");
         item.addEventListener("click", function () {
           ensureAudio();          // a real gesture — a good moment to unlock audio
-          instrumentEl.value = o.value;
-          instrumentEl.dispatchEvent(new Event("change"));
-          syncInstrument();
-          closeVoiceMenu();
+          v.sel.value = o.value;
+          v.sel.dispatchEvent(new Event("change"));
+          v.after();
+          closeMenus();
           persistSession();
         });
-        voiceMenuEl.appendChild(item);
+        v.menu.appendChild(item);
       });
     }
-    function closeVoiceMenu() {
-      voiceMenuEl.hidden = true;
-      voiceBtnEl.setAttribute("aria-expanded", "false");
+    function closeMenus(except) {
+      voiceMenus.forEach(function (v) {
+        if (v === except) return;
+        v.menu.hidden = true;
+        v.btn.setAttribute("aria-expanded", "false");
+      });
     }
-    voiceBtnEl.addEventListener("click", function (e) {
-      e.stopPropagation();
-      if (!voiceMenuEl.hidden) { closeVoiceMenu(); return; }
-      buildVoiceMenu();
-      voiceMenuEl.hidden = false;
-      voiceBtnEl.setAttribute("aria-expanded", "true");
+    voiceMenus.forEach(function (v) {
+      if (!v.btn || !v.menu) return;
+      v.btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        if (!v.menu.hidden) { closeMenus(); return; }
+        closeMenus();                 // only one list open at a time
+        buildMenu(v);
+        v.menu.hidden = false;
+        v.btn.setAttribute("aria-expanded", "true");
+      });
     });
     // A tap anywhere else in the popover dismisses the menu but leaves the
     // popover up; the popover already stops its own clicks reaching document.
     document.getElementById("accomp-pop").addEventListener("click", function (e) {
-      if (!voiceMenuEl.hidden && !voiceMenuEl.contains(e.target)) closeVoiceMenu();
+      var inside = voiceMenus.some(function (v) {
+        return !v.menu.hidden && v.menu.contains(e.target);
+      });
+      if (!inside) closeMenus();
     });
     document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape" && !voiceMenuEl.hidden) { e.stopPropagation(); closeVoiceMenu(); }
+      if (e.key !== "Escape") return;
+      if (voiceMenus.some(function (v) { return !v.menu.hidden; })) {
+        e.stopPropagation();
+        closeMenus();
+      }
     }, true);
     volumeUiEl.addEventListener("input", function () {
       volumeEl.value = volumeUiEl.value;
@@ -3115,11 +5379,22 @@
     volumeUiEl.addEventListener("change", persistSession);
 
     // --- hide ahead ---
+    hideBtnEl.addEventListener("click", function () {
+      hideBehindEl.checked = !hideBehindEl.checked;
+      // Coming back on lands where you left it, which hideFromState reads off
+      // the lead — the lead is left alone while off precisely so it can.
+      if (hideBehindEl.checked) hideFromState();
+      else syncHide();
+      // The curtain is drawn from the live session, so a running line has to be
+      // redrawn rather than waiting for the next note.
+      if (session) syncHighlights(Math.max(0, session.hideState));
+      persistSession();
+    });
     document.getElementById("hide-down").addEventListener("click", function () {
-      setHide((parseInt(hideValEl.dataset.n, 10) || 0) - 1); persistSession();
+      setHide((parseInt(hideValEl.dataset.n, 10) || 1) - 1); persistSession();
     });
     document.getElementById("hide-up").addEventListener("click", function () {
-      setHide((parseInt(hideValEl.dataset.n, 10) || 0) + 1); persistSession();
+      setHide((parseInt(hideValEl.dataset.n, 10) || 1) + 1); persistSession();
     });
     hideUnitEl.addEventListener("click", function () {
       // Convert, don't reinterpret. The number on the stepper means something
@@ -3129,24 +5404,24 @@
       var lead = parseFloat(hideLeadEl.value) || 0;        // clock units (quarters)
       var toMeasures = !hideUnitIsMeasures();
       hideUnitEl.dataset.unit = toMeasures ? "measures" : "beats";
-      if (lead > 0) setHide(Math.max(1, Math.round(lead / unitBeats())));
+      if (lead > 0) setHide(Math.round(lead / unitBeats()));
       else syncHide();
       persistSession();
     });
 
-    // --- ramp ---
-    var rampBtnEl = document.getElementById("ramp-toggle");
-    function syncRampBtn() { rampBtnEl.textContent = rampOnEl.checked ? t("val.on") : t("val.off"); }
-    rampBtnEl.addEventListener("click", function () {
-      rampOnEl.checked = !rampOnEl.checked;
-      syncRampBtn();
+    // --- musicality ---
+    musicalityBtnEl.addEventListener("click", function () {
+      musicalityEl.value = (+musicalityEl.value) > 0 ? "0" : "100";
+      syncMusicality();
+      // The hidden input is what everything else reads, so the change event it
+      // would have fired as a slider still has to fire: generate hangs off it,
+      // and so does the header's "is this still the drill you loaded" check.
+      musicalityEl.dispatchEvent(new Event("change"));
+      drawChordOverlay();
       persistSession();
     });
-    syncRampBtn();
 
     // --- chord names ---
-    var chordsBtnEl = document.getElementById("chords-toggle");
-    function syncChordsBtn() { chordsBtnEl.textContent = showChordsEl.checked ? t("val.on") : t("val.off"); }
     chordsBtnEl.addEventListener("click", function () {
       showChordsEl.checked = !showChordsEl.checked;
       syncChordsBtn();
@@ -3155,6 +5430,7 @@
       persistSession();
     });
     syncChordsBtn();
+    syncMusicality();
 
     // --- chunks + cursor ---
     chunksBtnEl.addEventListener("click", function () {
@@ -3174,7 +5450,7 @@
   // cycle the voice or nudge the tempo. Pressing marks it spent; leaving the
   // control re-arms it. Delegated, since rhythm tiles and preset pills are built
   // at runtime. (pointerleave doesn't bubble, so it's caught on the way down.)
-  var TIP_SEL = ".cb-icon, .tb-btn, .icon-toggle, .cycle, .step-btn, .fig-cell, .upd, .del";
+  var TIP_SEL = ".cb-icon, .tb-btn, .cycle, .step-btn, .fig-cell, .upd, .del";
 
   document.addEventListener("pointerdown", function (e) {
     var el = (e.target && e.target.closest) ? e.target.closest(TIP_SEL) : null;
@@ -3198,12 +5474,16 @@
 
   [keyTonicEl, keyModeEl, measuresEl, musicalityEl, chromaEl].forEach(function (el) { el.addEventListener("change", generate); });
   showChunksEl.addEventListener("change", drawOverlay);
-  generateBtn.addEventListener("click", function () { generate(); });
+  generateBtn.addEventListener("click", function () { nextSheet = true; generate(); });
   playBtn.addEventListener("click", function () {
     if (playing) { pausePlay(); return; }
     if (paused) resumePlay(); else startPlay();
-    setPanel(false);   // starting or resuming clears the panel so the sheet is
-                        // uncovered while it plays; pausing leaves it as is
+    // Clear the panel only where it is covering the music. Wide enough and the
+    // rail takes its own column beside the score rather than over it, so there
+    // is nothing to get out of the way of — and closing it there would throw a
+    // re-engrave into the first bar of playback and take the settings away from
+    // someone who is plainly still working on them. Pausing never closes it.
+    if (!pushMq.matches) setPanel(false);
   });
   document.getElementById("from-top").addEventListener("click", resetTop);
   setPlayIcon(false);
@@ -3233,11 +5513,12 @@
   // ===========================================================================
   // Header popovers — pace and play-along
   //
-  // Each header button owns one popover. Only one is ever open, and anything
-  // that starts a new action closes them: the pocket is modal, so a popover and
-  // the settings panel can never be up at once, which is why there is a single
-  // anchor position and no second set of states to reason about.
+  // Each header button owns one popover. Only one is ever open. The settings
+  // rail is modal only while it overlays (below the push breakpoint) — there
+  // it covers the popovers' anchors, so opening one dismisses it. Pushed, the
+  // rail is furniture rather than a mode, and a popover can hang beside it.
   // ===========================================================================
+  var pushMq = window.matchMedia("(min-width: 1100px)");   // one source for CSS's push breakpoint
   var POPS = [
     { btn: document.getElementById("metro-toggle"),  pop: document.getElementById("pace-pop") },
     { btn: document.getElementById("accomp-toggle"), pop: document.getElementById("accomp-pop") }
@@ -3256,7 +5537,7 @@
     var wasOpen = !which.pop.hidden;
     closePops();
     if (wasOpen) return;                      // second tap on the same button closes
-    setPanel(false);                          // the pocket is modal; a tap out here dismisses it
+    if (!pushMq.matches) setPanel(false);     // the overlaid rail is modal; a tap out here dismisses it
     which.pop.hidden = false;
     which.btn.setAttribute("aria-expanded", "true");
     which.btn.classList.add("open");
@@ -3267,21 +5548,27 @@
     x.pop.addEventListener("click", function (e) { e.stopPropagation(); });
   });
   document.addEventListener("click", function () { if (popOpen()) closePops(); });
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && popOpen()) closePops(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    if (popOpen()) { closePops(); return; }
+    if (layoutEl.classList.contains("panel-open")) setPanel(false);   // the overlaid rail can cover its own ⚙
+  });
 
-  // Collapsible settings. The control bar (Play / New line) is always visible;
-  // the sidebar is a drawer that shows only when .panel-open — closed by default
-  // so a fresh load shows the full, uncovered staff. On a wide window the drawer
-  // reserves space and the music reflows beside it (push); narrow, or when its
-  // pushed width equals the full width, it just overlays and nothing re-renders.
+  // The settings rail, behind the header's ⚙ — closed by default so a fresh
+  // load shows the full, uncovered staff. On a wide window it reserves space
+  // and the music reflows beside it (push); narrower it just overlays and
+  // nothing re-renders. The width check below is what tells them apart, so the
+  // push breakpoint lives only in the CSS and pushMq.
   var layoutEl = document.querySelector(".layout");
+  var settingsBtn = document.getElementById("settings-toggle");
   function setPanel(open) {
     if (layoutEl.classList.contains("panel-open") === open) return;
     var before = availWidth();
     layoutEl.classList.toggle("panel-open", open);
+    settingsBtn.setAttribute("aria-expanded", open ? "true" : "false");
     if (currentSheet && availWidth() !== before) renderLoaded();   // only when the region actually resized
   }
-  document.getElementById("settings-toggle").addEventListener("click", function () {
+  settingsBtn.addEventListener("click", function () {
     setPanel(!layoutEl.classList.contains("panel-open"));
   });
   var scrimEl = document.getElementById("scrim");
@@ -3306,7 +5593,7 @@
   });
 
   // Playback controls don't regenerate the sheet, so persist the session directly.
-  [tempoEl, clickOnEl, playAlongEl, instrumentEl, volumeEl, cursorModeEl, hideBehindEl, hideLeadEl, showChunksEl].forEach(function (el) {
+  [tempoEl, clickOnEl, playAlongEl, instrumentEl, compingEl, volumeEl, cursorModeEl, hideBehindEl, hideLeadEl, showChunksEl].forEach(function (el) {
     el.addEventListener("change", persistSession);
   });
 
@@ -3347,17 +5634,22 @@
 
   probeKeys();                 // which accidentals each letter supports
   initRangeState();
-  buildRangeGrid();
-  buildBeatsPalette(currentBeatFigures());
+  buildRangeUI();
+  buildBeatsPalette();
   buildMatrix();
+  syncIntervalCells();   // buildRangeUI ran before the cells existed
   buildMeasuresPills();
   buildTimesigPills();
   buildLangPills();
   buildInstrumentPills();
   buildProgressionPills();
   buildBowingPills();
+  buildTiesPills();
   wirePanel();
+  wireBands();
   wireHelp();
+  wireNote();
+  wireDrills();
   setWeights(BUILTIN["thirds drill"]);
   activePreset = "thirds drill";
   restoreSession();            // override defaults with last-used settings, if any

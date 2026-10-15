@@ -2,6 +2,7 @@
 const PW = process.env.PW || '/opt/node22/lib/node_modules/playwright';
 const CHROMIUM = process.env.CHROMIUM || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const { chromium } = require(PW);
+const { pickDrill, newDrill } = require('./drills.js');
 (async () => {
   const b = await chromium.launch({ executablePath: CHROMIUM });
   const p = await (await b.newContext({ viewport: { width: 1280, height: 900 } })).newPage();
@@ -14,10 +15,19 @@ const { chromium } = require(PW);
   await p.click('#settings-toggle'); await p.waitForTimeout(400);
   await p.evaluate(() => { const c = document.getElementById('show-chunks'); if (!c.checked) { c.checked = true; c.dispatchEvent(new Event('change')); } });
 
-  const clickPill = n => p.evaluate(x => [...document.querySelectorAll('.presets .pill')]
-    .find(e => e.textContent.trim().startsWith(x)).click(), n);
-  const setMeter = m => p.evaluate(x => [...document.querySelectorAll('#timesig-pills .opt')]
-    .find(e => e.textContent.trim() === x).click(), m);
+  // pickDrill says what is actually on screen when a name misses. Renaming the
+  // presets dated this file once and the only symptom was "cannot read 'click'
+  // of undefined", which reads like the app broke rather than the test.
+  const clickPill = n => pickDrill(p, n, 0);
+  // Meter is a set of fig-cells now: light the one asked for, then clear the
+  // rest, in that order — the control clamps at one.
+  const setMeter = m => p.evaluate(x => {
+    const all = [...document.querySelectorAll('#timesig-pills .fig-cell')];
+    const hit = all.find(e => e.textContent.trim() === x);
+    if (!hit) throw new Error(`no meter "${x}" — have: ${all.map(e => e.textContent.trim()).join(', ')}`);
+    if (!hit.classList.contains('on')) hit.click();
+    all.forEach(c => { if (c !== hit && c.classList.contains('on')) c.click(); });
+  }, m);
 
   const measure = () => p.evaluate(() => {
     const sheet = document.getElementById('sheet'), cR = sheet.getBoundingClientRect();
@@ -37,7 +47,7 @@ const { chromium } = require(PW);
 
   let bad = 0, mixed = 0, tiny = 0, tot = 0; const grid = [];
   for (const meter of ['4/4', '3/4', '2/4', '6/8']) {
-    for (const name of ['Steps Only', 'Thirds Drill', 'Wide Leaps', 'Arpeggios']) {
+    for (const name of ['Steps Only', 'Thirds', 'Wide Leaps', 'Arpeggios']) {
       await clickPill(name); await p.waitForTimeout(1100);
       await setMeter(meter); await p.waitForTimeout(1100);   // built-ins carry timesig, so re-apply
       const r = await measure();

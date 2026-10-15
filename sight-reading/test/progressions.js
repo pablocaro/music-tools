@@ -2,6 +2,7 @@
 const PW = process.env.PW || '/opt/node22/lib/node_modules/playwright';
 const CHROMIUM = process.env.CHROMIUM || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const { chromium } = require(PW);
+const { pickDrill, newDrill, setMusicality, setKeys } = require('./drills.js');
 const LET = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
 
 // Chord-tone rate of the score against an arbitrary progression, in C major.
@@ -34,13 +35,12 @@ function adherence(xml, roots) {
   await p.click('#settings-toggle'); await p.waitForTimeout(500);
 
   // arpeggio alphabet + full dial, so the harmony actually pulls
-  await p.evaluate(() => [...document.querySelectorAll('.presets .pill')].find(x => x.textContent.trim().startsWith('Arpeggios')).click());
-  await p.waitForTimeout(1300);
+  await pickDrill(p, 'Arpeggios', 1300);
 
   console.log('major pills :', await p.evaluate(() => [...document.querySelectorAll('#progression-pills .opt')].map(x => x.textContent + (x.classList.contains('on') ? '*' : ''))));
 
   // pick I-V-vi-IV and confirm the *notes* follow it (not the old I-IV-V-I)
-  const PROGS = { 'I–V–vi–IV': [0, 4, 5, 3], 'ii–V–I': [1, 4, 0] };
+  const PROGS = { 'I–V–vi–IV': [0, 4, 5, 3], 'ii–V–I': [1, 4, 0, 0] };
   for (const [label, roots] of Object.entries(PROGS)) {
     await p.evaluate(l => [...document.querySelectorAll('#progression-pills .opt')].find(x => x.textContent === l).click(), label);
     await p.waitForTimeout(1400);
@@ -49,9 +49,31 @@ function adherence(xml, roots) {
       '  to I-IV-V-I:', adherence(xml, [0, 3, 4, 0]) + '%');
   }
 
-  // chord names: on by default, correct spelling, first bar of ii-V-I in C = Dm
+  // Every label sits at its bar's first event, rest or note. A bar opening on a
+  // rest used to push its chord in by the rest's width — 19 to 32px, different
+  // per bar, so a line of upbeat rests showed four labels stepped against the
+  // ones above them. Nothing in the names themselves would show that.
+  const anchored = await p.evaluate(() => {
+    const sheet = document.getElementById('sheet').getBoundingClientRect();
+    const labels = [...document.querySelectorAll('#chord-overlay text')]
+      .map((l) => Math.round(+l.getAttribute('x')));
+    let bars = 0, hit = 0, indent = [];
+    document.querySelectorAll('#sheet .vf-measure').forEach((m) => {
+      const g = [...m.querySelectorAll('.vf-notehead')]
+        .map((e) => Math.round(e.getBoundingClientRect().left - sheet.left)).sort((a, b) => a - b);
+      if (g.length < 2) return;
+      bars++;
+      if (labels.some((x) => Math.abs(x - g[0]) <= 2)) hit++;
+      indent.push(g[1] - g[0]);          // what the old rule would have cost
+    });
+    return { bars, hit, worstIndent: Math.max.apply(null, indent) };
+  });
+  console.log('chord anchors :', JSON.stringify(anchored),
+    anchored.bars && anchored.hit === anchored.bars ? '(all flush to the bar)' : '(SOME INDENTED)');
+
+  // chord names: on by default, correct spelling, and ii-V-I fills four bars
   const names = await p.evaluate(() => [...document.querySelectorAll('#chord-overlay text')].map(t => t.textContent));
-  console.log('chord names :', names.slice(0, 6), '(want Dm G C Dm G C…)');
+  console.log('chord names :', names.slice(0, 6), '(want Dm G7 C C Dm G7…)');
 
   // toggle off removes them
   await p.evaluate(() => document.getElementById('chords-toggle').click());
@@ -60,18 +82,20 @@ function adherence(xml, roots) {
   await p.evaluate(() => document.getElementById('chords-toggle').click());
 
   // mode flip: minor list appears, invalid id remaps
-  await p.evaluate(() => document.getElementById('mode-cycle').click());
-  await p.waitForTimeout(1400);
+  await setKeys(p, ['Am'], 1400);
   console.log('minor pills :', await p.evaluate(() => [...document.querySelectorAll('#progression-pills .opt')].map(x => x.textContent + (x.classList.contains('on') ? '*' : ''))));
   console.log('stored id   :', await p.evaluate(() => document.getElementById('progression').value));
 
   // dial at zero hides the names (relevance gate)
-  await p.evaluate(() => {
-    const M = document.getElementById('musicality');
-    M.value = 0; M.dispatchEvent(new Event('input')); M.dispatchEvent(new Event('change'));
-  });
-  await p.waitForTimeout(1400);
-  console.log('dial 0 names:', await p.evaluate(() => !!document.getElementById('chord-overlay')), '(want false)');
+  await setMusicality(p, false, 1400);
+  console.log('musicality off, names:', await p.evaluate(() => !!document.getElementById('chord-overlay')), '(want false)');
+  // …and the two controls that only mean something with the harmony on are off
+  // the panel entirely, rather than sitting there doing nothing.
+  console.log('  dependents shown:', await p.evaluate(() =>
+    !document.getElementById('musicality-deps').hidden), '(want false)');
+  await setMusicality(p, true, 1400);
+  console.log('  back on         :', await p.evaluate(() =>
+    !document.getElementById('musicality-deps').hidden), '(want true)');
   console.log('errors:', errs);
   await b.close();
 })();
