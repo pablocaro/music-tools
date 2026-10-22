@@ -241,6 +241,7 @@
     .psec-arrow { font-size: 8px; opacity: .6; transition: transform .15s; }
     .psec-body { overflow: hidden; max-height: 1200px; transition: max-height .25s ease; }
     .psec-body.collapsed { max-height: 0; }
+    .phelp { font-size: 9px; line-height: 1.6; opacity: .4; letter-spacing: .5px; margin: -2px 0 12px; text-transform: none; }
 
     .prow { margin-bottom: 11px; }
     .prow label { display: flex; justify-content: space-between; margin-bottom: 5px; opacity: .48; }
@@ -570,40 +571,59 @@
 
     <div id="tab-sound" style="display:none">
     <div class="prow">
-      <label>TEST TONE</label>
+      <label>LISTEN</label>
       <div class="pbtn-row">
-        <button id="pTestLow" type="button">▶ LOW</button>
-        <button id="pTestHigh" type="button">▶ HIGH</button>
+        <button id="pTestLow" type="button">▶ LOW NOTE</button>
+        <button id="pTestHigh" type="button">▶ HIGH NOTE</button>
       </div>
     </div>
 
-    <!-- TONE -->
+    <!-- ATTACK -->
+    <div class="psec-hdr" onclick="toggleSec('attack')">
+      <span class="psec-arrow" id="arr-attack">▾</span>ATTACK
+    </div>
+    <div class="psec-body" id="sec-attack">
+      <p class="phelp">The quick, percussive "tick" right as a string gets plucked — a real string gets this from
+        the nail or pick. Without it, notes can feel like they fade in rather than snap to life.</p>
+      <div class="prow"><label>HOW MUCH <span class="v" id="pAttackAmtV"></span></label>
+        <input type="range" id="pAttackAmt" min="0" max="100" step="1" autocomplete="off"></div>
+      <div class="prow"><label>HOW SHARP <span class="v" id="pAttackSharpV"></span></label>
+        <input type="range" id="pAttackSharp" min="2" max="14" step="0.5" autocomplete="off"></div>
+      <div class="prow"><label>HOW FAST <span class="v" id="pAttackTimeV"></span></label>
+        <input type="range" id="pAttackTime" min="2" max="40" step="1" autocomplete="off"></div>
+    </div>
+
+    <!-- RICHNESS -->
     <div class="psec-hdr" onclick="toggleSec('tone')">
-      <span class="psec-arrow" id="arr-tone">▾</span>TONE
+      <span class="psec-arrow" id="arr-tone">▾</span>RICHNESS
     </div>
     <div class="psec-body" id="sec-tone">
-      <div class="prow"><label>2ND HARMONIC <span class="v" id="pHarm2V"></span></label>
+      <p class="phelp">How full the note sounds. A plain tone is just one pure pitch — these add softer
+        copies on top, stacking up to give it body instead of sounding thin.</p>
+      <div class="prow"><label>FULLNESS <span class="v" id="pHarm2V"></span></label>
         <input type="range" id="pHarm2" min="0" max="80" step="1" autocomplete="off"></div>
-      <div class="prow"><label>3RD HARMONIC <span class="v" id="pHarm3V"></span></label>
+      <div class="prow"><label>BITE <span class="v" id="pHarm3V"></span></label>
         <input type="range" id="pHarm3" min="0" max="80" step="1" autocomplete="off"></div>
-      <div class="prow"><label>4TH HARMONIC <span class="v" id="pHarm4V"></span></label>
+      <div class="prow"><label>SHIMMER <span class="v" id="pHarm4V"></span></label>
         <input type="range" id="pHarm4" min="0" max="80" step="1" autocomplete="off"></div>
-      <div class="prow"><label>5TH HARMONIC <span class="v" id="pHarm5V"></span></label>
+      <div class="prow"><label>AIR <span class="v" id="pHarm5V"></span></label>
         <input type="range" id="pHarm5" min="0" max="80" step="1" autocomplete="off"></div>
     </div>
 
-    <!-- FILTER ENVELOPE -->
+    <!-- BRIGHTNESS -->
     <div class="psec-hdr" onclick="toggleSec('filt')">
-      <span class="psec-arrow" id="arr-filt">▾</span>FILTER ENVELOPE
+      <span class="psec-arrow" id="arr-filt">▾</span>BRIGHTNESS
     </div>
     <div class="psec-body" id="sec-filt">
-      <div class="prow"><label>OPEN (bright, ×freq) <span class="v" id="pFiltOpenV"></span></label>
+      <p class="phelp">How the note opens and settles — lively right when it's plucked, mellower as it
+        rings out, the way a real string loses its edge over time.</p>
+      <div class="prow"><label>BRIGHT AT THE START <span class="v" id="pFiltOpenV"></span></label>
         <input type="range" id="pFiltOpen" min="2" max="14" step="0.5" autocomplete="off"></div>
-      <div class="prow"><label>CLOSE (dark, ×freq) <span class="v" id="pFiltCloseV"></span></label>
+      <div class="prow"><label>MELLOW AS IT FADES <span class="v" id="pFiltCloseV"></span></label>
         <input type="range" id="pFiltClose" min="1" max="8" step="0.5" autocomplete="off"></div>
-      <div class="prow"><label>RESONANCE (Q) <span class="v" id="pFiltQV"></span></label>
+      <div class="prow"><label>TWANG <span class="v" id="pFiltQV"></span></label>
         <input type="range" id="pFiltQ" min="0.3" max="3" step="0.1" autocomplete="off"></div>
-      <div class="prow"><label>TAIL <span class="v" id="pTailV"></span></label>
+      <div class="prow"><label>HOW LONG IT RINGS <span class="v" id="pTailV"></span></label>
         <input type="range" id="pTail" min="0.3" max="4" step="0.1" autocomplete="off"></div>
     </div>
 
@@ -618,7 +638,7 @@
         <button id="pSave">SET AS DEFAULT</button>
       </div>
       <div class="prow">
-        <button id="pReset">↺ RESET TO BAKED DEFAULTS</button>
+        <button id="pReset">↺ RESET TO ORIGINAL</button>
       </div>
       <div class="prow">
         <label>EXPORT / IMPORT</label>
@@ -1193,6 +1213,7 @@ let pluckWave = null;      // custom harmonic content, rebuilt whenever a harmon
 // Overtone amplitudes above the (fixed) fundamental, as percent — tunable from the Sound panel.
 let harm2 = 28, harm3 = 14, harm4 = 7, harm5 = 4;
 let filterOpenMult = 6, filterCloseMult = 2, filterQ = 0.7;   // lowpass envelope: bright → dark over the tail
+let attackAmt = 35, attackSharp = 6, attackTime = 10;   // pluck "click": noise burst amount/brightness, and the tone's own rise time (ms)
 const stringFreqs = [440, 440];
 const activeNotes = [null, null]; // currently-ringing {osc,gain} per string, for re-pluck damping
 
@@ -1233,10 +1254,26 @@ async function playTone(freq, idx) {
   filter.frequency.exponentialRampToValueAtTime(freq * filterCloseMult, now + soundTail); // darkens as it rings out
   gain.gain.value = 0; // ensure 0 before any scheduled ramps
   gain.gain.setValueAtTime(0, now);
-  gain.gain.linearRampToValueAtTime(0.34, now + 0.028);                        // soft attack
+  gain.gain.linearRampToValueAtTime(0.34, now + attackTime / 1000);            // soft attack
   gain.gain.exponentialRampToValueAtTime(0.22, now + Math.min(0.35, soundTail * 0.3)); // body
   gain.gain.exponentialRampToValueAtTime(0.0008, now + soundTail);             // tail (tunable)
   osc.start(now); osc.stop(now + soundTail + 0.08);
+  // The "click" — a brief filtered noise burst standing in for a nail/pick scrape.
+  // A plain tone has no broadband content at all, which is most of why it reads as synthetic.
+  if (attackAmt > 0) {
+    const nDur = 0.015;
+    const nBuf = audioCtx.createBuffer(1, Math.floor(audioCtx.sampleRate * nDur), audioCtx.sampleRate);
+    const nData = nBuf.getChannelData(0);
+    for (let i = 0; i < nData.length; i++) nData[i] = (Math.random() * 2 - 1) * (1 - i / nData.length);
+    const noise = audioCtx.createBufferSource(), nFilter = audioCtx.createBiquadFilter(), nGain = audioCtx.createGain();
+    noise.buffer = nBuf;
+    nFilter.type = 'bandpass'; nFilter.Q.value = 0.9;
+    nFilter.frequency.value = Math.min(9000, freq * attackSharp);
+    nGain.gain.setValueAtTime((attackAmt / 100) * 0.5, now);
+    nGain.gain.exponentialRampToValueAtTime(0.0008, now + nDur);
+    noise.connect(nFilter); nFilter.connect(nGain); nGain.connect(audioCtx.destination);
+    noise.start(now);
+  }
   if (idx != null) {
     const note = { osc, gain };
     activeNotes[idx] = note;
@@ -1730,7 +1767,7 @@ function currentVis() {
     bg, bgCol2, bgAngle, strCol, strW, mutedCol, mutedOpacity, mutedBlend, pinR, pinCol, pinHoleR, pinHoleCol,
     spacing,
     bodyColor, bodyCol2, bodyRadius, holePos, bowAmount, vibBlurAmt, vibSustain, resetMs, soundTail,
-    harm2, harm3, harm4, harm5, filterOpenMult, filterCloseMult, filterQ,
+    harm2, harm3, harm4, harm5, filterOpenMult, filterCloseMult, filterQ, attackAmt, attackSharp, attackTime,
     rosetteCol, rosettePoints, rosetteDepth, rosetteRoundOut, rosetteRoundIn, rosetteGap, rosetteW,
     ringCount, ringSpacing, ringTaper, innerBand, innerBandGap, outerBand, outerBandGap, bandW, bandCol, bandFill, bandFillCol,
     bridgeW, bridgeCol,
@@ -1800,6 +1837,9 @@ function syncPanel() {
   g('pFiltOpen').value = filterOpenMult;   g('pFiltOpenV').textContent  = filterOpenMult + '×';
   g('pFiltClose').value= filterCloseMult;  g('pFiltCloseV').textContent = filterCloseMult + '×';
   g('pFiltQ').value    = filterQ;          g('pFiltQV').textContent     = filterQ.toFixed(1);
+  g('pAttackAmt').value   = attackAmt;     g('pAttackAmtV').textContent    = attackAmt + '%';
+  g('pAttackSharp').value = attackSharp;   g('pAttackSharpV').textContent  = attackSharp;
+  g('pAttackTime').value  = attackTime;    g('pAttackTimeV').textContent   = attackTime + 'ms';
   g('pBtnColor').value = btnColor;
   g('pBtnDimCol').value = btnDimCol;
   g('pBtnPressBg').value = btnPressBg;
@@ -1883,6 +1923,9 @@ function loadVis() {
     if (s.filterOpenMult  != null) filterOpenMult  = +s.filterOpenMult;
     if (s.filterCloseMult != null) filterCloseMult = +s.filterCloseMult;
     if (s.filterQ          != null) filterQ         = +s.filterQ;
+    if (s.attackAmt   != null) attackAmt   = +s.attackAmt;
+    if (s.attackSharp != null) attackSharp = +s.attackSharp;
+    if (s.attackTime  != null) attackTime  = +s.attackTime;
     if (s.saddleYOff  != null) saddleYOff  = +s.saddleYOff;
     if (s.saddleWFrac != null) saddleWFrac = +s.saddleWFrac;
     if (s.saddleThick != null) saddleThick = +s.saddleThick;
@@ -1971,6 +2014,9 @@ function applyVisObj(s) {
   if (s.filterOpenMult  != null) filterOpenMult  = +s.filterOpenMult;
   if (s.filterCloseMult != null) filterCloseMult = +s.filterCloseMult;
   if (s.filterQ          != null) filterQ         = +s.filterQ;
+  if (s.attackAmt   != null) attackAmt   = +s.attackAmt;
+  if (s.attackSharp != null) attackSharp = +s.attackSharp;
+  if (s.attackTime  != null) attackTime  = +s.attackTime;
   if (s.saddleYOff  != null) saddleYOff  = +s.saddleYOff;
   if (s.saddleWFrac != null) saddleWFrac = +s.saddleWFrac;
   if (s.saddleThick != null) saddleThick = +s.saddleThick;
@@ -2064,6 +2110,9 @@ on('pHarm5', e => { harm5 = +e.target.value; document.getElementById('pHarm5V').
 on('pFiltOpen',  e => { filterOpenMult  = +e.target.value; document.getElementById('pFiltOpenV').textContent  = filterOpenMult+'×'; });
 on('pFiltClose', e => { filterCloseMult = +e.target.value; document.getElementById('pFiltCloseV').textContent = filterCloseMult+'×'; });
 on('pFiltQ',     e => { filterQ = +e.target.value; document.getElementById('pFiltQV').textContent = filterQ.toFixed(1); });
+on('pAttackAmt',   e => { attackAmt   = +e.target.value; document.getElementById('pAttackAmtV').textContent   = attackAmt+'%'; });
+on('pAttackSharp', e => { attackSharp = +e.target.value; document.getElementById('pAttackSharpV').textContent = attackSharp; });
+on('pAttackTime',  e => { attackTime  = +e.target.value; document.getElementById('pAttackTimeV').textContent  = attackTime+'ms'; });
 on('pBtnColor',  e => { btnColor   = e.target.value; applyButtonStyles(); });
 on('pBtnDimCol', e => { btnDimCol  = e.target.value; applyButtonStyles(); });
 on('pBtnPressBg',e => { btnPressBg = e.target.value; applyButtonStyles(); });
