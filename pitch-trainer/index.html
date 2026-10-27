@@ -241,6 +241,9 @@
     .psec-arrow { font-size: 8px; opacity: .6; transition: transform .15s; }
     .psec-body { overflow: hidden; max-height: 1200px; transition: max-height .25s ease; }
     .psec-body.collapsed { max-height: 0; }
+    #panel-scroll .ptab.sel { background: var(--ctl-sel); color: var(--ctl-sel-fg); border-color: transparent; }
+    #synthControls.off { opacity: .3; pointer-events: none; }
+    #panel-scroll .pbtn-row .ptab { width: auto; }
     .phelp { font-size: 9px; line-height: 1.6; opacity: .4; letter-spacing: .5px; margin: -2px 0 12px; text-transform: none; }
 
     .prow { margin-bottom: 11px; }
@@ -578,6 +581,18 @@
       </div>
     </div>
 
+    <div class="prow">
+      <label>SOUND</label>
+      <div class="pbtn-row">
+        <button id="pVoiceHarp" type="button" class="ptab sel">HARP</button>
+        <button id="pVoiceSynth" type="button" class="ptab">SYNTH</button>
+      </div>
+      <p class="phelp" style="margin:8px 0 12px">HARP is a real recording of a concert harp. SYNTH is the built-in tone you can shape with the controls below.</p>
+    </div>
+    <div class="prow"><label>HOW LONG IT RINGS <span class="v" id="pTailV"></span></label>
+      <input type="range" id="pTail" min="0.3" max="4" step="0.1" autocomplete="off"></div>
+
+    <div id="synthControls">
     <!-- ATTACK -->
     <div class="psec-hdr" onclick="toggleSec('attack')">
       <span class="psec-arrow" id="arr-attack">▾</span>ATTACK
@@ -623,9 +638,9 @@
         <input type="range" id="pFiltClose" min="1" max="8" step="0.5" autocomplete="off"></div>
       <div class="prow"><label>TWANG <span class="v" id="pFiltQV"></span></label>
         <input type="range" id="pFiltQ" min="0.3" max="3" step="0.1" autocomplete="off"></div>
-      <div class="prow"><label>HOW LONG IT RINGS <span class="v" id="pTailV"></span></label>
-        <input type="range" id="pTail" min="0.3" max="4" step="0.1" autocomplete="off"></div>
     </div>
+
+    </div><!-- /synthControls -->
 
     <div class="prow">
       <label>SAVE THESE SETTINGS</label>
@@ -660,6 +675,7 @@
   </div><!-- /panel-scroll -->
 </div><!-- /panel -->
 
+<script src="harp-samples.js"></script>
 <script>
 // ─────────────────────────────────────────────────────────────
 // Visual settings
@@ -1216,6 +1232,9 @@ function applyHeader() {
 // Audio
 // ─────────────────────────────────────────────────────────────
 let audioCtx = null;
+let voice = 'harp';        // 'harp' = recorded concert harp, 'synth' = the oscillator voice tuned in the Sound tab
+let harpSet = null;        // decoded harp samples: [{midi, f0, buf}], null until ready (or if decoding fails)
+let harpLoading = null;
 let pluckWave = null;      // custom harmonic content, rebuilt whenever a harmonic slider moves
 // Overtone amplitudes above the (fixed) fundamental, as percent — tunable from the Sound panel.
 let harm2 = 28, harm3 = 14, harm4 = 7, harm5 = 4;
@@ -1229,10 +1248,44 @@ function rebuildPluckWave() {
   const imag = new Float32Array([0, 1, harm2/100, harm3/100, harm4/100, harm5/100]);
   pluckWave = audioCtx.createPeriodicWave(new Float32Array(imag.length), imag);
 }
+const NOTE_PC = {C:0,'C#':1,D:2,'D#':3,E:4,F:5,'F#':6,G:7,'G#':8,A:9,'A#':10,B:11};
+function loadHarp() {
+  if (harpLoading || !window.HARP_SAMPLES) return harpLoading;
+  harpLoading = Promise.all(Object.entries(window.HARP_SAMPLES).map(async ([name, v]) => {
+    const m = name.match(/^([A-G]#?)(\d)$/);
+    const bin = atob(v.b64), u = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    const buf = await audioCtx.decodeAudioData(u.buffer);
+    const d = buf.getChannelData(0); let pk = 0;
+    for (let i = 0; i < d.length; i++) pk = Math.max(pk, Math.abs(d[i]));
+    if (pk > 0) for (let i = 0; i < d.length; i++) d[i] *= 0.9 / pk;   // level-match the samples
+    return { midi: 12 * (+m[2] + 1) + NOTE_PC[m[1]], f0: v.f0, buf };
+  })).then(set => { harpSet = set; }).catch(() => { harpSet = null; });   // no AAC support → synth fallback
+  return harpLoading;
+}
 function initAudio() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  loadHarp();
   if (!pluckWave) rebuildPluckWave();
   if (audioCtx.state === 'suspended') audioCtx.resume(); // fire-and-forget pre-warm
+}
+// Nearest recording, resampled to the exact target pitch. The rate uses the sample's MEASURED
+// fundamental, because the recordings are several cents off their note names.
+function playHarp(freq, idx) {
+  const now = audioCtx.currentTime, tm = 69 + 12 * Math.log2(freq / 440);
+  let best = harpSet[0];
+  for (const s of harpSet) if (Math.abs(s.midi - tm) < Math.abs(best.midi - tm)) best = s;
+  const src = audioCtx.createBufferSource(), gain = audioCtx.createGain();
+  src.buffer = best.buf; src.playbackRate.value = freq / best.f0;
+  gain.gain.setValueAtTime(0.5, now);
+  gain.gain.exponentialRampToValueAtTime(0.0008, now + soundTail * 2.5);   // ring length scales the natural decay
+  src.connect(gain); gain.connect(audioCtx.destination);
+  src.start(now); src.stop(now + soundTail * 2.5 + 0.08);
+  if (idx != null) {
+    const note = { osc: src, gain };
+    activeNotes[idx] = note;
+    src.onended = () => { if (activeNotes[idx] === note) activeNotes[idx] = null; };
+  }
 }
 async function playTone(freq, idx) {
   initAudio();
@@ -1251,6 +1304,10 @@ async function playTone(freq, idx) {
       prev.gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.06);
       prev.osc.stop(now + 0.08);
     } catch(e) {}
+  }
+  if (voice === 'harp') {
+    if (harpLoading) await harpLoading;
+    if (harpSet && harpSet.length) { playHarp(freq, idx); return; }
   }
   const osc = audioCtx.createOscillator(), filter = audioCtx.createBiquadFilter(), gain = audioCtx.createGain();
   osc.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
@@ -1754,6 +1811,12 @@ document.getElementById('pClose').addEventListener('click', closePanel);
 }
 
 // Collapsible sections
+function setVoice(v) {
+  voice = v;
+  document.getElementById('pVoiceHarp').classList.toggle('sel', v === 'harp');
+  document.getElementById('pVoiceSynth').classList.toggle('sel', v === 'synth');
+  document.getElementById('synthControls').classList.toggle('off', v === 'harp');
+}
 function setPanelTab(name) {
   const vis = name === 'visuals';
   document.getElementById('tab-visuals').style.display = vis ? '' : 'none';
@@ -1774,7 +1837,7 @@ function currentVis() {
     bg, bgCol2, bgAngle, strCol, strW, mutedCol, mutedOpacity, mutedBlend, pinR, pinCol, pinHoleR, pinHoleCol,
     spacing,
     bodyColor, bodyCol2, bodyRadius, holePos, bowAmount, vibBlurAmt, vibSustain, resetMs, soundTail,
-    harm2, harm3, harm4, harm5, filterOpenMult, filterCloseMult, filterQ, attackAmt, attackSharp, attackTime,
+    voice, harm2, harm3, harm4, harm5, filterOpenMult, filterCloseMult, filterQ, attackAmt, attackSharp, attackTime,
     rosetteCol, rosettePoints, rosetteDepth, rosetteRoundOut, rosetteRoundIn, rosetteGap, rosetteW,
     ringCount, ringSpacing, ringTaper, innerBand, innerBandGap, outerBand, outerBandGap, bandW, bandCol, bandFill, bandFillCol,
     bridgeW, bridgeCol,
@@ -1836,6 +1899,7 @@ function syncPanel() {
   g('pSustain').value  = vibSustain;    g('pSustainV').textContent   = vibSustain;
   g('pGrab').value     = grabZone;      g('pGrabV').textContent      = grabZone + 'px';
   g('pResetMs').value  = resetMs;       g('pResetMsV').textContent   = resetMs ? resetMs + 'ms' : 'off';
+  setVoice(voice);
   g('pTail').value     = soundTail;     g('pTailV').textContent      = soundTail.toFixed(1) + 's';
   g('pHarm2').value    = harm2;         g('pHarm2V').textContent     = harm2 + '%';
   g('pHarm3').value    = harm3;         g('pHarm3V').textContent     = harm3 + '%';
@@ -1933,6 +1997,7 @@ function loadVis() {
     if (s.attackAmt   != null) attackAmt   = +s.attackAmt;
     if (s.attackSharp != null) attackSharp = +s.attackSharp;
     if (s.attackTime  != null) attackTime  = +s.attackTime;
+    if (s.voice === 'harp' || s.voice === 'synth') voice = s.voice;
     if (s.saddleYOff  != null) saddleYOff  = +s.saddleYOff;
     if (s.saddleWFrac != null) saddleWFrac = +s.saddleWFrac;
     if (s.saddleThick != null) saddleThick = +s.saddleThick;
@@ -2024,6 +2089,7 @@ function applyVisObj(s) {
   if (s.attackAmt   != null) attackAmt   = +s.attackAmt;
   if (s.attackSharp != null) attackSharp = +s.attackSharp;
   if (s.attackTime  != null) attackTime  = +s.attackTime;
+  if (s.voice === 'harp' || s.voice === 'synth') voice = s.voice;
   if (s.saddleYOff  != null) saddleYOff  = +s.saddleYOff;
   if (s.saddleWFrac != null) saddleWFrac = +s.saddleWFrac;
   if (s.saddleThick != null) saddleThick = +s.saddleThick;
@@ -2171,7 +2237,7 @@ document.getElementById('pCopy').addEventListener('click', () => {
 });
 // Sound-only snapshot — everything in the Sound tab, none of the Visuals-tab clutter.
 function soundVis() {
-  return { soundTail, harm2, harm3, harm4, harm5, filterOpenMult, filterCloseMult, filterQ, attackAmt, attackSharp, attackTime };
+  return { voice, soundTail, harm2, harm3, harm4, harm5, filterOpenMult, filterCloseMult, filterQ, attackAmt, attackSharp, attackTime };
 }
 document.getElementById('pCopySound').addEventListener('click', () => {
   const text = JSON.stringify(soundVis());
@@ -2192,6 +2258,8 @@ document.getElementById('pApply').addEventListener('click', () => {
     applyBody(); applyHeader(); applyButtonStyles(); buildSVG(); rebuildPluckWave();
   } catch(e) {}
 });
+document.getElementById('pVoiceHarp').addEventListener('click', () => setVoice('harp'));
+document.getElementById('pVoiceSynth').addEventListener('click', () => setVoice('synth'));
 document.getElementById('pTestLow').addEventListener('click', () => playTone(261.63, null));
 document.getElementById('pTestHigh').addEventListener('click', () => playTone(987.77, null));
 
