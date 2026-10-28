@@ -733,7 +733,7 @@ let grabZone     = 34;      // px tap tolerance for the INITIAL touch (generous;
 let strumSlip    = 0.6;     // fraction of the string spacing a string is dragged before it slips off (strum)
 let kinkSpread   = 90;      // px the finger-bend bulge spreads along the string (bigger = softer, smaller = sharper)
 let resetMs      = 300;     // new-round reset: strings collapse width+fade out, then back (0 = off)
-let soundTail    = 1;       // note tail length in seconds (how long a pluck rings out)
+let soundTail    = 2.3;       // note tail length in seconds (how long a pluck rings out)
 
 // Button appearance
 let btnColor     = PALETTE.cream;   // ready (tappable) state colour
@@ -1240,7 +1240,7 @@ function applyHeader() {
 // ─────────────────────────────────────────────────────────────
 let audioCtx = null;
 let voice = 'harp';        // 'harp' = recorded concert harp, 'synth' = the oscillator voice tuned in the Sound tab
-let warmth = 3, soften = 35, room = 12;   // master polish (both voices): low boost dB, treble roll-off, reverb amount %
+let warmth = 9, soften = 100, room = 38;   // master polish (both voices): low boost dB, treble roll-off, reverb amount %
 let bus = null;            // shared output chain every note connects to
 let harpSet = null;        // decoded harp samples: [{midi, f0, buf}], null until ready (or if decoding fails)
 let harpLoading = null;
