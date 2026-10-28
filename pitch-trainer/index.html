@@ -450,10 +450,14 @@
         <input type="range" id="pRosPts" min="0" max="16" step="1" autocomplete="off"></div>
       <div class="prow"><label>DEPTH <span class="v" id="pRosDepthV"></span></label>
         <input type="range" id="pRosDepth" min="0" max="60" step="1" autocomplete="off"></div>
-      <div class="prow"><label>ROUNDNESS — OUTER <span class="v" id="pRosRoundOutV"></span></label>
-        <input type="range" id="pRosRoundOut" min="0" max="260" step="1" autocomplete="off"></div>
-      <div class="prow"><label>ROUNDNESS — INNER <span class="v" id="pRosRoundInV"></span></label>
-        <input type="range" id="pRosRoundIn" min="0" max="130" step="1" autocomplete="off"></div>
+      <div class="prow"><label>TIP CORNER RADIUS <span class="v" id="pRosCornerOutV"></span></label>
+        <input type="range" id="pRosCornerOut" min="0" max="24" step="0.5" autocomplete="off"></div>
+      <div class="prow"><label>VALLEY CORNER RADIUS <span class="v" id="pRosCornerInV"></span></label>
+        <input type="range" id="pRosCornerIn" min="0" max="24" step="0.5" autocomplete="off"></div>
+      <div class="prow"><label>TIP SMOOTHING <span class="v" id="pRosRoundOutV"></span></label>
+        <input type="range" id="pRosRoundOut" min="0" max="100" step="1" autocomplete="off"></div>
+      <div class="prow"><label>VALLEY SMOOTHING <span class="v" id="pRosRoundInV"></span></label>
+        <input type="range" id="pRosRoundIn" min="0" max="100" step="1" autocomplete="off"></div>
       <div class="prow"><label>GAP (from hole) <span class="v" id="pRosGapV"></span></label>
         <input type="range" id="pRosGap" min="0" max="80" step="1" autocomplete="off"></div>
       <div class="prow"><label>STROKE (inner ring) <span class="v" id="pRosWV"></span></label>
@@ -789,8 +793,10 @@ let rosetteW      = 2.2;    // px stroke width of the innermost ring
 let rosetteCol    = PALETTE.brown;
 let rosettePoints = 10;     // lobe count (<3 → plain circle ring)
 let rosetteDepth  = 30;     // px the lobes bump out past the valley
-let rosetteRoundOut = 25;   // roundness % of the OUTER points (lobe tips)
-let rosetteRoundIn  = 10;   // roundness % of the INNER points (valleys)
+let rosetteRoundOut = 0;    // roundness % of the OUTER points (lobe tips)
+let rosetteRoundIn  = 0;    // roundness % of the INNER points (valleys)
+let rosetteCornerOut = 3;  // px corner radius on the lobe tips
+let rosetteCornerIn  = 2;  // px corner radius on the valleys
 let ringCount     = 2;      // concentric flower rings (the rosette stack)
 let ringSpacing   = 4.5;     // px between rings
 let ringTaper     = 100;    // % stroke width of each ring vs the one inside it
@@ -852,8 +858,8 @@ const holeCY   = () => bridgeCY() - holePos;  // soundhole/rosette sit holePos p
 
 // Rosette as a rounded N-point star (Figma-style). Valleys sit `rosetteGap` out
 // from the hole edge; peaks bump out a further `rosetteDepth`. Roundness is set
-// per vertex type — rosetteRoundOut (lobe tips) and rosetteRoundIn (valleys),
-// 0 = sharp … higher = rounder, bulgier.
+// per vertex type: rosetteCornerOut/In are corner radii in px; rosetteRoundOut/In add
+// extra SMOOTHING (0-100%) toward a continuous wave.
 function rosettePath(cx, cy, rv) {                   // rv = this ring's valley radius
   const n = Math.round(rosettePoints);
   if (n < 3 || rosetteDepth <= 0) {                 // degenerate → plain circle ring
@@ -862,24 +868,36 @@ function rosettePath(cx, cy, rv) {                   // rv = this ring's valley 
          + `a ${rv} ${rv} 0 1 0 ${(-2 * rv).toFixed(2)} 0 Z`;
   }
   const rp = rv + rosetteDepth;                     // peak radius (lobe tips)
-  // Per-vertex handle scale: even index = outer point (peak), odd = inner point (valley).
-  const sOut = (rosetteRoundOut / 100) * 1.3, sIn = (rosetteRoundIn / 100) * 1.3;
-  const sFor = idx => (idx % 2 === 0 ? sOut : sIn);
   const pts = [];
   for (let i = 0; i < 2 * n; i++) {
     const ang = Math.PI * i / n - Math.PI / 2;      // first peak at top
     const r = (i % 2 === 0) ? rp : rv;
     pts.push([cx + r * Math.cos(ang), cy + r * Math.sin(ang)]);
   }
-  // Closed Catmull-Rom spline; each vertex's handle is scaled by its own roundness.
-  const m = pts.length;
-  let d = `M ${pts[0][0].toFixed(2)} ${pts[0][1].toFixed(2)} `;
+  // Straight edges, with each vertex rounded by a corner radius (px). The fillet starts
+  // r / tan(half-angle) back along each edge; the SMOOTHING % then eats further toward the edge
+  // midpoints, so 100% turns the star into a continuous wave. Even index = tip, odd = valley.
+  const m = pts.length, A = [], B = [];
   for (let i = 0; i < m; i++) {
-    const p0 = pts[(i - 1 + m) % m], p1 = pts[i], p2 = pts[(i + 1) % m], p3 = pts[(i + 2) % m];
-    const s1 = sFor(i), s2 = sFor(i + 1);
-    const c1x = p1[0] + (p2[0] - p0[0]) * s1 / 6, c1y = p1[1] + (p2[1] - p0[1]) * s1 / 6;
-    const c2x = p2[0] - (p3[0] - p1[0]) * s2 / 6, c2y = p2[1] - (p3[1] - p1[1]) * s2 / 6;
-    d += `C ${c1x.toFixed(2)} ${c1y.toFixed(2)} ${c2x.toFixed(2)} ${c2y.toFixed(2)} ${p2[0].toFixed(2)} ${p2[1].toFixed(2)} `;
+    const P = pts[i], Pp = pts[(i - 1 + m) % m], Pn = pts[(i + 1) % m], tip = i % 2 === 0;
+    const u1 = [Pp[0] - P[0], Pp[1] - P[1]], u2 = [Pn[0] - P[0], Pn[1] - P[1]];
+    const l1 = Math.hypot(u1[0], u1[1]), l2 = Math.hypot(u2[0], u2[1]);
+    u1[0] /= l1; u1[1] /= l1; u2[0] /= l2; u2[1] /= l2;
+    const cosT = Math.max(-1, Math.min(1, u1[0] * u2[0] + u1[1] * u2[1])), half = Math.acos(cosT) / 2;
+    const maxD = 0.5 * Math.min(l1, l2);
+    const radius = tip ? rosetteCornerOut : rosetteCornerIn;
+    const smooth = Math.min(1, (tip ? rosetteRoundOut : rosetteRoundIn) / 100);
+    const dist = Math.min(maxD, (half > 0.01 ? radius / Math.tan(half) : 0) + smooth * maxD);
+    A.push([P[0] + u1[0] * dist, P[1] + u1[1] * dist]);
+    B.push([P[0] + u2[0] * dist, P[1] + u2[1] * dist]);
+  }
+  const f = v => v.toFixed(2), k = 0.55;           // k≈0.55 makes the corner blend near-circular
+  let d = `M ${f(B[m - 1][0])} ${f(B[m - 1][1])} `;
+  for (let i = 0; i < m; i++) {
+    const P = pts[i];
+    d += `L ${f(A[i][0])} ${f(A[i][1])} `
+       + `C ${f(A[i][0] + (P[0] - A[i][0]) * k)} ${f(A[i][1] + (P[1] - A[i][1]) * k)} `
+       + `${f(B[i][0] + (P[0] - B[i][0]) * k)} ${f(B[i][1] + (P[1] - B[i][1]) * k)} ${f(B[i][0])} ${f(B[i][1])} `;
   }
   return d + 'Z';
 }
@@ -1925,7 +1943,7 @@ function currentVis() {
     toastHold, toastFade,
     hdrFont, bestSize, bestOp,
     bestGap, hdrTop, hdrBtnCol, hdrBtnBorder, hdrBtnSize, hdrBtnStroke, redoGlyphSize, chipTextSize,
-    vOffset, rosetteDots, rosetteDotR, grain
+    vOffset, rosetteDots, rosetteDotR, grain, rosetteCornerOut, rosetteCornerIn
   };
 }
 
@@ -1951,6 +1969,8 @@ function syncPanel() {
   g('pRosCol').value   = rosetteCol;
   g('pRosPts').value   = rosettePoints; g('pRosPtsV').textContent   = rosettePoints;
   g('pRosDepth').value = rosetteDepth;  g('pRosDepthV').textContent = rosetteDepth + 'px';
+  g('pRosCornerOut').value = rosetteCornerOut; g('pRosCornerOutV').textContent = rosetteCornerOut + 'px';
+  g('pRosCornerIn').value  = rosetteCornerIn;  g('pRosCornerInV').textContent  = rosetteCornerIn + 'px';
   g('pRosRoundOut').value = rosetteRoundOut; g('pRosRoundOutV').textContent = rosetteRoundOut + '%';
   g('pRosRoundIn').value  = rosetteRoundIn;  g('pRosRoundInV').textContent  = rosetteRoundIn + '%';
   g('pRosGap').value   = rosetteGap;    g('pRosGapV').textContent   = rosetteGap + 'px';
@@ -2122,6 +2142,8 @@ function loadVis() {
     if (s.rosetteDots != null) rosetteDots = !!s.rosetteDots;
     if (s.rosetteDotR != null) rosetteDotR = +s.rosetteDotR;
     if (s.grain       != null) grain       = +s.grain;
+    if (s.rosetteCornerOut != null) rosetteCornerOut = +s.rosetteCornerOut;
+    if (s.rosetteCornerIn  != null) rosetteCornerIn  = +s.rosetteCornerIn;
   } catch(e) {}
 }
 function saveVis() { localStorage.setItem(LS_VIS, JSON.stringify(currentVis())); }
@@ -2220,6 +2242,8 @@ function applyVisObj(s) {
   if (s.rosetteDots != null) rosetteDots = !!s.rosetteDots;
   if (s.rosetteDotR != null) rosetteDotR = +s.rosetteDotR;
   if (s.grain       != null) grain       = +s.grain;
+  if (s.rosetteCornerOut != null) rosetteCornerOut = +s.rosetteCornerOut;
+  if (s.rosetteCornerIn  != null) rosetteCornerIn  = +s.rosetteCornerIn;
 }
 
 // Live inputs
@@ -2244,6 +2268,8 @@ on('pBodyY',     e => { holePos    = +e.target.value; document.getElementById('p
 on('pRosCol',    e => { rosetteCol   = e.target.value; applyRosette(); });
 on('pRosPts',    e => { rosettePoints= +e.target.value; document.getElementById('pRosPtsV').textContent  = rosettePoints; applyRosette(); });
 on('pRosDepth',  e => { rosetteDepth = +e.target.value; document.getElementById('pRosDepthV').textContent= rosetteDepth+'px'; applyRosette(); });
+on('pRosCornerOut', e => { rosetteCornerOut = +e.target.value; document.getElementById('pRosCornerOutV').textContent = rosetteCornerOut+'px'; applyRosette(); });
+on('pRosCornerIn',  e => { rosetteCornerIn  = +e.target.value; document.getElementById('pRosCornerInV').textContent  = rosetteCornerIn+'px';  applyRosette(); });
 on('pRosRoundOut', e => { rosetteRoundOut = +e.target.value; document.getElementById('pRosRoundOutV').textContent = rosetteRoundOut+'%'; applyRosette(); });
 on('pRosRoundIn',  e => { rosetteRoundIn  = +e.target.value; document.getElementById('pRosRoundInV').textContent  = rosetteRoundIn+'%';  applyRosette(); });
 on('pRosGap',    e => { rosetteGap   = +e.target.value; document.getElementById('pRosGapV').textContent  = rosetteGap+'px'; applyRosette(); });
