@@ -832,6 +832,17 @@ let mainPath = [], ghostEls = [], blurDev = [], grpEls = [], pinEls = [];
 let bodyCircle = null, rosetteGrp = null, rosetteBands = [], bridgeGrp = null, saddleLine = null;
 let rosetteAngle = 0;            // accumulates one notch per round → the rosette spin
 // Whole-UI scale, stepped by viewport width (like Cmd +). Phones stay 1.0.
+// Board scale = width tier x a height fit. Content needs ~412 logical px (rosette top to bridge
+// bottom) plus the vOffset nudge, so on short screens (small phones, landscape) the whole board
+// shrinks to fit instead of the rosette running off the top and the bridge into the buttons.
+// Header and button chrome keep using uiScale() alone.
+let boardS = 1, boardFit = 1;
+const vOff = () => vOffset * boardFit;
+function computeBoardScale() {
+  const stageH = document.getElementById('stage').getBoundingClientRect().height, S0 = uiScale();
+  boardFit = Math.max(0.4, Math.min(1, (stageH - 30) / (412 * S0 + vOffset)));
+  boardS = S0 * boardFit;
+}
 function uiScale() { const w = window.innerWidth; return w >= 1000 ? 1.30 : w >= 600 ? 1.15 : 1.0; }
 const BRIDGE_PATH = 'M0.427937 7.39967L8.79791 60.3275C9.06274 62.0021 10.5063 63.2353 12.2017 63.2353C32.4322 63.2353 52.1332 69.0626 70.9013 76.6145C83.2111 81.5676 97.6181 86 109.758 86C121.897 86 136.304 81.5676 148.614 76.6145C167.382 69.0626 187.083 63.2353 207.314 63.2353C209.009 63.2353 210.453 62.0021 210.718 60.3275L219.088 7.39967C219.491 4.85148 219.692 3.57738 219.317 2.58547C218.988 1.71493 218.366 0.98639 217.557 0.525332C216.636 0 215.346 0 212.766 0H6.74938C4.16952 0 2.8796 0 1.95844 0.525332C1.14998 0.98639 0.527602 1.71493 0.198483 2.58547C-0.176517 3.57738 0.0249675 4.85148 0.427937 7.39967Z';
 
@@ -982,7 +993,8 @@ function ghostOpacity(k, env) {
 function buildSVG() {
   const svg = document.getElementById('svg');
   const rect = document.getElementById('stage').getBoundingClientRect();
-  const S = uiScale();
+  computeBoardScale();
+  const S = boardS;
   W = rect.width / S; H = rect.height / S;          // draw in logical units…
   document.getElementById('svg').setAttribute('viewBox', `0 0 ${W} ${H}`);   // …viewBox scales the whole board by S
   applyVOffset();
@@ -1099,7 +1111,7 @@ function hexToRgb(hex) {
   return r ? { r: parseInt(r[1],16), g: parseInt(r[2],16), b: parseInt(r[3],16) } : null;
 }
 function applyVOffset() {
-  document.getElementById('svg').style.transform = `translateY(${vOffset}px)`;
+  document.getElementById('svg').style.transform = `translateY(${vOff()}px)`;
 }
 function applyGrain() { document.getElementById('grain').style.opacity = grain / 100; }
 function applyBg() {
@@ -1142,7 +1154,7 @@ function resetStrings() {
   const lens = mainPath.map(p => p ? p.getTotalLength() : 0);
   // The string runs well above the viewport; only map the redraw to the on-screen
   // length (pin → top of stage) so the visible draw spans the whole phase.
-  const offTop = Math.max(0, H * 0.5 - vOffset / uiScale());
+  const offTop = Math.max(0, H * 0.5 - vOff() / boardS);
   (function frame() {
     if (myGen !== resetGen) return;              // a newer reset superseded this one
     const t = performance.now() - t0;
@@ -1451,13 +1463,13 @@ const ptr = { active: false, idx: -1, skip: -1, grabFx: 0, startX: 0, lastFx: 0,
 const stringX     = i => W * xRatio(i);
 const strumSlipPx = () => strumSlip * spacing;      // drag distance before a held string slips off
 const canCatch    = j => !(j === 1 && !played[0]);  // target stays locked until the reference has sounded
-const belowBoard  = localY => localY / uiScale() > strBotY() + vOffset / uiScale() + pinR;
+const belowBoard  = localY => localY / boardS > strBotY() + vOff() / boardS + pinR;
 function bendHeld(fx) {                               // bend follows the drag FROM the contact point (no snap)
   cx[ptr.idx] = Math.max(-bowAmount, Math.min(bowAmount, fx - ptr.grabFx));
   redraw(ptr.idx);
 }
 function grabString(j, fx, localY) {                 // catch string j at the finger
-  grabY[j] = (localY - vOffset) / uiScale();
+  grabY[j] = (localY - vOff()) / boardS;
   if (vib[j]) { vibGen[j]++; vib[j] = false; cx[j] = 0; redraw(j); }   // silence a still-ringing string
   ptr.idx = j; ptr.grabFx = fx; bendHeld(fx);        // grabFx = contact point → starts at rest, no yank
 }
@@ -1472,9 +1484,9 @@ function nearestString(clientX, localY) {
   // the string's hit area would span the whole stage height. (SVG is shifted by
   // vOffset, so the pin sits at strBotY() + vOffset in stage-local coords.)
   // Geometry is logical (viewBox scales by uiScale) — map the touch coords in.
-  const S = uiScale();
+  const S = boardS;
   clientX /= S;
-  if (localY != null && localY / S > strBotY() + vOffset / S + pinR) return -1;
+  if (localY != null && localY / S > strBotY() + vOff() / S + pinR) return -1;
   let best = -1, dist = Infinity;
   for (let i = 0; i < NUM_STRINGS; i++) {
     const d = Math.abs(clientX - W * xRatio(i));
@@ -1489,22 +1501,22 @@ function onDown(clientX, clientY) {
   const localY = clientY - ptr.stageTop;
   if (belowBoard(localY)) return;              // presses below the strings don't start a gesture
   ptr.active = true; ptr.idx = -1; ptr.skip = -1;
-  ptr.startX = clientX; ptr.lastFx = clientX / uiScale(); ptr.lastY = localY; ptr.moved = false;
+  ptr.startX = clientX; ptr.lastFx = clientX / boardS; ptr.lastY = localY; ptr.moved = false;
   // Grab a string right under the finger (tap/pull); otherwise the drag stays free to
   // catch strings as it sweeps across them.
   const i = nearestString(clientX, localY);
-  if (i >= 0 && canCatch(i)) grabString(i, clientX / uiScale(), localY);
+  if (i >= 0 && canCatch(i)) grabString(i, clientX / boardS, localY);
 }
 function onMove(clientX, clientY) {
   if (!ptr.active) return;
-  const fx = clientX / uiScale();
+  const fx = clientX / boardS;
   const localY = clientY != null ? clientY - ptr.stageTop : ptr.lastY;
   ptr.lastY = localY;
   if (Math.abs(clientX - ptr.startX) > 4) ptr.moved = true;
   // Holding a string: apex follows the finger's y, bend follows its x, and it slips
   // off once dragged far enough.
   if (ptr.idx >= 0) {
-    grabY[ptr.idx] = Math.min(strBotY() - 4, (localY - vOffset) / uiScale());   // bend where the finger is
+    grabY[ptr.idx] = Math.min(strBotY() - 4, (localY - vOff()) / boardS);   // bend where the finger is
     bendHeld(fx);
     if (Math.abs(fx - ptr.grabFx) >= strumSlipPx()) slipHeld();                 // slipped once dragged far enough
   }
